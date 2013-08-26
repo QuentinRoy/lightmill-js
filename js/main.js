@@ -16,7 +16,7 @@ requirejs.config({
 });
 
 
-define(['xpconnect'], function (xpConnect) {
+define(['xpclient/xpconnect'], function (xpConnect) {
     'use strict';
     console.log('youpi');
 });
