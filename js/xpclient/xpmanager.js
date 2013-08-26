@@ -1,10 +1,28 @@
-define(['./xpconnect', 'jquery'], function (xpconnect, $) {
+define(['./xpconnect', 'jquery', 'state-machine'], function (xpconnect, $, StateMachine) {
     "use strict";
 
-    function PreTestManager() {
+    function PreTestManager(mainDiv) {
+        this._mainDiv = mainDiv || $("#main-div");
 
+        // TODO: something instead of nothing
+        this._loadingWidget = {
+            start: function () {},
+            stop: function () {}
+        };
+
+        this._stateMachine = StateMachine.create({
+            initial: 'idle',
+            events: [
+                { name: 'start',        from: 'idle',           to: 'intertrial'    },
+                { name: 'trialinfo',    from: 'intertrial',     to: 'trialrunning'  },
+                { name: 'trialend',     from: 'trialrunning',   to: 'intertrial'    },
+                { name: 'blockend',     from: 'trialrunning',   to: 'interblock'    },
+                { name: 'startelock',   from: 'interblock',     to: 'intertrial'    },
+                { name: 'xpend',        from: 'trialrunning',   to: 'completed'     }
+            ],
+            callbacks: this._getFsmCallbacks()
+        });
     }
-
 
     PreTestManager.prototype = {
 
@@ -35,7 +53,34 @@ define(['./xpconnect', 'jquery'], function (xpconnect, $) {
                 "border-width": 3,
                 "border-color": "#4D954D"
             });
-        }
+        },
+
+        start: function () {
+            this._fsm.start();
+        },
+
+        _onInterTrial: function () {
+            this._loadingWidget.start();
+            xpconnect.requestNextTrial().done($.proxy(this._startTrial, this));
+        },
+
+        _startTrial: function () {},
+
+
+        _getFsmCallbacks: function () {
+            var callbacks = {};
+            for (var prop in this) {
+                if (prop.startsWith("_on")) {
+                    var fsmStr = prop.toLowerCase().slice(1),
+                        method = this[prop];
+                    if (typeof method === "function"){
+                        callbacks[fsmStr] = $.proxy(this[prop], this);
+                    }
+                }
+            }
+            return callbacks;
+        },
+
 
     };
 
