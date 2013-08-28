@@ -1,0 +1,10 @@
+<div class="full-parent">
+    <div style="padding:30px;text-align:center;vertical-align:middle;">
+        <h1>Block <%= number %> </h1>
+        <div >
+            <% _.each(values, function(value) { %>
+                <div><%= value.factor.name %>: <%= value.name %></div>
+            <% }) %>
+        </div>
+    </div>
+</div>

@@ -1,8 +1,8 @@
 /*jslint nomen: true, browser:true*/
 /*global define */
 
-define(['./connection', './inter-views', 'jquery', 'state-machine', 'jstools/tools', './config'],
-       function (XpConnection, InterManager, $, StateMachine, tools, config) {
+define(['./connection', './views/block-init', './views/wait', 'jquery', 'state-machine', 'jstools/tools', './config'],
+       function (XpConnection, BlockInitView, WaitView, $, StateMachine, tools, config) {
     "use strict";
 
     function PreTestManager(taskManager, mainDiv) {
@@ -10,7 +10,8 @@ define(['./connection', './inter-views', 'jquery', 'state-machine', 'jstools/too
         this._taskManager = taskManager;
         this._trialResultPromise = null;
         this._currentTrial = null;
-        this._interManager = new InterManager();
+        this._blockInitView = new BlockInitView(this._mainDiv);
+        this._waitView = new WaitView(this._mainDiv);
         this._connection = new XpConnection();
 
         this._fsm = StateMachine.create({
@@ -34,23 +35,48 @@ define(['./connection', './inter-views', 'jquery', 'state-machine', 'jstools/too
             this._fsm.start();
         },
         
+        _populateFactorValues: function (values, factors) {
+            var factorValues = {};
+            for (var factorId in values) {
+                var valueId = values[factorId],
+                    valueName = factors[factorId].values[valueId] || valueId,
+                    factorName = factors[factorId].name || factorId;
+                factorValues[factorId] = {
+                    factor: {
+                        id: factorId,
+                        name: factorName
+                    },
+                    name: valueName,
+                    id: valueId
+                };
+            }
+            return factorValues;
+        },
+        
         _onBlockLoading: function(){
+            this._waitView.startWaiting();
             var that = this;
-            this._connection.currentTrial.done(function(trial){
+            $.when(this._connection.currentTrial, this._connection.factors).done(function(trial, factors){
+                trial = trial[0];
+                factors = factors[0];
                 that._fsm.blockloaded({
                     number:trial.block_number,
-                    values:trial.block_values,
+                    values:that._populateFactorValues(trial.block_values, factors),
                     measure_block_number:trial.measure_block_number
                 });
             });
         },
         
+        _onLeaveBlockLoading: function(){
+            this._waitView.stopWaiting();
+        },
+        
         _onBlockInit: function(name, from, to, blockInfo){
-            this._interManager.blockInit(blockInfo).done($.proxy(this._fsm.startblock, this._fsm));
+            this._blockInitView.blockInit(blockInfo).done($.proxy(this._fsm.startblock, this._fsm));
         },
         
         _onTrialLoading: function () {
-            this._interManager.startWaiting();
+            this._waitView.startWaiting();
             this._connection.currentTrial
                 .done($.proxy(this._fsm.trialloaded, this._fsm))
                 .fail(function (m) {
@@ -65,7 +91,7 @@ define(['./connection', './inter-views', 'jquery', 'state-machine', 'jstools/too
         },
         
         _onLeavetrialloading: function(){
-            this._interManager.stopWaiting();
+            this._waitView.stopWaiting();
         },
                 
         _onTrialRunning: function (name, from, to, trial) {

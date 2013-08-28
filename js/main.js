@@ -11,7 +11,13 @@ requirejs.config({
         'templates': '../templates',
         'state-machine': 'libs/state-machine-modified',
         'signals': 'libs/signals',
-        'cookies': 'libs/cookies'
+        'cookies': 'libs/cookies',
+        'underscore': 'libs/underscore'
+    },
+    shim: {
+        underscore: {
+            exports: '_'
+        }
     }
 });
 
