@@ -1,3 +1,6 @@
+/*jslint nomen: true, browser:true*/
+/*global define */
+
 define(['jquery'], function ($) {
 
     function TaskManager() {
@@ -46,9 +49,10 @@ define(['jquery'], function ($) {
                 });
             }, 10);
             
-            return dfd;
+            return dfd.promise();
         },
 
+        
     };
 
     return TaskManager;
