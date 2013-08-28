@@ -16,7 +16,9 @@ requirejs.config({
 });
 
 
-define(['xpclient/xpmanager'], function (Manager) {
+define(['xpclient/xp-manager', 'xpclient/pretest-task-manager'], function (Manager, PretestTask) {
     'use strict';
-    
+    var pretestTask = new PretestTask(),
+        manager = new Manager(pretestTask);
+    manager.start();
 });

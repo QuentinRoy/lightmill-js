@@ -1,8 +1,10 @@
-define(['./xpconnect', 'jquery', 'state-machine'], function (xpconnect, $, StateMachine) {
+define(['./xp-connect', 'jquery', 'state-machine', 'jstools/tools'], function (xpconnect, $, StateMachine, tools) {
     "use strict";
 
-    function PreTestManager(mainDiv) {
+    function PreTestManager(taskManager, mainDiv) {
         this._mainDiv = mainDiv || $("#main-div");
+        this._taskManager = taskManager;
+        this._trialResultPromise = null;
 
         // TODO: something instead of nothing
         this._loadingWidget = {
@@ -10,7 +12,7 @@ define(['./xpconnect', 'jquery', 'state-machine'], function (xpconnect, $, State
             stop: function () {}
         };
 
-        this._stateMachine = StateMachine.create({
+        this._fsm = StateMachine.create({
             initial: 'idle',
             events: [
                 { name: 'start',        from: 'idle',           to: 'intertrial'    },
@@ -26,46 +28,26 @@ define(['./xpconnect', 'jquery', 'state-machine'], function (xpconnect, $, State
 
     PreTestManager.prototype = {
 
-        createObject: function () {
-            var objDiv = $("<div />"),
-                size = 150;
-            objDiv.css({
-                width: size,
-                height: size,
-                "border-radius": size,
-                "background-color": "#3231FF",
-                "background-opacity": 0.7,
-                "border-style": "solid",
-                "border-width": 3,
-                "border-color": "#494995"
-            });
-            return objDiv;
-        },
-
-        createTarget: function () {
-            var targetDiv = $("<div />"),
-                size = 160;
-            targetDiv.css({
-                width: size,
-                height: size,
-                "border-radius": size,
-                "border-style": "solid",
-                "border-width": 3,
-                "border-color": "#4D954D"
-            });
-        },
-
         start: function () {
             this._fsm.start();
         },
-
-        _onInterTrial: function () {
+        
+        _onInterTrial: function (name, from, to) {
             this._loadingWidget.start();
-            xpconnect.requestNextTrial().done($.proxy(this._startTrial, this));
+            xpconnect.requestNextTrial()
+                .done($.proxy(this._fsm.trialinfo, this._fsm))
+                .fail(function (m) {
+                    alert("Couldn't retrieve trial info:" + m);
+                });
         },
-
-        _startTrial: function () {},
-
+                
+        _ontrialrunning: function(name, from, to, trialinfo){
+            this._taskManager.startTask(trialinfo).done($.proxy(this._fsm.trialend, this._fsm));
+        },
+        
+        _onleavetrialrunning: function(name, from, to, trialresult){
+            xpconnect.postTrialResults(trialresult);
+        },
 
         _getFsmCallbacks: function () {
             var callbacks = {};
