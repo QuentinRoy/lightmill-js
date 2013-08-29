@@ -13,13 +13,15 @@ define(['jquery', 'jstools/tools', 'text!./block-init-template.html', 'underscor
     BlockInitView.prototype = {
 
         blockInit: function (blockinfo) {
-            //TODO: practice block !
             
             var dfd = $.Deferred(),
-                compiledTemplate = this._template(blockinfo);
+                compiledTemplate = this._template({
+                    name: blockinfo.practice ? "Practice" : "Block " + (blockinfo.measure_block_number + 1),
+                    values: blockinfo.values
+                });
             var div = $(compiledTemplate);
             this._parentView.append(div);
-            div.click(function(){
+            div.click(function () {
                 dfd.resolve();
                 div.remove();
             });

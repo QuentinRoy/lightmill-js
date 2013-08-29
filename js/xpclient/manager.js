@@ -62,7 +62,8 @@ define(['./connection', './views/block-init', './views/wait', 'jquery', 'state-m
                 that._fsm.blockloaded({
                     number:trial.block_number,
                     values:that._populateFactorValues(trial.block_values, factors),
-                    measure_block_number:trial.measure_block_number
+                    measure_block_number:trial.measure_block_number,
+                    practice: trial.practice
                 });
             });
         },
