@@ -7,21 +7,29 @@ define(['./config', 'jquery', 'jstools/tools', 'cookies'], function (config, $, 
     function XpConnect() {
         this.serverAddress = config.SERVER_ADDRESS;
         this.targetXp = config.TARGET_EXPERIMENT;
-        this._lastRequestPromise = null;
         this._factorsPromise = null;
         this._runPromise = null;
         this._postPromise = null;
         this._currentTrialPromise = null;
+        this._lockPromise = null;
         this._lastPostRequest = null;
+        this._unlockPromise = null;
         this._runId = null;
         this._init();
+        this._lock = null;
 
+        $(window).on('beforeunload', $.proxy(function(){
+            this._unlock(false);
+        }, this));
     }
 
     XpConnect.prototype = {
 
         _init: function () {
             // preload some parameters
+            this._requestLock().fail(function (e) {
+                alert("Couldn't lock the run: " + e.responseJSON.message);
+            });
             this._updateFactors();
             this._updateCurrentTrial();
         },
@@ -47,6 +55,42 @@ define(['./config', 'jquery', 'jstools/tools', 'cookies'], function (config, $, 
             return this._runPromise || this.updateRun();
         },
 
+        _requestLock: function () {
+            if (this._lockPromise) {
+                throw "Lock already requested.";
+            }
+            var that = this;
+            this._lockPromise = $.when(this.run, this._unlockPromise).then(function (runPromise) {
+                var run = runPromise[0];
+                return that._requestLockToken(run.id);
+            }).done(function(lock){
+                this._lock = lock;
+            });
+            return this._lockPromise;
+        },
+
+        get lock() {
+            return this._lockPromise || this._requestLock();
+        },
+
+        _unlock: function (async) {
+            var that = this;
+            if (!this._lockPromise) {
+                return this.updateRun();
+            } 
+            this._unlockPromise = this.lock.then(function (lock) {
+                var postParams = {
+                        type: "POST",
+                        url: ''+that.serverAddress + '/run/' + that.targetXp + '/' + lock.run_id + '/unlock',
+                        data:{ token: lock.token },
+                        async: async
+                    };
+                return $.ajax(postParams);
+            });
+            this._lockPromise = null;
+            return this._unlockPromise;
+        },
+
 
         _requestNewRun: function () {
             var address = this.serverAddress + '/experiment/' + this.targetXp + '/next_run';
@@ -57,6 +101,12 @@ define(['./config', 'jquery', 'jstools/tools', 'cookies'], function (config, $, 
             var address = this.serverAddress + '/run/' + this.targetXp + '/' + runId;
             return $.get(address);
         },
+
+        _requestLockToken: function (runId) {
+            var address = this.serverAddress + '/run/' + this.targetXp + '/' + runId + '/lock';
+            return $.get(address);
+        },
+
 
         _updateRunReg: function () {
             var that = this;
@@ -87,13 +137,16 @@ define(['./config', 'jquery', 'jstools/tools', 'cookies'], function (config, $, 
             return this._currentTrialPromise || this._updateCurrentTrial();
         },
 
-        sendTrialResults: function (trialResults) {
+        sendTrialResults: function (data) {
             var that = this;
-            this._lastPostRequest = this.currentTrial.then(function (currentTrial) {
-                // build the address pass
-                var path = [currentTrial.experiment_id, currentTrial.run_id, currentTrial.block_number, currentTrial.number].join('/'),
+            this._lastPostRequest = $.when(this.currentTrial, this.lock).then(function (currentTrialPromise, lockPromise) {
+                var currentTrial = currentTrialPromise[0],
+                    token = lockPromise[0].token,
+                    // build the address pass
+                    path = [currentTrial.experiment_id, currentTrial.run_id, currentTrial.block_number, currentTrial.number].join('/'),
                     address = that.serverAddress + '/trial/' + path;
-                return $.post(address, trialResults);
+                data.token = token;
+                return $.post(address, data);
             });
             this._updateCurrentTrial();
             return this._lastPostRequest;

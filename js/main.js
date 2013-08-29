@@ -4,7 +4,7 @@
 requirejs.config({
     enforceDefine: true,
     paths: {
-        'jquery': ['http://code.jquery.com/jquery-2.0.0.min', 'libs/jquery-2.0.0'],
+        'jquery': 'libs/jquery-2.0.0',
         'raphaeljs': 'libs/raphael-arrow-fix',
         'text': 'libs/text',
         'jstools': 'jstools/src',
