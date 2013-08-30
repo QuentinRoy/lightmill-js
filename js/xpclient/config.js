@@ -5,7 +5,7 @@
     "use strict";
 
     define({
-        SERVER_ADDRESS: 'http://0.0.0.0:5000',
+        SERVER_ADDRESS: 'http://localhost:5000',
         TARGET_EXPERIMENT: 'nonmode',
         DEBUG:{
             managerfsm: true

@@ -17,13 +17,15 @@ define(['./connection', './views/block-init', './views/wait', 'jquery', 'state-m
         this._fsm = StateMachine.create({
             initial: 'idle',
             events: [
-                { name: 'start',        from: 'idle',           to: 'blockloading'  },
+                { name: 'start',        from: 'idle',           to: 'runloading'     },
+                { name: 'runloaded',    from: 'runloading',     to: 'blockloading'  },
+                { name: 'blockloaded',  from: 'blockloading',   to: 'blockinit'     },
                 { name: 'trialloaded',  from: 'trialloading',   to: 'trialrunning'  },
                 { name: 'trialend',     from: 'trialrunning',   to: 'trialloading'  },
                 { name: 'blockend',     from: 'trialrunning',   to: 'blockloading'  },
-                { name: 'blockloaded',  from: 'blockloading',   to: 'blockinit'     },
                 { name: 'startblock',   from: 'blockinit',      to: 'trialloading'  },
-                { name: 'xpend',        from: 'trialrunning',   to: 'completed'     }
+                { name: 'xpend',        from: 'trialrunning',   to: 'completed'     },
+                { name: 'connecterror',        from: '*',              to: 'crashed'       }
             ],
             callbacks: this._getFsmCallbacks()
         });
@@ -53,6 +55,21 @@ define(['./connection', './views/block-init', './views/wait', 'jquery', 'state-m
             return factorValues;
         },
         
+        _onRunLoading:function(){
+            var that = this;
+            this._connection.connectRun()
+                .done($.proxy(this._fsm.runloaded, this._fsm))
+                .fail(function(m){
+                    if(m && m.responseJSON && m.responseJSON.message){
+                        that._fsm.connecterror("Couldn't connect to experiment: " +  m.responseJSON.message);
+                    } else if(m && m.statusText) {
+                        that._fsm.connecterror("Couldn't connect to experiment: " +  m.statusText);
+                    } else {
+                        that._fsm.connecterror("Couldn't connect to experiment.");
+                    }
+                });
+        },
+        
         _onBlockLoading: function(){
             this._waitView.startWaiting();
             var that = this;
@@ -77,18 +94,23 @@ define(['./connection', './views/block-init', './views/wait', 'jquery', 'state-m
         },
         
         _onTrialLoading: function () {
+            var that = this;
             this._waitView.startWaiting();
             this._connection.currentTrial
                 .done($.proxy(this._fsm.trialloaded, this._fsm))
                 .fail(function (m) {
                     if(m && m.responseJSON && m.responseJSON.message){
-                        alert("Couldn't retrieve trial info: " +  m.responseJSON.message);
+                        that._fsm.connecterror("Couldn't retrieve trial info: " +  m.responseJSON.message);
                     } else if(m && m.statusText) {
-                        alert("Couldn't retrieve trial info: " +  m.statusText);
+                        that._fsm.connecterror("Couldn't retrieve trial info: " +  m.statusText);
                     } else {
-                        alert("Couldn't retrieve trial info");
+                        that._fsm.connecterror("Couldn't retrieve trial info");
                     }
                 });
+        },
+        
+        _onCrashed: function(name, from, to, message){
+            alert(message);
         },
         
         _onLeavetrialloading: function(){
@@ -104,6 +126,8 @@ define(['./connection', './views/block-init', './views/wait', 'jquery', 'state-m
                 } else {
                     that._fsm.blockend(results);
                 }
+            }).fail(function(error){
+                that._fsm.error("Task error: "+error);
             });
         },
         
