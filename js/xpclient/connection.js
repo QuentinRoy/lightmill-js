@@ -15,22 +15,28 @@ define(['./config', 'jquery', 'jstools/tools', 'cookies'], function (config, $, 
         this._lastPostRequest = null;
         this._unlockPromise = null;
         this._connectPromise = null;
+        this._disconnectPromise = null;
         this._connected = false;
+
+        // function to be automatically called at window unloading when run is connected
         var that = this;
-        this._beforeunload = function(async){
-            that.disconnectRun(async);
+        this._beforeunload = function () {
+            that.disconnectRun(false);
         };
     }
 
     XpConnect.prototype = {
 
         connectRun: function () {
+            var that = this;
             this._connected = true;
             if (this._connectPromise) {
                 throw "Already connected.";
             }
             // preload some parameters
-            this._connectPromise = this._requestRunLock().then(function () {
+            this._connectPromise = $.when(this._disconnectPromise).then(function () {
+                return that._requestRunLock();
+            }).then(function () {
                 return $.Deferred().resolve().promise();
             });
             this._updateFactors();
@@ -40,9 +46,9 @@ define(['./config', 'jquery', 'jstools/tools', 'cookies'], function (config, $, 
             return this._connectPromise;
         },
 
-        disconnectRun: function () {
+        disconnectRun: function (async) {
             $(window).off('beforeunload', this._beforeunload);
-            var prom = this._unlock(false).then(function () {
+            this._disconnectPromise = this._unlock(async).then(function () {
                 return $.Deferred().resolve().promise();
             });
             this._factorsPromise = null;
@@ -54,7 +60,7 @@ define(['./config', 'jquery', 'jstools/tools', 'cookies'], function (config, $, 
             this._unlockPromise = null;
             this._connectPromise = null;
             this._connected = false;
-            return prom;
+            return this._disconnectPromise;
         },
 
         get connected() {
@@ -111,7 +117,12 @@ define(['./config', 'jquery', 'jstools/tools', 'cookies'], function (config, $, 
                 run = runPromise[0];
                 var address = that.serverAddress + '/run/' + that.targetXp + '/' + run.id + '/lock';
                 // request the lock token
-                return $.get(address);
+                return $.ajax({
+                    type: 'GET',
+                    url: address,
+                    // async lock can make async unlock call to be missed and so lock undefinetely the run
+                    async: false
+                });
             });
             return this._lockPromise;
         },
