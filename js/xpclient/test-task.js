@@ -15,15 +15,19 @@ define(['jquery', 'jstools/tools', 'jstools/geoTools'], function ($, tools, geoT
         this._lastTaskDeff = null;
         this._closeEnoughTime = null;
         this._startTime = null;
+
+        this.targetDist = params.target_dist || this.DEFAULT_TARGET_DIST;
+        this.maxDist = params.max_dist || this.DEFAULT_MAX_DIST;
+        this.minTime = params.min_time || this.DEFAULT_MIN_TIME;
     }
 
     TestTask.prototype = {
 
+        DEFAULT_TARGET_DIST: 600,
 
+        DEFAULT_MAX_DIST: 2,
 
-        maxDist: 1,
-
-        minTime: 500,
+        DEFAULT_MIN_TIME: 500,
 
         _createObject: function () {
             var objDiv = $("<div />"),
@@ -37,8 +41,6 @@ define(['jquery', 'jstools/tools', 'jstools/geoTools'], function ($, tools, geoT
             });
             return objDiv;
         },
-
-
 
         _targetWrongCss: {
             "border-color": "rgb(108, 207, 255)",
@@ -78,27 +80,27 @@ define(['jquery', 'jstools/tools', 'jstools/geoTools'], function ($, tools, geoT
 
         _positions: function () {
             var dir = this.params.values.direction,
-                width = this._mainDiv.width(),
-                height = this._mainDiv.height();
+                center = tools.centerOf(this._mainDiv),
+                centerDist = this.targetDist / 2;
             if (dir == "right") {
                 return {
-                    object: [width / 5, height / 2],
-                    target: [width * 4 / 5, height / 2]
+                    object: [center[0] - centerDist, center[1]],
+                    target: [center[0] + centerDist, center[1]]
                 };
             } else if (dir == "left") {
                 return {
-                    target: [width / 5, height / 2],
-                    object: [width * 4 / 5, height / 2]
+                    object: [center[0] + centerDist, center[1]],
+                    target: [center[0] - centerDist, center[1]]
                 };
             } else if (dir == "top") {
                 return {
-                    target: [width / 2, height / 5],
-                    object: [width / 2, height * 4 / 5]
+                    object: [center[0], center[1] + centerDist],
+                    target: [center[0], center[1] - centerDist]
                 };
             } else if (dir == "bottom") {
                 return {
-                    object: [width / 2, height / 5],
-                    target: [width / 2, height * 4 / 5]
+                    object: [center[0], center[1] - centerDist],
+                    target: [center[0], center[1] + centerDist]
                 };
             }
         },
