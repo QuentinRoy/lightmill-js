@@ -22,9 +22,9 @@ requirejs.config({
 });
 
 
-define(['xpclient/manager', 'xpclient/pretest-task'], function (Manager, PretestTask) {
+define(['xpclient/manager', 'xpclient/task-factory'], function (XpManager, TaskFactory) {
     'use strict';
-    var pretestTask = new PretestTask(),
-        manager = new Manager(pretestTask);
+    var taskFactory = new TaskFactory(),
+        manager = new XpManager(taskFactory);
     manager.start();
 });

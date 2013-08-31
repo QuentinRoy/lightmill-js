@@ -8,6 +8,7 @@ define(['./connection', './views/block-init', './views/wait', 'jquery', 'state-m
     function PreTestManager(taskManager, mainDiv) {
         this._mainDiv = mainDiv || $("#main-div");
         this._taskManager = taskManager;
+        taskManager.taskDiv = taskManager.taskDiv || this._mainDiv;
         this._trialResultPromise = null;
         this._currentTrial = null;
         this._blockInitView = new BlockInitView(this._mainDiv);
