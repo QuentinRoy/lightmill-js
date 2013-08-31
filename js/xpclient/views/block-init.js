@@ -13,7 +13,7 @@ define(['jquery', 'jstools/tools', 'text!./block-init-template.html', 'underscor
     BlockInitView.prototype = {
 
         blockInit: function (blockinfo) {
-            
+
             var dfd = $.Deferred(),
                 compiledTemplate = this._template({
                     name: blockinfo.practice ? "Practice" : "Block " + (blockinfo.measure_block_number + 1),
@@ -23,9 +23,10 @@ define(['jquery', 'jstools/tools', 'text!./block-init-template.html', 'underscor
             this._parentView.append(div);
             div.click(function () {
                 dfd.resolve();
+            });
+            return dfd.done(function () {
                 div.remove();
             });
-            return dfd;
         },
     };
 
