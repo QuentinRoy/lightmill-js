@@ -23,12 +23,13 @@ define(['jquery', 'jstools/tools', 'jstools/geoTools'], function ($, tools, geoT
 
         maxDist: 1,
 
-        minTime: 10000,
+        minTime: 500,
 
         _createObject: function () {
             var objDiv = $("<div />"),
                 size = 28;
             objDiv.css({
+                position: 'absolute',
                 width: size,
                 height: size,
                 "border-radius": size,
@@ -41,16 +42,19 @@ define(['jquery', 'jstools/tools', 'jstools/geoTools'], function ($, tools, geoT
 
         _targetWrongCss: {
             "border-color": "rgb(108, 207, 255)",
-            "background-color": "red"//"rgba(108, 207, 255, 0.2)"
+            "background-color": "rgba(108, 207, 255, 0.1)",
+            "border-width": 2
         },
 
         _targetGoodCss: {
-            "border-color": "25A0DD",
-            // "background-color": "25A0DD"
+            // "border-color": "25A0DD",
+            "background-color": "rgba(108, 207, 255, 0.2)",
+            "border-width": 4
         },
 
         _setTargetSelected: function (selected) {
             this._target.css(selected ? this._targetGoodCss : this._targetWrongCss);
+            tools.centerOf(this._target, this._positions().target);
         },
 
         _createTarget: function () {
@@ -58,12 +62,11 @@ define(['jquery', 'jstools/tools', 'jstools/geoTools'], function ($, tools, geoT
                 size = 34;
             targetDiv.css(this._targetWrongCss);
             targetDiv.css({
+                position: 'absolute',
                 width: size,
                 height: size,
                 "border-radius": size,
                 "border-style": "solid",
-                "border-width":0,
-                "border-width": 2,
             });
             return targetDiv;
         },
