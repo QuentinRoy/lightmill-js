@@ -1,2 +1,2 @@
-js/jstools = ../../jstools
-js/sigmamenu = ../../SigmaMenu
+js/jstools = ../jstools
+js/sigmamenu = ../SigmaMenu
