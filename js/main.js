@@ -13,7 +13,7 @@ requirejs.config({
         'signals': 'libs/signals',
         'cookies': 'libs/cookies',
         'underscore': 'libs/underscore',
-        'sigmamenu': 'libs/sigmamenu/src/sigmamenu'
+        'sigmamenu': 'libs/sigmamenu/src'
     },
     shim: {
         underscore: {
