@@ -7,13 +7,13 @@ requirejs.config({
         'jquery': 'libs/jquery-2.0.0',
         'raphaeljs': 'libs/raphael-arrow-fix',
         'text': 'libs/text',
-        'jstools': 'jstools/src',
+        'jstools': 'libs/jstools/src',
         'templates': '../templates',
         'state-machine': 'libs/state-machine-modified',
         'signals': 'libs/signals',
         'cookies': 'libs/cookies',
         'underscore': 'libs/underscore',
-        'sigmamenu': 'SigmaMenu/js/sigmamenu'
+        'sigmamenu': 'libs/sigmamenu/src/sigmamenu'
     },
     shim: {
         underscore: {
