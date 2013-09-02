@@ -49,7 +49,6 @@ define(['jquery', 'jstools/tools', 'jstools/geoTools'], function ($, tools, geoT
         },
 
         _targetGoodCss: {
-            // "border-color": "25A0DD",
             "background-color": "rgba(108, 207, 255, 0.2)",
             "border-width": 4
         },
@@ -77,34 +76,23 @@ define(['jquery', 'jstools/tools', 'jstools/geoTools'], function ($, tools, geoT
             return $('<div class="full-parent"></div>');
         },
 
-
         _positions: function () {
             var dir = this.params.values.direction,
                 center = tools.centerOf(this._mainDiv),
-                centerDist = this.targetDist / 2;
-            if (dir == "right") {
-                return {
-                    object: [center[0] - centerDist, center[1]],
-                    target: [center[0] + centerDist, center[1]]
-                };
-            } else if (dir == "left") {
-                return {
-                    object: [center[0] + centerDist, center[1]],
-                    target: [center[0] - centerDist, center[1]]
-                };
-            } else if (dir == "top") {
-                return {
-                    object: [center[0], center[1] + centerDist],
-                    target: [center[0], center[1] - centerDist]
-                };
-            } else if (dir == "bottom") {
-                return {
-                    object: [center[0], center[1] - centerDist],
-                    target: [center[0], center[1] + centerDist]
-                };
-            }
-        },
+                centerDist = this.targetDist / 2,
+                targetAngle = {
+                    right: 0,
+                    left: Math.PI,
+                    bottom: Math.PI / 2,
+                    top: 3 * Math.PI / 2
+                }[dir],
+                objectAngle = targetAngle + Math.PI;
 
+            return {
+                object: [center[0] + Math.cos(objectAngle) * centerDist, center[1] + Math.sin(objectAngle) * centerDist],
+                target: [center[0] + Math.cos(targetAngle) * centerDist, center[1] + Math.sin(targetAngle) * centerDist]
+            };
+        },
 
         _closeEnough: function () {
             var objCenter = tools.centerOf(this._object),
@@ -113,7 +101,6 @@ define(['jquery', 'jstools/tools', 'jstools/geoTools'], function ($, tools, geoT
             console.log('dist: ' + dist);
             return dist < this.maxDist;
         },
-
 
         _updateCloseEnoughTimer: function () {
             var that = this;
