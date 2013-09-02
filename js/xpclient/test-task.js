@@ -1,7 +1,7 @@
 /*jslint nomen: true, browser:true*/
 /*global define */
 
-define(['jquery', 'jstools/tools', 'jstools/geoTools'], function ($, tools, geoTools) {
+define(['jquery', 'jstools/tools', 'jstools/geoTools', 'color'], function ($, tools, geoTools, Color) {
 
     function TestTask(parentDiv, params) {
 
@@ -13,8 +13,10 @@ define(['jquery', 'jstools/tools', 'jstools/geoTools'], function ($, tools, geoT
         this._target = null;
         this._taskDeff = null;
         this._lastTaskDeff = null;
-        this._closeEnoughTime = null;
         this._startTime = null;
+
+        this._isCloseEnough = false;
+        this._closeEnoughTime = null;
 
         this.targetDist = params.target_dist || this.DEFAULT_TARGET_DIST;
         this.maxDist = params.max_dist || this.DEFAULT_MAX_DIST;
@@ -37,36 +39,48 @@ define(['jquery', 'jstools/tools', 'jstools/geoTools'], function ($, tools, geoT
                 width: size,
                 height: size,
                 "border-radius": size,
-                "background-color": "#25A0DD",
+                "background-color": "#949494",
             });
             return objDiv;
         },
 
-        _targetWrongCss: {
-            "border-color": "rgb(108, 207, 255)",
-            "background-color": "rgba(108, 207, 255, 0.1)",
-            "border-width": 2
+        _targetWrongCss: function () {
+            var borderColor = this._modeMapping[this.params.values.mode],
+                backgroundColor = Color(borderColor).alpha(0.2),
+                size= 34;
+            return {
+                "border-color": borderColor,
+                "background-color": backgroundColor.rgbString(),
+                "border-width": 4,
+                width: size,
+                height: size,
+                "border-radius": size,
+            };
         },
 
-        _targetGoodCss: {
-            "background-color": "rgba(108, 207, 255, 0.2)",
-            "border-width": 4
+        _targetGoodCss: function () {
+            var backgroundColor = Color(this._modeMapping[this.params.values.mode]).alpha(0.5),
+                size = 33;
+            return {
+                "background-color": backgroundColor.rgbString(),
+                "border-width": 6,
+                width: size,
+                height: size,
+                "border-radius": size,
+            };
         },
 
         _setTargetSelected: function (selected) {
-            this._target.css(selected ? this._targetGoodCss : this._targetWrongCss);
+            this._target.css(selected ? this._targetGoodCss() : this._targetWrongCss());
             tools.centerOf(this._target, this._positions().target);
         },
 
         _createTarget: function () {
             var targetDiv = $("<div />"),
                 size = 34;
-            targetDiv.css(this._targetWrongCss);
+            targetDiv.css(this._targetWrongCss());
             targetDiv.css({
                 position: 'absolute',
-                width: size,
-                height: size,
-                "border-radius": size,
                 "border-style": "solid",
             });
             return targetDiv;
@@ -76,16 +90,30 @@ define(['jquery', 'jstools/tools', 'jstools/geoTools'], function ($, tools, geoT
             return $('<div class="full-parent"></div>');
         },
 
+        _modeMapping: {
+            mode1: "#FF1A1C",
+            mode2: "rgb(55, 126, 184)",
+            mode3: "rgb(77, 175, 74)",
+            mode4: "rgb(152, 78, 163)",
+            mode5: "rgb(255, 127, 0)",
+            mode6: "#E8DC00",
+            mode7: "rgb(166, 86, 40)",
+            mode8: "rgb(247, 129, 191)"
+        },
+
+        _directionMapping: {
+            right: 0,
+            left: Math.PI,
+            bottom: Math.PI / 2,
+            top: 3 * Math.PI / 2
+        },
+
         _positions: function () {
             var dir = this.params.values.direction,
                 center = tools.centerOf(this._mainDiv),
                 centerDist = this.targetDist / 2,
-                targetAngle = {
-                    right: 0,
-                    left: Math.PI,
-                    bottom: Math.PI / 2,
-                    top: 3 * Math.PI / 2
-                }[dir],
+                angleMapping = this._directionMapping[dir],
+                targetAngle = tools.isUnset(angleMapping) ? dir : angleMapping,
                 objectAngle = targetAngle + Math.PI;
 
             return {
@@ -98,25 +126,23 @@ define(['jquery', 'jstools/tools', 'jstools/geoTools'], function ($, tools, geoT
             var objCenter = tools.centerOf(this._object),
                 targetCenter = tools.centerOf(this._target),
                 dist = geoTools.dist(objCenter, targetCenter);
-            console.log('dist: ' + dist);
             return dist < this.maxDist;
         },
 
         _updateCloseEnoughTimer: function () {
-            var that = this;
-            if (that._closeEnough()) {
-                if (!that._closeEnoughTime) {
-                    that._closeEnoughTime = setTimeout(function () {
-                        that._resolve();
-                    }, that.minTime);
-                    that._setTargetSelected(true);
-                }
-            } else {
-                if (that._closeEnoughTime) {
-                    that._setTargetSelected(false);
-                    clearTimeout(this._closeEnoughTime);
-                    that._closeEnoughTime = null;
-                }
+            var that = this,
+                closeEnough = this._closeEnough();
+            if (closeEnough && !this._isCloseEnough) {
+                this._isCloseEnough = closeEnough;
+                this._closeEnoughTime = setTimeout(function () {
+                    that._resolve();
+                }, this.minTime);
+                this._setTargetSelected(true);
+            } else if (!closeEnough && this._isCloseEnough) {
+                this._isCloseEnough = closeEnough;
+                this._setTargetSelected(false);
+                clearTimeout(this._closeEnoughTime);
+                this._closeEnoughTime = null;
             }
         },
 
