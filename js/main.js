@@ -12,7 +12,8 @@ requirejs.config({
         'state-machine': 'libs/state-machine-modified',
         'signals': 'libs/signals',
         'cookies': 'libs/cookies',
-        'underscore': 'libs/underscore'
+        'underscore': 'libs/underscore',
+        'sigmamenu': 'SigmaMenu/js/sigmamenu'
     },
     shim: {
         underscore: {

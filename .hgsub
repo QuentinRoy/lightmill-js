@@ -1,1 +1,2 @@
-js/jstools = ssh://hg@bitbucket.org/quentinroy/jstools
+js/jstools = ../../jstools
+js/sigmamenu = ../../SigmaMenu
