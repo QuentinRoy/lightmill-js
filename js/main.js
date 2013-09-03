@@ -7,15 +7,22 @@ requirejs.config({
         'jquery': 'libs/jquery-2.0.0',
         'raphaeljs': 'libs/raphael-arrow-fix',
         'text': 'libs/text',
-        'jstools': 'libs/jstools/src',
+        'jstools': 'modules/jstools/src',
         'templates': '../templates',
         'state-machine': 'libs/state-machine-modified',
         'signals': 'libs/signals',
         'cookies': 'libs/cookies',
         'underscore': 'libs/underscore',
-        'sigmamenu': 'libs/sigmamenu/src',
-        'color': 'libs/color-0.4.4'
+        'color': 'libs/color-0.4.4',
+        'classy': 'libs/classy'
     },
+    packages: [
+        {
+            name: 'sigmamenu',
+            location: 'modules/sigmamenu/src/',
+            main: 'sigma-menu'
+        }
+    ],
     shim: {
         underscore: {
             exports: '_'
@@ -28,7 +35,7 @@ requirejs.config({
 });
 
 
-define(['xpclient/manager', 'xpclient/task-factory'], function (XpManager, TaskFactory) {
+define(['xpclient/manager', 'xpclient/tasks/task-factory'], function (XpManager, TaskFactory) {
     'use strict';
     var taskFactory = new TaskFactory(),
         manager = new XpManager(taskFactory);
