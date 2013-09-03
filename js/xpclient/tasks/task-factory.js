@@ -1,7 +1,7 @@
 /*jslint nomen: true, browser:true*/
 /*global define */
 
-define(['./test-task'], function (TestTask) {
+define(['./sm-test-task'], function (SigmaMenuTestTask) {
 
 
     function TaskFactory(taskDiv) {
@@ -10,7 +10,7 @@ define(['./test-task'], function (TestTask) {
 
     TaskFactory.prototype = {
         createTask: function (params) {
-            return new TestTask(this.taskDiv, params);
+            return new SigmaMenuTestTask(this.taskDiv, params);
         },
 
         startTask: function (params) {

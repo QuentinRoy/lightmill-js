@@ -14,6 +14,7 @@ requirejs.config({
         'cookies': 'libs/cookies',
         'underscore': 'libs/underscore',
         'color': 'libs/color-0.4.4',
+        'classy': 'libs/classy'
     },
     packages: [
         {

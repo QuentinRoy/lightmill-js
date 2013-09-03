@@ -42,7 +42,7 @@ define(['./config', 'jquery', 'jstools/tools', 'cookies'], function (config, $, 
             this._updateFactors();
             this._updateCurrentTrial();
 
-            $(window).on('beforeunload', this._beforeunload);
+            $(window).on('unload', this._beforeunload);
             return this._connectPromise;
         },
 
