@@ -71,21 +71,28 @@ define(['./connection', './views/block-init', './views/wait', 'jquery', 'state-m
                 });
         },
         
-        _onBlockLoading: function(){
+        _onBlockLoading: function () {
             this._waitView.startWaiting();
             var that = this;
-            $.when(this._connection.currentTrial, this._connection.factors).done(function(trial, factors){
+            $.when(this._connection.currentTrial, this._connection.experiment).done(function (trial, experiment) {
                 trial = trial[0];
-                factors = factors[0];
+                experiment = experiment[0];
                 that._fsm.blockloaded({
-                    number:trial.block_number,
-                    values:that._populateFactorValues(trial.block_values, factors),
-                    measure_block_number:trial.measure_block_number,
+                    number: trial.block_number,
+                    values: that._populateFactorValues(trial.block_values, experiment.factors),
+                    measure_block_number: trial.measure_block_number,
                     practice: trial.practice
                 });
+            }).fail(function (m) {
+                if (m && m.responseJSON && m.responseJSON.message) {
+                    that._fsm.connecterror("Couldn't retrieve block info: " + m.responseJSON.message);
+                } else if (m && m.statusText) {
+                    that._fsm.connecterror("Couldn't retrieve block info: " + m.statusText);
+                } else {
+                    that._fsm.connecterror("Couldn't retrieve block info.");
+                }
             });
         },
-        
         _onLeaveBlockLoading: function(){
             this._waitView.stopWaiting();
         },
@@ -105,7 +112,7 @@ define(['./connection', './views/block-init', './views/wait', 'jquery', 'state-m
                     } else if(m && m.statusText) {
                         that._fsm.connecterror("Couldn't retrieve trial info: " +  m.statusText);
                     } else {
-                        that._fsm.connecterror("Couldn't retrieve trial info");
+                        that._fsm.connecterror("Couldn't retrieve trial info.");
                     }
                 });
         },

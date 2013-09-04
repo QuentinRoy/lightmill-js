@@ -7,7 +7,7 @@ define(['./config', 'jquery', 'jstools/tools', 'cookies'], function (config, $, 
     function XpConnect() {
         this.serverAddress = config.SERVER_ADDRESS;
         this.targetXp = config.TARGET_EXPERIMENT;
-        this._factorsPromise = null;
+        this._experimentPromise = null;
         this._runPromise = null;
         this._postPromise = null;
         this._currentTrialPromise = null;
@@ -39,7 +39,7 @@ define(['./config', 'jquery', 'jstools/tools', 'cookies'], function (config, $, 
             }).then(function () {
                 return $.Deferred().resolve().promise();
             });
-            this._updateFactors();
+            this._updateExperiment();
             this._updateCurrentTrial();
 
             $(window).on('unload', this._beforeunload);
@@ -67,14 +67,14 @@ define(['./config', 'jquery', 'jstools/tools', 'cookies'], function (config, $, 
             return this._connected;
         },
 
-        _updateFactors: function () {
-            var address = this.serverAddress + '/experiment/' + this.targetXp + '/factors';
-            this._factorsPromise = $.get(address);
-            return this.factors;
+        get experiment() {
+            return this._experimentPromise || this._updateExperiment();
         },
-
-        get factors() {
-            return this._factorsPromise || this._updateFactors();
+        
+        _updateExperiment: function () {
+            var address = this.serverAddress + '/experiment/' + this.targetXp;
+            this._experimentPromise = $.get(address);
+            return this.experiment;
         },
 
         updateRun: function () {
