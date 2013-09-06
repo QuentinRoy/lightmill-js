@@ -36,9 +36,9 @@ requirejs.config({
 });
 
 
-define(['xpclient/manager', 'xpclient/tasks/task-factory'], function (XpManager, TaskFactory) {
+define(['xpclient/xp-manager', 'xpclient/trials/trials-manager'], function (XpManager, TrialManager) {
     'use strict';
-    var taskFactory = new TaskFactory(),
-        manager = new XpManager(taskFactory);
+    var trialManager = new TrialManager(),
+        manager = new XpManager(trialManager);
     manager.start();
 });

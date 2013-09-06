@@ -5,10 +5,10 @@ define(['./connection', './views/block-init', './views/wait', 'jquery', 'state-m
        function (XpConnection, BlockInitView, WaitView, $, StateMachine, tools, config) {
     "use strict";
 
-    function PreTestManager(taskManager, mainDiv) {
+    function PreTestManager(trialManager, mainDiv) {
         this._mainDiv = mainDiv || $("#main-div");
-        this._taskManager = taskManager;
-        taskManager.taskDiv = taskManager.taskDiv || this._mainDiv;
+        this._trialManager = trialManager;
+        trialManager.taskDiv = trialManager.taskDiv || this._mainDiv;
         this._trialResultPromise = null;
         this._currentTrial = null;
         this._blockInitView = new BlockInitView(this._mainDiv);
@@ -128,7 +128,7 @@ define(['./connection', './views/block-init', './views/wait', 'jquery', 'state-m
         _onTrialRunning: function (name, from, to, trial) {
             var that = this;
             this._currentTrial = trial;
-            this._taskManager.startTask(trial).done(function (results) {
+            this._trialManager.startTask(trial).done(function (results) {
                 if(trial.number < trial.total -1 ){
                     that._fsm.trialend(results);
                 } else {
