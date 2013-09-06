@@ -22,8 +22,6 @@ define(['jquery', 'jstools/tools', 'jstools/geoTools', 'color', 'sigmamenu', 'cl
             this._objectMode = null;
 
             this._targetReached = false;
-            this._closeEnoughTime = null;
-
             this.targetDist = params.target_dist || this.DEFAULT_TARGET_DIST;
             this.maxDist = params.max_dist || this.DEFAULT_MAX_DIST;
             this.minTime = params.min_time || this.DEFAULT_MIN_TIME;
@@ -90,9 +88,9 @@ define(['jquery', 'jstools/tools', 'jstools/geoTools', 'color', 'sigmamenu', 'cl
             }
         },
 
-        _setObjectMode: function (modeId) {
+        _modeSelected: function (modeId) {
             var oldMode = this._objectMode;
-            this._objectMode = this._modeMapping[modeId];
+            this._objectMode = modeId ? this._modeMapping[modeId] : oldMode;
             if (oldMode != this._objectMode) {
                 this._upateObjectColor();
                 this._updateTargetReached();
@@ -149,19 +147,13 @@ define(['jquery', 'jstools/tools', 'jstools/geoTools', 'color', 'sigmamenu', 'cl
         },
 
         _updateTargetReached: function () {
-            var that = this,
-                targetReached = this._closeEnough() && !tools.isUnset(this._objectMode);
+            var targetReached = this._closeEnough() && !tools.isUnset(this._objectMode);
             if (targetReached && !this._targetReached) {
                 this._targetReached = targetReached;
-                this._closeEnoughTime = setTimeout(function () {
-                    that._resolve();
-                }, this.minTime);
                 this._setTargetSelected(true);
             } else if (!targetReached && this._targetReached) {
                 this._targetReached = targetReached;
                 this._setTargetSelected(false);
-                clearTimeout(this._closeEnoughTime);
-                this._closeEnoughTime = null;
             }
         },
 

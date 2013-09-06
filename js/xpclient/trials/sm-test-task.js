@@ -60,11 +60,11 @@ define(['jstools/tools', './test-task', 'sigmamenu', 'jquery'], function (tools,
 
         _smActivated: function (params) {
             var mode = this._smModes[params.rotation][params.direction].id;
-            this._setObjectMode(mode);
+            this._modeSelected(mode);
         },
 
         _smEnded: function () {
-            this._setObjectMode(null);
+            this._resolve();
         },
 
         _smMove: function (params) {
