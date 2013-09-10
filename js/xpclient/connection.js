@@ -70,10 +70,15 @@ define(['./config', 'jquery', 'jstools/tools', 'cookies'], function (config, $, 
         get experiment() {
             return this._experimentPromise || this._updateExperiment();
         },
-        
+
         _updateExperiment: function () {
             var address = this.serverAddress + '/experiment/' + this.targetXp;
-            this._experimentPromise = $.get(address);
+            this._experimentPromise = $.ajax({
+                url: address,
+                dataType: 'json',
+                type: 'GET',
+                cache: false
+            });
             return this.experiment;
         },
 
@@ -89,7 +94,12 @@ define(['./config', 'jquery', 'jstools/tools', 'cookies'], function (config, $, 
                     this.serverAddress + '/experiment/' + this.targetXp + '/next_run';
 
 
-            this._runPromise = $.get(address);
+            this._runPromise = $.ajax({
+                url: address,
+                dataType: 'json',
+                type: 'GET',
+                cache: false
+            });
 
             this._runPromise.done(function (run) {
                 // check if the updated run has been recorded as run id
@@ -121,7 +131,8 @@ define(['./config', 'jquery', 'jstools/tools', 'cookies'], function (config, $, 
                     type: 'GET',
                     url: address,
                     // async lock can make async unlock call to be missed and so lock undefinetely the run
-                    async: false
+                    async: false,
+                    cache: false
                 });
             });
             return this._lockPromise;
@@ -146,7 +157,8 @@ define(['./config', 'jquery', 'jstools/tools', 'cookies'], function (config, $, 
                     data: {
                         token: lock.token
                     },
-                    async: async
+                    async: async,
+                    cache: false // usually useless, but who knows?
                 };
                 return $.ajax(postParams);
             });
@@ -165,7 +177,12 @@ define(['./config', 'jquery', 'jstools/tools', 'cookies'], function (config, $, 
                 var run = resultsRun[0],
                     address = that.serverAddress + '/run/' + run.experiment_id + '/' + run.id + '/current_trial';
                 // get the current trial
-                return $.get(address);
+                return $.ajax({
+                    url: address,
+                    dataType: 'json',
+                    type: 'GET',
+                    cache: false
+                });
             }).then(null, function (error) {
                 // an error will occur if the run is completed
                 // in that case we update the run
@@ -187,7 +204,7 @@ define(['./config', 'jquery', 'jstools/tools', 'cookies'], function (config, $, 
             return this.connected ? (this._currentTrialPromise || this._updateCurrentTrial()) : null;
         },
 
-        sendTrialResults: function (data) {
+        sendTrialResults: function (measures) {
             if (!this.connected) {
                 throw "Not connected.";
             }
@@ -207,16 +224,30 @@ define(['./config', 'jquery', 'jstools/tools', 'cookies'], function (config, $, 
                             currentTrial.run_id,
                             currentTrial.block_number,
                             currentTrial.number].join('/'),
-                        address = that.serverAddress + '/trial/' + path;
-
-                    // add the token into the data
-                    data.token = token;
+                        address = that.serverAddress + '/trial/' + path,
+                        // build the data
+                        data = {
+                            token: token,
+                            run_id: currentTrial.run_id,
+                            block_number: currentTrial.block_number,
+                            trial_number: currentTrial.number,
+                            experiment_id: currentTrial.experiment_id,
+                            measures: measures
+                        };
 
                     // register the run
                     run = runPromise[0];
 
                     // post the data
-                    return $.post(address, data);
+                    return $.ajax({
+                        type: 'POST',
+                        url: address,
+                        data: JSON.stringify(data),
+                        contentType: 'application/json; charset=utf-8',
+                        crossDomain: true,
+                        dataType: 'json',
+                        cache: false // usually useless, but who knows?
+                    });
                 }).done(function () {
                     // cookie is set if we can lock the run
                     cookies.set('running-run-id', run.id, {
