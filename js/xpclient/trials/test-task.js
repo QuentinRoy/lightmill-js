@@ -1,7 +1,7 @@
 /*jslint nomen: true, browser:true*/
 /*global define */
 
-define(['jquery', 'jstools/tools', 'jstools/geoTools', 'color', 'sigmamenu', 'classy'], function ($, tools, geoTools, Color, SigmaMenu, Class) {
+define(['jquery', 'jstools/tools', 'jstools/geoTools', 'color', 'sigmamenu', './trial-logger', 'classy'], function ($, tools, geoTools, Color, SigmaMenu, TrialLogger, Class) {
 
 
     var TestTask = Class.$extend({
@@ -15,26 +15,21 @@ define(['jquery', 'jstools/tools', 'jstools/geoTools', 'color', 'sigmamenu', 'cl
             this._target = null;
             this._taskDeff = null;
             this._lastTaskDeff = null;
-            this._startTime = null;
             this._techniqueDiv = null;
             this._objectsDiv = null;
-
             this._objectMode = null;
-
             this._targetReached = false;
+
             this.targetDist = params.target_dist || this.DEFAULT_TARGET_DIST;
             this.maxDist = params.max_dist || this.DEFAULT_MAX_DIST;
             this.minTime = params.min_time || this.DEFAULT_MIN_TIME;
 
-
-            this._smLabels = null;
-
-            this._technique = null;
+            this._logger = new TrialLogger(params);
         },
 
         DEFAULT_TARGET_DIST: 400,
 
-        DEFAULT_MAX_DIST: 2,
+        DEFAULT_MAX_DIST: 4,
 
         DEFAULT_MIN_TIME: 500,
 
@@ -55,7 +50,7 @@ define(['jquery', 'jstools/tools', 'jstools/geoTools', 'color', 'sigmamenu', 'cl
         _targetWrongCss: function () {
             var borderColor = this._modeMapping[this.params.values.mode].color,
                 backgroundColor = Color(borderColor).alpha(0.1),
-                size = 42;
+                size = 34;
             return {
                 "border-color": borderColor,
                 "background-color": backgroundColor.rgbString(),
@@ -69,7 +64,7 @@ define(['jquery', 'jstools/tools', 'jstools/geoTools', 'color', 'sigmamenu', 'cl
         _targetGoodCss: function () {
             var baseColor = this._modeMapping[this.params.values.mode].color,
                 backgroundColor = Color(baseColor).alpha(0.3),
-                size = 41;
+                size = 31;
             return {
                 "background-color": backgroundColor.rgbString(),
                 "border-width": 6,
@@ -82,7 +77,7 @@ define(['jquery', 'jstools/tools', 'jstools/geoTools', 'color', 'sigmamenu', 'cl
 
         _upateObjectColor: function () {
             if (this._objectMode) {
-                this._object.css("background-color", this._objectMode.color);
+                this._object.css("background-color", this._modeMapping[this._objectMode].color);
             } else {
                 this._object.css("background-color", "black");
             }
@@ -90,7 +85,7 @@ define(['jquery', 'jstools/tools', 'jstools/geoTools', 'color', 'sigmamenu', 'cl
 
         _modeSelected: function (modeId) {
             var oldMode = this._objectMode;
-            this._objectMode = modeId ? this._modeMapping[modeId] : oldMode;
+            this._objectMode = modeId ? modeId : oldMode;
             if (oldMode != this._objectMode) {
                 this._upateObjectColor();
                 this._updateTargetReached();
@@ -158,7 +153,7 @@ define(['jquery', 'jstools/tools', 'jstools/geoTools', 'color', 'sigmamenu', 'cl
         },
 
         get started() {
-            return this._taskDeff !== null;
+            return Boolean(this._taskDeff);
         },
 
         get completed() {
@@ -191,7 +186,7 @@ define(['jquery', 'jstools/tools', 'jstools/geoTools', 'color', 'sigmamenu', 'cl
                 throw "Task already started.";
             }
             this._taskDeff = $.Deferred();
-            this._startTime = new Date().getTime();
+            this._logger.trialStart();
 
             this._createDOM();
 
@@ -212,11 +207,10 @@ define(['jquery', 'jstools/tools', 'jstools/geoTools', 'color', 'sigmamenu', 'cl
         },
 
         _resolve: function () {
-            var results = {
-                duration: new Date().getTime() - this._startTime,
-                selectedMode: this._objectMode
-            };
-            this._taskDeff.resolveWith(this, [results]);
+            this._logger.trialEnd();
+            this._logger.set('selectedMode', this._objectMode);
+            var log = this._logger.getLog();
+            this._taskDeff.resolveWith(this, [log]);
         },
 
         _modeMapping: {
@@ -257,5 +251,6 @@ define(['jquery', 'jstools/tools', 'jstools/geoTools', 'color', 'sigmamenu', 'cl
     });
 
     return TestTask;
+
 
 });

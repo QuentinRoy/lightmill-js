@@ -1,7 +1,7 @@
 /**
  * Classy - classy classes for JavaScript
  *
- * :copyright: (c) 2011 by Armin Ronacher. 
+ * :copyright: (c) 2011 by Armin Ronacher.
  * :license: BSD.
  */
 !function (definition) {
@@ -47,6 +47,26 @@
     return rv;
   }
 
+  /* wraps a function adding a $super variable */
+  function wrapForSuper(super_prototype, meth, name, type) {
+    return function() {
+      var old_super = getOwnProperty(this, '$super');
+      if (type === 'getter')
+        this.$super = super_prototype.__lookupGetter__(name);
+      else if (type === 'setter')
+        this.$super = super_prototype.__lookupSetter__(name);
+      else
+        this.$super = super_prototype[name];
+
+      try {
+        return meth.apply(this, arguments);
+      }
+      finally {
+        setOrUnset(this, '$super', old_super);
+      }
+    };
+  }
+
   /* the base class we export */
   var Class = function() {};
 
@@ -86,7 +106,7 @@
             prototype[name] = mixin[name];
         }
       }
- 
+
     /* copy class vars from the superclass */
     properties.__classvars__ = properties.__classvars__ || {};
     if (prototype.__classvars__)
@@ -98,24 +118,22 @@
 
     /* copy all properties over to the new prototype */
     for (var name in properties) {
+      var getter = properties.__lookupGetter__(name),
+          setter = properties.__lookupSetter__(name);
+      if (getter || setter) {
+        if (getter)
+          prototype.__defineGetter__(name, usesSuper(getter) ? wrapForSuper(super_prototype, getter, name, 'getter') : getter);
+        if (setter)
+          prototype.__defineSetter__(name, usesSuper(setter) ? wrapForSuper(super_prototype, setter, name, 'setter') : setter);
+        continue;
+      }
+
       var value = getOwnProperty(properties, name);
       if (name === '__include__' ||
           value === undefined)
         continue;
 
-      prototype[name] = typeof value === 'function' && usesSuper(value) ?
-        (function(meth, name) {
-          return function() {
-            var old_super = getOwnProperty(this, '$super');
-            this.$super = super_prototype[name];
-            try {
-              return meth.apply(this, arguments);
-            }
-            finally {
-              setOrUnset(this, '$super', old_super);
-            }
-          };
-        })(value, name) : value
+      prototype[name] = typeof value === 'function' && usesSuper(value) ? wrapForSuper(super_prototype, value, name) : value
     }
 
     /* dummy constructor */

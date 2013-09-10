@@ -10,6 +10,9 @@ define(['jstools/tools', './test-task', 'sigmamenu', 'jquery'], function (tools,
         __init__: function (mainDiv, params) {
             this.$super(mainDiv, params);
             this._technique = null;
+            this._results = {
+                events: []
+            };
 
             var modes = [];
             for (var modeId in this._modeMapping) {
@@ -51,7 +54,7 @@ define(['jstools/tools', './test-task', 'sigmamenu', 'jquery'], function (tools,
                 }
             }
 
-            this._technique = new SigmaMenu(techniqueDiv, labels);
+            this._technique = new SigmaMenu(techniqueDiv, labels, this._logger);
             this._technique.moved.add(this._smMove, this);
             this._technique.activated.add(this._smActivated, this);
             this._technique.ended.add(this._smEnded, this);
