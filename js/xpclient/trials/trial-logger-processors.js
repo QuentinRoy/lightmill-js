@@ -1,7 +1,7 @@
 /*jslint nomen: true, browser:true, strict:true, curly:false */
 /*global define */
 
-define(function () {
+define(['jstools/tools'], function (tools) {
 
 
     return {
@@ -21,17 +21,28 @@ define(function () {
             }
             return false;
         },
-        
-        eventTrialTime: function(log){
+
+        eventTrialTime: function (log) {
             var evNum, event;
-            for(evNum in log.events){
+            for (evNum in log.events) {
                 event = log.events[evNum];
                 event.trialTime = event.timestamp - log.trialStartTimestamp;
             }
-        }
+        },
+
+        trialTrialTime: function (log) {
+            if (log.trialEndTimestamp && log.trialStartTimestamp) {
+                log.trialDuration = log.trialEndTimestamp - log.trialStartTimestamp;
+                return true;
+            }
+            return false;
+        },
+
+        noviceUsed: function (log) {
+            log.noviceUsed = !tools.isUnset(log.noviceTimestamp);
+            return log.noviceUsed;
+        },
 
 
     };
-
-
 });

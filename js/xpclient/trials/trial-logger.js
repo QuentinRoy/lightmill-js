@@ -9,9 +9,8 @@ define(['./trial-logger-processors', 'jstools/tools', 'classy', 'jquery'], funct
     return Class.$extend({
 
         __init__: function (trialParams, processor_s) {
-            this._log = {
-            };
-            
+            this._log = {};
+
             this._events = [];
 
             if (typeof processor_s == "Array") {
@@ -24,7 +23,7 @@ define(['./trial-logger-processors', 'jstools/tools', 'classy', 'jquery'], funct
                     this.processors.push(processors[proc]);
                 }
             }
-            
+
             this.trialParams = trialParams;
         },
 
@@ -39,15 +38,14 @@ define(['./trial-logger-processors', 'jstools/tools', 'classy', 'jquery'], funct
 
         trialEnd: function (endTime) {
             if (!this._log.trialStartTimestamp) throw "Not started.";
-            if (this._log.trialEndTimestamp ) throw "Alreaded ended.";
+            if (this._log.trialEndTimestamp) throw "Alreaded ended.";
             endTime = endTime || new Date().getTime();
             if (endTime < this._log.trialStartTimestamp) throw "End time lesser than start time";
-            this._log.trialEndTimestamp  = endTime;
+            this._log.trialEndTimestamp = endTime;
         },
 
         set: function (measuresOrMeasureName, measure) {
-            if (measure) {
-                if (typeof measuresOrMeasureName != "string") throw "Wrong arguments.";
+            if (typeof measuresOrMeasureName === "string") {
                 this._log[measuresOrMeasureName] = measure;
             } else {
                 for (measure in measuresOrMeasureName) {
@@ -66,14 +64,16 @@ define(['./trial-logger-processors', 'jstools/tools', 'classy', 'jquery'], funct
                 procToApply,
                 applied,
                 process,
-                procNum;
+                procNum,
+                result;
             do {
                 applied = 0;
                 procToApply = nextProcToApply;
                 nextProcToApply = [];
                 for (procNum in procToApply) {
                     process = procToApply[procNum];
-                    if (process(log, this.trialParams)) {
+                    result = process(log, this.trialParams);
+                    if (tools.isUnset(result) || result) {
                         applied++;
                     } else {
                         nextProcToApply.push(process);

@@ -18,6 +18,7 @@ define(['jquery', 'jstools/tools', 'jstools/geoTools', 'color', 'sigmamenu', './
             this._techniqueDiv = null;
             this._objectsDiv = null;
             this._objectMode = null;
+            this._initPositions = null;
             this._targetReached = false;
 
             this.targetDist = params.target_dist || this.DEFAULT_TARGET_DIST;
@@ -134,11 +135,14 @@ define(['jquery', 'jstools/tools', 'jstools/geoTools', 'color', 'sigmamenu', './
             };
         },
 
-        _closeEnough: function () {
+        _distanceFromTarget: function () {
             var objCenter = tools.centerOf(this._object),
-                targetCenter = tools.centerOf(this._target),
-                dist = geoTools.dist(objCenter, targetCenter);
-            return dist < this.maxDist;
+                targetCenter = tools.centerOf(this._target);
+            return geoTools.dist(objCenter, targetCenter);
+        },
+
+        _closeEnough: function () {
+            return this._distanceFromTarget() < this.maxDist;
         },
 
         _updateTargetReached: function () {
@@ -175,9 +179,9 @@ define(['jquery', 'jstools/tools', 'jstools/geoTools', 'color', 'sigmamenu', './
             this._techniqueDiv = this._createFullDiv();
             this._techniqueDiv.appendTo(this._mainDiv);
 
-            var positions = this._positions();
-            tools.centerOf(this._object, positions.object);
-            tools.centerOf(this._target, positions.target);
+            this._initPositions = this._positions();
+            tools.centerOf(this._object, this._initPositions.object);
+            tools.centerOf(this._target, this._initPositions.target);
         },
 
         start: function (callback) {
@@ -208,7 +212,22 @@ define(['jquery', 'jstools/tools', 'jstools/geoTools', 'color', 'sigmamenu', './
 
         _resolve: function () {
             this._logger.trialEnd();
+            var objectFinalPos = tools.centerOf(this._object);
             this._logger.set('selectedMode', this._objectMode);
+            this._logger.set('distFromTarget', Math.round(this._distanceFromTarget()));
+            this._logger.set('targetReached', this._closeEnough());
+            this._logger.set('targetPos', {
+                x: this._initPositions.target[0],
+                y: this._initPositions.target[1]
+            });
+            this._logger.set('objectInitialPos', {
+                x: this._initPositions.object[0],
+                y: this._initPositions.object[1]
+            });
+            this._logger.set('objectFinalPos', {
+                x: objectFinalPos[0],
+                y: objectFinalPos[1]
+            });
             var log = this._logger.getLog();
             this._taskDeff.resolveWith(this, [log]);
         },
