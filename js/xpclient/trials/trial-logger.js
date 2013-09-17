@@ -44,6 +44,11 @@ define(['./trial-logger-processors', 'jstools/tools', 'classy', 'jquery'], funct
             this._log.trialEndTimestamp = endTime;
         },
 
+        timestamp: function (measureName) {
+            if (!typeof measureName === "string") throw "measureName must be a string";
+            this.set(measureName, new Date().getTime());
+        },
+
         set: function (measuresOrMeasureName, measure) {
             if (typeof measuresOrMeasureName === "string") {
                 this._log[measuresOrMeasureName] = measure;
