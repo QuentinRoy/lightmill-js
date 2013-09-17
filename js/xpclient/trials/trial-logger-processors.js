@@ -43,6 +43,16 @@ define(['jstools/tools'], function (tools) {
             return log.noviceUsed;
         },
 
+        reactionDuration: function (log) {
+            var reactionDuration = log.actionStartTimestamp - log.trialStartTimestamp;
+            if (reactionDuration) {
+                log.reactionDuration = reactionDuration;
+                return true;
+            } else {
+                return false;
+            }
+        },
+
 
     };
 });

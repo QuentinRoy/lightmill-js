@@ -214,7 +214,7 @@ define(['jquery', 'jstools/tools', 'jstools/geoTools', 'color', 'sigmamenu', './
             this._logger.trialEnd();
             var objectFinalPos = tools.centerOf(this._object);
             this._logger.set('selectedMode', this._objectMode);
-            this._logger.set('distFromTarget', Math.round(this._distanceFromTarget()));
+            this._logger.set('distFromTarget', this._distanceFromTarget());
             this._logger.set('targetReached', this._closeEnough());
             this._logger.set('targetPos', {
                 x: this._initPositions.target[0],
