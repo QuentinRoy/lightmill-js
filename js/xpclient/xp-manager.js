@@ -58,8 +58,12 @@ define(['./connection', './views/block-init', './views/wait', 'jquery', 'state-m
         
         _onRunLoading:function(){
             var that = this;
-            this._connection.connectRun()
-                .done($.proxy(this._fsm.runloaded, this._fsm))
+            this._connection.connectRun().done(function(){
+                    that._connection.run.done(function(run){
+                        window.document.title += " ("+run.id+")";
+                        that._fsm.runloaded(run);
+                    });
+                })
                 .fail(function(m){
                     if(m && m.responseJSON && m.responseJSON.message){
                         that._fsm.connecterror("Couldn't connect to experiment: " +  m.responseJSON.message);
