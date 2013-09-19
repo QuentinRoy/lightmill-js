@@ -1,7 +1,14 @@
 /*jslint nomen: true, browser:true*/
 /*global define */
 
-define(['jquery', 'jstools/tools', 'jstools/geoTools', 'color', 'sigmamenu', './trial-logger', 'classy'], function ($, tools, geoTools, Color, SigmaMenu, TrialLogger, Class) {
+define(['jquery',
+        'jstools/tools',
+        'jstools/geoTools',
+        'color',
+        'sigmamenu',
+        './trial-logger',
+        'classy',
+        './nomode-processors'], function ($, tools, geoTools, Color, SigmaMenu, TrialLogger, Class, processors) {
 
 
     var TestTask = Class.$extend({
@@ -25,7 +32,7 @@ define(['jquery', 'jstools/tools', 'jstools/geoTools', 'color', 'sigmamenu', './
             this.maxDist = params.max_dist || this.DEFAULT_MAX_DIST;
             this.minTime = params.min_time || this.DEFAULT_MIN_TIME;
 
-            this._logger = new TrialLogger(params);
+            this._logger = new TrialLogger(params, processors.all());
         },
 
         DEFAULT_TARGET_DIST: 400,
@@ -190,7 +197,7 @@ define(['jquery', 'jstools/tools', 'jstools/geoTools', 'color', 'sigmamenu', './
                 throw "Task already started.";
             }
             this._taskDeff = $.Deferred();
-            this._logger.trialStart();
+            this._logger.timestamp('timestamps.trialStart');
 
             this._createDOM();
 
@@ -211,22 +218,22 @@ define(['jquery', 'jstools/tools', 'jstools/geoTools', 'color', 'sigmamenu', './
         },
 
         _resolve: function () {
-            this._logger.trialEnd();
+            this._logger.timestamp('timestamps.trialEnd');
             var objectFinalPos = tools.centerOf(this._object);
-            this._logger.set('selectedMode', this._objectMode);
-            this._logger.set('distFromTarget', this._distanceFromTarget());
-            this._logger.set('targetReached', this._closeEnough());
-            this._logger.set('targetPos', {
-                x: this._initPositions.target[0],
-                y: this._initPositions.target[1]
-            });
-            this._logger.set('objectInitialPos', {
-                x: this._initPositions.object[0],
-                y: this._initPositions.object[1]
-            });
-            this._logger.set('objectFinalPos', {
-                x: objectFinalPos[0],
-                y: objectFinalPos[1]
+            this._logger.set({
+                'selectedMode': this._objectMode,
+                distFromTarget: this._distanceFromTarget(),
+                targetReached: this._closeEnough(),
+                targetPos: {
+                    x: this._initPositions.target[0],
+                    y: this._initPositions.target[1]
+                },
+                'objectInitialPos': {
+                    x: this._initPositions.object[0],
+                    y: this._initPositions.object[1]
+                },
+                'objectFinalPos.x': objectFinalPos[0],
+                'objectFinalPos.y': objectFinalPos[1],
             });
             var log = this._logger.getLog();
             this._taskDeff.resolveWith(this, [log]);

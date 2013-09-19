@@ -1,7 +1,7 @@
 /*jslint nomen: true, browser:true*/
 /*global define */
 
-define(['jstools/tools', './test-task', 'sigmamenu', 'jquery'], function (tools, TestTask, SigmaMenu, $) {
+define(['jstools/tools', './test-task', 'sigmamenu'], function (tools, TestTask, SigmaMenu) {
 
 
     return TestTask.$extend({
