@@ -24,6 +24,13 @@ requirejs.config({
             main: 'sigma-menu'
         }
     ],
+
+    map: {
+        '*': {
+            'css': 'packages/require-css/css' // or whatever the path to require-css is
+        }
+    },
+
     shim: {
         underscore: {
             exports: '_'

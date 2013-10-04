@@ -1,0 +1,32 @@
+.toolbar .toolbar-button {
+    padding:10px 10px;
+    color:white;
+    font-weight:bold;
+    display:block;
+    cursor:pointer;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+.toolbar .toolbar-button:active {
+    background-color:#696969;
+}
+.toolbar .toolbar-button.down {
+    background-color:#696969;
+}
+.toolbar {
+    display:inline-block;
+    height:100%;
+}
+.toolbar .toolbar-button-wrapper {
+    margin:-5px 0;
+    background-color:#464646;
+    border-radius: 0 5px 5px 0;
+    overflow:hidden;
+    border-style:solid;
+    border-color:#464646;
+    border-width:2px 2px 2px 0;
+}
