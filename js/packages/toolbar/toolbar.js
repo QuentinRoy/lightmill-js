@@ -1,7 +1,7 @@
 /*jslint nomen: true, browser:true*/
 /*global define */
 
-define(['classy', 'jquery', 'underscore', 'text!./toolbar-button.html', 'text!./toolbar.html', 'css!./toolbar' ], function (Class, $, _, toolbarButtonTemplateStr, toolbarTemplateStr) {
+define(['jquery', 'underscore', 'text!./toolbar-button-template.html', 'text!./toolbar-template.html', 'css!./toolbar' ], function ($, _, toolbarButtonTemplateStr, toolbarTemplateStr) {
 
     var toolbarButtonTemplate = _.template(toolbarButtonTemplateStr);
     var toolbarTemplate = _.template(toolbarTemplateStr);
@@ -16,9 +16,16 @@ define(['classy', 'jquery', 'underscore', 'text!./toolbar-button.html', 'text!./
         this._buttons = {};
 
         this._parent.append(this._toolbar);
-        for (var label in this.callbacks) {
+        
+        var button, label, first = true;
+        for (label in this.callbacks) {
+            if(first){
+                // button.css('border-top-right', this._buttonWrapper.css('border-top-right')); // safari border fix
+                // button.css('border-top-left', this._buttonWrapper.css('border-top-left')); // safari border fix
+                first = false;
+            }
             // compile button template
-            var button = $(toolbarButtonTemplate({
+            button = $(toolbarButtonTemplate({
                 label: label
             }));
             button.appendTo(this._buttonWrapper);
@@ -26,6 +33,9 @@ define(['classy', 'jquery', 'underscore', 'text!./toolbar-button.html', 'text!./
             this._buttons[label] = button;
         }
 
+        // button.css('border-bottom-right', this._buttonWrapper.css('border-bottom-right')); // safari border fix
+        // button.css('border-bottom-left', this._buttonWrapper.css('border-bottom-left')); // safari border fix
+        
         // center the wrapper
         this._centerWrapper();
     };

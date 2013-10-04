@@ -13,6 +13,9 @@
                 top:0;
                 left:0;
             }
+            #message {
+                text-align:center
+            }
         </style>
         <script>
             requirejs.config({
@@ -21,15 +24,19 @@
                 paths: {
                     'jquery': 'libs/jquery-2.0.0',
                     'text': 'libs/text',
-                    'jstools': 'packages/jstools/src',
                     'underscore': 'libs/underscore',
-                    'classy': 'libs/classy-modified',
                 },
                 map: {
                     '*': {
                         'css': 'packages/require-css/css' // or whatever the path to require-css is
                     }
                 },
+                packages: [{
+                        name: 'toolbar',
+                        location: 'packages/toolbar/',
+                        main: 'toolbar'
+                    }
+                ],
 
                 shim: {
                     underscore: {
@@ -39,17 +46,27 @@
             });
 
 
-            require(['xpclient/toolbar/toolbar', 'jquery'], function(ToolBar, $) {
+            require(['toolbar', 'jquery'], function(ToolBar, $) {
                 'use strict';
+
+                
+                var messageDiv = $('#message'),
+                    toolbar;
+                
+                function addMessage(message){
+                    messageDiv.html(messageDiv.html()+'<br/>'+message);   
+                }
+                
+                
                 toolbar = new ToolBar($('#main-div'), {
                     button1: function() {
-                        alert('button1');
+                        addMessage('button1');
                     },
                     button2: function() {
-                        alert('button2');
+                        addMessage('button2');
                     },
                     button3: function() {
-                        alert('button3');
+                        addMessage('button3');
                     },
                 })
             });
@@ -57,6 +74,7 @@
     </head>
     
     <body>
+        <div id="message" class="full-parent"></div>
         <div id="main-div" class="full-parent"></div>
     </body>
 

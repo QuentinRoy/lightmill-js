@@ -26,7 +26,12 @@
     background-color:#464646;
     border-radius: 0 5px 5px 0;
     overflow:hidden;
-    border-style:solid;
-    border-color:#464646;
-    border-width:2px 2px 2px 0;
+}
+
+.toolbar .toolbar-button:first-child {
+    border-top-right-radius:5px; /* safari hidden border-radius fix */
+}
+
+.toolbar .toolbar-button:last-child {
+    border-bottom-right-radius:5px; /* safari hidden border-radius fix */
 }
