@@ -18,7 +18,7 @@ define(['jstools/tools'], function (tools) {
             var evNum, event;
             for (evNum in log.events) {
                 event = log.events[evNum];
-                event.trialTime = event.timestamp - log.timestamps.trialStart;
+                event.trialTime = event.timestamps.event - log.timestamps.trialStart;
             }
         },
 

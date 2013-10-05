@@ -90,7 +90,7 @@ define(['jstools/tools', 'classy', 'jquery'], function (tools, Class, $) {
         },
 
         addEvent: function (event) {
-            this._events.push(event);
+            this._events.push(this._resolvePaths(event));
         },
 
         _applyProcessors: function (log) {
