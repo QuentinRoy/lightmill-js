@@ -33,6 +33,10 @@ define(['jstools/tools', 'classy', 'jquery'], function (tools, Class, $) {
             if (typeof measureName !== 'string') throw "measureName must be a string";
             this.set(measureName, new Date().getTime());
         },
+        
+        beforeEvent: function(event) {
+            return event;  
+        },
 
 
         _makePaths: function (objPath, prefix) {
@@ -90,7 +94,8 @@ define(['jstools/tools', 'classy', 'jquery'], function (tools, Class, $) {
         },
 
         addEvent: function (event) {
-            this._events.push(this._resolvePaths(event));
+            var resolvedEvent = this.beforeEvent(this._resolvePaths(event));
+            this._events.push(this._resolvePaths(resolvedEvent));
         },
 
         _applyProcessors: function (log) {

@@ -33,6 +33,10 @@ define(['jquery',
             this.minTime = params.min_time || this.DEFAULT_MIN_TIME;
 
             this._logger = new TrialLogger(params, processors.all());
+
+            this._logger.beforeEvent = $.proxy(function(evt){
+                return this._beforeLoggerEvent(evt);
+            }, this);
         },
 
         DEFAULT_TARGET_DIST: 400,
@@ -210,6 +214,27 @@ define(['jquery',
             });
             this._taskDeff.done(callback);
             return this._taskDeff.promise();
+        },
+
+        _beforeLoggerEvent: function (event) {
+            var objectPos = tools.centerOf(this._object);
+            event.objectInitialPos = {
+                x: this._initPositions.object[0],
+                y: this._initPositions.object[1]
+            };
+            event.distFromTarget = this._distanceFromTarget();
+            event.objectPos = {
+                x: objectPos[0],
+                y: objectPos[1]
+            };
+            event.selectedMode = this._objectMode;
+            event.targetPos = {
+                x: this._initPositions.target[0],
+                y: this._initPositions.target[1]
+            };
+
+            event.targetReached = this._closeEnough();
+            return event;
         },
 
         _moveObject: function (dx, dy) {
