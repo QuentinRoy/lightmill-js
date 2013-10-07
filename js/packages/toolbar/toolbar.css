@@ -7,7 +7,7 @@
     height:40px;
 }
 .toolbar .toolbar-button {
-    padding:0 10px;
+    padding:0;
     color:white;
     font-weight:bold;
     cursor:pointer;

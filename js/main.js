@@ -16,6 +16,7 @@ requirejs.config({
         'color': 'libs/color-0.4.4',
         'classy': 'libs/classy-modified',
         'spin': 'libs/spin',
+        'purl': 'libs/purl'
     },
     packages: [
         {
@@ -23,6 +24,11 @@ requirejs.config({
             location: 'packages/sigmamenu/src/',
             main: 'sigma-menu'
         },
+        {
+            name: 'toolbar',
+            location: 'packages/toolbar',
+            main: 'toolbar'
+        }
     ],
 
     map: {

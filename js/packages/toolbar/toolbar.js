@@ -54,6 +54,10 @@ define(['jquery', 'handlebars', 'text!./toolbar-button-template.html', 'text!./t
             return this._parent;
         },
 
+        getButton: function(label){
+            return this._buttons[label];
+        },
+        
         _getWiderButtonWidth: function () {
             var buttonName, button, maxWidth = -1;
             for (buttonName in this._buttons) {

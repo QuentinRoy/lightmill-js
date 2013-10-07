@@ -1,16 +1,25 @@
 /*jslint nomen: true, browser:true*/
 /*global define */
 
-define(['./sm-test-task'], function (SigmaMenuTestTask) {
+define(['./sm-test-task', './tb-test-task'], function (SigmaMenuTestTask, ToolbarTestTask) {
 
 
     function TaskFactory(taskDiv) {
         this.taskDiv = taskDiv;
+
+        this.taskConstructors = {
+            SigmaMenu: SigmaMenuTestTask,
+            Toolbar: ToolbarTestTask,
+            FingerMenu: SigmaMenuTestTask // TODO change that
+        };
     }
 
     TaskFactory.prototype = {
+        
         createTask: function (params) {
-            return new SigmaMenuTestTask(this.taskDiv, params);
+            var technique = params.block_values.technique || params.values.technique,
+                constructor = this.taskConstructors[technique];
+            return new constructor(this.taskDiv, params);
         },
 
         startTask: function (params) {
