@@ -43,14 +43,6 @@ define(['jstools/tools', './test-task', 'sigmamenu'], function (tools, TestTask,
             };
         },
 
-        _beforeLoggerEvent: function (event) {
-            var rot = this._technique.rotation();
-            event = this.$super(event);
-            event.smRotation = rot;
-            console.log('rot:'+rot);
-            return event;
-        },
-
         _initTechnique: function (techniqueDiv) {
             var labels = {
                 pos: {},

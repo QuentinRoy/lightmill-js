@@ -259,6 +259,7 @@ define(['jquery',
                 },
                 'objectFinalPos.x': objectFinalPos[0],
                 'objectFinalPos.y': objectFinalPos[1],
+                distToReach: this.maxDist
             });
             var log = this._logger.getLog();
             this._taskDeff.resolveWith(this, [log]);
