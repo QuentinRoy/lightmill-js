@@ -1,4 +1,4 @@
-/*jslint nomen: true, browser:true*/
+/*jslint nomen: true, browser:true, curly:false*/
 /*global define */
 
 define(['jquery', 'handlebars', 'text!./toolbar-button-template.html', 'text!./toolbar-template.html', 'css!./toolbar'], function ($, Handlebars, toolbarButtonTemplateStr, toolbarTemplateStr) {
