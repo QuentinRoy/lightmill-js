@@ -1,13 +1,13 @@
 /*jslint nomen: true, browser:true*/
 /*global define */
 
-define(['jquery', 'jstools/tools', 'text!./block-init-template.html', 'underscore'], function ($, tools, template, underscore) {
+define(['jquery', 'jstools/tools', 'text!./block-init-template.html', 'handlebars'], function ($, tools, template, Handlebars) {
     "use strict";
 
     function BlockInitView(parentView) {
         this._parentView = $(parentView);
         this._blockDiv = null;
-        this._template = underscore.template(template);
+        this._template = Handlebars.compile(template);
     }
 
     BlockInitView.prototype = {
