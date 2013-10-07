@@ -22,9 +22,9 @@
                 baseUrl: "../..",
                 enforceDefine: true,
                 paths: {
-                    'jquery': 'libs/jquery-2.0.0',
-                    'text': 'libs/text',
-                    'underscore': 'libs/underscore',
+                    jquery: 'libs/jquery-2.0.0',
+                    text: 'libs/text',
+                    handlebars: 'libs/handlebars',
                 },
                 map: {
                     '*': {
@@ -39,36 +39,31 @@
                 ],
 
                 shim: {
-                    underscore: {
-                        exports: '_'
+                    handlebars: {
+                        exports: 'Handlebars'
                     },
                 }
             });
 
 
-            require(['toolbar', 'jquery'], function(ToolBar, $) {
+            require(['toolbar', 'jquery'], function(ToolBar, $, _) {
                 'use strict';
 
-                
+
                 var messageDiv = $('#message'),
-                    toolbar;
-                
-                function addMessage(message){
-                    messageDiv.html(messageDiv.html()+'<br/>'+message);   
-                }
-                
-                
-                toolbar = new ToolBar($('#main-div'), {
-                    button1: function() {
-                        addMessage('button1');
-                    },
-                    button2: function() {
-                        addMessage('button2');
-                    },
-                    button3: function() {
-                        addMessage('button3');
-                    },
-                })
+                    toolbar, buttons = ['button1', 'button2 et du texte', 'button3', 'button4'],
+                    callbacks = {};
+
+                $.each(buttons, function(index, buttonName) {
+                    callbacks[buttonName] = function() {
+                        messageDiv.html(messageDiv.html() + buttonName + '<br/>');
+                    }
+                });
+
+                toolbar = new ToolBar($('#main-div'), callbacks, {
+                    buttonWidth: 100,
+                    spread:true
+                });
             });
         </script>
     </head>

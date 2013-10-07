@@ -1,8 +1,15 @@
+
+.toolbar {
+    position:fixed;
+    width:100%;
+    bottom:0;
+    text-align:center;
+    height:40px;
+}
 .toolbar .toolbar-button {
-    padding:10px 10px;
+    padding:0 10px;
     color:white;
     font-weight:bold;
-    display:block;
     cursor:pointer;
     -webkit-touch-callout: none;
     -webkit-user-select: none;
@@ -10,28 +17,24 @@
     -moz-user-select: none;
     -ms-user-select: none;
     user-select: none;
+    display:inline-block;
+    background-color:#222222;
+    text-overflow:ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+    height:100%;
+    text-align:center;
+    vertical-align:middle;
+    line-height:40px; /* must be the same as the toolbar height... */
 }
 .toolbar .toolbar-button:active {
-    background-color:#696969;
+    background-color:#343434;
 }
 .toolbar .toolbar-button.down {
-    background-color:#696969;
-}
-.toolbar {
-    display:inline-block;
-    height:100%;
+    background-color:#343434;
 }
 .toolbar .toolbar-button-wrapper {
-    margin:-5px 0;
     background-color:#464646;
-    border-radius: 0 5px 5px 0;
     overflow:hidden;
-}
-
-.toolbar .toolbar-button:first-child {
-    border-top-right-radius:5px; /* safari hidden border-radius fix */
-}
-
-.toolbar .toolbar-button:last-child {
-    border-bottom-right-radius:5px; /* safari hidden border-radius fix */
+    height:100%;
 }

@@ -12,7 +12,7 @@ requirejs.config({
         'state-machine': 'libs/state-machine-modified',
         'signals': 'libs/signals',
         'cookies': 'libs/cookies',
-        'underscore': 'libs/underscore',
+        'handlebars': 'libs/handlebars',
         'color': 'libs/color-0.4.4',
         'classy': 'libs/classy-modified',
         'spin': 'libs/spin',
@@ -32,8 +32,8 @@ requirejs.config({
     },
 
     shim: {
-        underscore: {
-            exports: '_'
+        handlebars: {
+            exports: 'Handlebars'
         },
 
         color: {
