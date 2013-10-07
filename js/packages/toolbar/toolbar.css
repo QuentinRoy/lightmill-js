@@ -18,19 +18,31 @@
     -ms-user-select: none;
     user-select: none;
     display:inline-block;
-    background-color:#222222;
     text-overflow:ellipsis;
     overflow: hidden;
     white-space: nowrap;
     height:100%;
     text-align:center;
     vertical-align:middle;
-    line-height:40px; /* must be the same as the toolbar height... */
 }
-.toolbar .toolbar-button:active {
+
+.toolbar .toolbar-in-button {
+    position:absolute;
+    display:block;
+    border-radius: 5px;
+    background-color:#222222;
+    vertical-align:middle;
+    line-height:32px;
+    top:4px;
+    left:4px;
+    bottom:4px;
+    right:4px;
+}
+
+.toolbar .toolbar-button:active .toolbar-in-button {
     background-color:#343434;
 }
-.toolbar .toolbar-button.down {
+.toolbar .toolbar-button.down toolbar-in-button {
     background-color:#343434;
 }
 .toolbar .toolbar-button-wrapper {
