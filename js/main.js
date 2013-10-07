@@ -22,7 +22,7 @@ requirejs.config({
             name: 'sigmamenu',
             location: 'packages/sigmamenu/src/',
             main: 'sigma-menu'
-        }
+        },
     ],
 
     map: {
@@ -35,7 +35,12 @@ requirejs.config({
         handlebars: {
             exports: 'Handlebars'
         },
-
+        
+        purl: {
+            deps: ['jquery'],
+            exports: 'purl'
+        },
+        
         color: {
             exports: 'Color'
         },
@@ -43,9 +48,11 @@ requirejs.config({
 });
 
 
-define(['xpclient/xp-manager', 'xpclient/trials/trials-manager'], function (XpManager, TrialManager) {
+define(['xpclient/xp-manager', 'xpclient/trials/trials-manager', 'purl'], function (XpManager, TrialManager, purl) {
     'use strict';
-    var trialManager = new TrialManager(),
-        manager = new XpManager(trialManager);
+    var url = purl(),
+        targetRun = url.param('run'),
+        trialManager = new TrialManager(),
+        manager = new XpManager(trialManager, null, targetRun);
     manager.start();
 });

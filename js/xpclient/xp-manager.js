@@ -5,7 +5,7 @@ define(['./connection', './views/block-init', './views/wait', 'jquery', 'state-m
        function (XpConnection, BlockInitView, WaitView, $, StateMachine, tools, config) {
     "use strict";
 
-    function PreTestManager(trialManager, mainDiv) {
+    function PreTestManager(trialManager, mainDiv, targetRun) {
         this._mainDiv = mainDiv || $("#main-div");
         this._trialManager = trialManager;
         trialManager.taskDiv = trialManager.taskDiv || this._mainDiv;
@@ -14,6 +14,7 @@ define(['./connection', './views/block-init', './views/wait', 'jquery', 'state-m
         this._blockInitView = new BlockInitView(this._mainDiv);
         this._waitView = new WaitView(this._mainDiv);
         this._connection = new XpConnection();
+        this._targetRun = targetRun;
 
         this._fsm = StateMachine.create({
             initial: 'idle',
@@ -58,7 +59,7 @@ define(['./connection', './views/block-init', './views/wait', 'jquery', 'state-m
         
         _onRunLoading:function(){
             var that = this;
-            this._connection.connectRun().done(function(){
+            this._connection.connectRun(this._targetRun).done(function(){
                     that._connection.run.done(function(run){
                         window.document.title += " ("+run.id+")";
                         that._fsm.runloaded(run);

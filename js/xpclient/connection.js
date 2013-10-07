@@ -27,7 +27,8 @@ define(['./config', 'jquery', 'jstools/tools', 'cookies'], function (config, $, 
 
     XpConnect.prototype = {
 
-        connectRun: function () {
+        connectRun: function (targetRun) {
+            this._targetRun = targetRun;
             var that = this;
             this._connected = true;
             if (this._connectPromise) {
@@ -85,7 +86,7 @@ define(['./config', 'jquery', 'jstools/tools', 'cookies'], function (config, $, 
         updateRun: function () {
             if (!this.connected) throw "Not connected.";
             // get the possible value of the cookie (unfinished run)
-            var runId = cookies.get('running-run-id'),
+            var runId = this._targetRun || cookies.get('running-run-id'),
 
                 // if we could get a run id request the corresponding run
                 // else just request a free run
