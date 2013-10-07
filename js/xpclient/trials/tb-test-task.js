@@ -26,10 +26,19 @@ define(['jstools/tools', './test-task', 'toolbar', 'jquery'], function (tools, T
             return this._tracking;
         },
 
+        start: function () {
+            var answer = this.$super.call(this, arguments),
+                targetLabel = this._modeMapping[this._targetMode].name;
+            this._logger.set('toolbar.target',this._getButtonLogParams(targetLabel));
+            // timestamps ?
+            return answer;
+        },
+
         _initTechnique: function (techniqueDiv) {
             this._toolbar = new Toolbar(techniqueDiv, this._callbacks, {
                 buttonWidth: 80,
-                spread: true
+                spread: true,
+                logger: this._logger
             });
         },
 
@@ -37,15 +46,15 @@ define(['jstools/tools', './test-task', 'toolbar', 'jquery'], function (tools, T
             var modeId, callbacks = {}, modeLabel;
             for (modeId in this._modeMapping) {
                 modeLabel = this._modeMapping[modeId].name;
-                callbacks[modeLabel] = this._createCallback(modeId);
+                callbacks[modeLabel] = this._createCallback(modeId, modeLabel);
             }
             return callbacks;
         },
 
-        _createCallback: function (modeId) {
+        _createCallback: function (modeId, modeLabel) {
             var that = this;
             return function () {
-                if (!that.tracking) that._startTracking(modeId);
+                if (!that.tracking) that._startTracking(modeId, modeLabel);
             };
         },
 
@@ -68,6 +77,18 @@ define(['jstools/tools', './test-task', 'toolbar', 'jquery'], function (tools, T
             return null;
         },
 
+        _getButtonLogParams: function (buttonName) {
+            var button = this._toolbar.getButton(buttonName),
+                buttonCenter = tools.centerOf(button);
+
+            return {
+                'center.x': buttonCenter[0],
+                'center.y': buttonCenter[1],
+                width: button.outerWidth(),
+                height: button.outerHeight()
+            };
+        },
+
         _EVT_MAP: {
             touchstart: "touch",
             touchcancel: "touch",
@@ -79,7 +100,6 @@ define(['jstools/tools', './test-task', 'toolbar', 'jquery'], function (tools, T
         },
 
         _onPointerStart: function (evt) {
-            console.log('pointer start');
             if (!this._pointerType) {
                 this._pointerType = this._EVT_MAP[evt.type];
                 this._pointerId = this._pointerType == "touch" ? evt.originalEvent.changedTouches[0] : null;
@@ -88,7 +108,7 @@ define(['jstools/tools', './test-task', 'toolbar', 'jquery'], function (tools, T
 
         _onPointerEnd: function (evt) {
             if (this._eventPos(evt)) {
-                console.log('pointer end');
+                this._logger.timestamp('timestamps.executionEnd');
                 this._resolve();
                 this._techniqueDiv.off(this._handlers);
             }
@@ -98,7 +118,6 @@ define(['jstools/tools', './test-task', 'toolbar', 'jquery'], function (tools, T
             var pos = this._eventPos(evt),
                 diffX, diffY;
             if (pos) {
-                console.log('pointer move');
                 if (this._previousPointerPos) {
                     diffX = pos[0] - this._previousPointerPos[0];
                     diffY = pos[1] - this._previousPointerPos[1];
@@ -108,7 +127,11 @@ define(['jstools/tools', './test-task', 'toolbar', 'jquery'], function (tools, T
             }
         },
 
-        _startTracking: function (modeId) {
+        _startTracking: function (modeId, modeLabel) {
+            this._logger.set('toolbar.selection',this._getButtonLogParams(modeLabel));
+            this._logger.timestamp('timestamps.executionStart');
+            this._logger.timestamp('timestamps.trigger');
+            this._logger.timestamp('timestamps.selection');
             this._tracking = true;
             this._modeSelected(modeId);
             this._techniqueDiv.on(this._handlers);

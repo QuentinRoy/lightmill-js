@@ -17,6 +17,8 @@ define(['jquery', 'handlebars', 'text!./toolbar-button-template.html', 'text!./t
         this._buttonWrapper = this._toolbar.find(".toolbar-button-wrapper");
         this._buttons = {};
 
+        this.logger = params.logger;
+
         this._parent.append(this._toolbar);
 
         var button, label, first = true;
@@ -39,9 +41,9 @@ define(['jquery', 'handlebars', 'text!./toolbar-button-template.html', 'text!./t
         // button.css('border-bottom-left', this._buttonWrapper.css('border-bottom-left')); // safari border fix
 
         if (this._buttonWidth !== 'none' && typeof this._buttonWidth !== 'undefined') this._adjustButtonsWidth();
-        if (this._spread){
+        if (this._spread) {
             var that = this;
-            $(window).resize(function(){
+            $(window).resize(function () {
                 that._spreadButtons();
             });
             this._spreadButtons();
@@ -54,10 +56,10 @@ define(['jquery', 'handlebars', 'text!./toolbar-button-template.html', 'text!./t
             return this._parent;
         },
 
-        getButton: function(label){
+        getButton: function (label) {
             return this._buttons[label];
         },
-        
+
         _getWiderButtonWidth: function () {
             var buttonName, button, maxWidth = -1;
             for (buttonName in this._buttons) {
@@ -83,14 +85,14 @@ define(['jquery', 'handlebars', 'text!./toolbar-button-template.html', 'text!./t
                 freeSpace, gap,
                 totalWidth = 0,
                 nextLeft = 0;
-            
-            $.each(this._buttons, function(number, button){
+
+            $.each(this._buttons, function (number, button) {
                 totalWidth += button.outerWidth();
             });
-            
+
             freeSpace = wrapperWidth - totalWidth;
             gap = freeSpace / (buttonCount - 1);
-            
+
             for (label in this._buttons) {
                 button = this._buttons[label];
                 button.css({
@@ -102,10 +104,19 @@ define(['jquery', 'handlebars', 'text!./toolbar-button-template.html', 'text!./t
         },
 
         _bindButtonHandlers: function (button, label) {
-            var callback = this.callbacks[label];
+            var callback = this.callbacks[label],
+                that = this;
             button.on({
-                click: function () {
+                click: function (evt) {
                     callback();
+                    if (that.logger) {
+                        that.logger.set({
+                            triggerPos: {
+                                x: evt.pageX,
+                                y: evt.pageY
+                            }
+                        });
+                    }
                 },
                 touchstart: function () {} // debug :active css pseudo class
             });

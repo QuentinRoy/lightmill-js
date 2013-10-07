@@ -27,6 +27,7 @@ define(['jquery',
             this._objectMode = null;
             this._initPositions = null;
             this._targetReached = false;
+            this._targetMode = params.values.mode || params.block_values.mode;
 
             this.targetDist = params.target_dist || this.DEFAULT_TARGET_DIST;
             this.maxDist = params.max_dist || this.DEFAULT_MAX_DIST;
