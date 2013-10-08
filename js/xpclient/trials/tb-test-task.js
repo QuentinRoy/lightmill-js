@@ -1,4 +1,4 @@
-/*jslint nomen: true, browser:true*/
+/*jslint nomen: true, browser:true, curly:false*/
 /*global define */
 
 define(['jstools/tools', './test-task', 'toolbar', 'jquery'], function (tools, TestTask, Toolbar, $) {
@@ -14,6 +14,7 @@ define(['jstools/tools', './test-task', 'toolbar', 'jquery'], function (tools, T
             this._pointerType = null;
             this._pointerId = null; // record the identifier of the contact point
             this._previousPointerPos = null;
+            this._state = 'idle';
 
             this._handlers = {
                 "mousedown touchstart": $.proxy(this._onPointerStart, this),
@@ -29,7 +30,9 @@ define(['jstools/tools', './test-task', 'toolbar', 'jquery'], function (tools, T
         start: function () {
             var answer = this.$super.call(this, arguments),
                 targetLabel = this._modeMapping[this._targetMode].name;
-            this._logger.set('toolbar.target',this._getButtonLogParams(targetLabel));
+            this._logger.set({
+                'toolbar.targetButton': this._getButtonLogParams(targetLabel),
+            });
             // timestamps ?
             return answer;
         },
@@ -46,35 +49,16 @@ define(['jstools/tools', './test-task', 'toolbar', 'jquery'], function (tools, T
             var modeId, callbacks = {}, modeLabel;
             for (modeId in this._modeMapping) {
                 modeLabel = this._modeMapping[modeId].name;
-                callbacks[modeLabel] = this._createCallback(modeId, modeLabel);
+                callbacks[modeLabel] = this._createCallback(modeId);
             }
             return callbacks;
         },
 
-        _createCallback: function (modeId, modeLabel) {
+        _createCallback: function (modeId) {
             var that = this;
-            return function () {
-                if (!that.tracking) that._startTracking(modeId, modeLabel);
+            return function (label, evt) {
+                if (!that.tracking) that._click(modeId, label, evt);
             };
-        },
-
-        _eventPos: function (evt) {
-            var type = this._EVT_MAP[evt.type],
-                touchNum, touch;
-            if (type === this._pointerType) {
-                if (type === 'touch') {
-                    // find the touch
-                    for (touchNum in evt.originalEvent.changedTouches) {
-                        touch = evt.originalEvent.changedTouches[touchNum];
-                        if (touch.identifier === this._pointerId) {
-                            return [touch.pageX, touch.pageY];
-                        }
-                    }
-                } else {
-                    return [evt.originalEvent.pageX, evt.originalEvent.pageY];
-                }
-            }
-            return null;
         },
 
         _getButtonLogParams: function (buttonName) {
@@ -85,9 +69,41 @@ define(['jstools/tools', './test-task', 'toolbar', 'jquery'], function (tools, T
                 'center.x': buttonCenter[0],
                 'center.y': buttonCenter[1],
                 width: button.outerWidth(),
-                height: button.outerHeight()
+                height: button.outerHeight(),
+                position: this._toolbar.getButtonPosition(buttonName)
             };
         },
+
+
+        _buildPEvent: function (evt) {
+            var pointerType = this._EVT_MAP[evt.type],
+                touchNum, touch, pos;
+            if (pointerType === this._pointerType) {
+                if (pointerType === 'touch') {
+                    // find the touch
+                    for (touchNum in evt.originalEvent.changedTouches) {
+                        touch = evt.originalEvent.changedTouches[touchNum];
+                        if (touch.identifier === this._pointerId) {
+                            pos = [touch.pageX, touch.pageY];
+                            break;
+                        }
+                    }
+                    if (!pos) return;
+                } else {
+                    pos = [evt.originalEvent.pageX, evt.originalEvent.pageY];
+                }
+                return {
+                    pointerType: pointerType,
+                    type: this._EVT_TYPES[evt.type],
+                    pos: pos,
+                    jqueryEvent: evt,
+                    timeStamp: evt.timeStamp,
+                    originalEvent: evt.originalEvent
+                };
+            }
+            return null;
+        },
+
 
         _EVT_MAP: {
             touchstart: "touch",
@@ -99,42 +115,78 @@ define(['jstools/tools', './test-task', 'toolbar', 'jquery'], function (tools, T
             mousemove: "mouse"
         },
 
+        _EVT_TYPES: {
+            touchstart: "start",
+            touchcancel: "end",
+            touchend: "end",
+            touchmove: "move",
+            mousedown: "start",
+            mouseup: "end",
+            mousemove: "move"
+        },
+
         _onPointerStart: function (evt) {
             if (!this._pointerType) {
+                this._logger.timestamp('timestamps.controlStart');
                 this._pointerType = this._EVT_MAP[evt.type];
                 this._pointerId = this._pointerType == "touch" ? evt.originalEvent.changedTouches[0] : null;
+                this._logEvt(this._buildPEvent(evt));
             }
         },
 
         _onPointerEnd: function (evt) {
-            if (this._eventPos(evt)) {
+            var pointerEvent = this._buildPEvent(evt);
+            if (pointerEvent) {
                 this._logger.timestamp('timestamps.executionEnd');
+                this._logEvt(pointerEvent);
                 this._resolve();
                 this._techniqueDiv.off(this._handlers);
             }
         },
 
         _onPointerMove: function (evt) {
-            var pos = this._eventPos(evt),
+            var pevt = this._buildPEvent(evt),
                 diffX, diffY;
-            if (pos) {
+            if (pevt) {
                 if (this._previousPointerPos) {
-                    diffX = pos[0] - this._previousPointerPos[0];
-                    diffY = pos[1] - this._previousPointerPos[1];
+                    diffX = pevt.pos[0] - this._previousPointerPos[0];
+                    diffY = pevt.pos[1] - this._previousPointerPos[1];
                     this._moveObject([diffX, diffY]);
                 }
-                this._previousPointerPos = pos;
+                this._previousPointerPos = pevt.pos;
+                this._logEvt(pevt);
             }
         },
 
-        _startTracking: function (modeId, modeLabel) {
-            this._logger.set('toolbar.selection',this._getButtonLogParams(modeLabel));
-            this._logger.timestamp('timestamps.executionStart');
-            this._logger.timestamp('timestamps.trigger');
-            this._logger.timestamp('timestamps.selection');
+
+        _logEvt: function (evt) {
+            this._logger.addEvent({
+                pointer: {
+                    x: evt.pos[0],
+                    y: evt.pos[1],
+                    type: evt.pointerType
+                },
+                eventType: evt.type,
+                techniqueState: this._state,
+                'timestamps.event': evt.timeStamp,
+            });
+        },
+
+        _click: function (modeId, modeLabel, evt) {
+            this._state = 'positionning';
             this._tracking = true;
             this._modeSelected(modeId);
             this._techniqueDiv.on(this._handlers);
+            this._logger.set('toolbar.selectedButton', this._getButtonLogParams(modeLabel));
+            this._logger.timestamp('timestamps.executionStart');
+            this._logger.timestamp('timestamps.trigger');
+            this._logger.timestamp('timestamps.selection');
+            this._logEvt({
+                pos: [evt.originalEvent.pageX, evt.originalEvent.pageY],
+                pointerType: evt.originalEvent instanceof MouseEvent ? "mouse" : "touch",
+                timeStamp: evt.timeStamp,
+                type: evt.type
+            });
         },
 
     });

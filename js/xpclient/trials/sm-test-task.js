@@ -27,6 +27,7 @@ define(['jstools/tools', './test-task', 'sigmamenu'], function (tools, TestTask,
                 b.sort();
                 return b[0] === a.id ? -1 : 0;
             });
+
             this._smModes = {
                 pos: {
                     left: modes.pop(),
@@ -41,6 +42,50 @@ define(['jstools/tools', './test-task', 'sigmamenu'], function (tools, TestTask,
                     top: modes.pop(),
                 }
             };
+        },
+
+        _getModeParams: function (modeId) {
+            var pos, dir, modes, mode;
+            for (pos in this._smModes) {
+                modes = this._smModes[pos];
+                for (dir in modes) {
+                    mode = modes[dir];
+                    if (mode.id === modeId) {
+                        return {
+                            direction: dir,
+                            rotation: pos
+                        };
+                    }
+                }
+            }
+        },
+
+        _convertDir: function (dir) {
+            switch (dir) {
+            case 'right':
+                return 0;
+            case 'bottom':
+                return 90;
+            case 'left':
+                return 180;
+            case 'top':
+                return 225;
+            default:
+                throw 'unknown direction';
+            }
+        },
+
+        _convertRot: function (rot) {
+            switch (rot) {
+            case 'pos':
+                return 1;
+            case 'neg':
+                return -1;
+            case 'neutral':
+                return 0;
+            default:
+                throw 'unknown rotation';
+            }
         },
 
         _initTechnique: function (techniqueDiv) {
@@ -68,6 +113,14 @@ define(['jstools/tools', './test-task', 'sigmamenu'], function (tools, TestTask,
         },
 
         _smEnded: function () {
+            var modeParam = this._getModeParams(this._targetMode);
+            this._logger.set({
+                sm: {
+                    targetRotation: this._convertRot(modeParam.rotation),
+                    targetDirection: this._convertDir(modeParam.direction)
+                }
+            });
+
             this._resolve();
         },
 

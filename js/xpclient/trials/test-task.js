@@ -247,14 +247,16 @@ define(['jquery',
             this._logger.timestamp('timestamps.trialEnd');
             var objectFinalPos = tools.centerOf(this._object);
             this._logger.set({
-                'selectedMode': this._objectMode,
+                selectedMode: this._objectMode,
+                selectedModeLabel: this._modeMapping[this._objectMode].name,
+                targetModeLabel: this._modeMapping[this._targetMode].name,
                 distFromTarget: this._distanceFromTarget(),
                 targetReached: this._closeEnough(),
                 targetPos: {
                     x: this._initPositions.target[0],
                     y: this._initPositions.target[1]
                 },
-                'objectInitialPos': {
+                objectInitialPos: {
                     x: this._initPositions.object[0],
                     y: this._initPositions.object[1]
                 },
