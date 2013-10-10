@@ -1,0 +1,14 @@
+{
+    "undef":true,
+    "strict":true,
+    "unused":true,
+    "curly":false,
+    "indent":4,
+    "browser":true,
+    "devel":true,
+    "laxcasebreak":true,
+    "globals":{
+        "define":false,
+        "requirejs":false
+        }
+}

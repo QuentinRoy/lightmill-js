@@ -1,6 +1,3 @@
-/*jslint nomen: true, browser:true, curly:false*/
-/*global define */
-
 define(['jstools/tools', './test-task', 'toolbar', 'jquery'], function (tools, TestTask, Toolbar, $) {
     "use strict";
 

@@ -1,7 +1,5 @@
-/*jslint nomen: true, browser:true, strict:true, curly:false */
-/*global define */
-
 define(['jstools/tools'], function (tools) {
+    "use strict";
 
 
     var module = {

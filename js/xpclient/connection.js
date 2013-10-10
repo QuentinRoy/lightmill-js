@@ -1,6 +1,3 @@
-/*jslint nomen: true, browser:true*/
-/*global define */
-
 define(['./config', 'jquery', 'jstools/tools', 'cookies'], function (config, $, tools, cookies) {
     "use strict";
 

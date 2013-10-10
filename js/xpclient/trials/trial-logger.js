@@ -1,7 +1,3 @@
-/*jslint nomen: true, browser:true, strict:true, curly:false */
-/*global define */
-
-
 define(['jstools/tools', 'classy', 'jquery'], function (tools, Class, $) {
     "use strict";
 

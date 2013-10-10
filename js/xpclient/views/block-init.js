@@ -1,6 +1,3 @@
-/*jslint nomen: true, browser:true*/
-/*global define */
-
 define(['jquery', 'jstools/tools', 'text!./block-init-template.html', 'handlebars'], function ($, tools, template, Handlebars) {
     "use strict";
 

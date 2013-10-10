@@ -1,8 +1,5 @@
-/*jslint nomen: true, browser:true*/
-/*global define */
-
 define(['./sm-test-task', './tb-test-task'], function (SigmaMenuTestTask, ToolbarTestTask) {
-
+    "use strict";
 
     function TaskFactory(taskDiv) {
         this.taskDiv = taskDiv;
@@ -17,6 +14,7 @@ define(['./sm-test-task', './tb-test-task'], function (SigmaMenuTestTask, Toolba
     TaskFactory.prototype = {
         
         createTask: function (params) {
+            /*jshint newcap: false */
             var technique = params.block_values.technique || params.values.technique,
                 constructor = this.taskConstructors[technique];
             return new constructor(this.taskDiv, params);

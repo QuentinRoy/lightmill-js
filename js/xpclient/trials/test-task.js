@@ -1,14 +1,9 @@
-/*jslint nomen: true, browser:true*/
-/*global define */
+define(
 
-define(['jquery',
-        'jstools/tools',
-        'jstools/geoTools',
-        'color',
-        'sigmamenu',
-        './trial-logger',
-        'classy',
-        './nomode-processors'], function ($, tools, geoTools, Color, SigmaMenu, TrialLogger, Class, processors) {
+['jquery', 'jstools/tools', 'jstools/geoTools', 'color', 'sigmamenu', './trial-logger', 'classy', './nomode-processors'],
+
+function ($, tools, geoTools, Color, SigmaMenu, TrialLogger, Class, processors) {
+    "use strict";
 
 
     var TestTask = Class.$extend({
@@ -35,7 +30,7 @@ define(['jquery',
 
             this._logger = new TrialLogger(params, processors.all());
 
-            this._logger.beforeEvent = $.proxy(function(evt){
+            this._logger.beforeEvent = $.proxy(function (evt) {
                 return this._beforeLoggerEvent(evt);
             }, this);
         },

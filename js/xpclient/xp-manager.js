@@ -1,6 +1,3 @@
-/*jslint nomen: true, browser:true*/
-/*global define */
-
 define(['./connection', './views/block-init', './views/wait', 'jquery', 'state-machine', 'jstools/tools', './config'],
        function (XpConnection, BlockInitView, WaitView, $, StateMachine, tools, config) {
     "use strict";

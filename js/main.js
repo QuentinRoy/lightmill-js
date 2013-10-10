@@ -1,6 +1,3 @@
-/*jslint browser:true*/
-/*global requirejs, define */
-
 requirejs.config({
     enforceDefine: true,
     paths: {
