@@ -266,35 +266,43 @@ function ($, tools, geoTools, Color, SigmaMenu, TrialLogger, Class, processors) 
         _modeMapping: {
             mode1: {
                 color: "#FF1A1C",
-                name: "Red"
+                name: "Red",
+                id: 'mode1'
             },
             mode2: {
                 color: "rgb(55, 126, 184)",
-                name: "Blue"
+                name: "Blue",
+                id: 'mode2'
             },
             mode3: {
                 color: "rgb(77, 175, 74)",
-                name: "Green"
+                name: "Green",
+                id: 'mode3'
             },
             mode4: {
-                color: "rgb(255, 127, 0)",
-                name: "Orange"
+                color: "#E8DC00",
+                name: "Yellow",
+                id: 'mode4'
             },
             mode5: {
-                color: "rgb(152, 78, 163)",
-                name: "Purple"
+                color: "rgb(255, 127, 0)",
+                name: "Orange",
+                id: 'mode5'
             },
             mode6: {
-                color: "#E8DC00",
-                name: "Yellow"
+                color: "rgb(152, 78, 163)",
+                name: "Purple",
+                id: 'mode6'
             },
             mode7: {
                 color: "rgb(166, 86, 40)",
-                name: "Brown"
+                name: "Brown",
+                id: 'mode7'
             },
             mode8: {
                 color: "#F7C8E9",
-                name: "Pink"
+                name: "Pink",
+                id: 'mode8'
             }
         },
 

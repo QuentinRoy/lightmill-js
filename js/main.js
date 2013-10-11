@@ -25,6 +25,11 @@ requirejs.config({
             name: 'toolbar',
             location: 'packages/toolbar',
             main: 'toolbar'
+        },
+        {
+            name: 'fingermenu',
+            location: 'packages/fingermenu/js/fm',
+            main: 'fingermenu'
         }
     ],
 

@@ -1,4 +1,4 @@
-define(['./sm-test-task', './tb-test-task'], function (SigmaMenuTestTask, ToolbarTestTask) {
+define(['./sm-test-task', './tb-test-task', './fm-test-task'], function (SigmaMenuTestTask, ToolbarTestTask, FingerMenuTestTask) {
     "use strict";
 
     function TaskFactory(taskDiv) {
@@ -7,7 +7,7 @@ define(['./sm-test-task', './tb-test-task'], function (SigmaMenuTestTask, Toolba
         this.taskConstructors = {
             SigmaMenu: SigmaMenuTestTask,
             Toolbar: ToolbarTestTask,
-            FingerMenu: SigmaMenuTestTask // TODO change that
+            FingerMenu: FingerMenuTestTask
         };
     }
 
