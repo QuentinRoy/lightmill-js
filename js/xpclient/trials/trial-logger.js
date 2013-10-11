@@ -11,7 +11,7 @@ define(['jstools/tools', 'classy', 'jquery'], function (tools, Class, $) {
 
             if (typeof processor_s == "function") {
                 this.processors = [processor_s];
-            } else if (processor_s){
+            } else if (processor_s) {
                 this.processors = processor_s.slice(0);
             } else {
                 this.processors = [];
@@ -23,15 +23,24 @@ define(['jstools/tools', 'classy', 'jquery'], function (tools, Class, $) {
         trialTime: function () {
             return this._log.timestamps.trialStart - new Date().getTime();
         },
-        
 
-        timestamp: function (measureName) {
-            if (typeof measureName !== 'string') throw "measureName must be a string";
-            this.set(measureName, new Date().getTime());
+
+        timestamp: function (measureNameOrArrayOfMeasureNames) {
+            var timeStamp = new Date().getTime(),
+                _this = this;
+            if (typeof measureNameOrArrayOfMeasureNames === 'string') {
+                this.set(measureNameOrArrayOfMeasureNames, timeStamp);
+            } else {
+                $.each(measureNameOrArrayOfMeasureNames, function (num, val) {
+                    if (typeof val !== 'string')
+                        throw "measureName must be a string";
+                    _this.set(val, timeStamp);
+                });
+            }
         },
-        
-        beforeEvent: function(event) {
-            return event;  
+
+        beforeEvent: function (event) {
+            return event;
         },
 
 
@@ -66,7 +75,7 @@ define(['jstools/tools', 'classy', 'jquery'], function (tools, Class, $) {
             last[lastName] = val;
             return objPath;
         },
-        
+
         // because we love magic
         _resolvePaths: function (obj) {
             var propPath, propVal, subObj, newObj = {};
@@ -77,6 +86,15 @@ define(['jstools/tools', 'classy', 'jquery'], function (tools, Class, $) {
                 $.extend(true, newObj, subObj);
             }
             return newObj;
+        },
+
+        get: function (measurePath) {
+            var subPaths = measurePath.split('.'),
+                target = this._log;
+            $.each(subPaths, function (num, subPath) {
+                target = target[subPath];
+            });
+            return target;
         },
 
         set: function (measureNameOrMeasuresObj, measure) {
