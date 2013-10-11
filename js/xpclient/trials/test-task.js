@@ -238,7 +238,17 @@ function ($, tools, geoTools, Color, SigmaMenu, TrialLogger, Class, processors) 
             this._updateTargetReached();
         },
 
-        _resolve: function () {
+        _resolve: function (synchrone) {
+            var _this = this;
+            if (synchrone)
+                this._instantResolve();
+            else
+                setTimeout(function () {
+                    _this._instantResolve();
+                }, 0);
+        },
+
+        _instantResolve: function () {
             this._logger.timestamp('timestamps.trialEnd');
             var objectFinalPos = tools.centerOf(this._object);
             this._logger.set({
