@@ -1,5 +1,6 @@
 requirejs.config({
     enforceDefine: true,
+    baseUrl: 'js',
     paths: {
         'jquery': 'libs/jquery-2.0.0',
         'raphaeljs': 'libs/raphael-arrow-fix',
@@ -13,7 +14,8 @@ requirejs.config({
         'color': 'libs/color-0.4.4',
         'classy': 'libs/classy-modified',
         'spin': 'libs/spin',
-        'purl': 'libs/purl'
+        'purl': 'libs/purl',
+        'image': 'libs/image'
     },
     packages: [
         {

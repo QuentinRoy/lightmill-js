@@ -1,8 +1,8 @@
 define(
 
-['jquery', 'jstools/tools', 'jstools/geoTools', 'color', 'sigmamenu', './trial-logger', 'classy', './nomode-processors'],
+['jquery', 'jstools/tools', 'jstools/geoTools', 'color', 'sigmamenu', './trial-logger', 'classy', './nomode-processors', '../views/trial-init'],
 
-function ($, tools, geoTools, Color, SigmaMenu, TrialLogger, Class, processors) {
+function ($, tools, geoTools, Color, SigmaMenu, TrialLogger, Class, processors, TrialInitView) {
     "use strict";
 
 
@@ -20,9 +20,10 @@ function ($, tools, geoTools, Color, SigmaMenu, TrialLogger, Class, processors) 
             this._techniqueDiv = null;
             this._objectsDiv = null;
             this._objectMode = null;
-            this._initPositions = null;
             this._targetReached = false;
             this._targetMode = params.values.mode || params.block_values.mode;
+
+            this._trialInitView = null;
 
             this.targetDist = params.target_dist || this.DEFAULT_TARGET_DIST;
             this.maxDist = params.max_dist || this.DEFAULT_MAX_DIST;
@@ -33,6 +34,9 @@ function ($, tools, geoTools, Color, SigmaMenu, TrialLogger, Class, processors) 
             this._logger.beforeEvent = $.proxy(function (evt) {
                 return this._beforeLoggerEvent(evt);
             }, this);
+
+
+            this._initPositions = this._positions();
         },
 
         DEFAULT_TARGET_DIST: 400,
@@ -91,6 +95,15 @@ function ($, tools, geoTools, Color, SigmaMenu, TrialLogger, Class, processors) 
             }
         },
 
+
+        _taskParams: function () {
+            return {
+                technique: this.params.block_values.technique || this.params.values.technique,
+                positions: this._initPositions
+            };
+
+        },
+
         _modeSelected: function (modeId) {
             var oldMode = this._objectMode;
             this._objectMode = modeId ? modeId : oldMode;
@@ -130,7 +143,7 @@ function ($, tools, geoTools, Color, SigmaMenu, TrialLogger, Class, processors) 
 
         _positions: function () {
             var dir = this.params.values.direction,
-                center = tools.centerOf(this._mainDiv),
+                center = tools.centerOf(this.parentDiv),
                 centerDist = this.targetDist / 2,
                 angleMapping = this._directionMapping[dir],
                 targetAngle = tools.isUnset(angleMapping) ? dir : angleMapping,
@@ -185,8 +198,6 @@ function ($, tools, geoTools, Color, SigmaMenu, TrialLogger, Class, processors) 
             this._objectsDiv.appendTo(this._mainDiv);
             this._techniqueDiv = this._createFullDiv();
             this._techniqueDiv.appendTo(this._mainDiv);
-
-            this._initPositions = this._positions();
             tools.centerOf(this._object, this._initPositions.object);
             tools.centerOf(this._target, this._initPositions.target);
         },
@@ -197,12 +208,16 @@ function ($, tools, geoTools, Color, SigmaMenu, TrialLogger, Class, processors) 
                 throw "Task already started.";
             }
             this._taskDeff = $.Deferred();
-            this._logger.timestamp('timestamps.trialStart');
 
-            this._createDOM();
+            this._logger.timestamp('timestamps.preTrialStart');
 
-
-            this._initTechnique(this._techniqueDiv);
+            var params = this._taskParams();
+            $.extend(params, this.params);
+            
+            this._trialInitView = new TrialInitView(params, this.parentDiv);
+            this._trialInitView.open().done(function () {
+                that._startTrial();
+            });
 
             this._taskDeff.done(function () {
                 that._mainDiv.remove();
@@ -210,6 +225,15 @@ function ($, tools, geoTools, Color, SigmaMenu, TrialLogger, Class, processors) 
             });
             this._taskDeff.done(callback);
             return this._taskDeff.promise();
+        },
+
+        _startTrial: function () {
+            this._logger.timestamp('timestamps.trialStart');
+
+            this._createDOM();
+
+
+            this._initTechnique(this._techniqueDiv);
         },
 
         _beforeLoggerEvent: function (event) {

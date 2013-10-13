@@ -1,0 +1,58 @@
+#init-trial-div img {
+    height:25%;
+}
+#init-view-div {
+    padding:0;
+}
+#init-trial-img-div {
+    vertical-align:middle;
+    text-align:center;
+    position:absolute;
+    padding:50px;
+}
+#init-trial-div .fm-overlay {
+    position:absolute;
+    background-color:rgba(150, 150, 255, 0.5);
+}
+
+#init-trial-div .fm-overlay[finger='index'][level='0'] {
+    top:15%;
+    left:44%;
+}
+
+#init-trial-div .fm-overlay[finger='index'][level='0'] {
+    top:10%;
+    left:44%;
+}
+
+#init-trial-div .fm-overlay[finger='middle'][level='0'] {
+    top:13%;
+    left:53%;
+}
+
+#init-trial-div .fm-overlay[finger='middle'][level='0'] {
+    top:8%;
+    left:53%;
+}
+
+#init-trial-div .fm-overlay[finger='ring'][level='0'] {
+    top:17%;
+    left:64%;
+}
+
+
+#init-trial-div .fm-overlay[finger='ring'][level='0'] {
+    top:12%;
+    left:66%;
+}
+
+
+#init-trial-div .fm-overlay[finger='pinky'][level='0'] {
+    top:26%;
+    left:73%;
+}
+
+#init-trial-div .fm-overlay[finger='pinky'][level='1'] {
+    top:21%;
+    left:75%;
+}
