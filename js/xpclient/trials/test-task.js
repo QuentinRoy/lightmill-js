@@ -79,10 +79,10 @@ function ($, tools, geoTools, Color, SigmaMenu, TrialLogger, Class, processors, 
                 size = 31;
             return {
                 "background-color": backgroundColor.rgbString(),
-                "border-width": 6,
+                "border-width": 40,
                 width: size,
                 height: size,
-                "border-radius": size
+                "border-radius": 200
             };
         },
 
