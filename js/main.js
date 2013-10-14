@@ -15,7 +15,8 @@ requirejs.config({
         'classy': 'libs/classy-modified',
         'spin': 'libs/spin',
         'purl': 'libs/purl',
-        'image': 'libs/image'
+        'image': 'libs/image',
+        'fastclick': 'libs/fastclick'
     },
     packages: [
         {
@@ -45,12 +46,12 @@ requirejs.config({
         handlebars: {
             exports: 'Handlebars'
         },
-        
+
         purl: {
             deps: ['jquery'],
             exports: 'purl'
         },
-        
+
         color: {
             exports: 'Color'
         },

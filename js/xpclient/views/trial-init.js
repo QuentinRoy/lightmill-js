@@ -1,8 +1,8 @@
 define(
 
-['jquery', 'handlebars', 'image!images/handi0.svg', 'image!images/handi1.svg', 'image!images/handm0.svg', 'image!images/handm1.svg', 'image!images/handr0.svg', 'image!images/handr1.svg', 'image!images/handp0.svg', 'image!images/handp1.svg', 'image!images/sigmamenu.svg', 'image!images/arrow.svg', 'text!./trial-init-template.html', 'jstools/tools', 'css!./trial-init.css'],
+['jquery', 'handlebars', 'image!images/handi0.svg', 'image!images/handi1.svg', 'image!images/handm0.svg', 'image!images/handm1.svg', 'image!images/handr0.svg', 'image!images/handr1.svg', 'image!images/handp0.svg', 'image!images/handp1.svg', 'image!images/sigmamenu.svg', 'image!images/arrow.svg', 'text!./trial-init-template.html', 'jstools/tools', 'fastclick', 'css!./trial-init.css'],
 
-function ($, Handlebars, handI0, handI1, handM0, handM1, handR0, handR1, handP0, handP1, smImage, arrowImage, template, tools) {
+function ($, Handlebars, handI0, handI1, handM0, handM1, handR0, handR1, handP0, handP1, smImage, arrowImage, template, tools, FastClick) {
     "use strict";
 
     function TrialInitView(trialParams, parentView) {
@@ -47,7 +47,10 @@ function ($, Handlebars, handI0, handI1, handM0, handM1, handR0, handR1, handP0,
             this._dfd = $.Deferred();
 
             this._div = $(compiledTemplate);
+            FastClick.attach(this._div[0]);
+            
             this._parentView.append(this._div);
+
 
             this._displayImage();
 
@@ -64,7 +67,9 @@ function ($, Handlebars, handI0, handI1, handM0, handM1, handR0, handR1, handP0,
             this._startButton = this._div.find('.start-button');
             tools.centerOf(this._startButton, this._params.positions.object);
             this._startButton.click(function () {
-                that._dfd.resolve();
+                setTimeout(function () {
+                    that._dfd.resolve();
+                }, 0);
             });
         },
 
@@ -81,9 +86,9 @@ function ($, Handlebars, handI0, handI1, handM0, handM1, handR0, handR1, handP0,
                     divHeight = this._div.height();
                 tools.centerOf(this._imageDiv, divWidth / 2, divHeight / 2);
             } else if (this._technique == 'SigmaMenu') {
-                console.log('rotation: '+this._params.rotation);
-                console.log('direction: '+this._params.direction);
-                
+                console.log('rotation: ' + this._params.rotation);
+                console.log('direction: ' + this._params.direction);
+
                 this._image = $(this._imageMap[this._technique]);
                 this._imageDiv.append(this._image);
                 this._imageDiv.attr({

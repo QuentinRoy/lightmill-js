@@ -7,10 +7,6 @@
     position:absolute;
     padding:50px;
 }
-#init-trial-div .fm-overlay {
-    position:absolute;
-    background-color:rgba(150, 150, 255, 0.5);
-}
 #init-trial-div {
     -webkit-backface-visibility: hidden;
     background-color:white;
@@ -66,14 +62,19 @@
     -webkit-transform: scaleY(0.7);
 }
 #init-trial-div .start-button {
-    width:50px;
-    height:50px;
-    border-radius:50px;
-    background-color: #2D3091;
+    width:80px;
+    height:80px;
+    border-radius:80px;
+    background-color: #535353;
     color:white;
     text-align:center;
     vertical-align:middle;
-    line-height:50px;
-    font-size:15px;
+    line-height:80px;
+    font-size:18px;
+    font-weight:bold;
     cursor:pointer;
+}
+
+#init-trial-div .start-button:active {
+    background-color: #7B7B7B;
 }

@@ -1,7 +1,13 @@
 /*jslint nomen: true, browser:true, curly:false*/
 /*global define */
 
-define(['jquery', 'handlebars', 'text!./toolbar-button-template.html', 'text!./toolbar-template.html', 'css!./toolbar'], function ($, Handlebars, toolbarButtonTemplateStr, toolbarTemplateStr) {
+define(
+
+['jquery', 'handlebars', 'text!./toolbar-button-template.html', 'text!./toolbar-template.html', 'fastclick', 'css!./toolbar'],
+
+function ($, Handlebars, toolbarButtonTemplateStr, toolbarTemplateStr, FastClick)
+
+{
     "use strict";
 
     var toolbarButtonTemplate = Handlebars.compile(toolbarButtonTemplateStr);
@@ -14,13 +20,15 @@ define(['jquery', 'handlebars', 'text!./toolbar-button-template.html', 'text!./t
         this._spread = params.spread;
 
         // compile toolbar template
-        this._toolbar = $(toolbarTemplate());
-        this._buttonWrapper = this._toolbar.find(".toolbar-button-wrapper");
+        this._toolbarDiv = $(toolbarTemplate());
+        FastClick.attach(this._toolbarDiv[0]);
+
+        this._buttonWrapper = this._toolbarDiv.find(".toolbar-button-wrapper");
         this._buttons = {};
 
         this.logger = params.logger;
 
-        this._parent.append(this._toolbar);
+        this._parent.append(this._toolbarDiv);
 
         var button, label, num = 0;
         for (label in this.callbacks) {
@@ -143,15 +151,15 @@ define(['jquery', 'handlebars', 'text!./toolbar-button-template.html', 'text!./t
         },
 
         show: function () {
-            this._toolbar.show(0);
+            this._toolbarDiv.show(0);
         },
 
         hide: function () {
-            this._toolbar.hide(0);
+            this._toolbarDiv.hide(0);
         },
 
         remove: function () {
-            this._toolbar.remove();
+            this._toolbarDiv.remove();
         }
 
     };

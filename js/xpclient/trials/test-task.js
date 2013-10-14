@@ -41,7 +41,7 @@ function ($, tools, geoTools, Color, SigmaMenu, TrialLogger, Class, processors, 
 
         DEFAULT_TARGET_DIST: 400,
 
-        DEFAULT_MAX_DIST: 4,
+        DEFAULT_MAX_DIST: 15,
 
         DEFAULT_MIN_TIME: 500,
 
@@ -61,12 +61,12 @@ function ($, tools, geoTools, Color, SigmaMenu, TrialLogger, Class, processors, 
 
         _targetWrongCss: function () {
             var borderColor = this._modeMapping[this.params.values.mode].color,
-                backgroundColor = Color(borderColor).alpha(0.1),
-                size = 34;
+                backgroundColor = Color(borderColor).alpha(0),
+                size = 50;
             return {
                 "border-color": borderColor,
                 "background-color": backgroundColor.rgbString(),
-                "border-width": 4,
+                "border-width": 1,
                 width: size,
                 height: size,
                 "border-radius": size,
@@ -76,7 +76,7 @@ function ($, tools, geoTools, Color, SigmaMenu, TrialLogger, Class, processors, 
         _targetGoodCss: function () {
             var baseColor = this._modeMapping[this.params.values.mode].color,
                 backgroundColor = Color(baseColor).alpha(0.3),
-                size = 31;
+                size = 48;
             return {
                 "background-color": backgroundColor.rgbString(),
                 "border-width": 40,

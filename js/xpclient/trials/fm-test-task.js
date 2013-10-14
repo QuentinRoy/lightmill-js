@@ -19,8 +19,6 @@ define(['fingermenu', './test-task', 'jquery'], function (FingerMenu, TestTask, 
 
 
         _initTechnique: function (techniqueDiv) {
-
-            // create the menu
             this._fingerMenu = new FingerMenu(this._fingerLabels, techniqueDiv, true, this._logger);
 
             // add the handlers
@@ -55,8 +53,8 @@ define(['fingermenu', './test-task', 'jquery'], function (FingerMenu, TestTask, 
             }
             return modes;
         },
-        
-        _taskParams: function(){
+
+        _taskParams: function () {
             var res = this.$super();
             res.technique = 'FingerMenu';
             res.finger = this._targetFinger;

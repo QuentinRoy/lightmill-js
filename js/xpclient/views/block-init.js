@@ -1,9 +1,8 @@
-define(['jquery', 'jstools/tools', 'text!./block-init-template.html', 'handlebars'], function ($, tools, template, Handlebars) {
+define(['jquery', 'jstools/tools', 'text!./block-init-template.html', 'handlebars', 'fastclick'], function ($, tools, template, Handlebars, FastClick) {
     "use strict";
 
     function BlockInitView(parentView) {
         this._parentView = $(parentView);
-        this._blockDiv = null;
         this._template = Handlebars.compile(template);
     }
 
@@ -14,9 +13,11 @@ define(['jquery', 'jstools/tools', 'text!./block-init-template.html', 'handlebar
             var dfd = $.Deferred(),
                 compiledTemplate = this._template({
                     name: blockinfo.practice ? "Practice" : "Block " + (blockinfo.measure_block_number + 1),
-                    values: blockinfo.values
+                    values: blockinfo.values,
+                    backgroundColor: blockinfo.practice ? '#025600' : '#563200'
                 });
             var div = $(compiledTemplate);
+            FastClick.attach(div[0]);
             this._parentView.append(div);
             div.click(function () {
                 dfd.resolve();

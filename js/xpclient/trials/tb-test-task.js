@@ -1,4 +1,4 @@
-define(['jstools/tools', './test-task', 'toolbar', 'jquery'], function (tools, TestTask, Toolbar, $) {
+define(['jstools/tools', './test-task', 'toolbar', 'jquery', 'fastclick'], function (tools, TestTask, Toolbar, $) {
     "use strict";
 
     return TestTask.$extend({
@@ -131,16 +131,18 @@ define(['jstools/tools', './test-task', 'toolbar', 'jquery'], function (tools, T
         },
 
         _onPointerStart: function (evt) {
+            evt.preventDefault();
             if (!this._pointerType) {
                 this._logger.timestamp('timestamps.controlStart');
                 this._pointerType = this._EVT_MAP[evt.type];
-                this._pointerId = this._pointerType == "touch" ? evt.originalEvent.changedTouches[0] : null;
+                this._pointerId = this._pointerType == "touch" ? evt.originalEvent.changedTouches[0].identifier : null;
                 this._logEvt(this._buildPEvent(evt));
             }
         },
 
         _onPointerEnd: function (evt) {
             var pointerEvent = this._buildPEvent(evt);
+            evt.preventDefault();
             if (pointerEvent) {
                 this._logger.timestamp('timestamps.executionEnd');
                 this._logEvt(pointerEvent);
@@ -152,6 +154,7 @@ define(['jstools/tools', './test-task', 'toolbar', 'jquery'], function (tools, T
         _onPointerMove: function (evt) {
             var pevt = this._buildPEvent(evt),
                 diffX, diffY;
+            evt.preventDefault();
             if (pevt) {
                 if (this._previousPointerPos) {
                     diffX = pevt.pos[0] - this._previousPointerPos[0];

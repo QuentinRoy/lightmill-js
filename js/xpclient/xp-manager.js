@@ -1,4 +1,4 @@
-define(['./connection', './views/block-init', './views/wait', 'jquery', 'state-machine', 'jstools/tools', './config'],
+define(['./connection', './views/block-init', './views/wait', 'jquery', 'state-machine', 'jstools/tools', './config', 'fastclick'],
        function (XpConnection, BlockInitView, WaitView, $, StateMachine, tools, config) {
     "use strict";
 
