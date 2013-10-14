@@ -52,9 +52,16 @@ define(['fingermenu', './test-task', 'jquery'], function (FingerMenu, TestTask, 
                     fNum = 0;
                     lvl++;
                 }
-
             }
             return modes;
+        },
+        
+        _taskParams: function(){
+            var res = this.$super();
+            res.technique = 'FingerMenu';
+            res.finger = this._targetFinger;
+            res.level = this._targetLevel;
+            return res;
         },
 
         _createFingerLabels: function () {

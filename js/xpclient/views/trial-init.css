@@ -1,0 +1,79 @@
+#init-view-div {
+    padding:0;
+}
+#init-trial-img-div {
+    vertical-align:middle;
+    text-align:center;
+    position:absolute;
+    padding:50px;
+}
+#init-trial-div .fm-overlay {
+    position:absolute;
+    background-color:rgba(150, 150, 255, 0.5);
+}
+#init-trial-div {
+    -webkit-backface-visibility: hidden;
+    background-color:white;
+}
+#init-trial-img-div {
+    position:relative;
+    max-height:24%;
+    max-width:24%;
+    padding:0;
+}
+#init-trial-div .sm-img[direction='0'][rotation='-1'] img {
+    transform: scale(0.5);
+    -webkit-transform: scale(0.5);
+}
+#init-trial-div .sm-img[direction='90'][rotation='-1'] img {
+    transform: rotate(90deg) scale(0.5);
+    -webkit-transform: rotate(90deg) scale(0.5);
+}
+#init-trial-div .sm-img[direction='180'][rotation='-1'] img {
+    transform: rotate(180deg) scale(0.5);
+    -webkit-transform: rotate(180deg) scale(0.5);
+}
+#init-trial-div .sm-img[direction='270'][rotation='-1'] img {
+    transform: rotate(270deg) scale(0.5);
+    -webkit-transform: rotate(270deg) scale(0.5);
+}
+#init-trial-div .sm-img[direction='0'][rotation='1'] img {
+    transform: rotate(180deg) scaleX(-0.5) scaleY(0.5);
+    -webkit-transform: rotate(180deg) scaleX(-0.5) scaleY(0.5);
+}
+#init-trial-div .sm-img[direction='90'][rotation='1'] img {
+    transform: rotate(270deg) scaleX(-0.5) scaleY(0.5);
+    -webkit-transform: rotate(270deg) scaleX(-0.5) scaleY(0.5);
+}
+#init-trial-div .sm-img[direction='180'][rotation='1'] img {
+    transform: scaleX(-0.5) scaleY(0.5);
+    -webkit-transform: scaleX(-0.5) scaleY(0.5);
+}
+#init-trial-div .sm-img[direction='270'][rotation='1'] img {
+    transform: rotate(90deg) scaleX(-0.5) scaleY(0.5);
+    -webkit-transform: rotate(90deg) scaleX(-0.5) scaleY(0.5);
+}
+#init-trial-div img {
+    max-height:100%;
+    max-width:100%;
+}
+#init-trial-div .tb-img {
+    max-height:10%;
+    max-width:10%;
+}
+#init-trial-div .tb-img img {
+    transform:scaleY(0.7);
+    -webkit-transform: scaleY(0.7);
+}
+#init-trial-div .start-button {
+    width:50px;
+    height:50px;
+    border-radius:50px;
+    background-color: #2D3091;
+    color:white;
+    text-align:center;
+    vertical-align:middle;
+    line-height:50px;
+    font-size:15px;
+    cursor:pointer;
+}

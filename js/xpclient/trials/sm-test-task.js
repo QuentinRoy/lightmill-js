@@ -40,6 +40,8 @@ define(['jstools/tools', './test-task', 'sigmamenu'], function (tools, TestTask,
                     top: modes.pop(),
                 }
             };
+
+            this._targetModeParams = this._getModeParams(this._targetMode);
         },
 
         _getModeParams: function (modeId) {
@@ -67,7 +69,7 @@ define(['jstools/tools', './test-task', 'sigmamenu'], function (tools, TestTask,
             case 'left':
                 return 180;
             case 'top':
-                return 225;
+                return 270;
             default:
                 throw 'unknown direction';
             }
@@ -105,17 +107,23 @@ define(['jstools/tools', './test-task', 'sigmamenu'], function (tools, TestTask,
         },
 
 
+        _taskParams: function () {
+            var res = this.$super();
+            res.rotation = this._convertRot(this._targetModeParams.rotation);
+            res.direction = this._convertDir(this._targetModeParams.direction);
+            return res;
+        },
+
         _smActivated: function (params) {
             var mode = this._smModes[params.rotation][params.direction].id;
             this._modeSelected(mode);
         },
 
         _smEnded: function () {
-            var modeParam = this._getModeParams(this._targetMode);
             this._logger.set({
                 sm: {
-                    targetRotation: this._convertRot(modeParam.rotation),
-                    targetDirection: this._convertDir(modeParam.direction)
+                    targetRotation: this._convertRot(this._targetModeParams.rotation),
+                    targetDirection: this._convertDir(this._targetModeParams.direction)
                 }
             });
 
