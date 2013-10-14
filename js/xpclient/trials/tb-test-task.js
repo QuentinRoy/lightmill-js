@@ -24,22 +24,30 @@ define(['jstools/tools', './test-task', 'toolbar', 'jquery'], function (tools, T
             return this._tracking;
         },
 
-        start: function () {
-            var answer = this.$super.call(this, arguments),
-                targetLabel = this._modeMapping[this._targetMode].name;
-            this._logger.set({
-                'toolbar.targetButton': this._getButtonLogParams(targetLabel),
-            });
-            // timestamps ?
-            return answer;
-        },
 
-        _initTechnique: function (techniqueDiv) {
-            this._toolbar = new Toolbar(techniqueDiv, this._callbacks, {
+        _createDOM: function () {
+            this.$super();
+            this._toolbar = new Toolbar(this._techniqueDiv, this._callbacks, {
                 buttonWidth: 80,
                 spread: true,
                 logger: this._logger
             });
+        },
+
+        _taskParams: function () {
+            var res = this.$super(),
+                targetLabel = this._modeMapping[this._targetMode].name,
+                button = this._toolbar.getButton(targetLabel);
+            res.targetCenter = tools.centerOf(button);
+            return res;
+        },
+
+        _initTechnique: function () {
+            var targetLabel = this._modeMapping[this._targetMode].name;
+            this._logger.set({
+                'toolbar.targetButton': this._getButtonLogParams(targetLabel),
+            });
+
         },
 
         _createCallbacks: function () {

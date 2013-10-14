@@ -211,12 +211,15 @@ function ($, tools, geoTools, Color, SigmaMenu, TrialLogger, Class, processors, 
 
             this._logger.timestamp('timestamps.preTrialStart');
 
+            this._createDOM();
+            
             var params = this._taskParams();
             $.extend(params, this.params);
-            
+
             this._trialInitView = new TrialInitView(params, this.parentDiv);
             this._trialInitView.open().done(function () {
-                that._startTrial();
+                that._logger.timestamp('timestamps.trialStart');
+                that._initTechnique(that._techniqueDiv);
             });
 
             this._taskDeff.done(function () {
@@ -227,14 +230,6 @@ function ($, tools, geoTools, Color, SigmaMenu, TrialLogger, Class, processors, 
             return this._taskDeff.promise();
         },
 
-        _startTrial: function () {
-            this._logger.timestamp('timestamps.trialStart');
-
-            this._createDOM();
-
-
-            this._initTechnique(this._techniqueDiv);
-        },
 
         _beforeLoggerEvent: function (event) {
             var objectPos = tools.centerOf(this._object);

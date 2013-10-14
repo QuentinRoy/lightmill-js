@@ -68,7 +68,8 @@ define(['jstools/tools'], function (tools) {
         noviceTriggering: ['trigger', 'novice'],
         novice: ['novice', 'selection'],
         execution: ['executionStart', 'executionEnd'],
-        trial: ['trialStart', 'trialEnd']
+        trial: ['trialStart', 'trialEnd'],
+        preTrial: ['preTrialStart', 'trialStart']
     };
 
     registerDurationProcessors(durations, module);

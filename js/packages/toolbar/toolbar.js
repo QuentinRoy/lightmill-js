@@ -2,6 +2,7 @@
 /*global define */
 
 define(['jquery', 'handlebars', 'text!./toolbar-button-template.html', 'text!./toolbar-template.html', 'css!./toolbar'], function ($, Handlebars, toolbarButtonTemplateStr, toolbarTemplateStr) {
+    "use strict";
 
     var toolbarButtonTemplate = Handlebars.compile(toolbarButtonTemplateStr);
     var toolbarTemplate = Handlebars.compile(toolbarTemplateStr);
@@ -26,7 +27,7 @@ define(['jquery', 'handlebars', 'text!./toolbar-button-template.html', 'text!./t
             // compile button template
             button = $(toolbarButtonTemplate({
                 label: label,
-                num:num
+                num: num
             }));
             button.appendTo(this._buttonWrapper);
             this._bindButtonHandlers(button, label);
@@ -98,7 +99,7 @@ define(['jquery', 'handlebars', 'text!./toolbar-button-template.html', 'text!./t
             freeSpace = wrapperWidth - totalWidth;
             gap = freeSpace / (buttonCount - 1);
 
-            buttons.each(function(num, button){
+            buttons.each(function (num, button) {
                 button = $(button);
                 button.css({
                     position: 'absolute',
@@ -140,6 +141,18 @@ define(['jquery', 'handlebars', 'text!./toolbar-button-template.html', 'text!./t
             }
 
         },
+
+        show: function () {
+            this._toolbar.show(0);
+        },
+
+        hide: function () {
+            this._toolbar.hide(0);
+        },
+
+        remove: function () {
+            this._toolbar.remove();
+        }
 
     };
 
