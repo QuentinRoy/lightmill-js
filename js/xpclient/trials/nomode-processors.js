@@ -31,6 +31,14 @@ define(['jstools/tools'], function (tools) {
                 if (!proc.startsWith('_')) processors.push(module[proc]);
             }
             return processors;
+        },
+
+        success: function (log) {
+            if (tools.isSet(log.targetReached) && tools.isSet(log.targetReached)) {
+                log.trialSuccess = log.targetReached && log.targetReached;
+                return true;
+            }
+            return false;
         }
 
     };
@@ -51,7 +59,7 @@ define(['jstools/tools'], function (tools) {
 
     function registerDurationProcessors(durations, container, suffix) {
         var durationName;
-        suffix = tools.isUnset(suffix)?'Duration':suffix;
+        suffix = tools.isUnset(suffix) ? 'Duration' : suffix;
         container = container || {};
         for (durationName in durations) {
             container[durationName + suffix] = createDurationProcessor(durationName, durations[durationName]);
@@ -69,7 +77,8 @@ define(['jstools/tools'], function (tools) {
         novice: ['novice', 'selection'],
         execution: ['executionStart', 'executionEnd'],
         trial: ['trialStart', 'trialEnd'],
-        preTrial: ['preTrialStart', 'trialStart']
+        preTrial: ['preTrialStart', 'trialStart'],
+        total: ['preTrialStart', 'trialEnd']
     };
 
     registerDurationProcessors(durations, module);
