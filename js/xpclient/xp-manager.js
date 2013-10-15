@@ -24,7 +24,7 @@ define(['./connection', './views/block-init', './views/wait', 'jquery', 'state-m
                 { name: 'blockend',     from: 'trialrunning',   to: 'blockloading'  },
                 { name: 'startblock',   from: 'blockinit',      to: 'trialloading'  },
                 { name: 'xpend',        from: 'trialrunning',   to: 'completed'     },
-                { name: 'connecterror',        from: '*',              to: 'crashed'       }
+                { name: 'connecterror', from: '*',              to: 'crashed'       }
             ],
             callbacks: this._getFsmCallbacks()
         });
@@ -107,7 +107,11 @@ define(['./connection', './views/block-init', './views/wait', 'jquery', 'state-m
             var that = this;
             this._waitView.startWaiting();
             this._connection.currentTrial
-                .done($.proxy(this._fsm.trialloaded, this._fsm))
+                .done(
+                function(trial){
+                    if(trial) that._fsm.trialloaded(trial);
+                    else that._fsm.xpend();
+                })
                 .fail(function (m) {
                     if(m && m.responseJSON && m.responseJSON.message){
                         that._fsm.connecterror("Couldn't retrieve trial info: " +  m.responseJSON.message);
@@ -149,6 +153,11 @@ define(['./connection', './views/block-init', './views/wait', 'jquery', 'state-m
             if(config.DEBUG.managerfsm){
                 console.log('MANAGER FSM: '+name+': '+from+' -> '+to);
             }
+        },
+        
+        _onCompleted: function(){
+            var theEnd = $("<h1>THE END</h1>");
+            this._mainDiv.append(theEnd);
         },
 
         _getFsmCallbacks: function () {
