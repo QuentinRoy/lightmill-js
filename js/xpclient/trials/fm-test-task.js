@@ -19,7 +19,10 @@ define(['fingermenu', './test-task', 'jquery'], function (FingerMenu, TestTask, 
 
 
         _initTechnique: function (techniqueDiv) {
-            this._fingerMenu = new FingerMenu(this._fingerLabels, techniqueDiv, true, this._logger);
+            this._fingerMenu = new FingerMenu(this._fingerLabels, techniqueDiv, {
+                autoOpen: true,
+                logger: this._logger
+            });
 
             // add the handlers
             this._fingerMenu.fingerTouched.add($.proxy(this._onFingerTouched, this));
