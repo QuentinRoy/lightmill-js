@@ -62,7 +62,10 @@ define(['jstools/tools', './test-task', 'toolbar', 'jquery', 'fastclick'], funct
         _createCallback: function (modeId) {
             var that = this;
             return function (label, evt) {
-                if (!that.tracking) that._click(modeId, label, evt);
+                if (!that.tracking){
+                    that._toolbar.hide();
+                    that._click(modeId, label, evt);
+                }
             };
         },
 
