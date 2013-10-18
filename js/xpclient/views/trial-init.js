@@ -13,11 +13,13 @@ function ($, Handlebars, handI0, handI1, handM0, handM1, handR0, handR1, handP0,
         this._params = trialParams;
 
         this._technique = this._params.technique;
+        this.delay = this.DELAY;
 
     }
 
     TrialInitView.prototype = {
 
+        DELAY: 500,
 
         _imageMap: {
             SigmaMenu: smImage,
@@ -45,15 +47,13 @@ function ($, Handlebars, handI0, handI1, handM0, handM1, handR0, handR1, handP0,
                 that = this;
 
             this._dfd = $.Deferred();
-
             this._div = $(compiledTemplate);
+            this._startButton = this._div.find('.start-button');
             FastClick.attach(this._div[0]);
-            
+
             this._parentView.append(this._div);
 
-
             this._displayImage();
-
             this._dealWithButton();
 
             return this._dfd.done(function () {
@@ -64,17 +64,27 @@ function ($, Handlebars, handI0, handI1, handM0, handM1, handR0, handR1, handP0,
 
         _dealWithButton: function () {
             var that = this;
-            this._startButton = this._div.find('.start-button');
+            
             tools.centerOf(this._startButton, this._params.positions.object);
-            this._startButton.click(function () {
-                setTimeout(function () {
-                    that._dfd.resolve();
-                }, 0);
+            this._startButton.css({
+                opacity: '0'
             });
+            setTimeout(function () {
+                that._startButton.animate({
+                    opacity: 1
+                }, 'fast');
+                that._startButton.click(function () {
+                    setTimeout(function () {
+                        that._dfd.resolve();
+                    }, 0);
+                });
+            }, that.delay);
         },
 
 
         _displayImage: function () {
+            var buttonHeight = this._startButton.outerHeight(),
+                imageHeight;
             this._imageDiv = $('<div id="init-trial-img-div"></div>');
             this._div.append(this._imageDiv);
 
@@ -84,7 +94,8 @@ function ($, Handlebars, handI0, handI1, handM0, handM1, handR0, handR1, handP0,
                 this._imageDiv.addClass('fm-img');
                 var divWidth = this._div.width(),
                     divHeight = this._div.height();
-                tools.centerOf(this._imageDiv, divWidth / 2, divHeight / 2);
+                imageHeight = this._imageDiv.outerHeight();
+                tools.centerOf(this._imageDiv, divWidth / 2, divHeight / 2 - buttonHeight / 2 - imageHeight / 2);
             } else if (this._technique == 'SigmaMenu') {
                 console.log('rotation: ' + this._params.rotation);
                 console.log('direction: ' + this._params.direction);
@@ -96,7 +107,8 @@ function ($, Handlebars, handI0, handI1, handM0, handM1, handR0, handR1, handP0,
                     direction: this._params.direction
                 });
                 this._imageDiv.addClass('sm-img');
-                tools.centerOf(this._imageDiv, this._div.width() / 2, this._div.height() / 2);
+                imageHeight = this._imageDiv.outerHeight();
+                tools.centerOf(this._imageDiv, this._div.width() / 2, this._div.height() / 2 - buttonHeight / 2 - imageHeight / 2);
             } else if (this._technique == 'Toolbar') {
                 this._image = $(this._imageMap[this._technique]);
                 this._imageDiv.append(this._image);

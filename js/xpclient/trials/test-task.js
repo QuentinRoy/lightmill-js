@@ -39,7 +39,7 @@ function ($, tools, geoTools, Color, SigmaMenu, TrialLogger, Class, processors, 
             this._initPositions = this._positions();
         },
 
-        DEFAULT_TARGET_DIST: 400,
+        DEFAULT_TARGET_DIST: 200,
 
         DEFAULT_MAX_DIST: 15,
 
@@ -144,14 +144,12 @@ function ($, tools, geoTools, Color, SigmaMenu, TrialLogger, Class, processors, 
         _positions: function () {
             var dir = this.params.values.direction,
                 center = tools.centerOf(this.parentDiv),
-                centerDist = this.targetDist / 2,
                 angleMapping = this._directionMapping[dir],
-                targetAngle = tools.isUnset(angleMapping) ? dir : angleMapping,
-                objectAngle = targetAngle + Math.PI;
+                targetAngle = tools.isUnset(angleMapping) ? dir : angleMapping;
 
             return {
-                object: [center[0] + Math.cos(objectAngle) * centerDist, center[1] + Math.sin(objectAngle) * centerDist],
-                target: [center[0] + Math.cos(targetAngle) * centerDist, center[1] + Math.sin(targetAngle) * centerDist]
+                object: [center[0], center[1]],
+                target: [center[0] + Math.cos(targetAngle) * this.targetDist, center[1] + Math.sin(targetAngle) * this.targetDist]
             };
         },
 
