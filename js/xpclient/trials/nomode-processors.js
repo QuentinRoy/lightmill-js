@@ -28,7 +28,7 @@ define(['jstools/tools'], function (tools) {
         all: function () {
             var processors = [];
             for (var proc in module) {
-                if (!proc.startsWith('_')) processors.push(module[proc]);
+                if (proc !== 'all' && !proc.startsWith('_')) processors.push(module[proc]);
             }
             return processors;
         },
