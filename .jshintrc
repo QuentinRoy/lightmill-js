@@ -8,7 +8,7 @@
     "devel":true,
     "laxcasebreak":true,
     "globals":{
-        "define":false,
-        "requirejs":false
+        "define":true,
+        "requirejs":true
         }
 }

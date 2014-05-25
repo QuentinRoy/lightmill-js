@@ -1,9 +1,13 @@
-define(['./config', 'jquery', 'jstools/tools', 'cookies'], function (config, $, tools, cookies) {
+define(['./default-config', 'jquery', 'jstools/tools', 'cookies'], function (defaultConfig, $, tools, cookies) {
     "use strict";
 
-    function XpConnect() {
-        this.serverAddress = config.SERVER_ADDRESS;
-        this.targetXp = config.TARGET_EXPERIMENT;
+    function XpConnect(config) {
+        // merge the default config with the provided config
+        config = $.extend({}, defaultConfig, config);
+
+        this.serverAddress = config.serverAddress;
+        this.targetXp = config.targetExperiment;
+
         this._experimentPromise = null;
         this._runPromise = null;
         this._postPromise = null;

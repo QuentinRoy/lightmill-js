@@ -64,6 +64,8 @@ define(['xpclient/xp-manager', 'xpclient/trials/trials-manager', 'purl'], functi
     var url = purl(),
         targetRun = url.param('run'),
         trialManager = new TrialManager(),
-        manager = new XpManager(trialManager, null, targetRun);
+        manager = new XpManager(trialManager, {
+            targetRun:targetRun
+        });
     manager.start();
 });
