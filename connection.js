@@ -6,7 +6,7 @@ define(['./default-config', 'jquery', 'jstools/tools', 'cookies'], function (def
         config = $.extend({}, defaultConfig, config);
 
         this.serverAddress = config.serverAddress;
-        this.targetXp = config.targetExperiment;
+        this.targetXp = config.experiment || config.targetExperiment // targetExperiment is deprecated;
 
         this._experimentPromise = null;
         this._runPromise = null;
