@@ -1,4 +1,4 @@
-define(['jquery', 'jstools/tools', 'text!./block-init-template.html', 'handlebars', 'fastclick'], function ($, tools, template, Handlebars, FastClick) {
+define(['jquery', 'jstools/tools', 'text!./block-init-template.html', 'handlebars', 'fastclick', 'css!./main.css'], function ($, tools, template, Handlebars, FastClick) {
     "use strict";
 
     function BlockInitView(parentView) {

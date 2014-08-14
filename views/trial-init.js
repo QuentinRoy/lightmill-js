@@ -1,6 +1,6 @@
 define(
 
-['jquery', 'handlebars', 'image!images/handi0.svg', 'image!images/handi1.svg', 'image!images/handm0.svg', 'image!images/handm1.svg', 'image!images/handr0.svg', 'image!images/handr1.svg', 'image!images/handp0.svg', 'image!images/handp1.svg', 'image!images/sigmamenu.svg', 'image!images/arrow.svg', 'text!./trial-init-template.html', 'jstools/tools', 'fastclick', 'css!./trial-init.css'],
+['jquery', 'handlebars', 'image!images/handi0.svg', 'image!images/handi1.svg', 'image!images/handm0.svg', 'image!images/handm1.svg', 'image!images/handr0.svg', 'image!images/handr1.svg', 'image!images/handp0.svg', 'image!images/handp1.svg', 'image!images/sigmamenu.svg', 'image!images/arrow.svg', 'text!./trial-init-template.html', 'jstools/tools', 'fastclick', 'css!./trial-init.css', 'css!./main.css'],
 
 function ($, Handlebars, handI0, handI1, handM0, handM1, handR0, handR1, handP0, handP1, smImage, arrowImage, template, tools, FastClick) {
     "use strict";

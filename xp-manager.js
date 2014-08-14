@@ -1,44 +1,49 @@
-define(['./connection', './views/block-init', './views/wait', 'jquery', 'state-machine', './default-config'],
+define(['./connection', './views/block-init', './views/wait', 'jquery', 'state-machine', './default-config', 'jstools/additions'],
     function (XpConnection, BlockInitView, WaitView, $, StateMachine, defaultConfig) {
         "use strict";
 
         /**
-         * Arguments are in the form {trialManager, mainDiv, targetDiv}
-         * Everything is facultative but trialManager.
-         * Alternatively, trialManager can be given as first argument.
+         * Arguments are in the form {taskManager, mainDiv, targetDiv}
+         * Everything is facultative but taskManager.
+         * Alternatively, taskManager can be given as first argument.
          */
-        function XPManager(trialManager, config) {
+        function XPManager(taskManager, config) {
             // merge the default config with the provided config
-            if (!config && trialManager.config) {
-                this._config = $.extend({}, defaultConfig, trialManager);
+            if (!config && taskManager.config) {
+                this._config = $.extend({}, defaultConfig, taskManager);
             } else {
                 this._config = $.extend({
-                    trialManager: trialManager
+                    taskManager: taskManager
                 }, defaultConfig, config);
             }
 
             this._mainDiv = $(this._config.mainDiv);
-            this._trialManager = this._config.trialManager;
-            trialManager.taskDiv = trialManager.taskDiv || this._mainDiv;
+            this._taskManager = this._config.taskManager;
+            taskManager.taskDiv = taskManager.taskDiv || this._mainDiv;
             this._trialResultPromise = null;
             this._currentTrial = null;
             this._blockInitView = new BlockInitView(this._mainDiv);
             this._waitView = new WaitView(this._mainDiv);
             this._connection = new XpConnection(this._config);
-            this._targetRun = this._config.targetRun;
+            this._targetRun = this._config.run;
 
             this._fsm = StateMachine.create({
                 initial: 'idle',
                 events: [
-                    { name: 'start',        from: 'idle',           to: 'runloading'    },
+                    { name: 'start',        from: 'idle',           to: 'init'          },
+                    { name: 'runloaded',    from: 'init',           to: 'taskinit'      },
+                    { name: 'taskready',    from: 'init',           to: 'runloading'    },
                     { name: 'runloaded',    from: 'runloading',     to: 'blockloading'  },
+                    { name: 'taskready',    from: 'taskinit',       to: 'blockloading'  },
                     { name: 'blockloaded',  from: 'blockloading',   to: 'blockinit'     },
                     { name: 'trialloaded',  from: 'trialloading',   to: 'trialrunning'  },
                     { name: 'trialend',     from: 'trialrunning',   to: 'trialloading'  },
                     { name: 'blockend',     from: 'trialrunning',   to: 'blockloading'  },
                     { name: 'startblock',   from: 'blockinit',      to: 'trialloading'  },
                     { name: 'xpend',        from: 'trialrunning',   to: 'completed'     },
-                    { name: 'connecterror', from: '*',              to: 'crashed'       }
+                    { name: 'connecterror', from: '*',              to: 'crashed'       },
+                    { name: 'taskerror',    from: '*',              to: 'crashed'       },
+                    { name: '*',            from: 'crashed'                             }
                 ],
                 callbacks: this._getFsmCallbacks()
             });
@@ -68,31 +73,36 @@ define(['./connection', './views/block-init', './views/wait', 'jquery', 'state-m
                 return factorValues;
             },
 
-            _onRunLoading: function () {
+            _onInit: function () {
                 var that = this;
-                this._connection.connectRun(this._targetRun).done(function () {
-                    that._connection.run.done(function (run) {
-                        window.document.title += " (" + run.id + ")";
-                        that._fsm.runloaded(run);
-                    });
-                })
-                    .fail(function (m) {
-                        if (m && m.responseJSON && m.responseJSON.message) {
-                            that._fsm.connecterror("Couldn't connect to experiment: " + m.responseJSON.message);
-                        } else if (m && m.statusText) {
-                            that._fsm.connecterror("Couldn't connect to experiment: " + m.statusText);
-                        } else {
-                            that._fsm.connecterror("Couldn't connect to experiment.");
-                        }
-                    });
+                this._waitView.startWaiting();
+                this._connection.connectRun(this._targetRun).then(function () {
+                    return that._connection.run;
+                }).then(function (run) {
+                    that._fsm.runloaded();
+                    window.document.title += " (" + run.id + ")";
+                }).fail(function (m) {
+                    if (m && m.responseJSON && m.responseJSON.message) {
+                        that._fsm.connecterror("Couldn't connect to experiment: " + m.responseJSON.message);
+                    } else if (m && m.statusText) {
+                        that._fsm.connecterror("Couldn't connect to experiment: " + m.statusText);
+                    } else {
+                        that._fsm.connecterror("Couldn't connect to experiment.");
+                    }
+                });
+                $.when(this._taskManager.initTask()).then(function () {
+                    that._fsm.taskready();
+                }).fail(function (m) {
+                    that._fsm.taskerror("Could not init the task: " + (m ? m : "."));
+                });
             },
 
             _onBlockLoading: function () {
                 this._waitView.startWaiting();
                 var that = this;
                 $.when(this._connection.currentTrial, this._connection.experiment).done(function (trial, experiment) {
-                    trial = trial[0];
-                    experiment = experiment[0];
+                    // trial = trial[0];
+                    // experiment = experiment[0];
                     that._fsm.blockloaded({
                         number: trial.block_number,
                         values: that._populateFactorValues(trial.block_values, experiment.factors),
@@ -120,13 +130,12 @@ define(['./connection', './views/block-init', './views/wait', 'jquery', 'state-m
             _onTrialLoading: function () {
                 var that = this;
                 this._waitView.startWaiting();
-                this._connection.currentTrial
-                    .done(
-                        function (trial) {
-                            if (trial) that._fsm.trialloaded(trial);
-                            else that._fsm.xpend();
-                        })
-                    .fail(function (m) {
+                this._connection.currentTrial.done(
+                    function (trial) {
+                        if (trial) that._fsm.trialloaded(trial);
+                        else that._fsm.xpend();
+                    }).fail(
+                    function (m) {
                         if (m && m.responseJSON && m.responseJSON.message) {
                             that._fsm.connecterror("Couldn't retrieve trial info: " + m.responseJSON.message);
                         } else if (m && m.statusText) {
@@ -138,6 +147,7 @@ define(['./connection', './views/block-init', './views/wait', 'jquery', 'state-m
             },
 
             _onCrashed: function (name, from, to, message) {
+                if(from == 'trialrunning') this._taskManager.cancelTrial(message);
                 alert(message);
             },
 
@@ -145,11 +155,27 @@ define(['./connection', './views/block-init', './views/wait', 'jquery', 'state-m
                 this._waitView.stopWaiting();
             },
 
-            _onTrialRunning: function (name, from, to, trial) {
+            _updateTrialSettings: function (trialSettings) {
+                trialSettings.allvalues = {};
+                var valdicts = [
+                    trialSettings.default_values,
+                    trialSettings.block_values,
+                    trialSettings.values
+                ];
+                $.each(valdicts, function (i, valdict) {
+                    $.each(valdict, function (valName, val) {
+                        trialSettings.allvalues[valName] = val;
+                    });
+                });
+
+            },
+
+            _onTrialRunning: function (name, from, to, trialSettings) {
                 var that = this;
-                this._currentTrial = trial;
-                this._trialManager.startTask(trial).done(function (results) {
-                    if (trial.number < trial.total - 1) {
+                this._updateTrialSettings(trialSettings);
+                this._currentTrial = trialSettings;
+                this._taskManager.startTrial(trialSettings).done(function (results) {
+                    if (trialSettings.number < trialSettings.total - 1) {
                         that._fsm.trialend(results);
                     } else {
                         that._fsm.blockend(results);
@@ -160,12 +186,22 @@ define(['./connection', './views/block-init', './views/wait', 'jquery', 'state-m
             },
 
             _onLeaveTrialRunning: function (name, from, to, trialresult) {
-                this._connection.sendTrialResults(trialresult);
+                var that = this;
+                this._connection.sendTrialResults(trialresult).fail(
+                    function (m) {
+                        if (m && m.responseJSON && m.responseJSON.message) {
+                            that._fsm.connecterror("Couldn't register trial log: " + m.responseJSON.message);
+                        } else if (m && m.statusText) {
+                            that._fsm.connecterror("Couldn't register trial log: " + m.statusText);
+                        } else {
+                            that._fsm.connecterror("Couldn't register trial log.");
+                        }
+                    });
             },
 
             _onBeforeEvent: function (name, from, to) {
                 if (this._config.debug.managerfsm) {
-                    console.log('MANAGER FSM: ' + name + ': ' + from + ' -> ' + to);
+                    console.log('XP MANAGER FSM: ' + name + ': ' + from + ' -> ' + to);
                 }
             },
 
@@ -188,7 +224,17 @@ define(['./connection', './views/block-init', './views/wait', 'jquery', 'state-m
                 return callbacks;
             },
 
+            get started() {
+                return this.state !== 'idle';
+            },
 
+            get completed() {
+                return this.state === 'completed';
+            },
+
+            get state() {
+                return this._fsm.current;
+            }
         };
 
         return XPManager;

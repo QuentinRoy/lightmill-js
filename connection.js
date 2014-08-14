@@ -11,13 +11,15 @@ define(['./default-config', 'jquery', 'jstools/tools', 'cookies'], function (def
         this._experimentPromise = null;
         this._runPromise = null;
         this._postPromise = null;
-        this._currentTrialPromise = null;
+        // this._currentTrialPromise = null;
         this._lockPromise = null;
-        this._lastPostRequest = null;
+        this._currentPostRequest = null;
         this._unlockPromise = null;
         this._connectPromise = null;
         this._disconnectPromise = null;
         this._connected = false;
+
+        this._currentTrialNum = null;
 
         // function to be automatically called at window unloading when run is connected
         var that = this;
@@ -42,7 +44,8 @@ define(['./default-config', 'jquery', 'jstools/tools', 'cookies'], function (def
                 return $.Deferred().resolve().promise();
             });
             this._updateExperiment();
-            this._updateCurrentTrial();
+            this._updateTrials();
+            // this._updateCurrentTrial();
 
             $(window).on('unload', this._beforeunload);
             return this._connectPromise;
@@ -56,12 +59,12 @@ define(['./default-config', 'jquery', 'jstools/tools', 'cookies'], function (def
             this._factorsPromise = null;
             this._runPromise = null;
             this._postPromise = null;
-            this._currentTrialPromise = null;
             this._lockPromise = null;
-            this._lastPostRequest = null;
+            this._currentPostRequest = null;
             this._unlockPromise = null;
             this._connectPromise = null;
             this._connected = false;
+            this._trials = null;
             return this._disconnectPromise;
         },
 
@@ -80,6 +83,9 @@ define(['./default-config', 'jquery', 'jstools/tools', 'cookies'], function (def
                 dataType: 'json',
                 type: 'GET',
                 cache: false
+            }).then(function (xp) {
+                // filters useless results
+                return xp;
             });
             return this.experiment;
         },
@@ -101,6 +107,9 @@ define(['./default-config', 'jquery', 'jstools/tools', 'cookies'], function (def
                 dataType: 'json',
                 type: 'GET',
                 cache: false
+            }).then(function (result) {
+                // filters unused result arguments
+                return result;
             });
 
             this._runPromise.done(function (run) {
@@ -122,11 +131,9 @@ define(['./default-config', 'jquery', 'jstools/tools', 'cookies'], function (def
             if (this._lockPromise) {
                 throw "Lock already requested.";
             }
-            var that = this,
-                run = null;
+            var that = this;
             // wait for the run request and the unlock promise (if any)
-            this._lockPromise = $.when(this.run, this._unlockPromise).then(function (runPromise) {
-                run = runPromise[0];
+            this._lockPromise = $.when(this.run, this._unlockPromise).then(function (run) {
                 var address = that.serverAddress + '/run/' + that.targetXp + '/' + run.id + '/lock';
                 // request the lock token
                 return $.ajax({
@@ -135,6 +142,9 @@ define(['./default-config', 'jquery', 'jstools/tools', 'cookies'], function (def
                     // async lock can make async unlock call to be missed and so lock undefinetely the run
                     async: false,
                     cache: false
+                }).then(function (result) {
+                    // filters unused result arguments
+                    return result;
                 });
             });
             return this._lockPromise;
@@ -153,7 +163,7 @@ define(['./default-config', 'jquery', 'jstools/tools', 'cookies'], function (def
                 return this.updateRun();
             }
             this._unlockPromise = this._lock.then(function (lock) {
-                var postParams = {
+                return $.ajax({
                     type: "POST",
                     url: '' + that.serverAddress + '/run/' + that.targetXp + '/' + lock.run_id + '/unlock',
                     data: {
@@ -161,71 +171,81 @@ define(['./default-config', 'jquery', 'jstools/tools', 'cookies'], function (def
                     },
                     async: async,
                     cache: false // usually useless, but who knows?
-                };
-                return $.ajax(postParams);
+                }).then(function (result) {
+                    // filters unused result arguments
+                    return result;
+                });
             });
             this._lockPromise = null;
             return this._unlockPromise;
         },
 
-        _updateCurrentTrial: function () {
-            if (!this.connected) {
-                throw "Not connected.";
-            }
-            var that = this;
-            // we need the run information, but also need to be sure the last post request has been finished
-            this._currentTrialPromise = $.when(this.run, this._lastPostRequest).then(function (resultsRun) {
-                // build the address
-                var run = resultsRun[0],
-                    address = that.serverAddress + '/run/' + run.experiment_id + '/' + run.id + '/current_trial';
-                // get the current trial
-                return $.ajax({
-                    url: address,
-                    dataType: 'json',
-                    type: 'GET',
-                    cache: false
+        get trials() {
+            if (!this._trials) this._updateTrials();
+            return this._trials;
+        },
+
+        _updateTrials: function () {
+            var that = this,
+                trials = this.run.then(function (run) {
+                    return $.ajax({
+                        url: that.serverAddress + '/run/' + run.experiment_id + '/' + run.id + '/trials',
+                        dataType: 'json',
+                        type: 'GET',
+                        cache: false
+                    }).then(function (result) {
+                        // filters unused result arguments
+                        return result;
+                    });
                 });
-            }).then(null, function (error) {
-                // an error will occur if the run is completed
-                // in that case we update the run
-                return that.updateRun().then(function (run) {
-                    // check if it is really completed
-                    if (run.completed) {
-                        // if it is the result is null
-                        return $.Deferred().resolve(null).promise();
-                    } else {
-                        // otherwise the error comes from something else, reject.
-                        return $.Deferred().reject(error).promise();
-                    }
-                });
-            });
-            return this.currentTrial;
+            // replace the getter so that the trials are got only once
+            this._trials = trials;
+            return trials;
         },
 
         get currentTrial() {
-            return this.connected ? (this._currentTrialPromise || this._updateCurrentTrial()) : null;
+            var that = this;
+            if (!that.connected) return null;
+            var trials = this._trials || this._updateTrials();
+            return $.when(trials, this._sendInit).then(function (trials) {
+                if (that._currentTrialNum === null) {
+                    for (var i = 0, n = trials.length; i < n; i++) {
+                        var trial = trials[i];
+                        if (!trial.completion_date) {
+                            that._currentTrialNum = i;
+                            return trial;
+                        }
+                    }
+                } else {
+                    return trials[that._currentTrialNum];
+                }
+            });
         },
 
         sendTrialResults: function (measures) {
             if (!this.connected) {
                 throw "Not connected.";
             }
-            var that = this,
-                // run is cached so we can reference it once it is registered (done part)
-                run = null,
+            var that = this;
 
-                // we need the run information, we make sure the run is locked
-                // we also need current trial
-                when = $.when(this.run, this._lock, this.currentTrial),
-                then = when.then(function (runPromise, lockPromise, currentTrialPromise) {
-                    var currentTrial = currentTrialPromise[0],
-                        token = lockPromise[0].token,
+            this._sendInit = $.when(this.currentTrial, this._currentPostRequest).then(
+                function (currentTrialRes) {
+                    return currentTrialRes;
+                });
+
+            // we need the run information, we make sure the run is locked, and that the last post
+            // request is sent
+            // we also need current trial
+            var when = $.when(this.run, this._lock, this._sendInit),
+                then = when.then(function (run, lock, currentTrial) {
+                    var token = lock.token,
 
                         // build the address pass
                         path = [currentTrial.experiment_id,
                             currentTrial.run_id,
                             currentTrial.block_number,
-                            currentTrial.number].join('/'),
+                            currentTrial.number
+                        ].join('/'),
                         address = that.serverAddress + '/trial/' + path,
                         // build the data
                         data = {
@@ -237,8 +257,6 @@ define(['./default-config', 'jquery', 'jstools/tools', 'cookies'], function (def
                             measures: measures
                         };
 
-                    // register the run
-                    run = runPromise[0];
 
                     // post the data
                     return $.ajax({
@@ -249,21 +267,25 @@ define(['./default-config', 'jquery', 'jstools/tools', 'cookies'], function (def
                         crossDomain: true,
                         dataType: 'json',
                         cache: false // usually useless, but who knows?
-                    });
-                }).done(function () {
-                    // cookie is set if we can lock the run
-                    cookies.set('running-run-id', run.id, {
-                        secure: false,
-                        expires: 60 * 60 * 24
+                    }).then(function (result) {
+                        // filters useless ajax results
+                        return result;
+                    }).done(function () {
+                        // cookie is set if we can lock the run
+                        cookies.set('running-run-id', run.id, {
+                            secure: false,
+                            expires: 60 * 60 * 24
+                        });
                     });
                 });
 
             // registers the last post request
-            this._lastPostRequest = then;
+            this._currentPostRequest = then;
+            this._currentTrialNum++;
 
             // force the current trial to be updated (will wait the end of the post request)
-            this._updateCurrentTrial();
-            return this._lastPostRequest;
+            // this._updateCurrentTrial();
+            return this._currentPostRequest;
         }
     };
 

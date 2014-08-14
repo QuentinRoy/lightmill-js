@@ -3,7 +3,7 @@ define(['spin', 'jquery'], function (Spinner, $) {
 
     function WaitView(parentView) {
         this._parentView = parentView;
-        this._spinView = $('<div class="full-parent"></div>');
+        this._spinView = $('<div class="full-parent" style="background-color:black"></div>');
         this._spinner = new Spinner(this._opts);
     }
 
