@@ -1,8 +1,8 @@
-define(['jstools/tools', 'jquery', './logger', 'signals'], function (tools, $, Logger, Signal) {
+define(['jstools/tools', 'jquery', './logger', 'signals'], function(tools, $, Logger, Signal) {
     "use strict";
 
 
-    return Logger.extend(function (base) {
+    return Logger.extend(function(base) {
 
         // if args starts by an evt (contains timestamp and type)
         // returns an array containing timestamp and type and the remaining of the arguments
@@ -23,16 +23,16 @@ define(['jstools/tools', 'jquery', './logger', 'signals'], function (tools, $, L
 
         // wrap a function so that the arguments are automatically normalized
         function _eventDecorator(f, context) {
-            return function () {
-                context = context || this;
+            return function() {
+                var fcontext = context == void(0) ? this : context;
                 var args = _normalizeEvtArgs(arguments);
-                return f.apply(context, args);
+                return f.apply(fcontext, args);
             };
         }
 
         return {
 
-            init: function (trialProcessors, eventProcessors, settings) {
+            init: function(trialProcessors, eventProcessors, settings) {
                 base.init.call(this, trialProcessors, settings);
                 settings = settings || {};
 
@@ -52,7 +52,7 @@ define(['jstools/tools', 'jquery', './logger', 'signals'], function (tools, $, L
 
                 var that = this;
                 this._pointerHandlers = {
-                    'touchstart touchend touchmove touchcancel mousesup mousedown mousemove': function (evt) {
+                    'touchstart touchend touchmove touchcancel mousesup mousedown mousemove': function(evt) {
                         that.setPointerEvent(evt);
                     },
                 };
@@ -63,25 +63,25 @@ define(['jstools/tools', 'jquery', './logger', 'signals'], function (tools, $, L
                 this.onEvent = new Signal();
             },
 
-            createEvent: function (evtTime, evtType) {
+            createEvent: function(evtTime, evtType) {
                 return this._createEvent(evtTime, evtType);
             },
 
-            forEachEvent: function (f) {
-                this._events.forEach(function (evt, i) {
+            forEachEvent: function(f) {
+                this._events.forEach(function(evt, i) {
                     f(evt, i);
                 });
             },
 
-            eventCount: function () {
+            eventCount: function() {
                 return this._events.length;
             },
 
-            lastEvent: function () {
+            lastEvent: function() {
                 return this._events[this._events.length - 1];
             },
 
-            _pushNewEvent: function (evt) {
+            _pushNewEvent: function(evt) {
                 var prevI = this._events.length - 1,
                     prev = this._events[prevI],
                     timestamp = evt.get('timestamp');
@@ -95,7 +95,7 @@ define(['jstools/tools', 'jquery', './logger', 'signals'], function (tools, $, L
             },
 
             // evtTime & evtType can be replace by an event
-            _createEvent: _eventDecorator(function (evtTime, evtType, noSignal) {
+            _createEvent: _eventDecorator(function(evtTime, evtType, noSignal) {
                 var evt = new Logger(this.eventProcessors, {
                         processorParams: $.extend({
                             trialLogger: this
@@ -117,7 +117,7 @@ define(['jstools/tools', 'jquery', './logger', 'signals'], function (tools, $, L
             }),
 
             // evtTime & evtType can be replace by an event
-            getEvent: _eventDecorator(function (evtTime, evtType, createUnfound) {
+            getEvent: _eventDecorator(function(evtTime, evtType, createUnfound) {
                 var types = this._evtIndex[evtType],
                     evt;
                 if (types) evt = types[evtTime];
@@ -125,12 +125,12 @@ define(['jstools/tools', 'jquery', './logger', 'signals'], function (tools, $, L
                 return evt;
             }),
 
-            eventExists: function () {
+            eventExists: function() {
                 return Boolean(this.getEvent.apply(this, arguments));
             },
 
             // evtTime & evtType can be replace by an event
-            setEvent: _eventDecorator(function (evtTime, evtType, measureNameOrMeasuresObj, measure) {
+            setEvent: _eventDecorator(function(evtTime, evtType, measureNameOrMeasuresObj, measure) {
                 var evtLog = this.getEvent(evtTime, evtType);
                 if (!evtLog) {
                     evtLog = this._createEvent(evtTime, evtType, true);
@@ -142,7 +142,7 @@ define(['jstools/tools', 'jquery', './logger', 'signals'], function (tools, $, L
                 return evtLog;
             }),
 
-            export: function () {
+            export: function() {
                 // this._events should remain sorted
                 var sortedEvents = this._events;
                 var eventExports = [];
@@ -165,7 +165,7 @@ define(['jstools/tools', 'jquery', './logger', 'signals'], function (tools, $, L
                 };
             },
 
-            logPointerEvents: function (mustLog) {
+            logPointerEvents: function(mustLog) {
                 if (tools.isSet(mustLog)) {
                     if (mustLog && !this._logPointerEvents) {
                         $("#content-wrapper").on(this._pointerHandlers);
@@ -177,7 +177,7 @@ define(['jstools/tools', 'jquery', './logger', 'signals'], function (tools, $, L
                 return this._logPointerEvents;
             },
 
-            setPointerEvent: function (event, log) {
+            setPointerEvent: function(event, log) {
                 event = event.originalEvent || event;
                 var eventLog = this.getEvent(event);
                 log = log || {};
