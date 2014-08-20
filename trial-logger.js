@@ -1,5 +1,5 @@
 define(['jstools/tools', 'jquery', './logger', 'signals'], function(tools, $, Logger, Signal) {
-    "use strict";
+    'use strict';
 
 
     return Logger.extend(function(base) {
@@ -36,7 +36,7 @@ define(['jstools/tools', 'jquery', './logger', 'signals'], function(tools, $, Lo
                 base.init.call(this, trialProcessors, settings);
                 settings = settings || {};
 
-                if (typeof processor_s == "function") {
+                if (typeof processor_s == 'function') {
                     this.eventProcessors = [eventProcessors];
                 } else if (eventProcessors) {
                     this.eventProcessors = eventProcessors.slice(0);
@@ -68,8 +68,9 @@ define(['jstools/tools', 'jquery', './logger', 'signals'], function(tools, $, Lo
             },
 
             forEachEvent: function(f) {
-                this._events.forEach(function(evt, i) {
-                    f(evt, i);
+                this._events.every(function(evt, i) {
+                    if (f(evt, i) === false) return false;
+                    else return true;
                 });
             },
 
@@ -103,7 +104,7 @@ define(['jstools/tools', 'jquery', './logger', 'signals'], function(tools, $, Lo
                     }),
                     types = this._evtIndex[evtType] || {};
                 this._evtIndex[evtType] = types;
-                if (types[evtTime]) throw "Event already exists: " + evtType + " (" + evtTime + ")";
+                if (types[evtTime]) throw 'Event already exists: ' + evtType + ' (' + evtTime + ')';
                 evt.set('timestamp', evtTime);
                 evt.set('type', evtType);
                 evt.protectedValues.push('timestamp');
@@ -165,12 +166,21 @@ define(['jstools/tools', 'jquery', './logger', 'signals'], function(tools, $, Lo
                 };
             },
 
-            logPointerEvents: function(mustLog) {
+            logPointerEvents: function(mustLog, targetDiv) {
                 if (tools.isSet(mustLog)) {
-                    if (mustLog && !this._logPointerEvents) {
-                        $("#content-wrapper").on(this._pointerHandlers);
-                    } else if (this._logPointerEvents) {
-                        $("#content-wrapper").off(this._pointerHandlers);
+                    // register the old targetDiv
+                    var oldTargetDiv = this._pointersDiv;
+                    // register the new div to follow
+                    this._pointersDiv = $(targetDiv || oldTargetDiv || document);
+                    // check we are not already following this div
+                    var different = this._pointersDiv !== targetDiv;
+                    // remove the old handlers if needed
+                    if (this._logPointerEvents && (different || !mustLog)) {
+                        $(oldTargetDiv).off(this._pointerHandlers);
+                    }
+                    // add the new one if needed
+                    if (mustLog && different) {
+                        $(this._pointersDiv).on(this._pointerHandlers);
                     }
                     this._logPointerEvents = mustLog;
                 }
@@ -178,17 +188,36 @@ define(['jstools/tools', 'jquery', './logger', 'signals'], function(tools, $, Lo
             },
 
             setPointerEvent: function(event, log) {
+                // retrieve the original event (jquery event case)
                 event = event.originalEvent || event;
+                // get the event log associated to this event
                 var eventLog = this.getEvent(event);
-                log = log || {};
-                if (eventLog && eventLog._pointerRegistered) {
-                    return eventLog.set(log);
+                // if there is no eventLog, we will trigger the signal at the end
+                // of this set command
+                var dispatch = !eventLog;
+                // create (if needed) the event log with no signal option
+                eventLog = eventLog || this._createEvent(event, true);
+                // if we did not already registered the pointer, we register them
+                if (!eventLog._pointerRegistered) {
+                    // get the pointer log and register it
+                    eventLog.set(this._getPointerLog(event));
+                    // flag the event log
+                    eventLog._pointerRegistered = true;
                 }
+                // set user log *after* the pointer log (so it can be overwritten)
+                eventLog.set(log);
+                // dispatch the event if we created the event log here
+                if(dispatch) this.onEvent.dispatch(eventLog);
+            },
+
+            _getPointerLog: function(event, target){
+                target = target || {};
+                // else we register the pointers
                 var touches = (event.originalEvent || event).touches,
                     n = touches ? touches.length : 0,
                     i, touch,
-                    pointersLog = log.pointers || {};
-                log.pointers = pointersLog;
+                    pointersLog = target.pointers || {};
+                target.pointers = pointersLog;
                 pointersLog.count = n;
                 for (i = 0; i < n; i++) {
                     touch = touches[i];
@@ -204,11 +233,7 @@ define(['jstools/tools', 'jquery', './logger', 'signals'], function(tools, $, Lo
                         y: event.pageY
                     };
                 }
-                if (!eventLog) eventLog = this._createEvent(event, true);
-                eventLog.set(log);
-                eventLog._pointerRegistered = true;
-                this.onEvent.dispatch(eventLog);
-                return eventLog;
+                return target;
             }
 
         };

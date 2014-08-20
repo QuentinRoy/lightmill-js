@@ -1,5 +1,5 @@
-define(['jstools/tools', 'jquery', 'fiber', './dot-notation'], function(tools, $, Fiber, dot) {
-    "use strict";
+define(['jstools/tools', 'jquery', 'fiber', './dot-notation', 'is'], function(tools, $, Fiber, dot, is) {
+    'use strict';
 
     return Fiber.extend(function() {
 
@@ -9,12 +9,15 @@ define(['jstools/tools', 'jquery', 'fiber', './dot-notation'], function(tools, $
                 this._log = {};
                 settings = settings || {};
 
-                if (typeof processor_s == "function") {
+                if (is.fn(processor_s)) {
                     this.processors = [processor_s];
-                } else if (processor_s) {
+                } else if (is.array(processor_s)) {
                     this.processors = processor_s.slice(0);
-                } else {
+                } else if (is.hash(processor_s)) {
                     this.processors = [];
+                    for(var proc in processor_s) if (processor_s.hasOwnProperty(proc)) {
+                        this.processors.push(processor_s[proc]);
+                    }
                 }
 
                 // TODO: use this to protect listed values (mark them as unmodifiable)
@@ -31,7 +34,7 @@ define(['jstools/tools', 'jquery', 'fiber', './dot-notation'], function(tools, $
                 } else {
                     $.each(measureNameOrArrayOfMeasureNames, function(num, val) {
                         if (typeof val !== 'string')
-                            throw "measureName must be a string";
+                            throw 'measureName must be a string';
                         _this.set(val, timeStamp);
                     });
                 }
