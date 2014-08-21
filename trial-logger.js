@@ -208,6 +208,7 @@ define(['jstools/tools', 'jquery', './logger', 'signals'], function(tools, $, Lo
                 eventLog.set(log);
                 // dispatch the event if we created the event log here
                 if(dispatch) this.onEvent.dispatch(eventLog);
+                return eventLog;
             },
 
             _getPointerLog: function(event, target){
