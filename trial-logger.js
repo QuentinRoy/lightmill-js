@@ -213,8 +213,8 @@ define(['jstools/tools', 'jquery', './logger', 'signals'], function(tools, $, Lo
 
             _getPointerLog: function(event, target) {
                 target = target || {};
-                // else we register the pointers
                 target.device = tools.eventInfo(event).device;
+                target.originalType = event.type;
                 if(target.device == 'touch') return this._getTouchLog(event, target);
                 else                         return this._getMouseLog(event, target);
             },
