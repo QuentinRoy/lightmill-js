@@ -1,4 +1,4 @@
-define(['jstools/tools', 'jquery', 'fiber', './dot-notation', 'is'], function(tools, $, Fiber, dot, is) {
+define(['jstools/tools', 'jquery', 'fiber', 'jstools/dot-syntax', 'is'], function(tools, $, Fiber, dot, is) {
     'use strict';
 
     return Fiber.extend(function() {
