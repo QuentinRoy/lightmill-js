@@ -7,12 +7,12 @@ define(['jstools/tools', 'jquery', './logger', 'signals'], function(tools, $, Lo
         // if args starts by an evt (contains timestamp and type)
         // returns an array containing timestamp and type and the remaining of the arguments
         // else returns the original arguments
-        function _normalizeEvtArgs(args) {
+        function _normalizePointerEvtArgs(args) {
             var n = args.length;
             if (n < 1) return args;
             var evt = args[0];
             var timestamp = tools.isSet(evt.timestamp) ? evt.timestamp : evt.timeStamp,
-                type = evt.type;
+                type = tools.isSet(evt.type) ? tools.eventInfo(evt).type : null;
             if (timestamp && type) {
                 var newArgs = [timestamp, type];
                 for (var i = 1; i < n; i++) newArgs.push(args[i]);
@@ -21,11 +21,11 @@ define(['jstools/tools', 'jquery', './logger', 'signals'], function(tools, $, Lo
             return args;
         }
 
-        // wrap a function so that the arguments are automatically normalized
-        function _eventDecorator(f, context) {
+        // wrap a function so that pointer events are automatically normalized
+        function _pEvtDecorator(f, context) {
             return function() {
                 var fcontext = context == void(0) ? this : context;
-                var args = _normalizeEvtArgs(arguments);
+                var args = _normalizePointerEvtArgs(arguments);
                 return f.apply(fcontext, args);
             };
         }
@@ -96,7 +96,7 @@ define(['jstools/tools', 'jquery', './logger', 'signals'], function(tools, $, Lo
             },
 
             // evtTime & evtType can be replace by an event
-            _createEvent: _eventDecorator(function(evtTime, evtType, noSignal) {
+            _createEvent: _pEvtDecorator(function(evtTime, evtType, noSignal) {
                 var evt = new Logger(this.eventProcessors, {
                         processorParams: $.extend({
                             trialLogger: this
@@ -118,7 +118,7 @@ define(['jstools/tools', 'jquery', './logger', 'signals'], function(tools, $, Lo
             }),
 
             // evtTime & evtType can be replace by an event
-            getEvent: _eventDecorator(function(evtTime, evtType, createUnfound) {
+            getEvent: _pEvtDecorator(function(evtTime, evtType, createUnfound) {
                 var types = this._evtIndex[evtType],
                     evt;
                 if (types) evt = types[evtTime];
@@ -131,7 +131,7 @@ define(['jstools/tools', 'jquery', './logger', 'signals'], function(tools, $, Lo
             },
 
             // evtTime & evtType can be replace by an event
-            setEvent: _eventDecorator(function(evtTime, evtType, measureNameOrMeasuresObj, measure) {
+            setEvent: _pEvtDecorator(function(evtTime, evtType, measureNameOrMeasuresObj, measure) {
                 var evtLog = this.getEvent(evtTime, evtType);
                 if (!evtLog) {
                     evtLog = this._createEvent(evtTime, evtType, true);
@@ -211,13 +211,19 @@ define(['jstools/tools', 'jquery', './logger', 'signals'], function(tools, $, Lo
                 return eventLog;
             },
 
-            _getPointerLog: function(event, target){
+            _getPointerLog: function(event, target) {
                 target = target || {};
                 // else we register the pointers
-                var touches = (event.originalEvent || event).touches,
-                    n = touches ? touches.length : 0,
-                    i, touch,
-                    pointersLog = target.pointers || {};
+                target.device = tools.eventInfo(event).device;
+                if(target.device == 'touch') return this._getTouchLog(event, target);
+                else                         return this._getMouseLog(event, target);
+            },
+            
+            _getTouchLog: function(event, target) {
+                var touches     = (event.originalEvent || event).touches,
+                    n           = touches ? touches.length : 0,
+                    pointersLog = target.pointers || {},
+                    i, touch;
                 target.pointers = pointersLog;
                 pointersLog.count = n;
                 for (i = 0; i < n; i++) {
@@ -234,6 +240,23 @@ define(['jstools/tools', 'jquery', './logger', 'signals'], function(tools, $, Lo
                         y: event.pageY
                     };
                 }
+                return target;
+            },
+            
+            _getMouseLog: function(event, target) {
+                target.mean = {
+                        x: event.pageX,
+                        y: event.pageY
+                };
+                target.pointer = {
+                    // avoid putting the same object
+                    // so change in one of them does not impact
+                    // the other
+                    '0': {
+                        x: event.pageX,
+                        y: event.pageY
+                    }
+                };
                 return target;
             }
 
