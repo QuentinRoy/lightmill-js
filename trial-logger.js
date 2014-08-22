@@ -24,7 +24,7 @@ define(['jstools/tools', 'jquery', './logger', 'signals'], function(tools, $, Lo
         // wrap a function so that pointer events are automatically normalized
         function _pEvtDecorator(f, context) {
             return function() {
-                var fcontext = context == void(0) ? this : context;
+                var fcontext = context === void(0) ? this : context;
                 var args = _normalizePointerEvtArgs(arguments);
                 return f.apply(fcontext, args);
             };
@@ -218,7 +218,7 @@ define(['jstools/tools', 'jquery', './logger', 'signals'], function(tools, $, Lo
                 if(target.device == 'touch') return this._getTouchLog(event, target);
                 else                         return this._getMouseLog(event, target);
             },
-            
+
             _getTouchLog: function(event, target) {
                 var touches     = (event.originalEvent || event).touches,
                     n           = touches ? touches.length : 0,
@@ -242,7 +242,7 @@ define(['jstools/tools', 'jquery', './logger', 'signals'], function(tools, $, Lo
                 }
                 return target;
             },
-            
+
             _getMouseLog: function(event, target) {
                 target.mean = {
                         x: event.pageX,
