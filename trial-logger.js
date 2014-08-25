@@ -57,7 +57,7 @@ define(['jstools/tools', 'jquery', './logger', 'signals'], function(tools, $, Lo
                     },
                 };
                 this._logPointerEvents = false;
-                this.logPointerEvents(settings.logPointerEvents);
+                if(settings.logPointerEvents) this.startLoggingPointerEvents();
                 this.eventProcessorParams = settings.eventProcessorParams;
 
                 this.onEvent = new Signal();
@@ -143,7 +143,7 @@ define(['jstools/tools', 'jquery', './logger', 'signals'], function(tools, $, Lo
                 return evtLog;
             }),
 
-            export: function() {
+            export: function(continueLogging) {
                 // this._events should remain sorted
                 var sortedEvents = this._events;
                 var eventExports = [];
@@ -160,31 +160,38 @@ define(['jstools/tools', 'jquery', './logger', 'signals'], function(tools, $, Lo
                     var event = sortedEvents[i];
                     eventExports.push($.extend(true, {}, event._log));
                 }
+                if(!continueLogging) this.stopLoggingPointerEvents();
                 return {
                     trial: trialExport,
                     events: eventExports
                 };
             },
 
-            logPointerEvents: function(mustLog, targetDiv) {
-                if (tools.isSet(mustLog)) {
-                    // register the old targetDiv
-                    var oldTargetDiv = this._pointersDiv;
-                    // register the new div to follow
-                    this._pointersDiv = $(targetDiv || oldTargetDiv || document);
-                    // check we are not already following this div
-                    var different = this._pointersDiv !== targetDiv;
-                    // remove the old handlers if needed
-                    if (this._logPointerEvents && (different || !mustLog)) {
-                        $(oldTargetDiv).off(this._pointerHandlers);
-                    }
+            /*
+             * Automatically logs all pointer events.
+             * *WARNINGS*, explicitely stop logging when not required anymore! The
+             * logger won't be garbage collected while the handlers are still attached.
+             * Export by default automatically stop the logging.
+             */
+            startLoggingPointerEvents: function(targetDiv) {
+                // remove the old handlers if needed
+                if (this._pointersDiv && this._pointersDiv[0] !== targetDiv) {
+                    this.stopLoggingPointerEvents();
                     // add the new one if needed
-                    if (mustLog && different) {
-                        $(this._pointersDiv).on(this._pointerHandlers);
-                    }
-                    this._logPointerEvents = mustLog;
+                    this._pointersDiv = $(targetDiv);
+                    this._pointersDiv.on(this._pointerHandlers);
                 }
-                return this._logPointerEvents;
+            },
+
+            stopLoggingPointerEvents: function(){
+                if(this._pointersDiv) {
+                    this._pointersDiv.off(this._pointerHandlers);
+                    this._pointersDiv = null;
+                }
+            },
+
+            get logPointerEvents() {
+                return Boolean(this._pointersDiv);
             },
 
             setPointerEvent: function(event, log) {
