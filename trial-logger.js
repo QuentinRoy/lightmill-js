@@ -174,13 +174,14 @@ define(['jstools/tools', 'jquery', './logger', 'signals'], function(tools, $, Lo
              * Export by default automatically stop the logging.
              */
             startLoggingPointerEvents: function(targetDiv) {
+                targetDiv = targetDiv || document;
                 // remove the old handlers if needed
                 if (this._pointersDiv && this._pointersDiv[0] !== targetDiv) {
                     this.stopLoggingPointerEvents();
-                    // add the new one if needed
-                    this._pointersDiv = $(targetDiv);
-                    this._pointersDiv.on(this._pointerHandlers);
                 }
+                // add the new one if needed
+                this._pointersDiv = $(targetDiv);
+                this._pointersDiv.on(this._pointerHandlers);
             },
 
             stopLoggingPointerEvents: function(){
