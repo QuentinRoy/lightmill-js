@@ -36,6 +36,7 @@ define(['./connection', './views/block-init', './views/wait', 'jquery', 'state-m
                     { name: 'runloaded',    from: 'runloading',     to: 'blockloading'  },
                     { name: 'taskready',    from: 'taskinit',       to: 'blockloading'  },
                     { name: 'blockloaded',  from: 'blockloading',   to: 'blockinit'     },
+                    { name: 'xpend',        from: 'blockloading',   to: 'completed'     },
                     { name: 'trialloaded',  from: 'trialloading',   to: 'trialrunning'  },
                     { name: 'trialend',     from: 'trialrunning',   to: 'trialloading'  },
                     { name: 'blockend',     from: 'trialrunning',   to: 'blockloading'  },
@@ -101,14 +102,18 @@ define(['./connection', './views/block-init', './views/wait', 'jquery', 'state-m
                 this._waitView.startWaiting();
                 var that = this;
                 $.when(this._connection.currentTrial, this._connection.experiment).done(function (trial, experiment) {
-                    // trial = trial[0];
-                    // experiment = experiment[0];
-                    that._fsm.blockloaded({
-                        number: trial.block_number,
-                        values: that._populateFactorValues(trial.block_values, experiment.factors),
-                        measure_block_number: trial.measure_block_number,
-                        practice: trial.practice
-                    });
+                    if(trial) {
+                            // trial = trial[0];
+                            // experiment = experiment[0];
+                            that._fsm.blockloaded({
+                                number: trial.block_number,
+                                values: that._populateFactorValues(trial.block_values, experiment.factors),
+                                measure_block_number: trial.measure_block_number,
+                                practice: trial.practice
+                            });
+                    } else {
+                        that._fsm.xpend();
+                    }
                 }).fail(function (m) {
                     if (m && m.responseJSON && m.responseJSON.message) {
                         that._fsm.connecterror("Couldn't retrieve block info: " + m.responseJSON.message);
@@ -206,7 +211,8 @@ define(['./connection', './views/block-init', './views/wait', 'jquery', 'state-m
             },
 
             _onCompleted: function () {
-                var theEnd = $("<h1>THE END</h1>");
+                // TODO: Well... Use a template?
+                var theEnd = $('<div style="text-align:center"><h1>THE END</h1> Thank you for your participation.</div>');
                 this._mainDiv.append(theEnd);
             },
 
