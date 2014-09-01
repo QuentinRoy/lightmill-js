@@ -98,9 +98,7 @@ define(['jstools/tools', 'jquery', './logger', 'signals'], function(tools, $, Lo
             // evtTime & evtType can be replace by an event
             _createEvent: _pEvtDecorator(function(evtTime, evtType, noSignal) {
                 var evt = new Logger(this.eventProcessors, {
-                        processorParams: $.extend({
-                            trialLogger: this
-                        }, this._eventProcessorParams)
+                        processorParams: [this].concat(this.eventProcessorParams)
                     }),
                     types = this._evtIndex[evtType] || {};
                 this._evtIndex[evtType] = types;

@@ -50,7 +50,7 @@ define(['jstools/tools', 'jquery', 'fiber', 'jstools/dot-syntax', 'is'], functio
             },
 
             _applyProcessor: function(processor) {
-                return processor(this, this.processorParams || {});
+                return processor.apply(this, [this].concat(this.processorParams));
             },
 
             _applyProcessors: function() {
