@@ -77,7 +77,9 @@ define(['./connection', './views/block-init', './views/wait', 'jquery', 'state-m
             _onInit: function () {
                 var that = this;
                 this._waitView.startWaiting();
-                this._connection.connectRun(this._targetRun).then(function () {
+                this._connection.initExperiment().then(function(){
+                        return that._connection.connectRun(that._targetRun);
+                }).then(function () {
                     return that._connection.run;
                 }).then(function (run) {
                     that._fsm.runloaded();

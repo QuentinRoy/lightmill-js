@@ -6,7 +6,8 @@ define(['./default-config', 'jquery', 'jstools/tools', 'cookies'], function (def
         config = $.extend({}, defaultConfig, config);
 
         this.serverAddress = config.serverAddress;
-        this.targetXp = config.experiment || config.targetExperiment // targetExperiment is deprecated;
+        this.targetXp = config.experiment || config.targetExperiment; // targetExperiment is deprecated
+        this.targetXpFile = config.experimentFile;
 
         this._experimentPromise = null;
         this._runPromise = null;
@@ -29,6 +30,70 @@ define(['./default-config', 'jquery', 'jstools/tools', 'cookies'], function (def
     }
 
     XpConnect.prototype = {
+
+        initExperiment: function(){
+            var that = this;
+
+            // request for the experiment list
+            var expeReq = $.ajax({
+                url: this.serverAddress + '/experiments',
+                dataType: 'json',
+                type: 'GET',
+                cache: false,
+                // cross-domain disables the X-Request-With
+                headers: {'X-Requested-With': 'XMLHttpRequest'}
+            }).then(function(data){
+                // filters the data for when
+                return data;
+            });
+
+            return $.when(expeReq, that._getExperimentId()).then(function(experiments, resExpeId){
+                // look for the experiment Id into the experiment list
+                var targetExpe = experiments[resExpeId];
+                // if it does not exists imports it
+                if(!targetExpe){
+                    return that._getExperimentFile().then(function(expeXML){
+                        return $.ajax({
+                            url: that.serverAddress +  '/import',
+                            dataType: 'json',
+                            contentType: 'application/xml',
+                            type: 'POST',
+                            headers: {'X-Requested-With': 'XMLHttpRequest'},
+                            data: expeXML
+                        });
+                    })
+                }
+            }).then(function(){
+                // filters everything
+                return $.Deferred().resolve().promise();           
+            });
+        },
+
+        _getExperimentId: function(){
+            var that = this;
+            if(that._experimentIdPromise) return that._experimentIdPromise;
+            // request for the target experiment name
+            if(that.targetXp) {
+                // if the name is provided just return it
+                that._experimentIdPromise = $.Deferred().resolve([that.targetXp]);
+            } else {
+                // else request the experiment file and extract it
+                that._experimentIdPromise = that._getExperimentFile().then(function(xmlStr){
+                    that.targetXp = $($.parseXML(xmlStr)).find("experiment").attr('id');
+                    return that.targetXp;
+                });
+            }
+            return that._experimentIdPromise;
+        },
+
+        _getExperimentFile: function() {
+            this._experimentFilePromise = this._experimentFilePromise || $.ajax({
+                    url: this.targetXpFile,
+                    type: 'GET',
+                    dataType: 'text' // get the xml in plain text
+                });
+            return this._experimentFilePromise;
+        },
 
         connectRun: function (targetRun) {
             this._targetRun = targetRun;
