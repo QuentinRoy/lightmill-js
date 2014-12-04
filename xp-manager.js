@@ -93,7 +93,7 @@ define(['./connection', './views/block-init', './views/wait', 'jquery', 'state-m
                         that._fsm.connecterror("Couldn't connect to experiment.");
                     }
                 });
-                $.when(this._taskManager.initTask()).then(function () {
+                $.when(this._taskManager.initTrial()).then(function () {
                     that._fsm.taskready();
                 }).fail(function (m) {
                     that._fsm.taskerror("Could not init the task: " + (m ? m : "."));
