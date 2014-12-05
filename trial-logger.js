@@ -34,6 +34,10 @@ define(['jstools/tools', 'jquery', './logger', 'signals'], function(tools, $, Lo
 
             init: function(trialProcessors, eventProcessors, settings) {
                 base.init.call(this, trialProcessors, settings);
+
+                // signal dispatched on new events with the event logger
+                this.onEvent = new Signal();
+
                 settings = settings || {};
 
                 if (typeof processor_s == 'function') {
@@ -52,15 +56,13 @@ define(['jstools/tools', 'jquery', './logger', 'signals'], function(tools, $, Lo
 
                 var that = this;
                 this._pointerHandlers = {
-                    'touchstart touchend touchmove touchcancel mousesup mousedown mousemove': function(evt) {
+                    'touchstart touchend touchmove touchcancel mouseup mousedown mousemove': function(evt) {
                         that.setPointerEvent(evt);
                     },
                 };
                 this._logPointerEvents = false;
                 if(settings.logPointerEvents) this.startLoggingPointerEvents();
                 this.eventProcessorParams = settings.eventProcessorParams;
-
-                this.onEvent = new Signal();
             },
 
             createEvent: function(evtTime, evtType) {
