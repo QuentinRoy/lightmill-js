@@ -131,6 +131,7 @@ define(['./connection', './views/block-init', './views/wait', 'jquery', 'state-m
             },
 
             _onBlockInit: function (name, from, to, blockInfo) {
+                if(this._taskManager.newBlock) this._taskManager.newBlock(blockInfo);
                 this._blockInitView.blockInit(blockInfo).done($.proxy(this._fsm.startblock, this._fsm));
             },
 
