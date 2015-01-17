@@ -11,12 +11,13 @@ define(['jquery', 'jstools/tools', 'text!./block-init-template.html', 'handlebar
         blockInit: function (blockinfo) {
 
             var dfd = $.Deferred();
-            
+
             // compile the template
             var compiledTemplate = this._template({
-                    first : blockinfo.number == 1,
+                    first : blockinfo.number == 0,
                     name  : blockinfo.practice ? 'Practice' : 'Block ' + (blockinfo.measure_block_number + 1),
                     values: blockinfo.values,
+                    subjectiveAssessment: blockinfo.subjectiveAssessment,
                     backgroundColor: blockinfo.practice ? '#025600' : '#563200'
                 });
             var div = $(compiledTemplate);
@@ -34,7 +35,7 @@ define(['jquery', 'jstools/tools', 'text!./block-init-template.html', 'handlebar
             return dfd.done(function () {
                 div.remove();
             });
-        },
+        }
     };
 
     return BlockInitView;

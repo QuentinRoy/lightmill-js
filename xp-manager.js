@@ -111,7 +111,8 @@ define(['./connection', './views/block-init', './views/wait', 'jquery', 'state-m
                                 number: trial.block_number,
                                 values: that._populateFactorValues(trial.block_values, experiment.factors),
                                 measure_block_number: trial.measure_block_number,
-                                practice: trial.practice
+                                practice: trial.practice,
+                                subjectiveAssessment: that._config.subjectiveAssessment
                             });
                     } else {
                         that._fsm.xpend();
