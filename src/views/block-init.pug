@@ -1,4 +1,14 @@
-.full-parent(style=`color:white; background-color: ${backgroundColor};`)
+div(style={
+    color: 'white',
+    'background-color': backgroundColor,
+    position: 'absolute',
+    width: '100%',
+    height: '100%',
+    margin: 0,
+    padding: 0,
+    top: 0,
+    left: 0
+  })
   div(style="padding:30px; text-align:center; vertical-align:middle; margin:3em 0;")
     if !first && subjectiveAssessment
       div(style="font-size:50px; border-bottom: 3em;")
@@ -6,7 +16,6 @@
     if !first
       div(style="font-size:30px; border-bottom: 3em;")
         | Time for a break?
-
 
     h1(style="font-size:100px")
       = name

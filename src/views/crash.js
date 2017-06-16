@@ -1,5 +1,4 @@
 import template from './crash.pug';
-import './full-parent.css';
 
 export default class CrashView {
   constructor(parentDiv) {

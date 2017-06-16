@@ -1,5 +1,4 @@
 import template from './block-init.pug';
-import './full-parent.css';
 
 export default class BlockInitView {
   constructor(parentDiv) {

@@ -1,5 +1,4 @@
 import Spinner from 'spin';
-import './full-parent.css';
 
 const spinnerArgs = {
   lines: 11, // The number of lines to draw
@@ -24,7 +23,15 @@ export default class WaitView {
   constructor(parentNode) {
     this._parentNode = parentNode;
     this._spinDiv = document.createElement('div');
-    this._spinDiv.className = 'full-parent';
+    Object.assign(this._spinDiv.style, {
+      position: 'absolute',
+      width: '100%',
+      height: '100%',
+      margin: 0,
+      padding: 0,
+      top: 0,
+      left: 0
+    });
     this._spinDiv.style.backgroundColor = 'black';
     this._spinner = new Spinner(spinnerArgs);
     this._isShown = false;
