@@ -24,7 +24,7 @@ const deferred = () => {
   return def;
 };
 
-test.skip('PromiseQueue.queueLength reflects the number of unresolved promises that has been pushed', async (t) => {
+test('PromiseQueue.queueLength reflects the number of unresolved promises that has been pushed', async (t) => {
   const queue = new PromiseQueue();
   const defs = new Array(5).fill(undefined).map(deferred);
   defs[2].resolve();
@@ -41,7 +41,7 @@ test.skip('PromiseQueue.queueLength reflects the number of unresolved promises t
   t.is(queue.length, 0);
 });
 
-test.skip('PromiseQueue.flush resolves if its queue length is smaller than the required flush', async (t) => {
+test('PromiseQueue.flush resolves if its queue length is smaller than the required flush', async (t) => {
   const queue = new PromiseQueue();
   await queue.flush(0);
   queue.push(new Promise(() => {}));
