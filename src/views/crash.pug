@@ -1,0 +1,35 @@
+.full-parent(style=`color:white; background-color: #c90000; text-align: center;`)
+
+  div(style={ 'font-size': '2em', 'padding': '1em', 'background-color': 'rgba(0,0,0,.1)', 'margin-top': '2em' })
+    h1(style='margin-top: 0')
+      | Something went wrong
+      
+    div
+      | Please call your experimenter.
+    
+  .details(style={
+    'margin-left': '10%',
+    'margin-right': '10%',
+    'margin-top': '5em',
+    'border-color': '#5e0606',
+    'border-width': '1px',
+    'border-style': 'solid',
+    'background-color': '#fff',
+    'color': '#820a0a',
+    'padding': '1em 2em',
+    'text-align': 'left',
+    'display': 'none',
+    'overflow-x': 'scroll'
+  })
+    h3
+      | Run #{run ? run.id : 'unknown'}
+    h4.message= message
+    if stack
+      pre.stack= stack
+  
+  a.details-button(href='#', style={
+      'display': 'block',
+      'margin-top': '6em',
+      'color': 'black'
+    })
+    | show details

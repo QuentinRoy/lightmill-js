@@ -1,0 +1,15 @@
+{
+  "presets": [["env", {
+    "targets": { "browsers": ">5%" },
+    "modules": false,
+    "loose": true
+  }]],
+  "plugins": ["transform-runtime"],
+  "env": {
+    "test": {
+      "presets": [["env", {
+        "targets": { "node": "current" }
+      }]]
+    }
+  }
+}

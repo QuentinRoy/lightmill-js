@@ -1,0 +1,17 @@
+.full-parent(style=`color:white; background-color: ${backgroundColor};`)
+  div(style="padding:30px; text-align:center; vertical-align:middle; margin:3em 0;")
+    if !first && subjectiveAssessment
+      div(style="font-size:50px; border-bottom: 3em;")
+        | Please give your subjective assessment.
+    if !first
+      div(style="font-size:30px; border-bottom: 3em;")
+        | Time for a break?
+
+
+    h1(style="font-size:100px")
+      = name
+
+    div(style="font-size:30px;")
+      each val in factorValues
+        div
+          | #[val.factor.name]: #[val.nam]

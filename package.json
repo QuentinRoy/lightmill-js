@@ -1,0 +1,41 @@
+{
+  "name": "xpclient",
+  "version": "1.0.0",
+  "description": "JS client for xpserver.",
+  "main": "index.js",
+  "devDependencies": {
+    "ava": "^0.19.1",
+    "babel": "^6.23.0",
+    "babel-plugin-transform-es2015-modules-commonjs": "^6.24.1",
+    "babel-plugin-transform-runtime": "^6.23.0",
+    "babel-preset-env": "^1.5.2",
+    "eslint": "^4.0.0",
+    "eslint-config-airbnb-base": "^11.2.0",
+    "eslint-plugin-import": "^2.3.0"
+  },
+  "dependencies": {
+    "fetch-ponyfill": "^4.0.0",
+    "javascript-state-machine": "^3.0.1",
+    "spin": "0.0.1"
+  },
+  "scripts": {
+    "test": "NODE_ENV=test ava"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@bitbucket.org/quentinroy/xpclient.git"
+  },
+  "keywords": [
+    "experiment",
+    "xpserver"
+  ],
+  "author": "Quentin Roy <quentin@quentinroy.fr>",
+  "license": "MIT",
+  "homepage": "https://bitbucket.org/quentinroy/xpclient#readme",
+  "ava": {
+    "require": [
+      "babel-register"
+    ],
+    "babel": "inherit"
+  }
+}

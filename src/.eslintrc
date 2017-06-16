@@ -1,0 +1,12 @@
+{
+  "env": {
+    "browser": true
+  },
+  "extends": "airbnb-base",
+  "rules": {
+    "no-underscore-dangle": 0,
+    "comma-dangle": ["error", "never"],
+    "class-methods-use-this": 0
+  },
+  "root": true
+}
