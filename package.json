@@ -6,20 +6,28 @@
   "devDependencies": {
     "ava": "^0.19.1",
     "babel": "^6.23.0",
+    "babel-plugin-external-helpers": "^6.22.0",
     "babel-plugin-transform-es2015-modules-commonjs": "^6.24.1",
     "babel-plugin-transform-runtime": "^6.23.0",
     "babel-preset-env": "^1.5.2",
     "eslint": "^4.0.0",
     "eslint-config-airbnb-base": "^11.2.0",
-    "eslint-plugin-import": "^2.3.0"
+    "eslint-plugin-import": "^2.3.0",
+    "rollup": "^0.43.0",
+    "rollup-plugin-babel": "^2.7.1",
+    "rollup-plugin-commonjs": "^8.0.2",
+    "rollup-plugin-node-resolve": "^3.0.0",
+    "rollup-plugin-pug": "^0.1.4"
   },
   "dependencies": {
     "fetch-ponyfill": "^4.0.0",
     "javascript-state-machine": "^3.0.1",
+    "rollup-plugin-json": "^2.3.0",
     "spin": "0.0.1"
   },
   "scripts": {
-    "test": "NODE_ENV=test ava"
+    "test": "NODE_ENV=test ava",
+    "build": "NODE_ENV=production rollup -c"
   },
   "repository": {
     "type": "git",

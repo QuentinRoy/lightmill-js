@@ -2,3 +2,4 @@ syntax: glob
 
 *.DS_Store
 node_modules
+lib
