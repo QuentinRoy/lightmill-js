@@ -2,7 +2,7 @@
   "name": "xpclient",
   "version": "1.0.0",
   "description": "JS client for xpserver.",
-  "main": "index.js",
+  "main": "lib/xpclient.js",
   "devDependencies": {
     "ava": "^0.19.1",
     "babel": "^6.23.0",
@@ -26,7 +26,8 @@
   },
   "scripts": {
     "test": "NODE_ENV=test ava",
-    "build": "NODE_ENV=production rollup -c"
+    "build": "NODE_ENV=production rollup -c",
+    "postinstall": "npm run build"
   },
   "repository": {
     "type": "git",
