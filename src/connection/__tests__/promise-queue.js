@@ -1,28 +1,8 @@
 /* eslint-disable import/no-extraneous-dependencies */
 import test from 'ava';
+import deferred from 'promise.defer';
+import wait from 'wait-then';
 import PromiseQueue from '../promise-queue';
-
-const wait = (time = 0) => new Promise((resolve) => { setTimeout(resolve, time); });
-
-const deferred = () => {
-  let state = 'pending';
-  const def = {
-    get state() { return state; }
-  };
-  def.promise = new Promise((resolve, reject) => Object.assign(def, {
-    async resolve() {
-      state = 'resolved';
-      resolve();
-      await def.promise;
-    },
-    async reject() {
-      state = 'rejected';
-      reject();
-      await def.promise;
-    }
-  }));
-  return def;
-};
 
 test('PromiseQueue.queueLength reflects the number of unresolved promises that has been pushed', async (t) => {
   const queue = new PromiseQueue();

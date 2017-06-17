@@ -13,11 +13,13 @@
     "eslint": "^4.0.0",
     "eslint-config-airbnb-base": "^11.2.0",
     "eslint-plugin-import": "^2.3.0",
+    "promise.defer": "^1.0.1",
     "rollup": "^0.43.0",
     "rollup-plugin-babel": "^2.7.1",
     "rollup-plugin-commonjs": "^8.0.2",
     "rollup-plugin-node-resolve": "^3.0.0",
-    "rollup-plugin-pug": "^0.1.4"
+    "rollup-plugin-pug": "^0.1.4",
+    "wait-then": "^0.1.2"
   },
   "dependencies": {
     "javascript-state-machine": "^3.0.1",
