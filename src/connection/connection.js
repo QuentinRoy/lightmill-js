@@ -1,9 +1,7 @@
-import fetchPonyfill from 'fetch-ponyfill';
+import fetch from 'unfetch';
 import defaultConfig from '../default-config';
 import getServerInterface from './server-interface';
 import PromiseQueue from './promise-queue';
-
-const { fetch } = fetchPonyfill();
 
 // Return a new object with the properties of the objects given as arguments.
 const merged = (...objects) => Object.assign({}, ...objects);

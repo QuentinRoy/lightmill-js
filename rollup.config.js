@@ -10,11 +10,11 @@ export default {
   plugins: [resolve(), commonjs(), pug(), babel({
     exclude: 'node_modules/**' // only transpile our source code
   })],
-  external: ['pug', 'fetch-ponyfill', 'javascript-state-machine'],
+  external: ['pug', 'unfetch', 'javascript-state-machine'],
   dest: 'lib/xpclient.js',
   sourceMap: true,
   globals: {
     'javascript-state-machine': 'StateMachine',
-    'fetch-ponyfill': 'fetchPonyfill'
+    unfetch: 'unfetch'
   }
 };

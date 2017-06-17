@@ -1,6 +1,5 @@
-import fetchPonyfill from 'fetch-ponyfill';
+import fetch from 'unfetch';
 
-const { fetch } = fetchPonyfill();
 const isJsonType = type => type.endsWith('json');
 
 // Fetch an address, expecting a json answer, and throwing if the requests failed.
