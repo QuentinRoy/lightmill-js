@@ -10,7 +10,7 @@ export default {
   plugins: [resolve(), commonjs(), pug(), babel({
     exclude: 'node_modules/**' // only transpile our source code
   })],
-  external: ['pug', 'unfetch', 'javascript-state-machine'],
+  external: ['unfetch', 'javascript-state-machine'],
   dest: 'lib/xpclient.js',
   sourceMap: true,
   globals: {
