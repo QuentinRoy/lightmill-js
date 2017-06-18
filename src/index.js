@@ -1,1 +1,1 @@
-export { default } from './xp-manager';
+export { default } from './xp-runner';
