@@ -22,28 +22,42 @@ const jsonThrowingFetch = (...args) =>
     );
   });
 
-// Creates an address from an array.
-const buildAddress = addrOrPathList =>
-  (typeof addrOrPathList === 'string' ? addrOrPathList : addrOrPathList.join('/'));
+
+// From a server address and the path to an API, return the api address (the main point of this
+// function is to deal with the different form that can be tacken by api path).
+const getApiAddress = (serverAddress, apiPath) => {
+  if (typeof apiPath === 'string') {
+    return [serverAddress, apiPath].join('/');
+  } else if (apiPath) {
+    return [serverAddress, ...apiPath].join('/');
+  }
+  return serverAddress;
+};
 
 // Returns an interface toward the provided server address.
-export default function getServerInterface(serverAddress) {
+export default function getServerInterface(serverAddress, apiPath = 'api') {
+  // Init the api address once and for all.
+  const apiAddress = getApiAddress(serverAddress, apiPath);
+
+  // Get the address of an API endpoint on the server using either a simple string, or an
+  // array.
+  const getAddress = addrOrPathList =>
+    (typeof addrOrPathList === 'string'
+      ? [apiAddress, addrOrPathList]
+      : [apiAddress, ...addrOrPathList]).join('/');
+
   // Ask data to the server.
   const ask = (addrOrPathList, options = {}) => {
-    // Build the address (join arrays of path parts).
-    const addr = buildAddress(addrOrPathList);
     // Create the request header (all requests are xhr).
     const headers = Object.assign({ 'X-Requested-With': 'XMLHttpRequest' }, options.headers);
     // Create the options for fetch.
     const fetchOptions = Object.assign({ cache: 'no-cache' }, options, { headers });
     // Fetch.
-    return jsonThrowingFetch(`${serverAddress}/${addr}`, fetchOptions);
+    return jsonThrowingFetch(getAddress(addrOrPathList), fetchOptions);
   };
 
   // Send data to the server.
   const send = (addrOrPathList, content, contentType = 'application/json', options = {}) => {
-    // Build the address (join arrays of path parts).
-    const addr = buildAddress(addrOrPathList);
     // Set up the request headers, the content type and the request as xhr.
     const headers = Object.assign(
       {
@@ -58,7 +72,7 @@ export default function getServerInterface(serverAddress) {
     // Create the options for fetch.
     const fetchOptions = Object.assign({ method: 'POST', body }, options, { headers });
     // Fetch.
-    return jsonThrowingFetch(`${serverAddress}/${addr}`, fetchOptions);
+    return jsonThrowingFetch(getAddress(addrOrPathList), fetchOptions);
   };
 
   return {
