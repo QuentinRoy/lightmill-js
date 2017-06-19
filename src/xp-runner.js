@@ -9,7 +9,8 @@ const errorWithHeader = (e, header) => {
   return err;
 };
 
-const rethrowWithHeader = header => e => {
+// Return a function that will throw an error after appending a header.
+const throwWithHeader = header => e => {
   throw errorWithHeader(e, header);
 };
 
@@ -25,7 +26,7 @@ const runTrials = async (connection, app, queueSize) => {
   // Init the loop.
   let trial = await connection
     .getCurrentTrial()
-    .catch(rethrowWithHeader('Could not retrieve current trial info'));
+    .catch(throwWithHeader('Could not retrieve current trial info'));
   let block;
 
   while (trial) {
@@ -33,7 +34,7 @@ const runTrials = async (connection, app, queueSize) => {
     if (block !== trial.block) {
       block = trial.block;
       await Promise.resolve(app.initBlock && app.initBlock(block)).catch(
-        rethrowWithHeader('Could not init block')
+        throwWithHeader('Could not init block')
       );
     }
 
@@ -46,12 +47,12 @@ const runTrials = async (connection, app, queueSize) => {
     // Post the results.
     connection
       .endCurrentTrial(results)
-      .catch(rethrowWithHeader('Could not register trial log'));
+      .catch(throwWithHeader('Could not register trial log'));
 
     // Fetch the next trial (resolve with undefined if there is no more trials).
     trial = await connection
       .getCurrentTrial()
-      .catch(rethrowWithHeader('Could not retrieve current trial info'));
+      .catch(throwWithHeader('Could not retrieve current trial info'));
   }
   // Fully flush the post queue and disconnect from the server.
   await connection.flush();
@@ -72,8 +73,7 @@ const runTrials = async (connection, app, queueSize) => {
  * @param {String} [config.targetRun] The id of a run to connect to.
  * @param {String} [config.experimentFile] The path toward a touchstone
  *                                         experiment design xml file.
- * @param {Object} [config.connection] the connection to the server.
- * @constructor
+ * @param {XpConnection} [config.connection] the connection to the server.
  */
 const runExperiment = async (
   app,
@@ -103,15 +103,15 @@ const runExperiment = async (
         // always attempt to connect back to it.
         localStorage.setItem(runStorageKeyName, run_.id);
         return run_;
-      }, rethrowWithHeader('Could not connect to the experiment')),
+      }, throwWithHeader('Could not connect to the experiment')),
     // Start the experiment app.
     Promise.resolve(app.start && app.start()).catch(
-      rethrowWithHeader('Could not init the experiment task')
+      throwWithHeader('Could not init the experiment task')
     )
   ]);
   // Ask the app to init the run.
   await Promise.resolve(app.initRun && app.initRun(run)).catch(
-    rethrowWithHeader('Could not init the run task')
+    throwWithHeader('Could not init the run task')
   );
   // Run the trials.
   await runTrials(connection, app, queueSize);
