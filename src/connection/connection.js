@@ -1,5 +1,4 @@
 import fetch from 'unfetch';
-import defaultConfig from '../default-config';
 import getServerInterface from './server-interface';
 import PromiseQueue from './promise-queue';
 
@@ -48,8 +47,8 @@ export default class RunConnection {
   }
 
   async connect(
-    serverAddress = defaultConfig.serverAddress,
-    targetXp = defaultConfig.experiment,
+    serverAddress,
+    targetXp,
     targetRun = undefined,
     experimentDesignPath
   ) {
