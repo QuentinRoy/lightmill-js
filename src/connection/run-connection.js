@@ -18,7 +18,7 @@ export const isExperimentLoadedOnServer = async (
 };
 
 /**
- * [importExperimentOnServer description]
+ * Fetch the given experiment design xml file and post it to be imported on the server.
  * @param  {Object}  serverInterface      the server interface.
  * @param  {string}  experimentDesignAddr the address where to downlad the experiment design.
  * @return {Promise}                      resolves when the experiment has been imported.
@@ -33,23 +33,36 @@ export const importExperimentOnServer = async (
 };
 
 /**
+ * Select a run from the server.
+ * @param  {Object}  serverInterface
+ * @param  {string}  experimentId
+ * @param  {string}  [runId]
+ * @return {Promise}
+ */
+export const selectRun = async (serverInterface, experimentId, runId) => {
+  const runInfo = runId
+    ? await serverInterface.run(experimentId, runId)
+    : await serverInterface.availableRun(experimentId);
+  // Check if the ids are consistant.
+  if (runInfo.experimentId !== experimentId) {
+    throw new Error(
+      'Received experiment id is inconsistant with the one that has been requested.'
+    );
+  } else if (runId && runInfo.id !== runId) {
+    throw new Error(
+      'Received run id is inconsistant with the one that has been requested.'
+    );
+  }
+  return runInfo;
+};
+
+/**
  * Connect to a run (and lock it on the server)
  * @param  {Object}  serverInterface The server interface.
- * @param  {string}  experimentId    The id of the target experiment.
- * @param  {string}  [runId]         The id of the target run. If undefined, asks for an available
- *                                   one.
+ * @param  {Object}  runInfo         The description of the target run.
  * @return {Promise<{id, experimentId, blocks, currentTrial, lock}>} The run information.
  */
-export const connectToRun = async (
-  serverInterface,
-  experimentId,
-  targetRun
-) => {
-  // Fetch the target run if specified else, request for an available one.
-  const runInfo = await (targetRun
-    ? serverInterface.run(experimentId, targetRun)
-    : serverInterface.availableRun(experimentId));
-
+export const connectToRun = async (serverInterface, runInfo) => {
   // Lock it, fetch the run plan and the current trial (current trial might not be the first
   // on if the run is being resumed).
   const [lock, blocksInfo, currentTrialInfo] = await Promise.all([
@@ -58,25 +71,161 @@ export const connectToRun = async (
     serverInterface.currentTrial(runInfo.experimentId, runInfo.id)
   ]);
 
-  const run = {
+  return {
     id: runInfo.id,
     experimentId: runInfo.experimentId,
+    blocks: blocksInfo,
+    currentTrial: currentTrialInfo,
     lock
+  };
+};
+
+
+/**
+ * Consolidate a run by appending back references toward block on trials, and back references
+ * toward the run on blocks
+ * @param  {{id, experimentId, blocks}} runInfo The description of the run.
+ * @return {{id, experimentId, blocks}}         The run consolidated and frozen.
+ */
+export const consolidateRun = runInfo => {
+  const run = {
+    id: runInfo.id,
+    experimentId: runInfo.experimentId
   };
   // Insert backrefs to the parent block on each trials, and backrefs to the run on each
   // blocks.
-  run.blocks = blocksInfo.map(block => {
+  run.blocks = runInfo.blocks.map(block => {
     const newBlock = Object.assign({}, block, { run });
     newBlock.trials = block.trials.map(trial =>
       Object.assign({}, trial, { block: newBlock })
     );
     return newBlock;
   });
-  // Register the current trial.
-  run.currentTrial =
-    run.blocks[currentTrialInfo.blockNumber].trials[currentTrialInfo.number];
+  deepFreeze(run);
   return run;
 };
+
+
+/**
+ * Actually create the run connection interface with its closure.
+ * @param  {string} run
+ * @param  {string} token
+ * @param  {int} startTrialNum
+ * @param  {int} startBlockNum
+ * @param  {PromiseQueue} postQueue
+ * @param  {function} postTrial
+ * @return {RunConnection}
+ */
+export const createRunConnectionClosure = (
+  run,
+  token,
+  startBlockNum,
+  startTrialNum,
+  postQueue,
+  postTrial
+) => {
+  // Maintain the current trial.
+  let currentTrial = run.blocks[startBlockNum].trials[startTrialNum];
+  // Register the promise of the last trial result post request. Used to make sure a post request
+  // is done before sending a new one.
+  let lastTrialResultPost;
+  // Create the connection object.
+  return {
+
+    /**
+     * Resolves with the connected run.
+     * @return {Promise}
+     */
+    async getRun() {
+      return run;
+    },
+
+    /**
+     * Resolves with the current block.
+     * @return {Promise}
+     */
+    async getCurrentBlock() {
+      return currentTrial && currentTrial.block;
+    },
+
+    /**
+     * Resolves with the current trial.
+     * @return {Promise}
+     */
+    async getCurrentTrial() {
+      return currentTrial;
+    },
+
+    /**
+     * Resolves with the next trial.
+     * @return {Promise}
+     */
+    async getNextTrial() {
+      let nextTrialNum = currentTrial.number + 1;
+      let currentBlock = currentTrial.block;
+      if (nextTrialNum >= currentBlock.trials.length) {
+        currentBlock = run.blocks[currentBlock.number + 1];
+        nextTrialNum = 0;
+      }
+      if (!currentBlock) {
+        return undefined;
+      }
+      return currentBlock.trials[nextTrialNum];
+    },
+
+    /**
+     * Disconnect (does nothing).
+     * @return {Promise}
+     */
+    async disconnect() {
+      // Nothing to do here.
+    },
+
+    /**
+     * End a trial by posting its result to the server.
+     * @param  {Object}  measures   The trial result.
+     * @return {Promise}            A promise resolved when the trial results have been successfuly
+     *                              pushed to the server
+     */
+    async endCurrentTrial(measures) {
+      const previousTrial = await this.getCurrentTrial();
+      if (!previousTrial) {
+        throw new Error(
+          'Cannot end current trial: it is unknown. ' +
+            ' It might be because the run is not connected or it is already finished.'
+        );
+      }
+      // Update the current trial.
+      currentTrial = await this.getNextTrial();
+      // Post the results.
+      lastTrialResultPost = Promise.resolve(lastTrialResultPost).then(() =>
+        postTrial(
+          run.experimentId,
+          run.id,
+          previousTrial.block.number,
+          previousTrial.number,
+          { token, measures }
+        )
+      );
+      // Push the post promise in the queue to monitor unfinished posts.
+      postQueue.push(lastTrialResultPost);
+      return currentTrial;
+    },
+
+    /**
+     * Flush the trial result post queue.
+     * @param  {int} maxLength  The maximum number of pending trial result post requests before
+     *                          resolving the promise
+     * @return {Promise}        A promise that resolves when there is maxLength or less pending
+     *                          trial results. Resolves immediately if this is already the case
+     *                          when the function is called.
+     */
+    flush(maxLength) {
+      return postQueue.flush(maxLength);
+    }
+  };
+};
+
 
 /**
  * Create a connection to a run.
@@ -94,7 +243,7 @@ export const connectToRun = async (
 const createRunConnection = async (
   serverAddress,
   experimentId,
-  targetRun,
+  runId,
   experimentDesignAddr,
   postQueue = new PromiseQueue()
 ) => {
@@ -109,83 +258,23 @@ const createRunConnection = async (
   }
 
   // Connect to the run.
-  const runInfo = await connectToRun(serverInterface, experimentId, targetRun);
+  const runInfo = await connectToRun(
+    serverInterface,
+    await selectRun(serverInterface, experimentId, runId)
+  );
 
-  const run = deepFreeze({
-    id: runInfo.id,
-    blocks: runInfo.blocks
-  });
+  // Consolidate the run (insert backrefs to blocks in trials and run in blocks, and deep freeze
+  // everything).
+  const run = consolidateRun(runInfo);
 
-  // The current trial.
-  let currentTrial = runInfo.currentTrial;
-  // Server lock required to update the current run on the server.
-  const lock = runInfo.lock;
-  // Register the promise of the last trial result post request. Used to make sure a post request
-  // is done before sending a new one.
-  let lastTrialResultPost;
-
-  // Create the connection object.
-  return {
-    async getRun() {
-      return run;
-    },
-
-    async getCurrentBlock() {
-      return currentTrial && currentTrial.block;
-    },
-
-    async getCurrentTrial() {
-      return currentTrial;
-    },
-
-    async getNextTrial() {
-      let nextTrialNum = this.getCurrentTrial().number + 1;
-      let currentBlock = this.getCurrentBlock();
-      if (nextTrialNum >= currentBlock.trials.length) {
-        currentBlock = this.getRun().blocks[currentBlock.number + 1];
-        nextTrialNum = 0;
-      }
-      if (!currentBlock) {
-        return undefined;
-      }
-      return currentBlock.trials[nextTrialNum];
-    },
-
-    async disconnect() {
-      // Nothing to do here.
-    },
-
-    async endCurrentTrial(measures) {
-      const previousTrial = this.getCurrentTrial();
-      if (!previousTrial) {
-        throw new Error(
-          'Cannot end current trial: it is unknown. ' +
-            ' It might be because the run is not connected or it is already finished.'
-        );
-      }
-      // Update the current trial.
-      currentTrial = this.getNextTrial();
-      // Post the results.
-      lastTrialResultPost = Promise.resolve(lastTrialResultPost).then(() =>
-        serverInterface.postTrialResults(
-          run.experimentId,
-          run.id,
-          previousTrial.block.number,
-          previousTrial.number,
-          { token: lock.token, measures }
-        )
-      );
-      // Push the post promise in the queue to monitor unfinished posts.
-      postQueue.push(lastTrialResultPost);
-      // Await for the trial results to be recorded on the server before resolving.
-      await lastTrialResultPost;
-      return currentTrial;
-    },
-
-    flush(maxLength) {
-      return postQueue.flush(maxLength);
-    }
-  };
+  return createRunConnectionClosure(
+    run,
+    runInfo.lock.token,
+    runInfo.currentTrial.blockNumber,
+    runInfo.currentTrial.number,
+    postQueue,
+    serverInterface.postTrial.bind(serverInterface)
+  );
 };
 
 export default createRunConnection;
