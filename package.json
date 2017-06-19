@@ -4,6 +4,7 @@
   "description": "JS client for xpserver.",
   "main": "lib/xpclient.js",
   "devDependencies": {
+    "array-range": "^1.0.1",
     "ava": "^0.19.1",
     "babel": "^6.23.0",
     "babel-plugin-external-helpers": "^6.22.0",

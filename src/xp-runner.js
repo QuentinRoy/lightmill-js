@@ -22,7 +22,7 @@ const throwWithHeader = header => e => {
  * @param  {int}  queueSize  Max number of pending trial result posts before starting a new trial.
  * @return {Promise}  A promise resolved when all trials have run.
  */
-const runTrials = async (connection, app, queueSize) => {
+export const runTrials = async (connection, app, queueSize) => {
   // Init the loop.
   let trial = await connection
     .getCurrentTrial()
@@ -38,8 +38,8 @@ const runTrials = async (connection, app, queueSize) => {
       );
     }
 
-    // Make sure there is less than queueSize pending trial result posts before starting the
-    // trial.
+    // Make sure there is less than queueSize pending trial result posts
+    // before starting the trial.
     await connection.flush(queueSize);
 
     // Run the trial and fetch the results.
@@ -54,7 +54,7 @@ const runTrials = async (connection, app, queueSize) => {
       .getCurrentTrial()
       .catch(throwWithHeader('Could not retrieve current trial info'));
   }
-  // Fully flush the post queue and disconnect from the server.
+  // Fully flush the post queue.
   await connection.flush();
 };
 /* eslint-enable no-await-in-loop */
@@ -129,4 +129,4 @@ const runExperiment = async (
   await app.end();
 };
 
-export default runExperiment();
+export default runExperiment;
