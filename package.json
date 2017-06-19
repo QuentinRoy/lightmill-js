@@ -22,6 +22,7 @@
     "wait-then": "^0.1.2"
   },
   "dependencies": {
+    "deep-freeze": "0.0.1",
     "javascript-state-machine": "^3.0.1",
     "spin": "0.0.1",
     "unfetch": "^2.1.2"

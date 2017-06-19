@@ -1,4 +1,4 @@
-import XpConnection from './connection/connection';
+import createRunConnection from './connection/run-connection';
 
 // Create a copy of an error with a header appended to its message.
 const errorWithHeader = (e, header) => {
@@ -17,7 +17,7 @@ const throwWithHeader = header => e => {
 /* eslint-disable no-await-in-loop */
 /**
  * Run the trials of an experiment.
- * @param  {Object}  connection  The connection to the xp server.
+ * @param  {Object}  connection  The connection to the run on the xp server.
  * @param  {Object}  app  The app of the experiment.
  * @param  {int}  queueSize  Max number of pending trial result posts before starting a new trial.
  * @return {Promise}  A promise resolved when all trials have run.
@@ -68,36 +68,42 @@ const runTrials = async (connection, app, queueSize) => {
  * @param {function(): Promise} app.runTrial Run a trial.
  * @param {function(): Promise} [app.end] Notify that the experiment is finished.
  * @param {Object} config Configuration.
- * @param {String} config.experimentId The id of the experiment.
- * @param {String} [config.serverAddress] The address of the xp server.
- * @param {String} [config.targetRun] The id of a run to connect to.
- * @param {String} [config.experimentFile] The path toward a touchstone
- *                                         experiment design xml file.
- * @param {XpConnection} [config.connection] the connection to the server.
+ * @param {string} [config.experimentId] The id of the experiment.
+ *                                       This is required is config.connection is not provided.
+ * @param {string} [config.serverAddress] The address of the xp server.
+ * @param {string} [config.runId] The id of a run to connect to.
+ * @param {string} [config.experimentDesignAddr] The path toward a touchstone
+ *                                               experiment design xml file.
+ * @param {Object} [config.connection] The connection to the server. This is required if config.
+ *                                     experimentId is not provided
  */
 const runExperiment = async (
   app,
   {
     experimentId,
-    experimentFile = undefined,
-    targetRun = undefined,
+    runId,
+    experimentDesignAddr,
     queueSize = 1,
     serverAddress = `http://${window.location.hostname}:5000`,
-    connection = new XpConnection()
+    connection: potentialConnection
   }
 ) => {
   // The key where to store the current run id in the local storage.
   const runStorageKeyName = `${experimentId}/running-run-id`;
-  // Connect to the rrun and start the app.
-  const [run] = await Promise.all([
-    // Connect to the run
-    connection
-      .connect(
-        serverAddress,
-        experimentId,
-        targetRun || localStorage.getItem(runStorageKeyName),
-        experimentFile
-      )
+  // Create a promise toward the run connection.
+  const connectionPromise =
+    potentialConnection ||
+    createRunConnection(
+      serverAddress,
+      experimentId,
+      runId || localStorage.getItem(runStorageKeyName),
+      experimentDesignAddr
+    );
+  // Connect to the run and start the app.
+  const [connection, run] = await Promise.all([
+    connectionPromise,
+    connectionPromise
+      .then(runConnection => runConnection.getRun())
       .then(run_ => {
         // Set a local storage entry so that while the run is not finished, the browser will
         // always attempt to connect back to it.
