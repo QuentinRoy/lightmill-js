@@ -65,7 +65,7 @@ const runTrials = async (connection, app, queueSize) => {
  * @param {function(): Promise} [app.initRun] Initialize the run.
  * @param {function(): Promise} [app.initBlock] Initialize a block.
  * @param {function(): Promise} app.runTrial Run a trial.
- * @param {function()} [app.end] Notify that the experiment is finished.
+ * @param {function(): Promise} [app.end] Notify that the experiment is finished.
  * @param {Object} config Configuration.
  * @param {String} config.experimentId The id of the experiment.
  * @param {String} [config.serverAddress] The address of the xp server.
@@ -120,7 +120,7 @@ const runExperiment = async (
   // Disconnect from the server.
   await connection.disconnect();
   // Notify the app that the experiment is finished.
-  app.end();
+  await app.end();
 };
 
 export default runExperiment();
