@@ -3,9 +3,11 @@
   "version": "1.0.0",
   "description": "JS client for xpserver.",
   "main": "xpclient.js",
+  "module": "src/xp-client",
   "files": [
     "standard-xp-app.*",
-    "xpclient.*"
+    "xpclient.*",
+    "src/xp-client"
   ],
   "devDependencies": {
     "array-range": "^1.0.1",
