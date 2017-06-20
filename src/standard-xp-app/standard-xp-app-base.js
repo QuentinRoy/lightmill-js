@@ -41,7 +41,7 @@ export default class StandardXpAppBase {
    * @param  {String} [message] The wait message.
    */
   wait(message) {
-    this.dom.innerHTML = waitTemplate(message);
+    this.node.innerHTML = waitTemplate(message);
   }
 
   /**
