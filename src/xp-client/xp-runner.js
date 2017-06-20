@@ -135,8 +135,8 @@ export async function runExperiment(
     // Notify the app that the experiment is finished.
     await app.end();
   } catch (e) {
-    console.error(e, e.stack);
     app.crash(e.message, e, run_);
+    throw e;
   }
 }
 
