@@ -80,7 +80,6 @@ export const connectToRun = async (serverInterface, runInfo) => {
   };
 };
 
-
 /**
  * Consolidate a run by appending back references toward block on trials, and back references
  * toward the run on blocks
@@ -105,9 +104,8 @@ export const consolidateRun = runInfo => {
   return run;
 };
 
-
 /**
- * Actually create the run connection interface with its closure.
+ * RunConnection class.
  * @param  {string} run
  * @param  {string} token
  * @param  {int} startTrialNum
@@ -116,116 +114,105 @@ export const consolidateRun = runInfo => {
  * @param  {function} postTrial
  * @return {RunConnection}
  */
-export const createRunConnectionClosure = (
+export default function RunConnection(
   run,
   token,
   startBlockNum,
   startTrialNum,
   postQueue,
   postTrial
-) => {
+) {
   // Maintain the current trial.
   let currentTrial = run.blocks[startBlockNum].trials[startTrialNum];
   // Register the promise of the last trial result post request. Used to make sure a post request
   // is done before sending a new one.
   let lastTrialResultPost;
   // Create the connection object.
-  return {
 
-    /**
-     * Resolves with the connected run.
-     * @return {Promise}
-     */
-    async getRun() {
-      return run;
-    },
+  /**
+   * Resolves with the connected run.
+   * @return {Promise<Object>}
+   */
+  this.getRun = async () => run;
 
-    /**
-     * Resolves with the current block.
-     * @return {Promise}
-     */
-    async getCurrentBlock() {
-      return currentTrial && currentTrial.block;
-    },
+  /**
+   * Resolves with the current block.
+   * @return {Promise<Object>}
+   */
+  this.getCurrentBlock = async () => currentTrial && currentTrial.block;
 
-    /**
-     * Resolves with the current trial.
-     * @return {Promise}
-     */
-    async getCurrentTrial() {
-      return currentTrial;
-    },
+  /**
+   * Resolves with the current trial.
+   * @return {Promise}
+   */
+  this.getCurrentTrial = async () => currentTrial;
 
-    /**
-     * Resolves with the next trial.
-     * @return {Promise}
-     */
-    async getNextTrial() {
-      let nextTrialNum = currentTrial.number + 1;
-      let currentBlock = currentTrial.block;
-      if (nextTrialNum >= currentBlock.trials.length) {
-        currentBlock = run.blocks[currentBlock.number + 1];
-        nextTrialNum = 0;
-      }
-      if (!currentBlock) {
-        return undefined;
-      }
-      return currentBlock.trials[nextTrialNum];
-    },
-
-    /**
-     * Disconnect (does nothing).
-     * @return {Promise}
-     */
-    async disconnect() {
-      // Nothing to do here.
-    },
-
-    /**
-     * End a trial by posting its result to the server.
-     * @param  {Object}  measures   The trial result.
-     * @return {Promise}            A promise resolved when the trial results have been successfuly
-     *                              pushed to the server
-     */
-    async endCurrentTrial(measures) {
-      const previousTrial = await this.getCurrentTrial();
-      if (!previousTrial) {
-        throw new Error(
-          'Cannot end current trial: it is unknown. ' +
-            ' It might be because the run is not connected or it is already finished.'
-        );
-      }
-      // Update the current trial.
-      currentTrial = await this.getNextTrial();
-      // Post the results.
-      lastTrialResultPost = Promise.resolve(lastTrialResultPost).then(() =>
-        postTrial(
-          run.experimentId,
-          run.id,
-          previousTrial.block.number,
-          previousTrial.number,
-          { token, measures }
-        )
-      );
-      // Push the post promise in the queue to monitor unfinished posts.
-      postQueue.push(lastTrialResultPost);
-      return currentTrial;
-    },
-
-    /**
-     * Flush the trial result post queue.
-     * @param  {int} maxLength  The maximum number of pending trial result post requests before
-     *                          resolving the promise
-     * @return {Promise}        A promise that resolves when there is maxLength or less pending
-     *                          trial results. Resolves immediately if this is already the case
-     *                          when the function is called.
-     */
-    flush(maxLength) {
-      return postQueue.flush(maxLength);
+  /**
+   * Resolves with the next trial.
+   * @return {Promise}
+   */
+  this.getNextTrial = async () => {
+    let nextTrialNum = currentTrial.number + 1;
+    let currentBlock = currentTrial.block;
+    if (nextTrialNum >= currentBlock.trials.length) {
+      currentBlock = run.blocks[currentBlock.number + 1];
+      nextTrialNum = 0;
     }
+    if (!currentBlock) {
+      return undefined;
+    }
+    return currentBlock.trials[nextTrialNum];
   };
-};
 
+  /**
+   * Disconnect (does nothing).
+   * @return {Promise}
+   */
+  this.disconnect = async () => {
+    // Nothing to do here.
+  };
+
+  /**
+   * End a trial by posting its result to the server.
+   * @param  {Object}  measures   The trial result.
+   * @return {Promise}            A promise resolved when the trial results have been successfuly
+   *                              pushed to the server
+   */
+  this.endCurrentTrial = async measures => {
+    const previousTrial = await this.getCurrentTrial();
+    if (!previousTrial) {
+      throw new Error(
+        'Cannot end current trial: it is unknown. ' +
+          ' It might be because the run is not connected or it is already finished.'
+      );
+    }
+    // Update the current trial.
+    currentTrial = await this.getNextTrial();
+    // Post the results.
+    lastTrialResultPost = Promise.resolve(lastTrialResultPost).then(() =>
+      postTrial(
+        run.experimentId,
+        run.id,
+        previousTrial.block.number,
+        previousTrial.number,
+        { token, measures }
+      )
+    );
+    // Push the post promise in the queue to monitor unfinished posts.
+    postQueue.push(lastTrialResultPost);
+    return currentTrial;
+  };
+
+  /**
+   * Flush the trial result post queue.
+   * @param  {int} maxLength  The maximum number of pending trial result post requests before
+   *                          resolving the promise
+   * @return {Promise}        A promise that resolves when there is maxLength or less pending
+   *                          trial results. Resolves immediately if this is already the case
+   *                          when the function is called.
+   */
+  this.flush = maxLength => postQueue.flush(maxLength);
+}
 
 /**
  * Create a connection to a run.
@@ -240,7 +227,7 @@ export const createRunConnectionClosure = (
  *                                                       posts.
  * @return {Promise<Object>} The run connection.
  */
-const createRunConnection = async (
+RunConnection.create = async (
   serverAddress,
   experimentId,
   runId,
@@ -267,7 +254,7 @@ const createRunConnection = async (
   // everything).
   const run = consolidateRun(runInfo);
 
-  return createRunConnectionClosure(
+  return new RunConnection(
     run,
     runInfo.lock.token,
     runInfo.currentTrial.blockNumber,
@@ -276,5 +263,3 @@ const createRunConnection = async (
     serverInterface.postTrial.bind(serverInterface)
   );
 };
-
-export default createRunConnection;

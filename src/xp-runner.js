@@ -1,5 +1,5 @@
-import createRunConnection from './connection/run-connection';
-import LocalValueStorage from './local-run-storage';
+import RunConnection from './connection/run-connection';
+import LocalValueStorage from './local-value-storage';
 
 // Create a copy of an error with a header appended to its message.
 const errorWithHeader = (e, header) => {
@@ -90,7 +90,7 @@ const runExperiment = async (
     queueSize = 1,
     // Test arguments.
     runStorage = new LocalValueStorage(`${experimentId}/running-run-id`),
-    connection: potentialConnection = createRunConnection(
+    connection: potentialConnection = RunConnection.create(
       serverAddress || `http://${window.location.hostname}:5000`,
       experimentId,
       runId || runStorage.get(),

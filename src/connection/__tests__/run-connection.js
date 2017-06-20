@@ -2,11 +2,10 @@ import test from 'ava';
 import { spy, stub } from 'sinon';
 import wait from 'wait-then';
 import deferred from 'promise.defer';
-import {
+import RunConnection, {
   isExperimentLoadedOnServer,
   connectToRun,
   selectRun,
-  createRunConnectionClosure,
   consolidateRun
 } from '../run-connection';
 
@@ -120,7 +119,7 @@ const makeRCon = ({
     run,
     queue,
     post,
-    rcon: createRunConnectionClosure(run, token, block, trial, queue, post)
+    rcon: new RunConnection(run, token, block, trial, queue, post)
   });
 
 test('RunConnection properly find the first trial', async t => {
