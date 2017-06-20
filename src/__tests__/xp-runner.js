@@ -13,29 +13,37 @@ const makeTrialList = (blockCount = 2, trialCountPerBlock = 3) =>
     ];
   }, []);
 
-test('runTrials works as expected', async t => {
-  // Will register every spy call as { type, args }
-  const mainSpy = spy();
-  // Create a sub spy with the provided type.
-  const createSubSpy = (type, f, done = true) =>
+// Create a group of delayed spies, each spies create from this group is given a type
+// and all spy calls can be monitored (in order) with may `all` spy.
+// Also, all spies return a promise that resolves asynchronously. The resolution of the promise
+// can be monitored as well.
+const createDelayedSpiesGroup = () => {
+  const all = spy();
+  const createSpy = (type, f, done = '* ') =>
     spy((...args) => {
-      mainSpy(type, args);
-      return wait().then(f && (() => f(...args))).then(r => {
-        if (done) mainSpy(`* ${type}`);
-        return r;
+      all(type, args);
+      return wait().then(f && (() => f(...args))).then(res => {
+        if (done) all(done + type, res);
+        return res;
       });
     });
+  return { all, spy: createSpy };
+};
+
+test('`runTrials` works as expected when init block is provided', async t => {
+  // Will register every spy call as { type, args }
+  const spyGroup = createDelayedSpiesGroup();
   // Connection fake implementation.
   const trials = makeTrialList(2, 2);
   const connection = {
-    endCurrentTrial: createSubSpy('endCurrentTrial', null, false),
-    getCurrentTrial: createSubSpy('getCurrentTrial', () => trials.shift()),
-    flush: createSubSpy('flush')
+    endCurrentTrial: spyGroup.spy('endCurrentTrial', null, false),
+    getCurrentTrial: spyGroup.spy('getCurrentTrial', () => trials.shift()),
+    flush: spyGroup.spy('flush')
   };
   // App fake implementation,
   const app = {
-    initBlock: createSubSpy('initBlock'),
-    runTrial: createSubSpy('runTrial', trial => ({
+    initBlock: spyGroup.spy('initBlock'),
+    runTrial: spyGroup.spy('runTrial', trial => ({
       val: `${trial.block.number}-${trial.number}`
     }))
   };
@@ -45,49 +53,101 @@ test('runTrials works as expected', async t => {
   const expectedCalls = [
     // block 1 trial 1
     ['getCurrentTrial', []],
-    ['* getCurrentTrial'],
+    ['* getCurrentTrial', { number: 0, block: { number: 0 } }],
     ['initBlock', [{ number: 0 }]],
-    ['* initBlock'],
+    ['* initBlock', undefined],
     ['flush', [7]],
-    ['* flush'],
+    ['* flush', undefined],
     ['runTrial', [{ number: 0, block: { number: 0 } }]],
-    ['* runTrial'],
+    ['* runTrial', { val: '0-0' }],
     ['endCurrentTrial', [{ val: '0-0' }]],
     // block 1 trial 2
     ['getCurrentTrial', []],
-    ['* getCurrentTrial'],
+    ['* getCurrentTrial', { number: 1, block: { number: 0 } }],
     ['flush', [7]],
-    ['* flush'],
+    ['* flush', undefined],
     ['runTrial', [{ number: 1, block: { number: 0 } }]],
-    ['* runTrial'],
+    ['* runTrial', { val: '0-1' }],
     ['endCurrentTrial', [{ val: '0-1' }]],
     // block 2 trial 1
     ['getCurrentTrial', []],
-    ['* getCurrentTrial'],
+    ['* getCurrentTrial', { number: 0, block: { number: 1 } }],
     ['initBlock', [{ number: 1 }]],
-    ['* initBlock'],
+    ['* initBlock', undefined],
     ['flush', [7]],
-    ['* flush'],
+    ['* flush', undefined],
     ['runTrial', [{ number: 0, block: { number: 1 } }]],
-    ['* runTrial'],
+    ['* runTrial', { val: '1-0' }],
     ['endCurrentTrial', [{ val: '1-0' }]],
     // block 2 trial 2
     ['getCurrentTrial', []],
-    ['* getCurrentTrial'],
+    ['* getCurrentTrial', { number: 1, block: { number: 1 } }],
     ['flush', [7]],
-    ['* flush'],
+    ['* flush', undefined],
     ['runTrial', [{ number: 1, block: { number: 1 } }]],
-    ['* runTrial'],
+    ['* runTrial', { val: '1-1' }],
     ['endCurrentTrial', [{ val: '1-1' }]],
     // End
     ['getCurrentTrial', []],
-    ['* getCurrentTrial'],
+    ['* getCurrentTrial', undefined],
     ['flush', []],
-    ['* flush']
+    ['* flush', undefined]
   ];
   // Loop because that is easier to debug.
   expectedCalls.forEach((arg, i) => {
-    t.deepEqual(arg, mainSpy.args[i], `Call ${i + 1} was as expected.`);
+    t.deepEqual(arg, spyGroup.all.args[i], `Call ${i + 1} was as expected.`);
   });
-  t.is(expectedCalls.length, mainSpy.args.length, 'There was no extra calls.');
+  t.is(expectedCalls.length, spyGroup.all.callCount, 'There was no extra calls.');
+});
+
+test('`runTrials` works as expected when init block is not provided', async t => {
+  const spyGroup = createDelayedSpiesGroup();
+  // Connection fake implementation.
+  const trials = makeTrialList(2, 1);
+  const connection = {
+    endCurrentTrial: spyGroup.spy('endCurrentTrial', null, false),
+    getCurrentTrial: spyGroup.spy('getCurrentTrial', () => trials.shift()),
+    flush: spyGroup.spy('flush')
+  };
+  // App fake implementation,
+  const app = {
+    runTrial: spyGroup.spy('runTrial', trial => ({
+      result: `${trial.block.number}-${trial.number}`
+    }))
+  };
+  // Run the trials.
+  await runTrials(connection, app, 7);
+  // Expected calls on connection and app methods.
+  const expectedCalls = [
+    // block 1 trial 1
+    ['getCurrentTrial', []],
+    ['* getCurrentTrial', { number: 0, block: { number: 0 } }],
+    ['flush', [7]],
+    ['* flush', undefined],
+    ['runTrial', [{ number: 0, block: { number: 0 } }]],
+    ['* runTrial', { result: '0-0' }],
+    ['endCurrentTrial', [{ result: '0-0' }]],
+    // block 2 trial 1
+    ['getCurrentTrial', []],
+    ['* getCurrentTrial', { number: 0, block: { number: 1 } }],
+    ['flush', [7]],
+    ['* flush', undefined],
+    ['runTrial', [{ number: 0, block: { number: 1 } }]],
+    ['* runTrial', { result: '1-0' }],
+    ['endCurrentTrial', [{ result: '1-0' }]],
+    // End
+    ['getCurrentTrial', []],
+    ['* getCurrentTrial', undefined],
+    ['flush', []],
+    ['* flush', undefined]
+  ];
+  // Loop because that is easier to debug.
+  expectedCalls.forEach((arg, i) => {
+    t.deepEqual(arg, spyGroup.all.args[i], `Call ${i + 1} was as expected.`);
+  });
+  t.is(
+    spyGroup.all.callCount,
+    expectedCalls.length,
+    'There was no extra calls.'
+  );
 });
