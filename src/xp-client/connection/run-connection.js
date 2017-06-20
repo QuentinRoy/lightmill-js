@@ -112,7 +112,7 @@ export function consolidateRun(runInfo) {
  * @param  {int} startTrialNum
  * @param  {int} startBlockNum
  * @param  {PromiseQueue} postQueue
- * @param  {function} postTrial
+ * @param  {function} postTrialResults
  * @return {RunConnection}
  */
 export default function RunConnection(
@@ -121,7 +121,7 @@ export default function RunConnection(
   startBlockNum,
   startTrialNum,
   postQueue,
-  postTrial
+  postTrialResults
 ) {
   // Maintain the current trial.
   let currentTrial = run.blocks[startBlockNum].trials[startTrialNum];
@@ -191,7 +191,7 @@ export default function RunConnection(
     currentTrial = await this.getNextTrial();
     // Post the results.
     lastTrialResultPost = Promise.resolve(lastTrialResultPost).then(() =>
-      postTrial(
+      postTrialResults(
         run.experimentId,
         run.id,
         previousTrial.block.number,
@@ -261,6 +261,6 @@ RunConnection.create = async function createRunConnection(
     runInfo.currentTrial.blockNumber,
     runInfo.currentTrial.number,
     postQueue,
-    serverInterface.postTrial.bind(serverInterface)
+    serverInterface.postTrialResults.bind(serverInterface)
   );
 };
