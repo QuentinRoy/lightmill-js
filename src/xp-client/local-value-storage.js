@@ -16,7 +16,7 @@ export default class LocalValueStorage {
    * @return {string?} the storedvalue
    */
   get() {
-    localStorage.getItem(this.key);
+    return localStorage.getItem(this.key);
   }
   /**
    * @param {string} value the value to store
