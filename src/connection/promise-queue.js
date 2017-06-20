@@ -1,6 +1,8 @@
 // Partition an array in function of a criterium.
 const partition = (array, keyOrGetKey) => {
-  const getKey = typeof keyOrGetKey === 'string' ? o => o[keyOrGetKey] : keyOrGetKey;
+  const getKey = typeof keyOrGetKey === 'string'
+    ? o => o[keyOrGetKey]
+    : keyOrGetKey;
   return array.reduce((acc, val) => {
     const valKey = getKey(val);
     acc[valKey] = acc[valKey] || [];
@@ -11,47 +13,58 @@ const partition = (array, keyOrGetKey) => {
 
 // Records on going promises and there resolution. Flush can be used to wait for less than a given
 // number of promises.
-export default class PromiseQueue {
-  constructor() {
-    this._length = 0;
-    this._callbacks = [];
-    // Protect this._resolved.
-    this._resolved = this._resolved.bind(this);
+export default function PromiseQueue() {
+  if (!(this instanceof PromiseQueue)) {
+    throw new Error('PromiseQueue must be called with new.');
   }
-  get length() {
-    return this._length;
-  }
-  get last() {
-    return this._last;
-  }
-  _resolved() {
-    this._length -= 1;
+  let length = 0;
+  let callbacks = [];
+
+  const onResolved = () => {
+    length -= 1;
     const { resolved = [], unresolved = [] } = partition(
-      this._callbacks,
-      ({ length }) => (length >= this._length ? 'resolved' : 'unresolved')
+      callbacks,
+      ({ maxLength }) => (maxLength >= length ? 'resolved' : 'unresolved')
     );
     resolved.forEach(({ callback }) => {
       callback();
     });
-    this._callbacks = unresolved;
-  }
-  push(...promises) {
-    this._length += promises.length;
-    this._last = promises[promises.length - 1];
-    promises.forEach((promise) => {
-      promise.then(this._resolved, this._resolved);
+    callbacks = unresolved;
+  };
+
+  /**
+   * The current number of pending promises in the queue.
+   * @type {int}
+   */
+  Object.defineProperty(this, 'length', { get: () => length });
+
+  /**
+   * Push one or more promises in the queue.
+   * @param  {...Promise} promises
+   */
+  this.push = (...promises) => {
+    length += promises.length;
+    promises.forEach(promise => {
+      promise.then(onResolved, onResolved);
     });
-  }
-  flush(length = 0) {
-    if (this._length <= length) return Promise.resolve();
-    let entry = this._callbacks.find(e => e.length === length);
+  };
+
+  /**
+   * Return a promise that resolves when the number of pending promises in the queue is less or
+   * equal to a given number. Resolves immediately if it is already the case.
+   * @param  {Number} [maxLength=0] Max number of pending promises.
+   * @return {Promise}
+   */
+  this.flush = (maxLength = 0) => {
+    if (length <= maxLength) return Promise.resolve();
+    let entry = callbacks.find(e => e.maxLength === maxLength);
     if (!entry) {
-      entry = { length };
-      entry.promise = new Promise((resolve) => {
+      entry = { maxLength };
+      entry.promise = new Promise(resolve => {
         entry.callback = resolve;
       });
-      this._callbacks.push(entry);
+      callbacks.push(entry);
     }
     return entry.promise;
-  }
+  };
 }
