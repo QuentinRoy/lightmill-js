@@ -11,8 +11,11 @@ const partition = (array, keyOrGetKey) => {
   }, {});
 };
 
-// Records on going promises and there resolution. Flush can be used to wait for less than a given
-// number of promises.
+/**
+ * Tracks pending promises and there resolution. Flush can be used to wait for less than a given
+ * number of pending promises.
+ * @constructor
+ */
 export default function PromiseQueue() {
   if (!(this instanceof PromiseQueue)) {
     throw new Error('PromiseQueue must be called with new.');
