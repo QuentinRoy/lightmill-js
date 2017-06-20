@@ -26,13 +26,14 @@
   },
   "dependencies": {
     "babel-runtime": "^6.23.0",
-    "javascript-state-machine": "^3.0.1",
     "spin": "0.0.1",
     "unfetch": "^2.1.2"
   },
   "scripts": {
     "test": "NODE_ENV=test ava",
-    "build": "NODE_ENV=production rollup -c",
+    "build-standard-xp-app": "NODE_ENV=production rollup --config rollup.standard-xp-app.js",
+    "build-xp-client": "NODE_ENV=production rollup --config rollup.xp-client.js",
+    "build": "npm run build-xp-client;npm run build-standard-xp-app",
     "postinstall": "npm run build"
   },
   "repository": {
