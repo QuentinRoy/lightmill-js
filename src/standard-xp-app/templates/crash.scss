@@ -10,13 +10,13 @@ $detail-button-color: #000;
 
 .#{$app-class}-crash {
   background-color: $main-background-color;
+  text-align: center;
   color: $color;
 
   .banner {
     margin-top: 2em;
     background-color: $banner-background-color;
     padding: 1em;
-    text-align: center;
     font-size: 2em;
 
     h1 {
