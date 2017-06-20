@@ -17,7 +17,7 @@ function throwWithHeader(header) {
   };
 }
 
-/* eslint-disable no-await-in-loop */
+
 /**
  * Run the trials of an experiment.
  * @param  {Object}  connection  The connection to the run on the xp server.
@@ -32,6 +32,7 @@ export async function runTrials(connection, app, queueSize) {
     .catch(throwWithHeader('Could not retrieve current trial info'));
   let block;
 
+  /* eslint-disable no-await-in-loop */
   while (trial) {
     // If the block has changed, init the new one.
     if (block !== trial.block) {
@@ -57,10 +58,11 @@ export async function runTrials(connection, app, queueSize) {
       .getCurrentTrial()
       .catch(throwWithHeader('Could not retrieve current trial info'));
   }
+  /* eslint-enable no-await-in-loop */
+
   // Fully flush the post queue.
   await connection.flush();
 }
-/* eslint-enable no-await-in-loop */
 
 /**
  * Run an experiment.
