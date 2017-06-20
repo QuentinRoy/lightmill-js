@@ -65,9 +65,9 @@ function sendToServer(
     options.headers
   );
   // Automatically stringify non string content if the content type is json.
-  const body =
-    typeof content !== 'string' &&
-    (isJsonType(contentType) ? JSON.stringify(content) : content);
+  const body = typeof content !== 'string' && isJsonType(contentType)
+    ? JSON.stringify(content)
+    : content;
   // Create the options for fetch.
   const fetchOptions = Object.assign({ method: 'POST', body }, options, {
     headers
