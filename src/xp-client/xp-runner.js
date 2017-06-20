@@ -99,35 +99,42 @@ export async function runExperiment(
     )
   }
 ) {
-  // Returns a promise that inits the connection and register the run.
-  const initConnection = async () => {
-    const connection = await potentialConnection;
-    const run = await connection.getRun();
-    runStorage.set(run.id);
-    return { connection, run };
-  };
-  // Connect to the run and start the app.
-  const [{ connection, run }] = await Promise.all([
-    initConnection.catch(
-      throwWithHeader('Could not connect to the experiment')
-    ),
-    // Start the experiment app.
-    Promise.resolve(app.start && app.start()).catch(
-      throwWithHeader('Could not init the experiment task')
-    )
-  ]);
-  // Ask the app to init the run.
-  await Promise.resolve(app.initRun && app.initRun(run)).catch(
-    throwWithHeader('Could not init the run task')
-  );
-  // Run the trials.
-  await runTrials(connection, app, queueSize);
-  // Clear the local storage so that next time the page is loaded, a new run will be requested.
-  runStorage.remove();
-  // Disconnect from the server.
-  await connection.disconnect();
-  // Notify the app that the experiment is finished.
-  await app.end();
+  let run_;
+  try {
+    // Returns a promise that inits the connection and register the run.
+    const initConnection = async () => {
+      const connection = await potentialConnection;
+      const run = await connection.getRun();
+      runStorage.set(run.id);
+      return { connection, run };
+    };
+    // Connect to the run and start the app.
+    const [{ connection, run }] = await Promise.all([
+      initConnection().catch(
+        throwWithHeader('Could not connect to the experiment')
+      ),
+      // Start the experiment app.
+      Promise.resolve(app.start && app.start()).catch(
+        throwWithHeader('Could not init the experiment task')
+      )
+    ]);
+    // Export the run out of the context for the catch clause.
+    run_ = run;
+    // Ask the app to init the run.
+    await Promise.resolve(app.initRun && app.initRun(run)).catch(
+      throwWithHeader('Could not init the run task')
+    );
+    // Run the trials.
+    await runTrials(connection, app, queueSize);
+    // Clear the local storage so that next time the page is loaded, a new run will be requested.
+    runStorage.remove();
+    // Disconnect from the server.
+    await connection.disconnect();
+    // Notify the app that the experiment is finished.
+    await app.end();
+  } catch (e) {
+    app.crash(e.message, e, run_);
+  }
 }
 
 export default runExperiment;
