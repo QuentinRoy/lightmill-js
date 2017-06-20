@@ -2,7 +2,8 @@
   "name": "xpclient",
   "version": "1.0.0",
   "description": "JS client for xpserver.",
-  "main": "lib/xpclient.js",
+  "main": "xpclient.js",
+  "files": ["standard-xp-app.*", "xpclient.*"],
   "devDependencies": {
     "array-range": "^1.0.1",
     "ava": "^0.19.1",
@@ -12,7 +13,6 @@
     "babel-plugin-transform-runtime": "^6.23.0",
     "babel-preset-env": "^1.5.2",
     "deep-freeze": "0.0.1",
-    "eslint": "^3.19.0",
     "eslint-config-airbnb-base": "^11.2.0",
     "eslint-plugin-import": "^2.3.0",
     "promise.defer": "^1.0.1",
@@ -33,8 +33,7 @@
     "test": "NODE_ENV=test ava",
     "build-standard-xp-app": "NODE_ENV=production rollup --config rollup.standard-xp-app.js",
     "build-xp-client": "NODE_ENV=production rollup --config rollup.xp-client.js",
-    "build": "npm run build-xp-client;npm run build-standard-xp-app",
-    "postinstall": "npm run build"
+    "build": "npm run build-xp-client;npm run build-standard-xp-app"
   },
   "repository": {
     "type": "git",

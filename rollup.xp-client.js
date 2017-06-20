@@ -11,7 +11,7 @@ export default {
     exclude: 'node_modules/**' // only transpile our source code
   })],
   external: ['unfetch', 'babel-runtime/regenerator'],
-  dest: 'lib/xpclient.js',
+  dest: './xpclient.js',
   sourceMap: true,
   globals: {
     unfetch: 'unfetch',
