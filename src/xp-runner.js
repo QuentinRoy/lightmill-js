@@ -1,4 +1,5 @@
 import createRunConnection from './connection/run-connection';
+import LocalValueStorage from './local-run-storage';
 
 // Create a copy of an error with a header appended to its message.
 const errorWithHeader = (e, header) => {
@@ -59,6 +60,7 @@ export const runTrials = async (connection, app, queueSize) => {
 };
 /* eslint-enable no-await-in-loop */
 
+
 /**
  * Run an experiment.
  * @param {Object} app The application of the experiment.
@@ -68,48 +70,46 @@ export const runTrials = async (connection, app, queueSize) => {
  * @param {function(): Promise} app.runTrial Run a trial.
  * @param {function(): Promise} [app.end] Notify that the experiment is finished.
  * @param {Object} config Configuration.
- * @param {string} [config.experimentId] The id of the experiment.
- *                                       This is required is config.connection is not provided.
- * @param {string} [config.serverAddress] The address of the xp server.
+ * @param {string} config.experimentId The id of the experiment.
+ *                                     This is required is config.connection is not provided.
  * @param {string} [config.runId] The id of a run to connect to.
+ * @param {string} [config.serverAddress] The address of the xp server.
  * @param {string} [config.experimentDesignAddr] The path toward a touchstone
  *                                               experiment design xml file.
- * @param {Object} [config.connection] The connection to the server. This is required if config.
- *                                     experimentId is not provided
+ * @param {Object} [config.runStorage] Used to store the running run.
+ * @param {Object} [config.connection] The connection to the server. You do not usually need to
+ *                                     provide this.
  */
 const runExperiment = async (
   app,
   {
     experimentId,
     runId,
+    serverAddress,
     experimentDesignAddr,
     queueSize = 1,
-    serverAddress = `http://${window.location.hostname}:5000`,
-    connection: potentialConnection
+    // Test arguments.
+    runStorage = new LocalValueStorage(`${experimentId}/running-run-id`),
+    connection: potentialConnection = createRunConnection(
+      serverAddress || `http://${window.location.hostname}:5000`,
+      experimentId,
+      runId || runStorage.get(),
+      experimentDesignAddr
+    )
   }
 ) => {
-  // The key where to store the current run id in the local storage.
-  const runStorageKeyName = `${experimentId}/running-run-id`;
-  // Create a promise toward the run connection.
-  const connectionPromise =
-    potentialConnection ||
-    createRunConnection(
-      serverAddress,
-      experimentId,
-      runId || localStorage.getItem(runStorageKeyName),
-      experimentDesignAddr
-    );
+  // Returns a promise that inits the connection and register the run.
+  const initConnection = async () => {
+    const connection = await potentialConnection;
+    const run = await connection.getRun();
+    runStorage.set(run.id);
+    return { connection, run };
+  };
   // Connect to the run and start the app.
-  const [connection, run] = await Promise.all([
-    connectionPromise,
-    connectionPromise
-      .then(runConnection => runConnection.getRun())
-      .then(run_ => {
-        // Set a local storage entry so that while the run is not finished, the browser will
-        // always attempt to connect back to it.
-        localStorage.setItem(runStorageKeyName, run_.id);
-        return run_;
-      }, throwWithHeader('Could not connect to the experiment')),
+  const [{ connection, run }] = await Promise.all([
+    initConnection.catch(
+      throwWithHeader('Could not connect to the experiment')
+    ),
     // Start the experiment app.
     Promise.resolve(app.start && app.start()).catch(
       throwWithHeader('Could not init the experiment task')
@@ -122,7 +122,7 @@ const runExperiment = async (
   // Run the trials.
   await runTrials(connection, app, queueSize);
   // Clear the local storage so that next time the page is loaded, a new run will be requested.
-  localStorage.clear();
+  runStorage.remove();
   // Disconnect from the server.
   await connection.disconnect();
   // Notify the app that the experiment is finished.
