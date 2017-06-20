@@ -1,7 +1,7 @@
 import fetch from 'unfetch';
 // eslint-disable-next-line import/no-extraneous-dependencies
 import deepFreeze from 'deep-freeze'; // This is a devDependency because it is bundled in.
-import getServerInterface from './server-interface';
+import ServerInterface from './server-interface';
 import PromiseQueue from './promise-queue';
 
 /**
@@ -217,8 +217,8 @@ export default function RunConnection(
 
 /**
  * Create a connection to a run.
- * @param  {string|Object} serverAddress The address of the server. Alternatively, this can be
- *                                       provided as a server interface.
+ * @param  {string|Object} serverAddressOrInterface The address of the server. Alternatively,
+ *                                                  this can be provided as a server interface.
  * @param  {string}       experimentId The id of the experiment.
  * @param  {string}       [runId]  The id of the run.
  * @param  {string}       [experimentDesignAddr] The address of the experiment design (used to)
@@ -229,7 +229,7 @@ export default function RunConnection(
  * @return {Promise<Object>} The run connection.
  */
 RunConnection.create = async function createRunConnection(
-  serverAddress,
+  serverAddressOrInterface,
   experimentId,
   runId,
   experimentDesignAddr,
@@ -237,8 +237,8 @@ RunConnection.create = async function createRunConnection(
 ) {
   // Create the interface to the server.
   const serverInterface = typeof serverAddress === 'string'
-    ? await getServerInterface(serverAddress)
-    : serverAddress;
+    ? new ServerInterface(serverAddressOrInterface)
+    : serverAddressOrInterface;
 
   // Check if the experiment is loaded on the server, and if not load it.
   if (await isExperimentLoadedOnServer(serverInterface, experimentId)) {

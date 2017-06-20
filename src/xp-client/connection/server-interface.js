@@ -83,6 +83,10 @@ function sendToServer(
  * @constructor
  */
 export default function ServerInterface(serverAddress, apiPath = 'api') {
+  if (!(this instanceof ServerInterface)) {
+    throw new Error('ServerInterface must be called with new');
+  }
+
   // Init the api address once and for all.
   const apiAddress = getApiAddress(serverAddress, apiPath);
   // Get the address of an API endpoint on the server using either a simple string, or an
@@ -107,7 +111,8 @@ export default function ServerInterface(serverAddress, apiPath = 'api') {
    * @param  {String} experimentId  the experiment id.
    * @return {Promise<Object, Object>}
    */
-  this.availableRun = experimentId => ask(['experiment', experimentId, 'available_run']);
+  this.availableRun = experimentId =>
+    ask(['experiment', experimentId, 'available_run']);
 
   /**
    * Request the basic information about a run.
@@ -123,7 +128,8 @@ export default function ServerInterface(serverAddress, apiPath = 'api') {
    * @param  {String} runId         the run id.
    * @return {Promise<Object, Object>}
    */
-  this.plan = (experimentId, runId) => ask(['run', experimentId, runId, 'plan']);
+  this.plan = (experimentId, runId) =>
+    ask(['run', experimentId, runId, 'plan']);
 
   /**
    * Request a lock on a run.
@@ -131,7 +137,8 @@ export default function ServerInterface(serverAddress, apiPath = 'api') {
    * @param  {String} runId         the run id.
    * @return {Promise<Object, Object>}
    */
-  this.lock = (experimentId, runId) => ask(['run', experimentId, runId, 'lock']);
+  this.lock = (experimentId, runId) =>
+    ask(['run', experimentId, runId, 'lock']);
 
   /**
    * Request the current trial of a run (last non completed trial).
