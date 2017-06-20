@@ -8,6 +8,8 @@ import './templates/end.scss';
 import waitTemplate from './templates/wait.pug';
 import './templates/wait.scss';
 
+const XP_APP_BASE_CLASSNAME = 'xp-app-base';
+
 /**
  * Standard Experimentation App Base class. The app is higly reconfigurable and any method
  * can be safely replaced at any time. Cannot be used as is as it lacks a proper `runTrial`
@@ -66,7 +68,7 @@ export default class StandardXpAppBase {
     const detailsButton = this.node.querySelector('.details-button');
     detailsButton.addEventListener('click', evt => {
       evt.preventDefault();
-      this.node.querySelector('.xp-app-base').classList.toggle('with-details');
+      this.node.querySelector(`.${XP_APP_BASE_CLASSNAME}`).classList.toggle('with-details');
     });
   }
 
@@ -78,12 +80,13 @@ export default class StandardXpAppBase {
   initBlock(blockInfo) {
     return new Promise(resolve => {
       this.node.innerHTML = blockInitTemplate(blockInfo);
+      const appNode = this.node.querySelector(`.${XP_APP_BASE_CLASSNAME}`);
       const listener = evt => {
         evt.preventDefault();
-        this.node.removeEventLister('click', listener);
+        appNode.removeEventListener('click', listener);
         resolve();
       };
-      this.node.addEventListener('click', listener);
+      appNode.addEventListener('click', listener);
     }).then(res => {
       this.wait();
       return res;
