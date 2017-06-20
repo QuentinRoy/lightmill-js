@@ -10,12 +10,13 @@ export default {
   plugins: [resolve(), commonjs(), pug(), babel({
     exclude: 'node_modules/**' // only transpile our source code
   })],
-  external: ['unfetch', 'javascript-state-machine', 'spin'],
+  external: ['unfetch', 'babel-runtime/regenerator', 'javascript-state-machine', 'spin'],
   dest: 'lib/xpclient.js',
   sourceMap: true,
   globals: {
     'javascript-state-machine': 'StateMachine',
     unfetch: 'unfetch',
-    spin: 'Spinner'
+    spin: 'Spinner',
+    'babel-runtime/regenerator': 'regeneratorRuntime'
   }
 };

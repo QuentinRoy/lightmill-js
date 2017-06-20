@@ -1,5 +1,6 @@
 import fetch from 'unfetch';
-import deepFreeze from 'deep-freeze';
+// eslint-disable-next-line import/no-extraneous-dependencies
+import deepFreeze from 'deep-freeze'; // This is a devDependency because it is bundled in.
 import getServerInterface from './server-interface';
 import PromiseQueue from './promise-queue';
 

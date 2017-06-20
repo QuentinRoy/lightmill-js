@@ -11,6 +11,7 @@
     "babel-plugin-transform-es2015-modules-commonjs": "^6.24.1",
     "babel-plugin-transform-runtime": "^6.23.0",
     "babel-preset-env": "^1.5.2",
+    "deep-freeze": "0.0.1",
     "eslint": "^4.0.0",
     "eslint-config-airbnb-base": "^11.2.0",
     "eslint-plugin-import": "^2.3.0",
@@ -24,7 +25,7 @@
     "wait-then": "^0.1.2"
   },
   "dependencies": {
-    "deep-freeze": "0.0.1",
+    "babel-runtime": "^6.23.0",
     "javascript-state-machine": "^3.0.1",
     "spin": "0.0.1",
     "unfetch": "^2.1.2"
