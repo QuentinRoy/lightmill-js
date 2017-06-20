@@ -16,6 +16,6 @@ export default {
     pug(),
     babel({ exclude: 'node_modules/**' })
   ],
-  dest: 'lib/standard-xp-app.js',
+  dest: './standard-xp-app.js',
   sourceMap: true
 };
