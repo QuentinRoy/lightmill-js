@@ -236,7 +236,7 @@ RunConnection.create = async function createRunConnection(
   postQueue = new PromiseQueue()
 ) {
   // Create the interface to the server.
-  const serverInterface = typeof serverAddress === 'string'
+  const serverInterface = typeof serverAddressOrInterface === 'string'
     ? new ServerInterface(serverAddressOrInterface)
     : serverAddressOrInterface;
 
