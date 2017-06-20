@@ -9,13 +9,13 @@ import PromiseQueue from './promise-queue';
  * @param  {string}  experimentId    the id of the target experiment.
  * @return {Promise}                 true if the experiment is loaded on the server.
  */
-export const isExperimentLoadedOnServer = async (
+export async function isExperimentLoadedOnServer(
   serverInterface,
   experimentId
-) => {
+) {
   const experiments = await serverInterface.experiments();
   return !!experiments[experimentId];
-};
+}
 
 /**
  * Fetch the given experiment design xml file and post it to be imported on the server.
@@ -23,14 +23,14 @@ export const isExperimentLoadedOnServer = async (
  * @param  {string}  experimentDesignAddr the address where to downlad the experiment design.
  * @return {Promise}                      resolves when the experiment has been imported.
  */
-export const importExperimentOnServer = async (
+export async function importExperimentOnServer(
   serverInterface,
   experimentDesignAddr
-) => {
+) {
   const designReq = await fetch(experimentDesignAddr);
   const design = await designReq.text();
   return serverInterface.postExperimentDesign(design);
-};
+}
 
 /**
  * Select a run from the server.
@@ -39,7 +39,7 @@ export const importExperimentOnServer = async (
  * @param  {string}  [runId]
  * @return {Promise}
  */
-export const selectRun = async (serverInterface, experimentId, runId) => {
+export async function selectRun(serverInterface, experimentId, runId) {
   const runInfo = runId
     ? await serverInterface.run(experimentId, runId)
     : await serverInterface.availableRun(experimentId);
@@ -54,7 +54,7 @@ export const selectRun = async (serverInterface, experimentId, runId) => {
     );
   }
   return runInfo;
-};
+}
 
 /**
  * Connect to a run (and lock it on the server)
@@ -62,7 +62,7 @@ export const selectRun = async (serverInterface, experimentId, runId) => {
  * @param  {Object}  runInfo         The description of the target run.
  * @return {Promise<{id, experimentId, blocks, currentTrial, lock}>} The run information.
  */
-export const connectToRun = async (serverInterface, runInfo) => {
+export async function connectToRun(serverInterface, runInfo) {
   // Lock it, fetch the run plan and the current trial (current trial might not be the first
   // on if the run is being resumed).
   const [lock, blocksInfo, currentTrialInfo] = await Promise.all([
@@ -78,7 +78,7 @@ export const connectToRun = async (serverInterface, runInfo) => {
     currentTrial: currentTrialInfo,
     lock
   };
-};
+}
 
 /**
  * Consolidate a run by appending back references toward block on trials, and back references
@@ -86,7 +86,7 @@ export const connectToRun = async (serverInterface, runInfo) => {
  * @param  {{id, experimentId, blocks}} runInfo The description of the run.
  * @return {{id, experimentId, blocks}}         The run consolidated and frozen.
  */
-export const consolidateRun = runInfo => {
+export function consolidateRun(runInfo) {
   const run = {
     id: runInfo.id,
     experimentId: runInfo.experimentId
@@ -102,7 +102,7 @@ export const consolidateRun = runInfo => {
   });
   deepFreeze(run);
   return run;
-};
+}
 
 /**
  * RunConnection class.
@@ -227,13 +227,13 @@ export default function RunConnection(
  *                                                       posts.
  * @return {Promise<Object>} The run connection.
  */
-RunConnection.create = async (
+RunConnection.create = async function createRunConnection(
   serverAddress,
   experimentId,
   runId,
   experimentDesignAddr,
   postQueue = new PromiseQueue()
-) => {
+) {
   // Create the interface to the server.
   const serverInterface = typeof serverAddress === 'string'
     ? await getServerInterface(serverAddress)

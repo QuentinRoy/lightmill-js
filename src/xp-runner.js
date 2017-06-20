@@ -2,18 +2,20 @@ import RunConnection from './connection/run-connection';
 import LocalValueStorage from './local-value-storage';
 
 // Create a copy of an error with a header appended to its message.
-const errorWithHeader = (e, header) => {
+function errorWithHeader(e, header) {
   const err = new Error(e.message ? `${header}: ${e.message}` : header);
   err.original = e;
   err.stack = e.stack;
   if (e.type) err.type = e.type;
   return err;
-};
+}
 
 // Return a function that will throw an error after appending a header.
-const throwWithHeader = header => e => {
-  throw errorWithHeader(e, header);
-};
+function throwWithHeader(header) {
+  return e => {
+    throw errorWithHeader(e, header);
+  };
+}
 
 /* eslint-disable no-await-in-loop */
 /**
@@ -23,7 +25,7 @@ const throwWithHeader = header => e => {
  * @param  {int}  queueSize  Max number of pending trial result posts before starting a new trial.
  * @return {Promise}  A promise resolved when all trials have run.
  */
-export const runTrials = async (connection, app, queueSize) => {
+export async function runTrials(connection, app, queueSize) {
   // Init the loop.
   let trial = await connection
     .getCurrentTrial()
@@ -57,9 +59,8 @@ export const runTrials = async (connection, app, queueSize) => {
   }
   // Fully flush the post queue.
   await connection.flush();
-};
+}
 /* eslint-enable no-await-in-loop */
-
 
 /**
  * Run an experiment.
@@ -80,7 +81,7 @@ export const runTrials = async (connection, app, queueSize) => {
  * @param {Object} [config.connection] The connection to the server. You do not usually need to
  *                                     provide this.
  */
-const runExperiment = async (
+export async function runExperiment(
   app,
   {
     experimentId,
@@ -97,7 +98,7 @@ const runExperiment = async (
       experimentDesignAddr
     )
   }
-) => {
+) {
   // Returns a promise that inits the connection and register the run.
   const initConnection = async () => {
     const connection = await potentialConnection;
@@ -127,6 +128,6 @@ const runExperiment = async (
   await connection.disconnect();
   // Notify the app that the experiment is finished.
   await app.end();
-};
+}
 
 export default runExperiment;
