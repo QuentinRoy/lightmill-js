@@ -1,0 +1,57 @@
+@import './common';
+
+$color: #fff;
+$main-background-color: #c90000;
+$banner-background-color: rgba(0, 0, 0, .1);
+$details-color: #820a0a;
+$details-border-color: #5e0606;
+$details-background-color: #fff;
+$detail-button-color: #000;
+
+.#{$app-class}-crash {
+  background-color: $main-background-color;
+  color: $color;
+
+  .banner {
+    margin-top: 2em;
+    background-color: $banner-background-color;
+    padding: 1em;
+    font-size: 2em;
+
+    h1 {
+      margin-top: 0;
+    }
+  }
+
+  .details {
+    display: none;
+    margin-top: 5em;
+    margin-right: 10%;
+    margin-left: 10%;
+    border-width: 1px;
+    border-style: solid;
+    border-color: $details-border-color;
+    background-color: $details-background-color;
+    padding: 1em 2em;
+    text-align: left;
+    color: $details-color;
+    overflow-x: scroll;
+  }
+
+  .details-button {
+    display: block;
+    margin-top: 6em;
+    color: $detail-button-color;
+  }
+
+  &.with-details {
+    .details-button {
+      display: none;
+    }
+
+    .details {
+      display: inherit;
+    }
+  }
+
+}

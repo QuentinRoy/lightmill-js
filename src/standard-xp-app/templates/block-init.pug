@@ -1,0 +1,19 @@
+.xp-app-base.xp-app-base-block
+  .block(class=practice?'practice':'')
+    if subjectiveAssessment
+      .message
+        | Please give your subjective assessment.
+    else if number !== 0
+      .message
+        | Time for a break?
+
+    h1
+      if practice
+        | Practice
+      else
+        | Block #{measuredBlockNumber + 1}
+
+    .values
+      each val in factorValues
+        .value
+          | #[val.factor.name]: #[val.nam]

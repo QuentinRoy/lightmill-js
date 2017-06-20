@@ -1,0 +1,11 @@
+@import './common';
+
+.#{$app-class}-end {
+  text-align: center;
+
+  h1 {
+    margin-top: 2em;
+    text-transform: capitalize;
+    font-size: 2em;
+  }
+}

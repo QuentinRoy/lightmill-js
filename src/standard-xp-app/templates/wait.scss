@@ -1,0 +1,38 @@
+@import './common';
+
+$puck-wrapper-size: 400px;
+$puck-radius: 25px;
+$puck-color: #5e5e5e;
+$background-color: #d1d1d1;
+$rotation-duration: 1s;
+$animation-name: #{$app-class}-wait-spin;
+
+.#{$app-class}-wait {
+  background-color: $background-color;
+
+  .puck-wrapper {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    margin-top: -$puck-wrapper-size / 2;
+    margin-left: -$puck-wrapper-size / 2;
+    width: $puck-wrapper-size;
+    height: $puck-wrapper-size;
+
+    .puck {
+      position: absolute;
+      top: 0;
+      left: 0;
+      animation: $animation-name $rotation-duration infinite linear;
+      border-radius: $puck-radius;
+      background-color: $puck-color;
+      width: $puck-radius * 2;
+      height: $puck-radius * 2;
+    }
+  }
+}
+
+@keyframes #{$animation-name} {
+  0%   {transform: rotate(0deg)}
+  100% {transform: rotate(360deg)}
+}

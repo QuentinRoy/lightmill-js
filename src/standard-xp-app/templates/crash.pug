@@ -1,0 +1,18 @@
+.xp-app-base.xp-app-base-crash
+
+  .banner
+    h1
+      | Something went wrong
+
+    div
+      | Please call your experimenter.
+    
+  .details
+    h3
+      | Run #{run ? run.id : 'unknown'}
+    h4.message= message
+    if stack
+      pre.stack= stack
+  
+  a.details-button(href='#')
+    | show details

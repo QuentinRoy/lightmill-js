@@ -12,7 +12,7 @@
     "babel-plugin-transform-runtime": "^6.23.0",
     "babel-preset-env": "^1.5.2",
     "deep-freeze": "0.0.1",
-    "eslint": "^4.0.0",
+    "eslint": "^3.19.0",
     "eslint-config-airbnb-base": "^11.2.0",
     "eslint-plugin-import": "^2.3.0",
     "promise.defer": "^1.0.1",
@@ -21,12 +21,12 @@
     "rollup-plugin-commonjs": "^8.0.2",
     "rollup-plugin-node-resolve": "^3.0.0",
     "rollup-plugin-pug": "^0.1.4",
+    "rollup-plugin-sass": "^0.5.3",
     "sinon": "^2.3.4",
     "wait-then": "^0.1.2"
   },
   "dependencies": {
     "babel-runtime": "^6.23.0",
-    "spin": "0.0.1",
     "unfetch": "^2.1.2"
   },
   "scripts": {

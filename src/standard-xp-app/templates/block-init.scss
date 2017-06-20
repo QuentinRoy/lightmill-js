@@ -1,0 +1,36 @@
+@import './common';
+
+$measured-color: #fff;
+$measured-background: #a9352c;
+$practice-color: #fff;
+$practice-background: #079649;
+
+.#{$app-class}-block {
+  background-color: $measured-background;
+  color: $measured-color;
+
+  &.practice {
+    background-color: $practice-background;
+    color: $practice-color;
+  }
+
+  .block {
+    margin: 3em 0;
+    padding: 2em;
+    vertical-align: middle;
+    text-align: center;
+
+    .message {
+      border-bottom: 3em;
+      font-size: 30px;
+    }
+
+    h1 {
+      font-size: 3em;
+    }
+
+    .values {
+      font-size: 1.5em;
+    }
+  }
+}
