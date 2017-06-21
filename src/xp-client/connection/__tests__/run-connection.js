@@ -12,7 +12,7 @@ import RunConnection, {
 const spyDelay = (result, delay = 10) =>
   spy(() => wait(delay).then(() => result));
 
-test('isExperimentLoadedOnServer checks if the experiment is available on the server', async t => {
+test('`isExperimentLoadedOnServer` checks if the experiment is available on the server', async t => {
   const server = {
     experiments: spyDelay({ xp1: {}, xp2: {} })
   };
@@ -22,14 +22,14 @@ test('isExperimentLoadedOnServer checks if the experiment is available on the se
   t.is(server.experiments.callCount, 2);
 });
 
-test('selectRun ask for an available run if no run is provided', async t => {
+test('`selectRun` ask for an available run if no run is provided', async t => {
   const server = { availableRun: spyDelay({ experimentId: 'xpid' }) };
   t.deepEqual(await selectRun(server, 'xpid'), { experimentId: 'xpid' });
   t.true(server.availableRun.calledWithExactly('xpid'));
   t.is(server.availableRun.callCount, 1);
 });
 
-test('selectRun ask for the specified run if it is provided', async t => {
+test('`selectRun` ask for the specified run if it is provided', async t => {
   const server = { run: spyDelay({ experimentId: 'xpid', id: 'runid' }) };
   t.deepEqual(await selectRun(server, 'xpid', 'runid'), {
     experimentId: 'xpid',
@@ -39,7 +39,7 @@ test('selectRun ask for the specified run if it is provided', async t => {
   t.is(server.run.callCount, 1);
 });
 
-test('selectRun throws if the received ids are consistant with what has been asked', async t => {
+test('`selectRun` throws if the received ids are consistant with what has been asked', async t => {
   const server = {
     availableRun: spyDelay({ id: 'runid', experimentId: 'xpid' }),
     run: spyDelay({ id: 'runid', experimentId: 'xpid' })
@@ -48,7 +48,7 @@ test('selectRun throws if the received ids are consistant with what has been ask
   await t.throws(selectRun(server, 'xpid', 'otherrunid'));
 });
 
-test("connectToRun properly locks, ask for run's plan and for run's current trial when no run is specified", async t => {
+test("`connectToRun` properly locks, ask for run's plan and for run's current trial when no run is specified", async t => {
   const server = {
     lock: spyDelay({ token: 'lock' }),
     plan: spyDelay(['block1', 'block2']),
@@ -93,7 +93,7 @@ const makeRunPlan = () => ({
   ]
 });
 
-test('consolidateRun properly insert backrefs.', t => {
+test('`consolidateRun` properly inserts backrefs.', t => {
   t.plan(6);
   const run = consolidateRun(makeRunPlan());
   run.blocks.forEach(block => {
@@ -122,32 +122,32 @@ const makeRCon = ({
     rcon: new RunConnection(run, token, block, trial, queue, post)
   });
 
-test('RunConnection properly find the first trial', async t => {
+test('`RunConnection` properly finds the first trial', async t => {
   const { rcon, run } = makeRCon({ trial: 0, block: 1 });
   t.is(run.blocks[1].trials[0], await rcon.getCurrentTrial());
   t.is(await rcon.getCurrentBlock(), run.blocks[1]);
 });
 
-test('RunConnection properly find the next trial when on the same block', async t => {
+test('`RunConnection` properly finds the next trial when on the same block', async t => {
   const { rcon } = makeRCon({ trial: 0, block: 1 });
   const next = await rcon.getNextTrial();
   t.is(next.number, 1);
   t.is(next.block.number, 1);
 });
 
-test('RunConnection properly find the next trial when on the next block', async t => {
+test('`RunConnection` properly finds the next trial when on the next block', async t => {
   const { rcon } = makeRCon({ trial: 1, block: 0 });
   const next = await rcon.getNextTrial();
   t.is(next.number, 0);
   t.is(next.block.number, 1);
 });
 
-test('RunConnection next trials is undefined when on the last trial', async t => {
+test('`RunConnection.getNextTrial` resolved undefined when on the last trial', async t => {
   const { rcon } = makeRCon({ trial: 1, block: 1 });
   t.is(await rcon.getNextTrial(), undefined);
 });
 
-test('RunConnection endCurrentTrial properly switches to next trial', async t => {
+test('`RunConnection.endCurrentTrial` properly switches to the next trial', async t => {
   const { rcon } = makeRCon({ trial: 0, block: 1 });
   const currentTrial = await rcon.getCurrentTrial();
   const nextTrial = await rcon.getNextTrial();
@@ -159,7 +159,7 @@ test('RunConnection endCurrentTrial properly switches to next trial', async t =>
   t.is(await rcon.getCurrentTrial(), nextTrial);
 });
 
-test('RunConnection properly posts the measures on endCurrentTrial', async t => {
+test('`RunConnection` properly posts the measures on endCurrentTrial', async t => {
   const { rcon, post } = makeRCon({ trial: 0, block: 0, token: 'token' });
   await rcon.endCurrentTrial({ val: 'val' });
   t.deepEqual(post.args, [
@@ -167,7 +167,7 @@ test('RunConnection properly posts the measures on endCurrentTrial', async t => 
   ]);
 });
 
-test('RunConnection post the results sequentially', async t => {
+test('`RunConnection` posts the results sequentially', async t => {
   const defs = Array.from({ length: 3 }).map(() => deferred());
   const post = stub();
   defs.forEach((def, i) => post.onCall(i).returns(def.promise));
@@ -196,7 +196,7 @@ test('RunConnection post the results sequentially', async t => {
   ]);
 });
 
-test('RunConnection queue posts resolves as expected', async t => {
+test("`RunConnection`'s posts resolve as expected", async t => {
   const defs = Array.from({ length: 3 }).map(() => deferred());
   const post = stub();
   defs.forEach((def, i) => post.onCall(i).returns(def.promise));
@@ -224,7 +224,7 @@ test('RunConnection queue posts resolves as expected', async t => {
   t.deepEqual(postResolutions, [true, true, true]);
 });
 
-test('RunConnection flushes is delegated on the queue', async t => {
+test('`RunConnection.flush` is delegated on the queue', async t => {
   const def = deferred();
   const queue = {
     push: spyDelay(),
