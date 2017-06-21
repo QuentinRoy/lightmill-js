@@ -3,5 +3,5 @@ syntax: glob
 *.DS_Store
 node_modules
 lib
-/standard-xp-app.*
+/xp-app-base.*
 /xpclient.*

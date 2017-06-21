@@ -38,9 +38,9 @@
   },
   "scripts": {
     "test": "NODE_ENV=test ava",
-    "build-standard-xp-app": "NODE_ENV=production rollup --config rollup.standard-xp-app.js",
+    "build-xp-app-base": "NODE_ENV=production rollup --config rollup.xp-app-base.js",
     "build-xp-client": "NODE_ENV=production rollup --config rollup.xp-client.js",
-    "build": "npm run build-xp-client;npm run build-standard-xp-app"
+    "build": "npm run build-xp-client;npm run build-xp-app-base"
   },
   "repository": {
     "type": "git",

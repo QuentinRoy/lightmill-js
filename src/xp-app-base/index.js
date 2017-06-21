@@ -11,13 +11,14 @@ import './templates/wait.scss';
 const XP_APP_BASE_CLASSNAME = 'xp-app-base';
 
 /**
- * Standard Experimentation App Base class. The app is higly reconfigurable and any method
- * can be safely replaced at any time. Cannot be used as is as it lacks a proper `runTrial`
- * method implementation.
+ * Standard Experimentation App Base class for wexp-client providing wait, crash, end and initBlock
+ * views. This is an abstract class that does not provide a `runTrial` handle
+ * (required by xp-client). It is meant to be inheritied (or monkey patched).
+ * The app is higly reconfigurable and any method can be safely replaced at any time.
  * @constructor
  * @abstract
  */
-export default class StandardXpAppBase {
+export default class XpAppBase {
   /**
    * @param  {HTMLElement} node The node where to user for the app.
    */
@@ -35,7 +36,7 @@ export default class StandardXpAppBase {
    * @abstract
    */
   runTrial() {
-    throw new Error('XpApp.runTrial is not implemented');
+    throw new Error('runTrial not implemented');
   }
 
   /**

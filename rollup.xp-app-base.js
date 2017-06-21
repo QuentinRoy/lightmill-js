@@ -6,9 +6,9 @@ import babel from 'rollup-plugin-babel';
 import sass from 'rollup-plugin-sass';
 
 export default {
-  entry: 'src/standard-xp-app/index.js',
+  entry: 'src/xp-app-base/index.js',
   format: 'umd',
-  moduleName: 'StandardXpApp',
+  moduleName: 'XpAppBase',
   plugins: [
     resolve(),
     commonjs(),
@@ -16,6 +16,6 @@ export default {
     pug(),
     babel({ exclude: 'node_modules/**' })
   ],
-  dest: './standard-xp-app.js',
+  dest: './xp-app-base.js',
   sourceMap: true
 };
