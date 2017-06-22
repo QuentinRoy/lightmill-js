@@ -13,9 +13,11 @@ export default {
     resolve(),
     commonjs(),
     sass({ output: true }),
-    pug(),
+    pug({ pugRuntime: 'pug-runtime' }),
     babel({ exclude: 'node_modules/**' })
   ],
+  external: ['pug-runtime'],
+  globals: { 'pug-runtime': 'pugRuntime' },
   dest: './xp-app-base.js',
   sourceMap: true
 };

@@ -26,7 +26,7 @@
     "rollup-plugin-babel": "^2.7.1",
     "rollup-plugin-commonjs": "^8.0.2",
     "rollup-plugin-node-resolve": "^3.0.0",
-    "rollup-plugin-pug": "^0.1.4",
+    "rollup-plugin-pug": "^0.1.6",
     "rollup-plugin-sass": "^0.5.3",
     "rollup-watch": "^4.0.0",
     "sinon": "^2.3.4",
@@ -34,6 +34,7 @@
   },
   "dependencies": {
     "babel-runtime": "^6.23.0",
+    "pug-runtime": "^2.0.3",
     "unfetch": "^2.1.2"
   },
   "scripts": {
