@@ -241,7 +241,8 @@ RunConnection.create = async function createRunConnection(
     : serverAddressOrInterface;
 
   // Check if the experiment is loaded on the server, and if not load it.
-  if (!await isExperimentLoadedOnServer(serverInterface, experimentId)) {
+  // prettier-ignore
+  if (!(await isExperimentLoadedOnServer(serverInterface, experimentId))) {
     await importExperimentOnServer(serverInterface, experimentDesignAddr);
   }
 
