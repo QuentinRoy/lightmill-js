@@ -13,13 +13,14 @@
   },
   "scripts": {
     "lint": "eslint packages/*/src",
+    "test-all": "lerna run test",
     "lint:msg": "validate-commit-msg",
     "validate": "npm ls",
     "commit": "git cz",
     "postrewrite": "npm run git-hook",
     "precommit": "npm run git-hook",
     "commitmsg": "npm run lint:msg",
-    "git-hook": "npm run lint",
+    "git-hook": "npm run lint && npm run test-all",
     "build": "lerna run build",
     "release": "standard-version",
     "bootstrap": "lerna bootstrap"
