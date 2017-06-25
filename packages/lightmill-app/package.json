@@ -1,0 +1,42 @@
+{
+  "name": "lightmill-app",
+  "version": "1.0.0",
+  "description": "Base application for lightmill-client.",
+  "main": "./lightmill-app.js",
+  "files": [
+    "build"
+  ],
+  "devDependencies": {
+    "babel-plugin-external-helpers": "^6.22.0",
+    "babel-preset-env": "^1.5.2",
+    "eslint": "^3.19.0",
+    "eslint-config-airbnb-base": "^11.2.0",
+    "eslint-plugin-import": "^2.3.0",
+    "rollup": "^0.43.0",
+    "rollup-plugin-babel": "^2.7.1",
+    "rollup-plugin-commonjs": "^8.0.2",
+    "rollup-plugin-node-resolve": "^3.0.0",
+    "rollup-plugin-pug": "^0.1.6",
+    "rollup-plugin-sass": "^0.5.3"
+  },
+  "dependencies": {
+    "pug-runtime": "^2.0.3"
+  },
+  "scripts": {
+    "build": "NODE_ENV=production rollup --config rollup.config.js",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "experiment",
+    "lightmill",
+    "application"
+  ],
+  "author": "Quentin Roy <quentin@quentinroy.fr>",
+  "license": "MIT",
+  "ava": {
+    "require": [
+      "babel-register"
+    ],
+    "babel": "inherit"
+  }
+}

@@ -1,63 +1,12 @@
 {
-  "name": "xpclient",
-  "version": "1.0.0",
-  "description": "JS client for xpserver.",
-  "main": "xpclient.js",
-  "module": "src/xp-client",
-  "files": [
-    "standard-xp-app.*",
-    "xpclient.*",
-    "src/xp-client"
-  ],
-  "devDependencies": {
-    "array-range": "^1.0.1",
-    "ava": "^0.19.1",
-    "babel": "^6.23.0",
-    "babel-plugin-external-helpers": "^6.22.0",
-    "babel-plugin-transform-es2015-modules-commonjs": "^6.24.1",
-    "babel-plugin-transform-runtime": "^6.23.0",
-    "babel-preset-env": "^1.5.2",
-    "deep-freeze": "0.0.1",
-    "eslint": "^3.19.0",
-    "eslint-config-airbnb-base": "^11.2.0",
-    "eslint-plugin-import": "^2.3.0",
-    "promise.defer": "^1.0.1",
-    "rollup": "^0.43.0",
-    "rollup-plugin-babel": "^2.7.1",
-    "rollup-plugin-commonjs": "^8.0.2",
-    "rollup-plugin-node-resolve": "^3.0.0",
-    "rollup-plugin-pug": "^0.1.6",
-    "rollup-plugin-sass": "^0.5.3",
-    "rollup-watch": "^4.0.0",
-    "sinon": "^2.3.4",
-    "wait-then": "^0.1.2"
-  },
-  "dependencies": {
-    "babel-runtime": "^6.23.0",
-    "pug-runtime": "^2.0.3",
-    "unfetch": "^2.1.2"
-  },
-  "scripts": {
-    "test": "NODE_ENV=test ava",
-    "build-xp-app-base": "NODE_ENV=production rollup --config rollup.xp-app-base.js",
-    "build-xp-client": "NODE_ENV=production rollup --config rollup.xp-client.js",
-    "build": "npm run build-xp-client;npm run build-xp-app-base"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+ssh://git@bitbucket.org/quentinroy/xpclient.git"
-  },
-  "keywords": [
-    "experiment",
-    "xpserver"
-  ],
-  "author": "Quentin Roy <quentin@quentinroy.fr>",
+  "name": "lightmill-js",
+  "private": true,
   "license": "MIT",
-  "homepage": "https://bitbucket.org/quentinroy/xpclient#readme",
-  "ava": {
-    "require": [
-      "babel-register"
-    ],
-    "babel": "inherit"
+  "devDependencies": {
+    "lerna": "^2.0.0-rc.5"
+  },
+  "devEngines": {
+    "node": ">= 7.x",
+    "npm": ">= 4.x <= 5.x"
   }
 }

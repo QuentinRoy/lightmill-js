@@ -2,6 +2,3 @@ syntax: glob
 
 *.DS_Store
 node_modules
-lib
-/xp-app-base.*
-/xpclient.*

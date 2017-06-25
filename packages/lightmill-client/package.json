@@ -1,0 +1,48 @@
+{
+  "name": "lightmill-client",
+  "version": "1.0.0",
+  "description": "JS client for LightMill.",
+  "main": "lightmill-client.js",
+  "module": "src/index",
+  "files": ["lightmill-client.js", "src"],
+  "devDependencies": {
+    "array-range": "^1.0.1",
+    "ava": "^0.19.1",
+    "babel-plugin-external-helpers": "^6.22.0",
+    "babel-plugin-transform-es2015-modules-commonjs": "^6.24.1",
+    "babel-plugin-transform-runtime": "^6.23.0",
+    "babel-preset-env": "^1.5.2",
+    "deep-freeze": "0.0.1",
+    "eslint": "^3.19.0",
+    "eslint-config-airbnb-base": "^11.2.0",
+    "eslint-plugin-import": "^2.3.0",
+    "promise.defer": "^1.0.1",
+    "rollup": "^0.43.0",
+    "rollup-plugin-babel": "^2.7.1",
+    "rollup-plugin-commonjs": "^8.0.2",
+    "rollup-plugin-node-resolve": "^3.0.0",
+    "sinon": "^2.3.4",
+    "wait-then": "^0.1.2"
+  },
+  "dependencies": {
+    "babel-runtime": "^6.23.0",
+    "unfetch": "^2.1.2"
+  },
+  "scripts": {
+    "test": "NODE_ENV=test ava",
+    "build": "NODE_ENV=production rollup --config rollup.config.js",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "experiment",
+    "lightmill"
+  ],
+  "author": "Quentin Roy <quentin@quentinroy.fr>",
+  "license": "MIT",
+  "ava": {
+    "require": [
+      "babel-register"
+    ],
+    "babel": "inherit"
+  }
+}

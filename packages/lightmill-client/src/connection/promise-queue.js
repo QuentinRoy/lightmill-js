@@ -1,4 +1,4 @@
-// Partition an array in function of a criterium.
+// Partition an array in function of a criterion.
 const partition = (array, keyOrGetKey) => {
   const getKey = typeof keyOrGetKey === 'string'
     ? o => o[keyOrGetKey]
