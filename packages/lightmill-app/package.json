@@ -21,6 +21,7 @@
     "pug-runtime": "^2.0.3"
   },
   "scripts": {
+    "test": "",
     "build": "NODE_ENV=production rollup --config rollup.config.js",
     "prepublishOnly": "npm run build"
   },
