@@ -39,5 +39,6 @@
       "babel-register"
     ],
     "babel": "inherit"
-  }
+  },
+  "repository": "https://github.com/QuentinRoy/lightmill-js/tree/master/packages/lightmill-app"
 }

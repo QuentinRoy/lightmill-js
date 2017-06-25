@@ -41,6 +41,7 @@
     "lightmill"
   ],
   "author": "Quentin Roy <quentin@quentinroy.fr>",
+  "repository": "https://github.com/QuentinRoy/lightmill-js/tree/master/packages/lightmill-connection",
   "license": "MIT",
   "ava": {
     "require": [
