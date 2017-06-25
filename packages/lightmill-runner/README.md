@@ -5,7 +5,7 @@ LightMill Runner connects to [`LightMill`](https://github.com/QuentinRoy/LightMi
 It is also able to automatically import an experiment design file into the server if it has not been loaded before.
 Currently, the server supports experiment design file in the [Touchstone](https://www.lri.fr/%7Eappert/website/touchstone/touchstone.html) format as exported by Touchstone's [design platform](https://github.com/jdfekete/touchstone-platforms/tree/master/design-platform).
 
-LightMill client exports one function: `runExperiment(app, config)`:
+LightMill runner exports one function: `runExperiment(app, config)`:
 
 `app` is an object that defines the following handlers to be called during the experiment process:
 - `app.runTrial(trialInfo):Promise`: Run a trial.
