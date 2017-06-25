@@ -41,10 +41,20 @@ export default class XpAppBase {
 
   /**
    * Show the wait view.
+   * @param  {HTMLElement} node
+   * @param  {String} [message] The wait message.
+   */
+  static wait(node, message) {
+    // eslint-disable-next-line no-param-reassign
+    node.innerHTML = waitTemplate({ message });
+  }
+
+  /**
+   * Show the wait view.
    * @param  {String} [message] The wait message.
    */
   wait(message) {
-    this.node.innerHTML = waitTemplate({ message });
+    this.constructor.wait(this.node, message);
   }
 
   /**
@@ -56,39 +66,62 @@ export default class XpAppBase {
 
   /**
    * Show the crash view.
+   * @param  {HTMLElement} node
+   * @param  {String} message The error message.
+   * @param  {Error} [error]  The error that has been raised.
+   * @param  {Object} [run]   The current run.
+   */
+  static crash(node, message, error, run) {
+    // eslint-disable-next-line no-param-reassign
+    node.innerHTML = crashTemplate({
+      run,
+      message,
+      stack: error && error.stack
+    });
+    const detailsButton = node.querySelector('.details-button');
+    detailsButton.addEventListener('click', evt => {
+      evt.preventDefault();
+      node.querySelector(`.${XP_APP_BASE_CLASSNAME}`).classList.toggle('with-details');
+    });
+  }
+
+  /**
+   * Show the crash view.
    * @param  {String} message The error message.
    * @param  {Error} [error]  The error that has been raised.
    * @param  {Object} [run]   The current run.
    */
   crash(message, error, run) {
-    this.node.innerHTML = crashTemplate({
-      run,
-      message,
-      stack: error && error.stack
-    });
-    const detailsButton = this.node.querySelector('.details-button');
-    detailsButton.addEventListener('click', evt => {
-      evt.preventDefault();
-      this.node.querySelector(`.${XP_APP_BASE_CLASSNAME}`).classList.toggle('with-details');
-    });
+    return this.constructor.crash(this.node, message, error, run);
   }
 
   /**
    * Show the block initialization view.
+   * @param  {HTMLElement} node
    * @param  {Object} blockInfo
-   * @return {Promise}          Resolved when the user click/tap on the view.
+   * @return {Promise} Resolved when the user click/tap on the view.
    */
-  initBlock(blockInfo) {
+  static initBlock(node, blockInfo) {
     return new Promise(resolve => {
-      this.node.innerHTML = blockInitTemplate(blockInfo);
-      const appNode = this.node.querySelector(`.${XP_APP_BASE_CLASSNAME}`);
+    // eslint-disable-next-line no-param-reassign
+      node.innerHTML = blockInitTemplate(blockInfo);
+      const appNode = node.querySelector(`.${XP_APP_BASE_CLASSNAME}`);
       const listener = evt => {
         evt.preventDefault();
         appNode.removeEventListener('click', listener);
         resolve();
       };
       appNode.addEventListener('click', listener);
-    }).then(res => {
+    });
+  }
+
+  /**
+   * Show the block initialization view then show the wait view.
+   * @param  {Object} blockInfo
+   * @return {Promise} Resolved when the user click/tap on the view.
+   */
+  initBlock(blockInfo) {
+    return this.constructor.initBlock(this.node, blockInfo).then(res => {
       this.wait();
       return res;
     });
@@ -96,8 +129,17 @@ export default class XpAppBase {
 
   /**
    * Show the end view.
+   * @param  {HTMLElement} node
+   */
+  static end(node) {
+    // eslint-disable-next-line no-param-reassign
+    node.innerHTML = endTemplate();
+  }
+
+  /**
+   * Show the end view.
    */
   end() {
-    this.node.innerHTML = endTemplate();
+    return this.constructor.end(this.node);
   }
 }
