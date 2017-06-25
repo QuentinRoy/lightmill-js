@@ -4,7 +4,9 @@
   "description": "Base application for lightmill-runner.",
   "main": "./lightmill-app.js",
   "files": [
-    "build"
+    "lightmill-app.css",
+    "lightmill-app.js",
+    "lightmill-app.js.map"
   ],
   "devDependencies": {
     "babel-plugin-external-helpers": "^6.22.0",
