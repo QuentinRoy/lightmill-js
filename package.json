@@ -8,7 +8,6 @@
     "eslint-plugin-import": "^2.6.0",
     "husky": "^0.14.1",
     "lerna": "^2.0.0-rc.5",
-    "standard-version": "^4.2.0",
     "validate-commit-msg": "^2.12.2"
   },
   "scripts": {
@@ -22,11 +21,9 @@
     "commitmsg": "npm run lint:msg",
     "git-hook": "npm run lint && npm run test-all",
     "build": "lerna run build",
-    "release": "standard-version",
     "bootstrap": "lerna bootstrap",
     "publish": "lerna publish --conventional-commits"
   },
-
   "devEngines": {
     "node": ">= 7.x",
     "npm": ">= 4.x <= 5.x"
