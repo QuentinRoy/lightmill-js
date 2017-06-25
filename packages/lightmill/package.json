@@ -1,0 +1,11 @@
+{
+  "name": "lightmill",
+  "keywords": [
+    "experiment",
+    "LightMill",
+    "server"
+  ],
+  "author": "Quentin Roy <quentin@quentinroy.fr>",
+  "license": "MIT",
+  "description": "LightMill is a framework used to manage, run and log user experiments."
+}
