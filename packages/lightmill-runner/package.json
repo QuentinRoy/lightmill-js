@@ -1,10 +1,13 @@
 {
   "name": "lightmill-runner",
-  "version": "1.0.0",
+  "version": "2.0.0-0",
   "description": "JS Runner for LightMill.",
   "main": "lib/lightmill-runner.js",
   "module": "src/index",
-  "files": ["lib", "src"],
+  "files": [
+    "lib",
+    "src"
+  ],
   "devDependencies": {
     "array-range": "^1.0.1",
     "ava": "^0.19.1",
@@ -25,12 +28,12 @@
   },
   "dependencies": {
     "babel-runtime": "^6.23.0",
-    "lightmill-connection": "^1.0.0"
+    "lightmill-connection": "^2.0.0-0"
   },
   "scripts": {
     "test": "NODE_ENV=test ava",
     "build": "NODE_ENV=production rollup --config rollup.config.js",
-    "prepublishOnly": "npm run build"
+    "prepublish": "npm run build"
   },
   "keywords": [
     "experiment",
