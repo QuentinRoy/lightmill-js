@@ -1,7 +1,7 @@
 {
   "name": "lightmill-app",
   "version": "1.0.0",
-  "description": "Base application for lightmill-client.",
+  "description": "Base application for lightmill-runner.",
   "main": "./lightmill-app.js",
   "files": ["build"],
   "devDependencies": {
