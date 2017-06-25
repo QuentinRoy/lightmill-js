@@ -1,1 +1,1 @@
-export { default } from './xp-runner';
+export { default } from './run-experiment';

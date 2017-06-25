@@ -2,7 +2,7 @@ import test from 'ava';
 import { spy } from 'sinon';
 import wait from 'wait-then';
 import range from 'array-range';
-import { runTrials } from '../xp-runner';
+import { runTrials } from '../run-experiment';
 
 const makeTrialList = (blockCount = 2, trialCountPerBlock = 3) =>
   range(blockCount).reduce((acc, blockNumber) => {
