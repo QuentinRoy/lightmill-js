@@ -21,7 +21,7 @@ export async function isExperimentLoadedOnServer(
 /**
  * Fetch the given experiment design xml file and post it to be imported on the server.
  * @param  {Object}  serverInterface      the server interface.
- * @param  {string}  experimentDesignAddr the address where to downlad the experiment design.
+ * @param  {string}  experimentDesignAddr the address where to download the experiment design.
  * @return {Promise}                      resolves when the experiment has been imported.
  */
 export async function importExperimentOnServer(
