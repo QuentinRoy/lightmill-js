@@ -1,13 +1,10 @@
 {
-  "name": "lightmill-client",
+  "name": "lightmill-connection",
   "version": "1.0.0",
-  "description": "JS client for LightMill.",
-  "main": "lightmill-client.js",
+  "description": "Interface to LightMill's server.",
+  "main": "lib/lightmill-connection.js",
   "module": "src/index",
-  "files": [
-    "lightmill-client.js",
-    "src"
-  ],
+  "files": ["lib", "src"],
   "devDependencies": {
     "array-range": "^1.0.1",
     "ava": "^0.19.1",
@@ -15,7 +12,6 @@
     "babel-plugin-transform-es2015-modules-commonjs": "^6.24.1",
     "babel-plugin-transform-runtime": "^6.23.0",
     "babel-preset-env": "^1.5.2",
-    "deep-freeze": "0.0.1",
     "eslint": "^3.19.0",
     "eslint-config-airbnb-base": "^11.2.0",
     "eslint-plugin-import": "^2.3.0",
@@ -29,7 +25,8 @@
   },
   "dependencies": {
     "babel-runtime": "^6.23.0",
-    "unfetch": "^2.1.2"
+    "unfetch": "^2.1.2",
+    "deep-freeze": "0.0.1"
   },
   "scripts": {
     "test": "NODE_ENV=test ava",

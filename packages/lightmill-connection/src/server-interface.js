@@ -1,5 +1,34 @@
 import fetch from 'unfetch';
 
+/**
+ * Check if the target experiment is loaded on the server.
+ * @param  {Object}  serverInterface the server interface.
+ * @param  {string}  experimentId    the id of the target experiment.
+ * @return {Promise}                 true if the experiment is loaded on the server.
+ */
+export async function isExperimentLoadedOnServer(
+  serverInterface,
+  experimentId
+) {
+  const experiments = await serverInterface.experiments();
+  return !!experiments[experimentId];
+}
+
+/**
+ * Fetch the given experiment design xml file and post it to be imported on the server.
+ * @param  {Object}  serverInterface      the server interface.
+ * @param  {string}  experimentDesignAddr the address where to download the experiment design.
+ * @return {Promise}                      resolves when the experiment has been imported.
+ */
+export async function importExperimentOnServer(
+  serverInterface,
+  experimentDesignAddr
+) {
+  const designReq = await fetch(experimentDesignAddr);
+  const design = await designReq.text();
+  return serverInterface.postExperimentDesign(design);
+}
+
 // Check if a given xhr type is a json type.
 const isJsonType = type => type.endsWith('json');
 
@@ -167,4 +196,20 @@ export default function ServerInterface(serverAddress, apiPath = 'api') {
   ) => send(['trial', experimentId, runId, blockNumber, trialNumber], result);
   this.postExperimentDesign = expeDesign =>
     send('import', expeDesign, 'text/xml');
+
+  /**
+ * Check if the target experiment is loaded on the server.
+ * @param  {string}  experimentId    the id of the target experiment.
+ * @return {Promise}                 true if the experiment is loaded on the server.
+ */
+  this.isExperimentLoadedOnServer = experimentId =>
+    isExperimentLoadedOnServer(this, experimentId);
+
+  /**
+   * Fetch the given experiment design xml file and post it to be imported on the server.
+   * @param  {string}  experimentDesignAddr the address where to download the experiment design.
+   * @return {Promise}                      resolves when the experiment has been imported.
+   */
+  this.importExperimentOnServer = experimentDesignAddr =>
+    importExperimentOnServer(this, experimentDesignAddr);
 }

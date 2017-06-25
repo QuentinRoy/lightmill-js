@@ -1,37 +1,6 @@
-import fetch from 'unfetch';
-// eslint-disable-next-line import/no-extraneous-dependencies
-import deepFreeze from 'deep-freeze'; // This is a devDependency because it is bundled in.
+import deepFreeze from 'deep-freeze';
 import ServerInterface from './server-interface';
 import PromiseQueue from './promise-queue';
-
-/**
- * Check if the target experiment is loaded on the server.
- * @param  {Object}  serverInterface the server interface.
- * @param  {string}  experimentId    the id of the target experiment.
- * @return {Promise}                 true if the experiment is loaded on the server.
- */
-export async function isExperimentLoadedOnServer(
-  serverInterface,
-  experimentId
-) {
-  const experiments = await serverInterface.experiments();
-  return !!experiments[experimentId];
-}
-
-/**
- * Fetch the given experiment design xml file and post it to be imported on the server.
- * @param  {Object}  serverInterface      the server interface.
- * @param  {string}  experimentDesignAddr the address where to download the experiment design.
- * @return {Promise}                      resolves when the experiment has been imported.
- */
-export async function importExperimentOnServer(
-  serverInterface,
-  experimentDesignAddr
-) {
-  const designReq = await fetch(experimentDesignAddr);
-  const design = await designReq.text();
-  return serverInterface.postExperimentDesign(design);
-}
 
 /**
  * Select a run from the server.
@@ -44,7 +13,7 @@ export async function selectRun(serverInterface, experimentId, runId) {
   const runInfo = runId
     ? await serverInterface.run(experimentId, runId)
     : await serverInterface.availableRun(experimentId);
-  // Check if the ids are consistant.
+  // Check if the ids are consistent.
   if (runInfo.experimentId !== experimentId) {
     throw new Error(
       'Received experiment id is inconsistant with the one that has been requested.'
@@ -106,16 +75,15 @@ export function consolidateRun(runInfo) {
 }
 
 /**
- * RunConnection class.
+ * RunInterface class.
  * @param  {string} run
  * @param  {string} token
  * @param  {int} startTrialNum
  * @param  {int} startBlockNum
  * @param  {PromiseQueue} postQueue
  * @param  {function} postTrialResults
- * @return {RunConnection}
  */
-export default function RunConnection(
+export default function RunInterface(
   run,
   token,
   startBlockNum,
@@ -176,7 +144,7 @@ export default function RunConnection(
   /**
    * End a trial by posting its result to the server.
    * @param  {Object}  measures   The trial result.
-   * @return {Promise}            A promise resolved when the trial results have been successfuly
+   * @return {Promise}            A promise resolved when the trial results have been successful
    *                              pushed to the server
    */
   this.endCurrentTrial = async measures => {
@@ -228,7 +196,7 @@ export default function RunConnection(
  *                                                       posts.
  * @return {Promise<Object>} The run connection.
  */
-RunConnection.create = async function createRunConnection(
+RunInterface.create = async function createRunInterface(
   serverAddressOrInterface,
   experimentId,
   runId,
@@ -242,8 +210,8 @@ RunConnection.create = async function createRunConnection(
 
   // Check if the experiment is loaded on the server, and if not load it.
   // prettier-ignore
-  if (!(await isExperimentLoadedOnServer(serverInterface, experimentId))) {
-    await importExperimentOnServer(serverInterface, experimentDesignAddr);
+  if (!(await serverInterface.isExperimentLoadedOnServer(experimentId))) {
+    await serverInterface.importExperimentOnServer(experimentDesignAddr);
   }
 
   // Connect to the run.
@@ -256,7 +224,7 @@ RunConnection.create = async function createRunConnection(
   // everything).
   const run = consolidateRun(runInfo);
 
-  return new RunConnection(
+  return new RunInterface(
     run,
     runInfo.lock.token,
     runInfo.currentTrial.blockNumber,

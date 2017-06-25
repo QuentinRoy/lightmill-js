@@ -1,4 +1,4 @@
-import RunConnection from './connection/run-connection';
+import { RunInterface } from 'lightmill-connection';
 import LocalValueStorage from './local-value-storage';
 
 // Create a copy of an error with a header appended to its message.
@@ -20,7 +20,7 @@ function throwWithHeader(header) {
 
 /**
  * Run the trials of an experiment.
- * @param  {Object}  connection  The connection to the run on the xp server.
+ * @param  {Object}  connection  The connection to the run on the lightmill server.
  * @param  {Object}  app  The app of the experiment.
  * @param  {int}  queueSize  Max number of pending trial result posts before starting a new trial.
  * @return {Promise}  A promise resolved when all trials have run.
@@ -96,7 +96,7 @@ export async function runExperiment(
     queueSize = 1,
     // Test arguments.
     runStorage = new LocalValueStorage(`${experimentId}/running-run-id`),
-    connection: potentialConnection = RunConnection.create(
+    connection: potentialConnection = RunInterface.create(
       serverAddress || `http://${window.location.hostname}:5000`,
       experimentId,
       runId || runStorage.get(),
