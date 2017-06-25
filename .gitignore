@@ -1,4 +1,4 @@
-syntax: glob
-
 *.DS_Store
 node_modules
+packages/**/node_modules
+lerna-debug.log

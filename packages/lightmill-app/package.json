@@ -3,9 +3,7 @@
   "version": "1.0.0",
   "description": "Base application for lightmill-client.",
   "main": "./lightmill-app.js",
-  "files": [
-    "build"
-  ],
+  "files": ["build"],
   "devDependencies": {
     "babel-plugin-external-helpers": "^6.22.0",
     "babel-preset-env": "^1.5.2",

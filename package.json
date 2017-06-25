@@ -3,10 +3,34 @@
   "private": true,
   "license": "MIT",
   "devDependencies": {
-    "lerna": "^2.0.0-rc.5"
+    "eslint": "^3.19.0",
+    "eslint-config-airbnb-base": "^11.2.0",
+    "eslint-plugin-import": "^2.6.0",
+    "husky": "^0.14.1",
+    "lerna": "^2.0.0-rc.5",
+    "standard-version": "^4.2.0",
+    "validate-commit-msg": "^2.12.2"
+  },
+  "scripts": {
+    "lint": "eslint packages/*/src",
+    "lint:msg": "validate-commit-msg",
+    "validate": "npm ls",
+    "commit": "git cz",
+    "postrewrite": "npm run git-hook",
+    "precommit": "npm run git-hook",
+    "commitmsg": "npm run lint:msg",
+    "git-hook": "npm run lint",
+    "build": "lerna run build",
+    "release": "standard-version",
+    "bootstrap": "lerna bootstrap"
   },
   "devEngines": {
     "node": ">= 7.x",
     "npm": ">= 4.x <= 5.x"
+  },
+  "config": {
+    "validate-commit-msg": {
+      "types": "conventional-commit-types"
+    }
   }
 }

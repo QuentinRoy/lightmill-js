@@ -11,10 +11,10 @@ import './templates/wait.scss';
 const XP_APP_BASE_CLASSNAME = 'xp-app-base';
 
 /**
- * Standard Experimentation App Base class for wexp-client providing wait, crash, end and initBlock
- * views. This is an abstract class that does not provide a `runTrial` handle
- * (required by xp-client). It is meant to be inheritied (or monkey patched).
- * The app is higly reconfigurable and any method can be safely replaced at any time.
+ * Standard Experimentation App Base class for lightmill-client providing wait, crash, end and
+ * initBlock views. This is an abstract class that does not provide a `runTrial` handle
+ * (required by xp-client). It is meant to be inherited (or monkey patched).
+ * The app is highly reconfigurable and any method can be safely replaced at any time.
  * @constructor
  * @abstract
  */
@@ -30,7 +30,7 @@ export default class XpAppBase {
     Object.defineProperty(this, 'node', { value: node });
   }
   /**
-   * Must be overwriten by subclasses (or dynamically replaced).
+   * Must be overwritten by subclasses (or dynamically replaced).
    * @param {Object} config the trial configuration
    * @return {Promise<Object>} resolved with the trial results.
    * @abstract
