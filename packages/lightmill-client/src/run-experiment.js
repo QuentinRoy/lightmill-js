@@ -71,7 +71,8 @@ export async function runTrials(connection, app, queueSize) {
  * @param {function(): Promise} [app.initRun] Initialize the run.
  * @param {function(): Promise} [app.initBlock] Initialize a block.
  * @param {function(): Promise} app.runTrial Run a trial.
- * @param {function(): Promise} [app.end] Notify that the experiment is finished.
+ * @param {function(): Promise} [app.end] Called when the experiment ends.
+ * @param {function(): Promise} [app.crash] Called if an error is thrown during the run.
  * @param {Object} config Configuration.
  * @param {string} config.experimentId The id of the experiment.
  *                                     This is required is config.connection is not provided.
@@ -79,6 +80,8 @@ export async function runTrials(connection, app, queueSize) {
  * @param {string} [config.serverAddress] The address of the xp server.
  * @param {string} [config.experimentDesignAddr] The path toward a touchstone
  *                                               experiment design xml file.
+ * @param {string} [config.queueSize] The maximum number of pending trial result posts before
+ *                                    starting a new trial.
  * @param {Object} [config.runStorage] Used to store the running run.
  * @param {Object} [config.connection] The connection to the server. You do not usually need to
  *                                     provide this.
