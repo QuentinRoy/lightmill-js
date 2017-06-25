@@ -1,6 +1,6 @@
-# LightMill Client
+# LightMill Runner
 
-LightMill client connects to [`LightMill`](https://github.com/QuentinRoy/LightMill) and runs experiment.
+LightMill Runner connects to [`LightMill`](https://github.com/QuentinRoy/LightMill) and runs an experiment.
 
 It is also able to automatically import an experiment design file into the server if it has not been loaded before.
 Currently, the server supports experiment design file in the [Touchstone](https://www.lri.fr/%7Eappert/website/touchstone/touchstone.html) format as exported by Touchstone's [design platform](https://github.com/jdfekete/touchstone-platforms/tree/master/design-platform).
