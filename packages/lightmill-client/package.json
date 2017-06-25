@@ -4,7 +4,10 @@
   "description": "JS client for LightMill.",
   "main": "lightmill-client.js",
   "module": "src/index",
-  "files": ["lightmill-client.js", "src"],
+  "files": [
+    "lightmill-client.js",
+    "src"
+  ],
   "devDependencies": {
     "array-range": "^1.0.1",
     "ava": "^0.19.1",
