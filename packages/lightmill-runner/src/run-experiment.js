@@ -24,41 +24,43 @@ function throwWithHeader(header) {
  * @param  {int}  queueSize  Max number of pending trial result posts before starting a new trial.
  * @return {Promise}  A promise resolved when all trials have run.
  */
-export async function runTrials(connection, app, queueSize) {
-  // Init the loop.
-  let trial = await connection
-    .getCurrentTrial()
-    .catch(throwWithHeader('Could not retrieve current trial info'));
-  let block;
+export const runTrials = async (connection, app, queueSize) =>
+  new Promise(async (resolve, reject) => {
+    // Init the loop.
+    let trial = await connection
+      .getCurrentTrial()
+      .catch(throwWithHeader('Could not retrieve current trial info'));
+    let block;
 
-  /* eslint-disable no-await-in-loop */
-  while (trial) {
-    // If the block has changed, init the new one.
-    if (block !== trial.block) {
-      block = trial.block;
-      await Promise.resolve(app.initBlock && app.initBlock(block)).catch(
-        throwWithHeader('Could not init block')
-      );
+    /* eslint-disable no-await-in-loop */
+    while (trial) {
+      // If the block has changed, init the new one.
+      if (block !== trial.block) {
+        block = trial.block;
+        await Promise.resolve(app.initBlock && app.initBlock(block)).catch(
+          throwWithHeader('Could not init block')
+        );
+      }
+
+      // Make sure there is less than queueSize pending trial result posts
+      // before starting the trial.
+      await connection.flush(queueSize);
+
+      // Run the trial and fetch the results.
+      const results = await app.runTrial(trial);
+      // Post the results (without waiting).
+      connection.postResults(results).catch(e => reject(errorWithHeader(e, 'Could not post trial results')));
+      // End the trial.
+      trial = await connection
+        .endTrial()
+        .catch(throwWithHeader('Could not switch to next trial'));
     }
+    /* eslint-enable no-await-in-loop */
 
-    // Make sure there is less than queueSize pending trial result posts
-    // before starting the trial.
-    await connection.flush(queueSize);
-
-    // Run the trial and fetch the results.
-    const results = await app.runTrial(trial);
-    // Post the results (without waiting).
-    connection.postResults(results);
-    // End the trial.
-    trial = await connection
-      .endTrial()
-      .catch(throwWithHeader('Could not switch to next trial'));
-  }
-  /* eslint-enable no-await-in-loop */
-
-  // Fully flush the post queue.
-  await connection.flush();
-}
+    // Fully flush the post queue.
+    await connection.flush();
+    resolve();
+  });
 
 /**
  * Run an experiment.
