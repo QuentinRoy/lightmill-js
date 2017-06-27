@@ -36,7 +36,8 @@ test('`runTrials` works as expected when init block is provided', async t => {
   // Connection fake implementation.
   const trials = makeTrialList(2, 2);
   const connection = {
-    endCurrentTrial: spyGroup.spy('endCurrentTrial', null, false),
+    postResults: spyGroup.spy('postResults', null, false),
+    endTrial: spyGroup.spy('endTrial', () => trials.shift()),
     getCurrentTrial: spyGroup.spy('getCurrentTrial', () => trials.shift()),
     flush: spyGroup.spy('flush')
   };
@@ -60,36 +61,36 @@ test('`runTrials` works as expected when init block is provided', async t => {
     ['* flush', undefined],
     ['runTrial', [{ number: 0, block: { number: 0 } }]],
     ['* runTrial', { val: '0-0' }],
-    ['endCurrentTrial', [{ val: '0-0' }]],
+    ['postResults', [{ val: '0-0' }]],
+    ['endTrial', []],
+    ['* endTrial', { number: 1, block: { number: 0 } }],
     // block 1 trial 2
-    ['getCurrentTrial', []],
-    ['* getCurrentTrial', { number: 1, block: { number: 0 } }],
     ['flush', [7]],
     ['* flush', undefined],
     ['runTrial', [{ number: 1, block: { number: 0 } }]],
     ['* runTrial', { val: '0-1' }],
-    ['endCurrentTrial', [{ val: '0-1' }]],
+    ['postResults', [{ val: '0-1' }]],
+    ['endTrial', []],
+    ['* endTrial', { number: 0, block: { number: 1 } }],
     // block 2 trial 1
-    ['getCurrentTrial', []],
-    ['* getCurrentTrial', { number: 0, block: { number: 1 } }],
     ['initBlock', [{ number: 1 }]],
     ['* initBlock', undefined],
     ['flush', [7]],
     ['* flush', undefined],
     ['runTrial', [{ number: 0, block: { number: 1 } }]],
     ['* runTrial', { val: '1-0' }],
-    ['endCurrentTrial', [{ val: '1-0' }]],
+    ['postResults', [{ val: '1-0' }]],
+    ['endTrial', []],
+    ['* endTrial', { number: 1, block: { number: 1 } }],
     // block 2 trial 2
-    ['getCurrentTrial', []],
-    ['* getCurrentTrial', { number: 1, block: { number: 1 } }],
     ['flush', [7]],
     ['* flush', undefined],
     ['runTrial', [{ number: 1, block: { number: 1 } }]],
     ['* runTrial', { val: '1-1' }],
-    ['endCurrentTrial', [{ val: '1-1' }]],
+    ['postResults', [{ val: '1-1' }]],
+    ['endTrial', []],
+    ['* endTrial', undefined],
     // End
-    ['getCurrentTrial', []],
-    ['* getCurrentTrial', undefined],
     ['flush', []],
     ['* flush', undefined]
   ];
@@ -105,7 +106,8 @@ test('`runTrials` works as expected when init block is not provided', async t =>
   // Connection fake implementation.
   const trials = makeTrialList(2, 1);
   const connection = {
-    endCurrentTrial: spyGroup.spy('endCurrentTrial', null, false),
+    postResults: spyGroup.spy('postResults', null, false),
+    endTrial: spyGroup.spy('endTrial', () => trials.shift()),
     getCurrentTrial: spyGroup.spy('getCurrentTrial', () => trials.shift()),
     flush: spyGroup.spy('flush')
   };
@@ -126,18 +128,18 @@ test('`runTrials` works as expected when init block is not provided', async t =>
     ['* flush', undefined],
     ['runTrial', [{ number: 0, block: { number: 0 } }]],
     ['* runTrial', { result: '0-0' }],
-    ['endCurrentTrial', [{ result: '0-0' }]],
+    ['postResults', [{ result: '0-0' }]],
+    ['endTrial', []],
+    ['* endTrial', { number: 0, block: { number: 1 } }],
     // block 2 trial 1
-    ['getCurrentTrial', []],
-    ['* getCurrentTrial', { number: 0, block: { number: 1 } }],
     ['flush', [7]],
     ['* flush', undefined],
     ['runTrial', [{ number: 0, block: { number: 1 } }]],
     ['* runTrial', { result: '1-0' }],
-    ['endCurrentTrial', [{ result: '1-0' }]],
+    ['postResults', [{ result: '1-0' }]],
+    ['endTrial', []],
+    ['* endTrial', undefined],
     // End
-    ['getCurrentTrial', []],
-    ['* getCurrentTrial', undefined],
     ['flush', []],
     ['* flush', undefined]
   ];

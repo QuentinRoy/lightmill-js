@@ -17,7 +17,6 @@ function throwWithHeader(header) {
   };
 }
 
-
 /**
  * Run the trials of an experiment.
  * @param  {Object}  connection  The connection to the run on the lightmill server.
@@ -48,15 +47,12 @@ export async function runTrials(connection, app, queueSize) {
 
     // Run the trial and fetch the results.
     const results = await app.runTrial(trial);
-    // Post the results.
-    connection
-      .endCurrentTrial(results)
-      .catch(throwWithHeader('Could not register trial log'));
-
-    // Fetch the next trial (resolve with undefined if there is no more trials).
+    // Post the results (without waiting).
+    connection.postResults(results);
+    // End the trial.
     trial = await connection
-      .getCurrentTrial()
-      .catch(throwWithHeader('Could not retrieve current trial info'));
+      .endTrial()
+      .catch(throwWithHeader('Could not switch to next trial'));
   }
   /* eslint-enable no-await-in-loop */
 
