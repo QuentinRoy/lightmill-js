@@ -1,0 +1,861 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`\`runExperiment\` calls \`app.crash\` then throws if a post goes wrong 1`] = `
+Array [
+  Array [
+    "runTrial",
+    Array [
+      Object {
+        "block": Object {
+          "number": 0,
+        },
+        "number": 0,
+      },
+    ],
+  ],
+  Array [
+    "* runTrial",
+    undefined,
+  ],
+  Array [
+    "postResults",
+    Array [
+      undefined,
+    ],
+  ],
+  Array [
+    "runTrial",
+    Array [
+      Object {
+        "block": Object {
+          "number": 0,
+        },
+        "number": 1,
+      },
+    ],
+  ],
+  Array [
+    "* runTrial",
+    undefined,
+  ],
+  Array [
+    "postResults",
+    Array [
+      undefined,
+    ],
+  ],
+  Array [
+    "runTrial",
+    Array [
+      Object {
+        "block": Object {
+          "number": 1,
+        },
+        "number": 0,
+      },
+    ],
+  ],
+  Array [
+    "* postResults",
+    undefined,
+  ],
+  Array [
+    "X postResults",
+    [Error: reject test],
+  ],
+  Array [
+    "crash",
+    Array [
+      "Could not post trial results: reject test",
+      [Error: Could not post trial results: reject test],
+      Object {
+        "id": "runId",
+      },
+    ],
+  ],
+]
+`;
+
+exports[`\`runExperiment\` calls \`app.crash\` then throws if a post goes wrong even if all trials are done 1`] = `
+Array [
+  Array [
+    "runTrial",
+    Array [
+      Object {
+        "block": Object {
+          "number": 0,
+        },
+        "number": 0,
+      },
+    ],
+  ],
+  Array [
+    "* runTrial",
+    Object {
+      "res": 0,
+    },
+  ],
+  Array [
+    "postResults",
+    Array [
+      Object {
+        "res": 0,
+      },
+    ],
+  ],
+  Array [
+    "runTrial",
+    Array [
+      Object {
+        "block": Object {
+          "number": 1,
+        },
+        "number": 0,
+      },
+    ],
+  ],
+  Array [
+    "* runTrial",
+    Object {
+      "res": 1,
+    },
+  ],
+  Array [
+    "postResults",
+    Array [
+      Object {
+        "res": 1,
+      },
+    ],
+  ],
+  Array [
+    "* postResults",
+    undefined,
+  ],
+  Array [
+    "X postResults",
+    [Error: reject test],
+  ],
+  Array [
+    "crash",
+    Array [
+      "Could not post trial results: reject test",
+      [Error: Could not post trial results: reject test],
+      Object {
+        "id": "runId",
+      },
+    ],
+  ],
+]
+`;
+
+exports[`\`runExperiment\` calls \`app.crash\` then throws if a trial goes wrong 1`] = `
+Array [
+  Array [
+    "runTrial",
+    Array [
+      Object {
+        "block": Object {
+          "number": 0,
+        },
+        "number": 0,
+      },
+    ],
+  ],
+  Array [
+    "* runTrial",
+    Object {
+      "res": 1,
+    },
+  ],
+  Array [
+    "runTrial",
+    Array [
+      Object {
+        "block": Object {
+          "number": 0,
+        },
+        "number": 1,
+      },
+    ],
+  ],
+  Array [
+    "* runTrial",
+    Object {
+      "res": 2,
+    },
+  ],
+  Array [
+    "runTrial",
+    Array [
+      Object {
+        "block": Object {
+          "number": 1,
+        },
+        "number": 0,
+      },
+    ],
+  ],
+  Array [
+    "X runTrial",
+    [Error: bad trial],
+  ],
+  Array [
+    "crash",
+    Array [
+      "bad trial",
+      [Error: bad trial],
+      Object {
+        "id": "runId",
+      },
+    ],
+  ],
+]
+`;
+
+exports[`\`runExperiment\` runs as expected 1`] = `
+Array [
+  Array [
+    "app.start",
+    Array [],
+  ],
+  Array [
+    "connection.getRun",
+    Array [],
+  ],
+  Array [
+    "* connection.getRun",
+    Object {
+      "id": "runId",
+    },
+  ],
+  Array [
+    "storage.set",
+    Array [
+      "runId",
+    ],
+  ],
+  Array [
+    "app.initBlock",
+    Array [
+      Object {
+        "number": 0,
+      },
+    ],
+  ],
+  Array [
+    "* app.initBlock",
+    undefined,
+  ],
+  Array [
+    "app.runTrial",
+    Array [
+      Object {
+        "block": Object {
+          "number": 0,
+        },
+        "number": 0,
+      },
+    ],
+  ],
+  Array [
+    "* app.runTrial",
+    Object {
+      "result": "0-0",
+    },
+  ],
+  Array [
+    "app.runTrial",
+    Array [
+      Object {
+        "block": Object {
+          "number": 0,
+        },
+        "number": 1,
+      },
+    ],
+  ],
+  Array [
+    "* app.runTrial",
+    Object {
+      "result": "0-1",
+    },
+  ],
+  Array [
+    "app.initBlock",
+    Array [
+      Object {
+        "number": 1,
+      },
+    ],
+  ],
+  Array [
+    "* app.initBlock",
+    undefined,
+  ],
+  Array [
+    "app.runTrial",
+    Array [
+      Object {
+        "block": Object {
+          "number": 1,
+        },
+        "number": 0,
+      },
+    ],
+  ],
+  Array [
+    "* app.runTrial",
+    Object {
+      "result": "1-0",
+    },
+  ],
+  Array [
+    "app.runTrial",
+    Array [
+      Object {
+        "block": Object {
+          "number": 1,
+        },
+        "number": 1,
+      },
+    ],
+  ],
+  Array [
+    "* app.runTrial",
+    Object {
+      "result": "1-1",
+    },
+  ],
+  Array [
+    "storage.remove",
+    Array [],
+  ],
+  Array [
+    "connection.disconnect",
+    Array [],
+  ],
+  Array [
+    "* connection.disconnect",
+    undefined,
+  ],
+  Array [
+    "app.end",
+    Array [],
+  ],
+]
+`;
+
+exports[`\`runExperiment\` runs as expected if every app handlers are provided 1`] = `
+Array [
+  Array [
+    "app.start",
+    Array [],
+  ],
+  Array [
+    "connection.getRun",
+    Array [],
+  ],
+  Array [
+    "* connection.getRun",
+    Object {
+      "id": "runId",
+    },
+  ],
+  Array [
+    "storage.set",
+    Array [
+      "runId",
+    ],
+  ],
+  Array [
+    "connection.getCurrentTrial",
+    Array [],
+  ],
+  Array [
+    "* connection.getCurrentTrial",
+    Object {
+      "block": Object {
+        "number": 0,
+      },
+      "number": 0,
+    },
+  ],
+  Array [
+    "app.initBlock",
+    Array [
+      Object {
+        "number": 0,
+      },
+    ],
+  ],
+  Array [
+    "* app.initBlock",
+    undefined,
+  ],
+  Array [
+    "connection.flush",
+    Array [
+      1,
+    ],
+  ],
+  Array [
+    "* connection.flush",
+    undefined,
+  ],
+  Array [
+    "app.runTrial",
+    Array [
+      Object {
+        "block": Object {
+          "number": 0,
+        },
+        "number": 0,
+      },
+    ],
+  ],
+  Array [
+    "* app.runTrial",
+    Object {
+      "result": "0-0",
+    },
+  ],
+  Array [
+    "connection.postResults",
+    Array [
+      Object {
+        "result": "0-0",
+      },
+    ],
+  ],
+  Array [
+    "connection.endTrial",
+    Array [],
+  ],
+  Array [
+    "* connection.endTrial",
+    Object {
+      "block": Object {
+        "number": 0,
+      },
+      "number": 1,
+    },
+  ],
+  Array [
+    "connection.flush",
+    Array [
+      1,
+    ],
+  ],
+  Array [
+    "* connection.flush",
+    undefined,
+  ],
+  Array [
+    "app.runTrial",
+    Array [
+      Object {
+        "block": Object {
+          "number": 0,
+        },
+        "number": 1,
+      },
+    ],
+  ],
+  Array [
+    "* app.runTrial",
+    Object {
+      "result": "0-1",
+    },
+  ],
+  Array [
+    "connection.postResults",
+    Array [
+      Object {
+        "result": "0-1",
+      },
+    ],
+  ],
+  Array [
+    "connection.endTrial",
+    Array [],
+  ],
+  Array [
+    "* connection.endTrial",
+    Object {
+      "block": Object {
+        "number": 1,
+      },
+      "number": 0,
+    },
+  ],
+  Array [
+    "app.initBlock",
+    Array [
+      Object {
+        "number": 1,
+      },
+    ],
+  ],
+  Array [
+    "* app.initBlock",
+    undefined,
+  ],
+  Array [
+    "connection.flush",
+    Array [
+      1,
+    ],
+  ],
+  Array [
+    "* connection.flush",
+    undefined,
+  ],
+  Array [
+    "app.runTrial",
+    Array [
+      Object {
+        "block": Object {
+          "number": 1,
+        },
+        "number": 0,
+      },
+    ],
+  ],
+  Array [
+    "* app.runTrial",
+    Object {
+      "result": "1-0",
+    },
+  ],
+  Array [
+    "connection.postResults",
+    Array [
+      Object {
+        "result": "1-0",
+      },
+    ],
+  ],
+  Array [
+    "connection.endTrial",
+    Array [],
+  ],
+  Array [
+    "* connection.endTrial",
+    Object {
+      "block": Object {
+        "number": 1,
+      },
+      "number": 1,
+    },
+  ],
+  Array [
+    "connection.flush",
+    Array [
+      1,
+    ],
+  ],
+  Array [
+    "* connection.flush",
+    undefined,
+  ],
+  Array [
+    "app.runTrial",
+    Array [
+      Object {
+        "block": Object {
+          "number": 1,
+        },
+        "number": 1,
+      },
+    ],
+  ],
+  Array [
+    "* app.runTrial",
+    Object {
+      "result": "1-1",
+    },
+  ],
+  Array [
+    "connection.postResults",
+    Array [
+      Object {
+        "result": "1-1",
+      },
+    ],
+  ],
+  Array [
+    "connection.endTrial",
+    Array [],
+  ],
+  Array [
+    "* connection.endTrial",
+    undefined,
+  ],
+  Array [
+    "connection.flush",
+    Array [],
+  ],
+  Array [
+    "* connection.flush",
+    undefined,
+  ],
+  Array [
+    "storage.remove",
+    Array [],
+  ],
+  Array [
+    "connection.disconnect",
+    Array [],
+  ],
+  Array [
+    "* connection.disconnect",
+    undefined,
+  ],
+  Array [
+    "app.end",
+    Array [],
+  ],
+]
+`;
+
+exports[`\`runExperiment\` works properly even if only \`app.runTrial\` is provided 1`] = `
+Array [
+  Array [
+    "connection.getRun",
+    Array [],
+  ],
+  Array [
+    "* connection.getRun",
+    Object {
+      "id": "runId",
+    },
+  ],
+  Array [
+    "storage.set",
+    Array [
+      "runId",
+    ],
+  ],
+  Array [
+    "connection.getCurrentTrial",
+    Array [],
+  ],
+  Array [
+    "* connection.getCurrentTrial",
+    Object {
+      "block": Object {
+        "number": 0,
+      },
+      "number": 0,
+    },
+  ],
+  Array [
+    "connection.flush",
+    Array [
+      1,
+    ],
+  ],
+  Array [
+    "* connection.flush",
+    undefined,
+  ],
+  Array [
+    "app.runTrial",
+    Array [
+      Object {
+        "block": Object {
+          "number": 0,
+        },
+        "number": 0,
+      },
+    ],
+  ],
+  Array [
+    "* app.runTrial",
+    Object {
+      "result": "0-0",
+    },
+  ],
+  Array [
+    "connection.postResults",
+    Array [
+      Object {
+        "result": "0-0",
+      },
+    ],
+  ],
+  Array [
+    "connection.endTrial",
+    Array [],
+  ],
+  Array [
+    "* connection.endTrial",
+    Object {
+      "block": Object {
+        "number": 0,
+      },
+      "number": 1,
+    },
+  ],
+  Array [
+    "connection.flush",
+    Array [
+      1,
+    ],
+  ],
+  Array [
+    "* connection.flush",
+    undefined,
+  ],
+  Array [
+    "app.runTrial",
+    Array [
+      Object {
+        "block": Object {
+          "number": 0,
+        },
+        "number": 1,
+      },
+    ],
+  ],
+  Array [
+    "* app.runTrial",
+    Object {
+      "result": "0-1",
+    },
+  ],
+  Array [
+    "connection.postResults",
+    Array [
+      Object {
+        "result": "0-1",
+      },
+    ],
+  ],
+  Array [
+    "connection.endTrial",
+    Array [],
+  ],
+  Array [
+    "* connection.endTrial",
+    Object {
+      "block": Object {
+        "number": 1,
+      },
+      "number": 0,
+    },
+  ],
+  Array [
+    "connection.flush",
+    Array [
+      1,
+    ],
+  ],
+  Array [
+    "* connection.flush",
+    undefined,
+  ],
+  Array [
+    "app.runTrial",
+    Array [
+      Object {
+        "block": Object {
+          "number": 1,
+        },
+        "number": 0,
+      },
+    ],
+  ],
+  Array [
+    "* app.runTrial",
+    Object {
+      "result": "1-0",
+    },
+  ],
+  Array [
+    "connection.postResults",
+    Array [
+      Object {
+        "result": "1-0",
+      },
+    ],
+  ],
+  Array [
+    "connection.endTrial",
+    Array [],
+  ],
+  Array [
+    "* connection.endTrial",
+    Object {
+      "block": Object {
+        "number": 1,
+      },
+      "number": 1,
+    },
+  ],
+  Array [
+    "connection.flush",
+    Array [
+      1,
+    ],
+  ],
+  Array [
+    "* connection.flush",
+    undefined,
+  ],
+  Array [
+    "app.runTrial",
+    Array [
+      Object {
+        "block": Object {
+          "number": 1,
+        },
+        "number": 1,
+      },
+    ],
+  ],
+  Array [
+    "* app.runTrial",
+    Object {
+      "result": "1-1",
+    },
+  ],
+  Array [
+    "connection.postResults",
+    Array [
+      Object {
+        "result": "1-1",
+      },
+    ],
+  ],
+  Array [
+    "connection.endTrial",
+    Array [],
+  ],
+  Array [
+    "* connection.endTrial",
+    undefined,
+  ],
+  Array [
+    "connection.flush",
+    Array [],
+  ],
+  Array [
+    "* connection.flush",
+    undefined,
+  ],
+  Array [
+    "storage.remove",
+    Array [],
+  ],
+  Array [
+    "connection.disconnect",
+    Array [],
+  ],
+  Array [
+    "* connection.disconnect",
+    undefined,
+  ],
+]
+`;
