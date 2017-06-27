@@ -49,7 +49,9 @@ export const runTrials = async (connection, app, queueSize) =>
       // Run the trial and fetch the results.
       const results = await app.runTrial(trial);
       // Post the results (without waiting).
-      connection.postResults(results).catch(e => reject(errorWithHeader(e, 'Could not post trial results')));
+      connection
+        .postResults(results)
+        .catch(e => reject(errorWithHeader(e, 'Could not post trial results')));
       // End the trial.
       trial = await connection
         .endTrial()
