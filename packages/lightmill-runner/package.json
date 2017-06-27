@@ -1,6 +1,6 @@
 {
   "name": "lightmill-runner",
-  "version": "2.0.0-1",
+  "version": "2.0.0-2",
   "description": "JS Runner for LightMill.",
   "main": "lib/lightmill-runner.js",
   "module": "src/index",
@@ -28,7 +28,7 @@
   },
   "dependencies": {
     "babel-runtime": "^6.23.0",
-    "lightmill-connection": "^2.0.0-1"
+    "lightmill-connection": "^2.0.0-2"
   },
   "scripts": {
     "test": "NODE_ENV=test ava",
