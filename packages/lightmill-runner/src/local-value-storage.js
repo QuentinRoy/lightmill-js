@@ -13,7 +13,7 @@ export default class LocalValueStorage {
     this.key = key;
   }
   /**
-   * @return {string?} the storedvalue
+   * @return {string?} the stored value
    */
   get() {
     return localStorage.getItem(this.key);
