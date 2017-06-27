@@ -66,10 +66,7 @@ function getApiAddress(serverAddress, apiPath) {
 // Ask data to a server.
 function askServer(address, options = {}) {
   // Create the request header (all requests are xhr).
-  const headers = Object.assign(
-    { 'X-Requested-With': 'XMLHttpRequest' },
-    options.headers
-  );
+  const headers = Object.assign({ Accept: 'application/json' }, options.headers);
   // Create the options for fetch.
   const fetchOptions = Object.assign({ cache: 'no-cache' }, options, {
     headers
@@ -89,7 +86,7 @@ function sendToServer(
   const headers = Object.assign(
     {
       'Content-Type': contentType,
-      'X-Requested-With': 'XMLHttpRequest'
+      Accept: 'application/json'
     },
     options.headers
   );
