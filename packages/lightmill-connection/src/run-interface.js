@@ -96,7 +96,8 @@ export default function RunInterface(
   // Register the promise of the last trial result post request. Used to make sure a post request
   // is done before sending a new one.
   let lastTrialResultPost;
-  // Create the connection object.
+  // Register if results have been posted for the current trial.
+  let areCurrentTrialResultsPosted = false;
 
   /**
    * Resolves with the connected run.
@@ -141,34 +142,51 @@ export default function RunInterface(
     // Nothing to do here.
   };
 
+  this.postResults = async measures => {
+    if (areCurrentTrialResultsPosted) {
+      throw new Error(
+        'Results have already been posted for the current trial.'
+      );
+    }
+    areCurrentTrialResultsPosted = true;
+    // Update the current trial.
+    const trial = await this.getCurrentTrial();
+    if (!trial) {
+      throw new Error(
+        'Cannot post trial results: current trial is unknown. It might be because the run is not connected or it is already finished.'
+      );
+    }
+    // Post the results.
+    lastTrialResultPost = Promise.resolve(lastTrialResultPost).then(() =>
+      postTrialResults(
+        run.experimentId,
+        run.id,
+        trial.block.number,
+        trial.number,
+        { token, measures }
+      )
+    );
+    // Push the post promise in the queue to monitor unfinished posts.
+    postQueue.push(lastTrialResultPost);
+    return lastTrialResultPost;
+  };
+
   /**
    * End a trial by posting its result to the server.
    * @param  {Object}  measures   The trial result.
    * @return {Promise}            A promise resolved when the trial results have been successful
    *                              pushed to the server
    */
-  this.endCurrentTrial = async measures => {
-    const previousTrial = await this.getCurrentTrial();
-    if (!previousTrial) {
+  this.endTrial = async () => {
+    if (!areCurrentTrialResultsPosted) {
       throw new Error(
-        'Cannot end current trial: it is unknown. ' +
-          ' It might be because the run is not connected or it is already finished.'
+        'Cannot end current trial, no results have been posted yet.'
       );
     }
     // Update the current trial.
     currentTrial = await this.getNextTrial();
-    // Post the results.
-    lastTrialResultPost = Promise.resolve(lastTrialResultPost).then(() =>
-      postTrialResults(
-        run.experimentId,
-        run.id,
-        previousTrial.block.number,
-        previousTrial.number,
-        { token, measures }
-      )
-    );
-    // Push the post promise in the queue to monitor unfinished posts.
-    postQueue.push(lastTrialResultPost);
+    areCurrentTrialResultsPosted = false;
+    // Return the post promise.
     return currentTrial;
   };
 

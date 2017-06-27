@@ -93,23 +93,24 @@ test('`consolidateRun` properly inserts backrefs.', t => {
   });
 });
 
-const makeRCon = ({
-  run = consolidateRun(makeRunPlan()),
-  token = '',
-  trial = 0,
-  block = 0,
-  queue = {
-    push: spyDelay(),
-    flush: spyDelay()
-  },
-  post = spyDelay()
-}) =>
-  Object.assign({
-    run,
-    queue,
-    post,
-    rcon: new RunInterface(run, token, block, trial, queue, post)
-  });
+const makeRCon = (
+  {
+    run = consolidateRun(makeRunPlan()),
+    token = '',
+    trial = 0,
+    block = 0,
+    queue = {
+      push: spyDelay(),
+      flush: spyDelay()
+    },
+    post = spyDelay()
+  } = {}
+) => ({
+  run,
+  queue,
+  post,
+  rcon: new RunInterface(run, token, block, trial, queue, post)
+});
 
 test('`RunInterface` properly finds the first trial', async t => {
   const { rcon, run } = makeRCon({ trial: 0, block: 1 });
@@ -136,7 +137,38 @@ test('`RunInterface.getNextTrial` resolved undefined when on the last trial', as
   t.is(await rcon.getNextTrial(), undefined);
 });
 
-test('`RunInterface.endCurrentTrial` properly switches to the next trial', async t => {
+test('`RunInterface.postResults` properly posts the measures', async t => {
+  const { rcon, post } = makeRCon({ token: 'token' });
+  await rcon.postResults({ val: 'val' });
+  t.deepEqual(post.args, [
+    ['xpid', 'runid', 0, 0, { token: 'token', measures: { val: 'val' } }]
+  ]);
+});
+
+test('`RunInterface.postResults` throws if called twice on the same trial', async t => {
+  const { rcon } = makeRCon();
+  rcon.postResults({ val: 'val' });
+  await t.throws(rcon.postResults({ val: 'other val' }));
+});
+
+test('`RunInterface.postResults` throws if post failed', async t => {
+  const { rcon } = makeRCon({
+    post: spy(() =>
+      wait().then(() => {
+        throw new Error('test err');
+      })
+    )
+  });
+  const e = await t.throws(rcon.postResults({ m: 'measure' }));
+  t.is(e.message, 'test err');
+});
+
+test('`RunInterface.endTrial` throws if no results have been posted', async t => {
+  const { rcon } = makeRCon({ trial: 0, block: 1 });
+  await t.throws(rcon.endTrial());
+});
+
+test('`RunInterface.endTrial` properly switches to the next trial', async t => {
   const { rcon } = makeRCon({ trial: 0, block: 1 });
   const currentTrial = await rcon.getCurrentTrial();
   const nextTrial = await rcon.getNextTrial();
@@ -144,26 +176,22 @@ test('`RunInterface.endCurrentTrial` properly switches to the next trial', async
   t.is(currentTrial.block.number, 1);
   t.is(nextTrial.number, 1);
   t.is(nextTrial.block.number, 1);
-  await rcon.endCurrentTrial({});
+  await rcon.postResults({});
+  await rcon.endTrial();
   t.is(await rcon.getCurrentTrial(), nextTrial);
 });
 
-test('`RunInterface` properly posts the measures on endCurrentTrial', async t => {
-  const { rcon, post } = makeRCon({ trial: 0, block: 0, token: 'token' });
-  await rcon.endCurrentTrial({ val: 'val' });
-  t.deepEqual(post.args, [
-    ['xpid', 'runid', 0, 0, { token: 'token', measures: { val: 'val' } }]
-  ]);
-});
-
-test('`RunInterface` posts the results sequentially', async t => {
+test('`RunInterface.postResults` posts the results sequentially', async t => {
   const defs = Array.from({ length: 3 }).map(() => deferred());
   const post = stub();
   defs.forEach((def, i) => post.onCall(i).returns(def.promise));
   const { rcon } = makeRCon({ trial: 0, block: 0, post, token: 'token' });
-  await rcon.endCurrentTrial({ val: 'val1' });
-  await rcon.endCurrentTrial({ val: 'val2' });
-  await rcon.endCurrentTrial({ val: 'val3' });
+  rcon.postResults({ val: 'val1' });
+  await rcon.endTrial();
+  rcon.postResults({ val: 'val2' });
+  await rcon.endTrial();
+  rcon.postResults({ val: 'val3' });
+  await rcon.endTrial();
   // Only one call for now as no post as returned yet.
   t.deepEqual(post.args, [
     ['xpid', 'runid', 0, 0, { token: 'token', measures: { val: 'val1' } }]
@@ -185,32 +213,16 @@ test('`RunInterface` posts the results sequentially', async t => {
   ]);
 });
 
-test("`RunInterface`'s posts resolve as expected", async t => {
-  const defs = Array.from({ length: 3 }).map(() => deferred());
-  const post = stub();
-  defs.forEach((def, i) => post.onCall(i).returns(def.promise));
-  const { rcon, queue } = makeRCon({ post });
-  await rcon.endCurrentTrial({ val: 'val1' });
-  await rcon.endCurrentTrial({ val: 'val2' });
-  await rcon.endCurrentTrial({ val: 'val3' });
-  const postResolutions = new Array(queue.push.args.length).fill(false);
-  queue.push.args.forEach(([promise], i) =>
-    promise.then(() => {
-      postResolutions[i] = true;
-    })
-  );
-  t.deepEqual(postResolutions, [false, false, false]);
-  defs[0].resolve();
-  await wait();
-  t.deepEqual(postResolutions, [true, false, false]);
-  // In theory this has no effect since the corresponding promise should not have been fetched
-  // yet.
-  defs[2].resolve();
-  await wait();
-  t.deepEqual(postResolutions, [true, false, false]);
-  defs[1].resolve();
-  await wait();
-  t.deepEqual(postResolutions, [true, true, true]);
+test("`RunInterface.endTrial`'s resolves even if postResults is not done", async t => {
+  const def = deferred();
+  const post = spy(() => def.promise);
+  const { rcon } = makeRCon({ post });
+  let postDone = false;
+  rcon.postResults({ val: 'val1' }).then(() => {
+    postDone = true;
+  });
+  await rcon.endTrial();
+  t.false(postDone);
 });
 
 test('`RunInterface.flush` is delegated on the queue', async t => {
