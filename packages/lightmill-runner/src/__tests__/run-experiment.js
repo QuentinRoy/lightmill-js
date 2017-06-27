@@ -2,6 +2,7 @@ import test from 'ava';
 import { spy } from 'sinon';
 import wait from 'wait-then';
 import range from 'array-range';
+import deferred from 'promise.defer';
 import { runTrials } from '../run-experiment';
 
 const makeTrialList = (blockCount = 2, trialCountPerBlock = 3) =>
@@ -98,7 +99,11 @@ test('`runTrials` works as expected when init block is provided', async t => {
   expectedCalls.forEach((arg, i) => {
     t.deepEqual(arg, spyGroup.all.args[i], `Call ${i + 1} was as expected.`);
   });
-  t.is(expectedCalls.length, spyGroup.all.callCount, 'There was no extra calls.');
+  t.is(
+    expectedCalls.length,
+    spyGroup.all.callCount,
+    'There was no extra calls.'
+  );
 });
 
 test('`runTrials` works as expected when init block is not provided', async t => {
@@ -151,5 +156,29 @@ test('`runTrials` works as expected when init block is not provided', async t =>
     spyGroup.all.callCount,
     expectedCalls.length,
     'There was no extra calls.'
+  );
+});
+
+test('`runTrials` does not wait for post results before starting new trials', async t => {
+  const postDefers = range(3).map(() => deferred());
+  const postPromises = postDefers.map(def => def.promise);
+  const trials = makeTrialList(1, 3);
+  const connection = {
+    postResults: spy(() => Promise.resolve(postPromises.shift())),
+    endTrial: spy(() => Promise.resolve(trials.shift())),
+    getCurrentTrial: spy(() => Promise.resolve(trials.shift())),
+    flush: spy(() => Promise.resolve())
+  };
+  const app = { runTrial: spy(() => Promise.resolve({})) };
+  runTrials(connection, app);
+  await wait();
+  t.deepEqual(
+    app.runTrial.args,
+    [
+      [{ number: 0, block: { number: 0 } }],
+      [{ number: 1, block: { number: 0 } }],
+      [{ number: 2, block: { number: 0 } }]
+    ],
+    '`runTrial` have been called as expected'
   );
 });
