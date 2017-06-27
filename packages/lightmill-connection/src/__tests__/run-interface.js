@@ -172,13 +172,13 @@ test('`RunInterface.endTrial` properly switches to the next trial', async t => {
   const { rcon } = makeRCon({ trial: 0, block: 1 });
   const currentTrial = await rcon.getCurrentTrial();
   const nextTrial = await rcon.getNextTrial();
-  t.is(currentTrial.number, 0);
-  t.is(currentTrial.block.number, 1);
-  t.is(nextTrial.number, 1);
-  t.is(nextTrial.block.number, 1);
+  t.is(currentTrial.number, 0, 'currentTrial.number is as expected');
+  t.is(currentTrial.block.number, 1, 'currentTrial.block.number is as expected');
+  t.is(nextTrial.number, 1, 'nextTrial.block.number is as expected');
+  t.is(nextTrial.block.number, 1, 'nextTrial.block.number is as expected');
   await rcon.postResults({});
-  await rcon.endTrial();
-  t.is(await rcon.getCurrentTrial(), nextTrial);
+  t.is(await rcon.endTrial(), nextTrial, 'endTrial returns the next new current trial');
+  t.is(await rcon.getCurrentTrial(), nextTrial, 'getCurrentTrial properly switched to the new current trial');
 });
 
 test('`RunInterface.postResults` posts the results sequentially', async t => {
