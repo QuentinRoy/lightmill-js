@@ -16,11 +16,11 @@ export async function selectRun(serverInterface, experimentId, runId) {
   // Check if the ids are consistent.
   if (runInfo.experimentId !== experimentId) {
     throw new Error(
-      'Received experiment id is inconsistant with the one that has been requested.'
+      'Received experiment id is inconsistent with the one that has been requested.'
     );
   } else if (runId && runInfo.id !== runId) {
     throw new Error(
-      'Received run id is inconsistant with the one that has been requested.'
+      'Received run id is inconsistent with the one that has been requested.'
     );
   }
   return runInfo;

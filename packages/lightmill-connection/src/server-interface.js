@@ -56,7 +56,7 @@ const jsonThrowingFetch = (...args) =>
   });
 
 // From a server address and the path to an API, return the api address (the main point of this
-// function is to deal with the different form that can be tacken by api path).
+// function is to deal with the different form that can be taken by api path).
 function getApiAddress(serverAddress, apiPath) {
   if (typeof apiPath === 'string') {
     return [serverAddress, apiPath].join('/');
