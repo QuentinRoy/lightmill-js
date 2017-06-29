@@ -1,7 +1,4 @@
-import unfetch from 'unfetch';
-
-// Fix a bug making unfetch not being properly bound with webpack.
-const fetch = unfetch.bind();
+import fetch from 'unfetch';
 
 /**
  * Check if the target experiment is loaded on the server.

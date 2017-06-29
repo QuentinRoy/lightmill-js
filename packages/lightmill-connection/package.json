@@ -29,7 +29,7 @@
   "dependencies": {
     "babel-runtime": "^6.23.0",
     "deep-freeze": "0.0.1",
-    "unfetch": "^2.1.2"
+    "unfetch": "^3.0.0"
   },
   "scripts": {
     "test": "NODE_ENV=test ava",
