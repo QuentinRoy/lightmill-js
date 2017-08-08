@@ -1,6 +1,6 @@
 {
   "name": "lightmill-app",
-  "version": "2.0.0-1",
+  "version": "2.0.0",
   "description": "Base application for lightmill-runner.",
   "main": "./lightmill-app.js",
   "files": [
