@@ -113,7 +113,7 @@ export async function runExperiment(
 ) {
   let run_;
   try {
-    // Returns a promise that inits the connection and register the run.
+    // Returns a promise that initializes the connection and registers the run.
     const initConnection = async () => {
       const connection = await potentialConnection;
       const run = await connection.getRun();
