@@ -5,6 +5,7 @@ import deferred from 'promise.defer';
 import RunInterface, {
   connectToRun,
   selectRun,
+  checkExperimentAndImportIfNeeded,
   consolidateRun
 } from '../run-interface';
 
@@ -57,6 +58,57 @@ test("`connectToRun` properly locks, ask for run's plan and for run's current tr
     currentTrial: { number: 5, blockNumber: 10 },
     lock: { token: 'lock' }
   });
+});
+
+test('`checkExperimentAndImportIfNeeded` properly checks for an experiment on the server and does nothing if it is loaded', async t => {
+  const loadedDef = deferred();
+  const server = {
+    isExperimentLoadedOnServer: spy(() => loadedDef.promise)
+  };
+  const pr = checkExperimentAndImportIfNeeded(server, 'xp');
+  t.deepEqual(server.isExperimentLoadedOnServer.args, [['xp']]);
+  loadedDef.resolve(true);
+  await pr;
+});
+
+test('`checkExperimentAndImportIfNeeded` properly checks for an experiment on the server and load it if it is not loaded', async t => {
+  const loadedDef = deferred();
+  const importedDef = deferred();
+  const server = {
+    isExperimentLoadedOnServer: spy(() => loadedDef.promise),
+    importExperimentOnServer: spy(() => importedDef.promise)
+  };
+  const pr = checkExperimentAndImportIfNeeded(
+    server,
+    'xp',
+    'http://host.path:1234/design.xml'
+  );
+  t.deepEqual(server.isExperimentLoadedOnServer.args, [['xp']]);
+  t.deepEqual(server.importExperimentOnServer.args, []);
+  loadedDef.resolve(false);
+  await wait();
+  t.deepEqual(server.importExperimentOnServer.args, [
+    ['http://host.path:1234/design.xml']
+  ]);
+  importedDef.resolve();
+  await pr;
+});
+
+test('`checkExperimentAndImportIfNeeded` fails without trying to import if it is not loaded and its design URI is not provided', async t => {
+  const loadedDef = deferred();
+  const server = {
+    isExperimentLoadedOnServer: spy(() => loadedDef.promise),
+    importExperimentOnServer: spy()
+  };
+  const pr = checkExperimentAndImportIfNeeded(
+    server,
+    'xp'
+  );
+  loadedDef.resolve(false);
+  await wait();
+  t.deepEqual(server.isExperimentLoadedOnServer.args, [['xp']]);
+  t.deepEqual(server.importExperimentOnServer.args, []);
+  await t.throws(pr);
 });
 
 const makeRunPlan = () => ({

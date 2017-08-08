@@ -51,6 +51,36 @@ export async function connectToRun(serverInterface, runInfo) {
 }
 
 /**
+ * Check if an experiment is loaded on the server and attempts to import it if not.
+ *
+ * @param {ServerInterface} serverInterface
+ * @param {string} experimentId The id of the experiment to look for.
+ * @param {string} [experimentDesignURI] The URL of an experiment design xml file.
+ * @throws {Error} If the experiment is not loaded and no experiment design URI is provided, of
+ *                 if the connection with the server fails.
+ * @return {Promise} Resolves one the experiment is propertly loaded on the server.
+ */
+export async function checkExperimentAndImportIfNeeded(
+  serverInterface,
+  experimentId,
+  experimentDesignURI
+) {
+  const isLoaded = await serverInterface.isExperimentLoadedOnServer(
+    experimentId
+  );
+  // Check if the experiment is loaded on the server, and if not load it.
+  if (!isLoaded) {
+    if (experimentDesignURI) {
+      await serverInterface.importExperimentOnServer(experimentDesignURI);
+    } else {
+      throw new Error(
+        `The experiment ${experimentId} is not loaded on the server and the design URI is not provided.`
+      );
+    }
+  }
+}
+
+/**
  * Consolidate a run by appending back references toward block on trials, and back references
  * toward the run on blocks
  * @param  {{id, experimentId, blocks}} runInfo The description of the run.
@@ -205,11 +235,11 @@ export default function RunInterface(
  * Create a connection to a run.
  * @param  {string|Object} serverAddressOrInterface The address of the server. Alternatively,
  *                                                  this can be provided as a server interface.
- * @param  {string}       experimentId The id of the experiment.
- * @param  {string}       [runId]  The id of the run.
- * @param  {string}       [experimentDesignAddr] The address of the experiment design (used to)
- *                                               import the experiment on the server if not already
- *                                               loaded.
+ * @param  {string} experimentId The id of the experiment.
+ * @param  {string} [runId]  The id of the run.
+ * @param  {string} [experimentDesignURI] The address of the experiment design (used to)
+ *                                        import the experiment on the server if not already
+ *                                        loaded.
  * @param  {PromiseQueue} [postQueue=new PromiseQueue()] Post queue that will monitor pending result
  *                                                       posts.
  * @return {Promise<Object>} The run connection.
@@ -218,19 +248,21 @@ RunInterface.create = async function createRunInterface(
   serverAddressOrInterface,
   experimentId,
   runId,
-  experimentDesignAddr,
+  experimentDesignURI,
   postQueue = new PromiseQueue()
 ) {
   // Create the interface to the server.
-  const serverInterface = typeof serverAddressOrInterface === 'string'
-    ? new ServerInterface(serverAddressOrInterface)
-    : serverAddressOrInterface;
+  const serverInterface =
+    typeof serverAddressOrInterface === 'string'
+      ? new ServerInterface(serverAddressOrInterface)
+      : serverAddressOrInterface;
 
-  // Check if the experiment is loaded on the server, and if not load it.
-  // prettier-ignore
-  if (!(await serverInterface.isExperimentLoadedOnServer(experimentId))) {
-    await serverInterface.importExperimentOnServer(experimentDesignAddr);
-  }
+  // Make sure the experiment is propertly loaded on the server.
+  await checkExperimentAndImportIfNeeded(
+    serverInterface,
+    experimentId,
+    experimentDesignURI
+  );
 
   // Connect to the run.
   const runInfo = await connectToRun(
