@@ -58,7 +58,7 @@ export async function connectToRun(serverInterface, runInfo) {
  * @param {string} [experimentDesignURI] The URL of an experiment design xml file.
  * @throws {Error} If the experiment is not loaded and no experiment design URI is provided, of
  *                 if the connection with the server fails.
- * @return {Promise} Resolves one the experiment is propertly loaded on the server.
+ * @return {Promise} Resolves one the experiment is properly loaded on the server.
  */
 export async function checkExperimentAndImportIfNeeded(
   serverInterface,
@@ -257,7 +257,7 @@ RunInterface.create = async function createRunInterface(
       ? new ServerInterface(serverAddressOrInterface)
       : serverAddressOrInterface;
 
-  // Make sure the experiment is propertly loaded on the server.
+  // Make sure the experiment is properly loaded on the server.
   await checkExperimentAndImportIfNeeded(
     serverInterface,
     experimentId,
