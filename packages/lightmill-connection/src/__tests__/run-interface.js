@@ -145,19 +145,17 @@ test('`consolidateRun` properly inserts backrefs.', t => {
   });
 });
 
-const makeRCon = (
-  {
-    run = consolidateRun(makeRunPlan()),
-    token = '',
-    trial = 0,
-    block = 0,
-    queue = {
-      push: spyDelay(),
-      flush: spyDelay()
-    },
-    post = spyDelay()
-  } = {}
-) => ({
+const makeRCon = ({
+  run = consolidateRun(makeRunPlan()),
+  token = '',
+  trial = 0,
+  block = 0,
+  queue = {
+    push: spyDelay(),
+    flush: spyDelay()
+  },
+  post = spyDelay()
+} = {}) => ({
   run,
   queue,
   post,
@@ -208,8 +206,7 @@ test('`RunInterface.postResults` throws if post failed', async t => {
     post: spy(() =>
       wait().then(() => {
         throw new Error('test err');
-      })
-    )
+      }))
   });
   const e = await t.throws(rcon.postResults({ m: 'measure' }));
   t.is(e.message, 'test err');
@@ -237,7 +234,9 @@ test('`RunInterface.postResults` posts the results sequentially', async t => {
   const defs = Array.from({ length: 3 }).map(() => deferred());
   const post = stub();
   defs.forEach((def, i) => post.onCall(i).returns(def.promise));
-  const { rcon } = makeRCon({ trial: 0, block: 0, post, token: 'token' });
+  const { rcon } = makeRCon({
+    trial: 0, block: 0, post, token: 'token'
+  });
   rcon.postResults({ val: 'val1' });
   await rcon.endTrial();
   rcon.postResults({ val: 'val2' });

@@ -13,14 +13,14 @@
     "babel-plugin-external-helpers": "^6.22.0",
     "babel-preset-env": "^1.6.0",
     "eslint": "^4.4.1",
-    "eslint-config-airbnb-base": "^11.3.1",
+    "eslint-config-airbnb-base": "^12.1.0",
     "eslint-plugin-import": "^2.7.0",
-    "rollup": "^0.45.2",
+    "rollup": "^0.56.3",
     "rollup-plugin-babel": "^3.0.1",
     "rollup-plugin-commonjs": "^8.1.0",
     "rollup-plugin-node-resolve": "^3.0.0",
     "rollup-plugin-pug": "^0.1.6",
-    "rollup-plugin-sass": "^0.5.3"
+    "rollup-plugin-sass": "^0.6.0"
   },
   "dependencies": {
     "pug-runtime": "^2.0.3"

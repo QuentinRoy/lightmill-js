@@ -3,12 +3,12 @@
   "private": true,
   "license": "MIT",
   "devDependencies": {
-    "eslint": "^3.19.0",
-    "eslint-config-airbnb-base": "^11.2.0",
-    "eslint-plugin-import": "^2.6.0",
-    "husky": "^0.14.1",
-    "lerna": "^2.0.0-rc.5",
-    "validate-commit-msg": "^2.12.2"
+    "eslint": "^4.18.2",
+    "eslint-config-airbnb-base": "^12.1.0",
+    "eslint-plugin-import": "^2.9.0",
+    "husky": "^0.14.3",
+    "lerna": "^2.9.0",
+    "validate-commit-msg": "^2.14.0"
   },
   "scripts": {
     "lint": "eslint packages/*/src",
@@ -32,5 +32,8 @@
     "validate-commit-msg": {
       "types": "conventional-commit-types"
     }
-  }
+  },
+  "workspaces": [
+    "packages/*"
+  ]
 }

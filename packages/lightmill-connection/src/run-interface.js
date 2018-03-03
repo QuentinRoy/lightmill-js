@@ -15,13 +15,9 @@ export async function selectRun(serverInterface, experimentId, runId) {
     : await serverInterface.availableRun(experimentId);
   // Check if the ids are consistent.
   if (runInfo.experimentId !== experimentId) {
-    throw new Error(
-      'Received experiment id is inconsistent with the one that has been requested.'
-    );
+    throw new Error('Received experiment id is inconsistent with the one that has been requested.');
   } else if (runId && runInfo.id !== runId) {
-    throw new Error(
-      'Received run id is inconsistent with the one that has been requested.'
-    );
+    throw new Error('Received run id is inconsistent with the one that has been requested.');
   }
   return runInfo;
 }
@@ -65,17 +61,13 @@ export async function checkExperimentAndImportIfNeeded(
   experimentId,
   experimentDesignURI
 ) {
-  const isLoaded = await serverInterface.isExperimentLoadedOnServer(
-    experimentId
-  );
+  const isLoaded = await serverInterface.isExperimentLoadedOnServer(experimentId);
   // Check if the experiment is loaded on the server, and if not load it.
   if (!isLoaded) {
     if (experimentDesignURI) {
       await serverInterface.importExperimentOnServer(experimentDesignURI);
     } else {
-      throw new Error(
-        `The experiment ${experimentId} is not loaded on the server and the design URI is not provided.`
-      );
+      throw new Error(`The experiment ${experimentId} is not loaded on the server and the design URI is not provided.`);
     }
   }
 }
@@ -96,8 +88,7 @@ export function consolidateRun(runInfo) {
   run.blocks = runInfo.blocks.map(block => {
     const newBlock = Object.assign({}, block, { run });
     newBlock.trials = block.trials.map(trial =>
-      Object.assign({}, trial, { block: newBlock })
-    );
+      Object.assign({}, trial, { block: newBlock }));
     return newBlock;
   });
   deepFreeze(run);
@@ -174,17 +165,13 @@ export default function RunInterface(
 
   this.postResults = async measures => {
     if (areCurrentTrialResultsPosted) {
-      throw new Error(
-        'Results have already been posted for the current trial.'
-      );
+      throw new Error('Results have already been posted for the current trial.');
     }
     areCurrentTrialResultsPosted = true;
     // Update the current trial.
     const trial = await this.getCurrentTrial();
     if (!trial) {
-      throw new Error(
-        'Cannot post trial results: current trial is unknown. It might be because the run is not connected or it is already finished.'
-      );
+      throw new Error('Cannot post trial results: current trial is unknown. It might be because the run is not connected or it is already finished.');
     }
     // Post the results.
     lastTrialResultPost = Promise.resolve(lastTrialResultPost).then(() =>
@@ -194,8 +181,7 @@ export default function RunInterface(
         trial.block.number,
         trial.number,
         { token, measures }
-      )
-    );
+      ));
     // Push the post promise in the queue to monitor unfinished posts.
     postQueue.push(lastTrialResultPost);
     return lastTrialResultPost;
@@ -209,9 +195,7 @@ export default function RunInterface(
    */
   this.endTrial = async () => {
     if (!areCurrentTrialResultsPosted) {
-      throw new Error(
-        'Cannot end current trial, no results have been posted yet.'
-      );
+      throw new Error('Cannot end current trial, no results have been posted yet.');
     }
     // Update the current trial.
     currentTrial = await this.getNextTrial();

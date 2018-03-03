@@ -37,10 +37,8 @@ export const runTrials = async (connection, app, queueSize) =>
       while (trial) {
         // If the block has changed, init the new one.
         if (block !== trial.block) {
-          block = trial.block;
-          await Promise.resolve(app.initBlock && app.initBlock(block)).catch(
-            throwWithHeader('Could not init block')
-          );
+          block = trial.block; // eslint-disable-line prefer-destructuring
+          await Promise.resolve(app.initBlock && app.initBlock(block)).catch(throwWithHeader('Could not init block'));
         }
 
         // Make sure there is less than queueSize pending trial result posts
@@ -54,8 +52,7 @@ export const runTrials = async (connection, app, queueSize) =>
         connection
           .postResults(results)
           .catch(e =>
-            reject(errorWithHeader(e, 'Could not post trial results'))
-          );
+            reject(errorWithHeader(e, 'Could not post trial results')));
         // End the trial.
         trial = await connection
           .endTrial()
@@ -122,20 +119,14 @@ export async function runExperiment(
     };
     // Connect to the run and start the app.
     const [{ connection, run }] = await Promise.all([
-      initConnection().catch(
-        throwWithHeader('Could not connect to the experiment')
-      ),
+      initConnection().catch(throwWithHeader('Could not connect to the experiment')),
       // Start the experiment app.
-      Promise.resolve(app.start && app.start()).catch(
-        throwWithHeader("Could not start the experiment's app")
-      )
+      Promise.resolve(app.start && app.start()).catch(throwWithHeader("Could not start the experiment's app"))
     ]);
     // Export the run out of the context for the catch clause.
     run_ = run;
     // Ask the app to init the run.
-    await Promise.resolve(app.initRun && app.initRun(run)).catch(
-      throwWithHeader('Could not init the run task')
-    );
+    await Promise.resolve(app.initRun && app.initRun(run)).catch(throwWithHeader('Could not init the run task'));
     // Run the trials.
     await runTrials(connection, app, queueSize);
     // Clear the local storage so that next time the page is loaded, a new run will be requested.

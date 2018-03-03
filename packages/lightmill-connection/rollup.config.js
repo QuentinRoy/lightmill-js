@@ -4,17 +4,24 @@ import commonjs from 'rollup-plugin-commonjs';
 import babel from 'rollup-plugin-babel';
 
 export default {
-  entry: 'src/index.js',
-  format: 'umd',
-  moduleName: 'LightMillConnection',
-  plugins: [resolve(), commonjs(), babel({
-    exclude: 'node_modules/**' // only transpile our source code
-  })],
-  external: ['babel-runtime/regenerator', 'unfetch'],
-  dest: './lib/lightmill-connection.js',
-  sourceMap: true,
-  globals: {
-    unfetch: 'unfetch',
-    'babel-runtime/regenerator': 'regeneratorRuntime'
-  }
+  input: 'src/index.js',
+  output: {
+    format: 'umd',
+    name: 'LightMillConnection',
+    sourcemap: true,
+    globals: {
+      unfetch: 'unfetch',
+      'babel-runtime/regenerator': 'regeneratorRuntime'
+    },
+    exports: 'named',
+    file: './lib/lightmill-connection.js'
+  },
+  plugins: [
+    resolve(),
+    commonjs(),
+    babel({
+      exclude: 'node_modules/**' // only transpile our source code
+    })
+  ],
+  external: ['babel-runtime/regenerator', 'unfetch']
 };
