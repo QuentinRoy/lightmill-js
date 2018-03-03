@@ -1,7 +1,7 @@
 # LightMill App
 
 LightMill App provides basic standard views common in many user experiments:
-- `wait(node, message)`: Shows a waiting wheel. `message` is currently ignored.
+- `wait(node)`: Shows a waiting wheel.
 - `blockInit(node, blockInfo)`: Shows a block initialization view, stating if it is a practice block
 or a measured block, and displaying potential block factor values.
 - `end(node)`

@@ -4,7 +4,7 @@ import deferred from 'promise.defer';
 import wait from 'wait-then';
 import PromiseQueue from '../promise-queue';
 
-test('`PromiseQueue.queueLength` reflects the number of unresolved promises that has been pushed', async (t) => {
+test('`PromiseQueue.queueLength` reflects the number of unresolved promises that has been pushed', async t => {
   const queue = new PromiseQueue();
   const defs = new Array(5).fill(undefined).map(deferred);
   defs[2].resolve();
@@ -21,7 +21,7 @@ test('`PromiseQueue.queueLength` reflects the number of unresolved promises that
   t.is(queue.length, 0);
 });
 
-test('`PromiseQueue.flush` resolves if its queue length is smaller than the required flush', async (t) => {
+test('`PromiseQueue.flush` resolves if its queue length is smaller than the required flush', async t => {
   const queue = new PromiseQueue();
   await queue.flush(0);
   queue.push(new Promise(() => {}));
@@ -30,12 +30,16 @@ test('`PromiseQueue.flush` resolves if its queue length is smaller than the requ
   t.pass('All promises resolved.');
 });
 
-test('`PromiseQueue.flush` resolves once the queue length fall below the provided length', async (t) => {
+test('`PromiseQueue.flush` resolves once the queue length fall below the provided length', async t => {
   const queue = new PromiseQueue();
   const defs = new Array(5).fill(undefined).map(deferred);
   const resolvedFlushes = [];
-  queue.push(Promise.resolve(), ...defs.map(({ promise }) => promise), Promise.resolve());
-  [1, 2, 3, 4, 5, 6, 20, 2, 4, 5, 0].forEach((i) => {
+  queue.push(
+    Promise.resolve(),
+    ...defs.map(({ promise }) => promise),
+    Promise.resolve()
+  );
+  [1, 2, 3, 4, 5, 6, 20, 2, 4, 5, 0].forEach(i => {
     queue.flush(i).then(() => {
       resolvedFlushes.push(i);
     });

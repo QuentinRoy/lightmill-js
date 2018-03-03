@@ -1,8 +1,7 @@
 // Partition an array in function of a criterion.
 const partition = (array, keyOrGetKey) => {
-  const getKey = typeof keyOrGetKey === 'string'
-    ? o => o[keyOrGetKey]
-    : keyOrGetKey;
+  const getKey =
+    typeof keyOrGetKey === 'string' ? o => o[keyOrGetKey] : keyOrGetKey;
   return array.reduce((acc, val) => {
     const valKey = getKey(val);
     acc[valKey] = acc[valKey] || [];
@@ -12,8 +11,8 @@ const partition = (array, keyOrGetKey) => {
 };
 
 /**
- * Tracks pending promises and there resolution. Flush can be used to wait for less than a given
- * number of pending promises.
+ * Tracks pending promises and there resolution. Flush can be used to wait for
+ * less than a given number of pending promises.
  * @constructor
  */
 export default function PromiseQueue() {
@@ -43,7 +42,8 @@ export default function PromiseQueue() {
 
   /**
    * Push one or more promises in the queue.
-   * @param  {...Promise} promises
+   * @param  {...Promise} promises One or more promises.
+   * @returns {undefined}
    */
   this.push = (...promises) => {
     length += promises.length;
@@ -53,10 +53,10 @@ export default function PromiseQueue() {
   };
 
   /**
-   * Return a promise that resolves when the number of pending promises in the queue is less or
-   * equal to a given number. Resolves immediately if it is already the case.
    * @param  {Number} [maxLength=0] Max number of pending promises.
-   * @return {Promise}
+   * @return {Promise} A promise that resolves when the number of pending
+   * promises in the queue is less or equal to a given number.
+   * Resolves immediately if it is already the case.
    */
   this.flush = (maxLength = 0) => {
     if (length <= maxLength) return Promise.resolve();
