@@ -6,9 +6,14 @@ import babel from 'rollup-plugin-babel';
 import sass from 'rollup-plugin-sass';
 
 export default {
-  entry: 'src/index.js',
-  format: 'umd',
-  moduleName: 'XpAppBase',
+  input: 'src/index.js',
+  output: {
+    name: 'LightmillApp',
+    globals: { 'pug-runtime': 'pugRuntime' },
+    format: 'umd',
+    file: './lightmill-app.js',
+    sourcemap: true
+  },
   plugins: [
     resolve(),
     commonjs(),
@@ -16,8 +21,5 @@ export default {
     pug({ pugRuntime: 'pug-runtime' }),
     babel({ exclude: 'node_modules/**' })
   ],
-  external: ['pug-runtime'],
-  globals: { 'pug-runtime': 'pugRuntime' },
-  dest: './lightmill-app.js',
-  sourceMap: true
+  external: ['pug-runtime']
 };
