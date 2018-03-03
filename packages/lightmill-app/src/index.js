@@ -8,6 +8,18 @@ import './templates/end.scss';
 import waitTemplate from './templates/wait.pug';
 import './templates/wait.scss';
 
+/**
+ * @typedef {Object} BlockInfo
+ * @property {int} blockInfo.number The number of the block.
+ * @property {int} blockInfo.measuredBlockNum The number of the block amongst
+ * non practice blocks.
+ * @property {boolean} blockInfo.practice If it is a practice block.
+ * @property {Array<{factor:{name}, name}>} blockInfo.factorValues The list of
+ * factor values.
+ * @property {boolean} blockInfo.subjectiveAssessment If subjective assessment should be
+ * asked for.
+ */
+
 const XP_APP_BASE_CLASSNAME = 'xp-app-base';
 
 /**
@@ -29,6 +41,7 @@ export default class XpAppBase {
      */
     Object.defineProperty(this, 'node', { value: node });
   }
+
   /**
    * Must be overwritten by subclasses (or dynamically replaced).
    * @param {Object} config the trial configuration
@@ -41,8 +54,9 @@ export default class XpAppBase {
 
   /**
    * Show the wait view.
-   * @param  {HTMLElement} node
+   * @param  {HTMLElement} node The node where to mount the view.
    * @param  {String} [message] The wait message.
+   * @returns {undefined}
    */
   static wait(node, message) {
     // eslint-disable-next-line no-param-reassign
@@ -51,25 +65,27 @@ export default class XpAppBase {
 
   /**
    * Show the wait view.
-   * @param  {String} [message] The wait message.
+   * @returns {undefined}
    */
-  wait(message) {
-    this.constructor.wait(this.node, message);
+  wait() {
+    this.constructor.wait(this.node);
   }
 
   /**
    * By default start waiting when the app starts.
+   * @returns {undefined}
    */
   start() {
-    return this.wait();
+    this.wait();
   }
 
   /**
    * Show the crash view.
-   * @param  {HTMLElement} node
+   * @param  {HTMLElement} node The node where to mount the view.
    * @param  {String} message The error message.
-   * @param  {Error} [error]  The error that has been raised.
-   * @param  {Object} [run]   The current run.
+   * @param  {Error} [error] The error that has been raised.
+   * @param  {Object} [run] The current run.
+   * @returns {undefined}
    */
   static crash(node, message, error, run) {
     // eslint-disable-next-line no-param-reassign
@@ -81,7 +97,9 @@ export default class XpAppBase {
     const detailsButton = node.querySelector('.details-button');
     detailsButton.addEventListener('click', evt => {
       evt.preventDefault();
-      node.querySelector(`.${XP_APP_BASE_CLASSNAME}`).classList.toggle('with-details');
+      node
+        .querySelector(`.${XP_APP_BASE_CLASSNAME}`)
+        .classList.toggle('with-details');
     });
   }
 
@@ -90,20 +108,21 @@ export default class XpAppBase {
    * @param  {String} message The error message.
    * @param  {Error} [error]  The error that has been raised.
    * @param  {Object} [run]   The current run.
+   * @returns {undefined}
    */
   crash(message, error, run) {
-    return this.constructor.crash(this.node, message, error, run);
+    this.constructor.crash(this.node, message, error, run);
   }
 
   /**
    * Show the block initialization view.
-   * @param  {HTMLElement} node
-   * @param  {Object} blockInfo
+   * @param {HTMLElement} node The node where to mount the view.
+   * @param {BlockInfo} blockInfo Information about the block.
    * @return {Promise} Resolved when the user click/tap on the view.
    */
   static initBlock(node, blockInfo) {
     return new Promise(resolve => {
-    // eslint-disable-next-line no-param-reassign
+      // eslint-disable-next-line no-param-reassign
       node.innerHTML = blockInitTemplate(blockInfo);
       const appNode = node.querySelector(`.${XP_APP_BASE_CLASSNAME}`);
       const listener = evt => {
@@ -117,7 +136,7 @@ export default class XpAppBase {
 
   /**
    * Show the block initialization view then show the wait view.
-   * @param  {Object} blockInfo
+   * @param {BlockInfo} blockInfo Information about the block.
    * @return {Promise} Resolved when the user click/tap on the view.
    */
   initBlock(blockInfo) {
@@ -129,7 +148,8 @@ export default class XpAppBase {
 
   /**
    * Show the end view.
-   * @param  {HTMLElement} node
+   * @param {HTMLElement} node The node where to mount the view.
+   * @returns {undefined}
    */
   static end(node) {
     // eslint-disable-next-line no-param-reassign
@@ -138,8 +158,9 @@ export default class XpAppBase {
 
   /**
    * Show the end view.
+   * @returns {undefined}
    */
   end() {
-    return this.constructor.end(this.node);
+    this.constructor.end(this.node);
   }
 }

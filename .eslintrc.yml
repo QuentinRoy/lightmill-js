@@ -1,0 +1,26 @@
+---
+root: true
+env:
+  browser: true
+extends:
+  - airbnb-base
+  - prettier
+rules:
+  valid-jsdoc: error
+  import/no-extraneous-dependencies:
+    - error
+    - peerDependencies: true
+  prettier/prettier: error
+  class-methods-use-this: 0
+plugins:
+  - prettier
+overrides:
+  - files:
+      - ./**/__tests__/**/*.js
+      - ./**/*.test.js
+    rules:
+      import/no-extraneous-dependencies:
+      - error
+      - devDependencies: true
+        peerDependencies: true
+

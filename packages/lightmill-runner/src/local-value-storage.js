@@ -12,20 +12,25 @@ export default class LocalValueStorage {
      */
     this.key = key;
   }
+
   /**
    * @return {string?} the stored value
    */
   get() {
     return localStorage.getItem(this.key);
   }
+
   /**
-   * @param {string} value the value to store
+   * @param {string} value the value to store.
+   * @returns {undefined}
    */
   set(value) {
     localStorage.setItem(this.key, value);
   }
+
   /**
    * Remove the value.
+   * @returns {undefined}
    */
   remove() {
     localStorage.removeItem(this.key);

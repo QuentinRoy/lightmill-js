@@ -14,10 +14,10 @@ const makeTrialList = (blockCount = 2, trialCountPerBlock = 3) =>
     ];
   }, []);
 
-// Create a group of delayed spies, each spies create from this group is given a type
-// and all spy calls can be monitored (in order) with may `all` spy.
-// Also, all spies return a promise that resolves asynchronously. The resolution of the promise
-// can be monitored as well.
+// Create a group of delayed spies, each spies create from this group is given
+// a type and all spy calls can be monitored (in order) with may `all` spy.
+// Also, all spies return a promise that resolves asynchronously. The resolution
+// of the promise can be monitored as well.
 const createDelayedSpiesGroup = () => {
   const all = spy();
   const createSpy = (
@@ -31,7 +31,9 @@ const createDelayedSpiesGroup = () => {
       if (!delay && delay !== 0) {
         res = typeof f === 'function' ? f(...args) : f;
       } else {
-        res = wait(delay).then(() => (typeof f === 'function' ? f(...args) : f));
+        res = wait(delay).then(
+          () => (typeof f === 'function' ? f(...args) : f)
+        );
       }
       if (done) {
         res = res.then(
@@ -127,8 +129,10 @@ test('`runTrials` throws if a post fails even if all trials are done', async t =
     postResults: spy(() => postPromises.shift()),
     endTrial: spy(() => Promise.resolve(trials.shift())),
     getCurrentTrial: spy(() => Promise.resolve(trials.shift())),
-    flush: spy(() =>
-      trialPromises.length > 0 ? Promise.resolve() : new Promise(() => {}))
+    flush: spy(
+      () =>
+        trialPromises.length > 0 ? Promise.resolve() : new Promise(() => {})
+    )
   };
   const app = { runTrial: spy(() => trialPromises.shift()) };
   const prom = runTrials(connection, app);
@@ -176,7 +180,8 @@ test('`runExperiment` runs as expected if every app handlers are provided', asyn
     postResults: spyGroup.spy('connection.postResults', null, { done: false }),
     endTrial: spyGroup.spy('connection.endTrial', () => trials.shift()),
     getCurrentTrial: spyGroup.spy('connection.getCurrentTrial', () =>
-      trials.shift()),
+      trials.shift()
+    ),
     flush: spyGroup.spy('connection.flush'),
     getRun: spyGroup.spy('connection.getRun', { id: 'runId' })
   };
@@ -212,7 +217,8 @@ test('`runExperiment` works properly even if only `app.runTrial` is provided', a
     postResults: spyGroup.spy('connection.postResults', null, { done: false }),
     endTrial: spyGroup.spy('connection.endTrial', () => trials.shift()),
     getCurrentTrial: spyGroup.spy('connection.getCurrentTrial', () =>
-      trials.shift()),
+      trials.shift()
+    ),
     flush: spyGroup.spy('connection.flush'),
     getRun: spyGroup.spy('connection.getRun', { id: 'runId' })
   };
@@ -382,6 +388,10 @@ test('`runExperiment` calls `app.crash` then throws if a post goes wrong even if
   t.snapshot(spyGroup.all.args);
 });
 
-test.todo('`runExperiment` calls `app.crash` then throws for any possible things that can go wrong.');
+test.todo(
+  '`runExperiment` calls `app.crash` then throws for any possible things that can go wrong.'
+);
 
-test.todo('`runExperiment` creates a RunInterface using stored run id if none are provided');
+test.todo(
+  '`runExperiment` creates a RunInterface using stored run id if none are provided'
+);

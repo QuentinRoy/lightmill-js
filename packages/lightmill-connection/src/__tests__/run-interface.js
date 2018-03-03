@@ -100,10 +100,7 @@ test('`checkExperimentAndImportIfNeeded` fails without trying to import if it is
     isExperimentLoadedOnServer: spy(() => loadedDef.promise),
     importExperimentOnServer: spy()
   };
-  const pr = checkExperimentAndImportIfNeeded(
-    server,
-    'xp'
-  );
+  const pr = checkExperimentAndImportIfNeeded(server, 'xp');
   loadedDef.resolve(false);
   await wait();
   t.deepEqual(server.isExperimentLoadedOnServer.args, [['xp']]);
@@ -206,7 +203,8 @@ test('`RunInterface.postResults` throws if post failed', async t => {
     post: spy(() =>
       wait().then(() => {
         throw new Error('test err');
-      }))
+      })
+    )
   });
   const e = await t.throws(rcon.postResults({ m: 'measure' }));
   t.is(e.message, 'test err');
@@ -222,21 +220,31 @@ test('`RunInterface.endTrial` properly switches to the next trial', async t => {
   const currentTrial = await rcon.getCurrentTrial();
   const nextTrial = await rcon.getNextTrial();
   t.is(currentTrial.number, 0, 'currentTrial.number is as expected');
-  t.is(currentTrial.block.number, 1, 'currentTrial.block.number is as expected');
+  t.is(
+    currentTrial.block.number,
+    1,
+    'currentTrial.block.number is as expected'
+  );
   t.is(nextTrial.number, 1, 'nextTrial.block.number is as expected');
   t.is(nextTrial.block.number, 1, 'nextTrial.block.number is as expected');
   await rcon.postResults({});
-  t.is(await rcon.endTrial(), nextTrial, 'endTrial returns the next new current trial');
-  t.is(await rcon.getCurrentTrial(), nextTrial, 'getCurrentTrial properly switched to the new current trial');
+  t.is(
+    await rcon.endTrial(),
+    nextTrial,
+    'endTrial returns the next new current trial'
+  );
+  t.is(
+    await rcon.getCurrentTrial(),
+    nextTrial,
+    'getCurrentTrial properly switched to the new current trial'
+  );
 });
 
 test('`RunInterface.postResults` posts the results sequentially', async t => {
   const defs = Array.from({ length: 3 }).map(() => deferred());
   const post = stub();
   defs.forEach((def, i) => post.onCall(i).returns(def.promise));
-  const { rcon } = makeRCon({
-    trial: 0, block: 0, post, token: 'token'
-  });
+  const { rcon } = makeRCon({ trial: 0, block: 0, post, token: 'token' });
   rcon.postResults({ val: 'val1' });
   await rcon.endTrial();
   rcon.postResults({ val: 'val2' });
