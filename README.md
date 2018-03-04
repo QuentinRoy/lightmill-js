@@ -1,5 +1,8 @@
 # LightMill
 
+[![Build Status](https://travis-ci.org/QuentinRoy/lightmill-js.svg?branch=master)](https://travis-ci.org/QuentinRoy/lightmill-js)
+[![codecov](https://img.shields.io/codecov/c/github/QuentinRoy/lightmill-js.svg)](https://codecov.io/gh/QuentinRoy/lightmill-js)
+
 LightMill is a framework used to manage, run and log user experiments.
 Its main component, LightMill, is a python server hosted [here](https://github.com/QuentinRoy/LightMill).
 
