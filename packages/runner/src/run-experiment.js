@@ -1,4 +1,4 @@
-import { RunInterface } from 'lightmill-connection';
+import { RunInterface } from '@lightmill/connection';
 import LocalValueStorage from './local-value-storage';
 
 // Create a copy of an error with a header appended to its message.
