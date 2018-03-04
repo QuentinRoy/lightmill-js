@@ -2,11 +2,11 @@
   "name": "@lightmill/runner",
   "version": "2.0.0",
   "description": "JS Runner for LightMill.",
-  "main": "lib/lightmill-runner.js",
-  "module": "src/index",
+  "main": "dist/lightmill-runner.js",
+  "module": "esm/index",
   "files": [
-    "lib",
-    "src"
+    "dist",
+    "esm"
   ],
   "devDependencies": {
     "array-range": "^1.0.1",
