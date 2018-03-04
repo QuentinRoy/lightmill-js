@@ -1,5 +1,7 @@
 # LightMill
 
+[![Greenkeeper badge](https://badges.greenkeeper.io/QuentinRoy/lightmill-js.svg)](https://greenkeeper.io/)
+
 [![Build Status](https://travis-ci.org/QuentinRoy/lightmill-js.svg?branch=master)](https://travis-ci.org/QuentinRoy/lightmill-js)
 [![codecov](https://img.shields.io/codecov/c/github/QuentinRoy/lightmill-js.svg)](https://codecov.io/gh/QuentinRoy/lightmill-js)
 
