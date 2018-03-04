@@ -6,7 +6,8 @@
   "module": "esm/index",
   "files": [
     "dist",
-    "esm"
+    "esm",
+    "!**/__tests__"
   ],
   "devDependencies": {
     "array-range": "^1.0.1",
