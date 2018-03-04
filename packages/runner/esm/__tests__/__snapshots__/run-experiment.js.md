@@ -1,4 +1,4 @@
-# Snapshot report for `src/__tests__/run-experiment.js`
+# Snapshot report for `esm/__tests__/run-experiment.js`
 
 The actual snapshot is saved in `run-experiment.js.snap`.
 
