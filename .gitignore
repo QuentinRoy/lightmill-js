@@ -1,5 +1,5 @@
 *.DS_Store
-node_modules
-packages/**/node_modules
+**/node_modules
 lerna-debug.log
 yarn-error.log
+packages/**/dist
