@@ -19,12 +19,13 @@
     "build": "lerna run build",
     "postinstall": "yarn build",
     "lint": "eslint packages",
-    "test-all": "lerna run test",
-    "postrewrite": "yarn git-hook",
-    "precommit": "yarn git-hook",
-    "git-hook": "yarn lint && yarn test-all",
+    "test": "jest",
+    "coverage": "jest --coverage",
     "bootstrap": "lerna bootstrap",
     "publish": "lerna publish --conventional-commits",
+    "postrewrite": "yarn git-hook",
+    "precommit": "yarn git-hook",
+    "git-hook": "yarn lint && yarn test",
     "commitmsg": "commitlint -e $GIT_PARAMS"
   },
   "devEngines": {

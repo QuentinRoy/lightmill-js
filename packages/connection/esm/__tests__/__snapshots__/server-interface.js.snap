@@ -1,0 +1,18 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`isExperimentLoadedOnServer checks if the experiment is available on the server 1`] = `
+[MockFunction] {
+  "calls": Array [
+    Array [],
+  ],
+}
+`;
+
+exports[`isExperimentLoadedOnServer checks if the experiment is available on the server 2`] = `
+[MockFunction] {
+  "calls": Array [
+    Array [],
+    Array [],
+  ],
+}
+`;

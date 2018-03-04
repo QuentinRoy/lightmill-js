@@ -16,8 +16,11 @@ plugins:
   - prettier
 overrides:
   - files:
-      - ./**/__tests__/**/*.js
-      - ./**/*.test.js
+      - packages/**/__tests__/**/*.js
+      - "packages/**/*.test.js"
+    env:
+      browser: false
+      jest: true
     rules:
       import/no-extraneous-dependencies:
       - error
