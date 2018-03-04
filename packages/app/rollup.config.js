@@ -11,7 +11,7 @@ export default {
     name: 'LightmillApp',
     globals: { 'pug-runtime': 'pugRuntime' },
     format: 'umd',
-    file: './lightmill-app.js',
+    file: './dist/lightmill-app.js',
     sourcemap: true
   },
   plugins: [
