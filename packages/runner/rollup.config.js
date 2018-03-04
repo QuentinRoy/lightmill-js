@@ -4,11 +4,11 @@ import commonjs from 'rollup-plugin-commonjs';
 import babel from 'rollup-plugin-babel';
 
 export default {
-  input: 'src/index.js',
+  input: 'esm/index.js',
   output: {
     format: 'umd',
     name: 'LightMillRunner',
-    file: './lib/lightmill-runner.js',
+    file: './dist/lightmill-runner.js',
     sourcemap: true,
     globals: {
       'lightmill-connection': 'LightMillConnection',
