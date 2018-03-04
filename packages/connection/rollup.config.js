@@ -4,7 +4,7 @@ import commonjs from 'rollup-plugin-commonjs';
 import babel from 'rollup-plugin-babel';
 
 export default {
-  input: 'src/index.js',
+  input: 'esm/index.js',
   output: {
     format: 'umd',
     name: 'LightMillConnection',
@@ -14,7 +14,7 @@ export default {
       'babel-runtime/regenerator': 'regeneratorRuntime'
     },
     exports: 'named',
-    file: './lib/lightmill-connection.js'
+    file: './dist/lightmill-connection.js'
   },
   plugins: [
     resolve(),

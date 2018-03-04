@@ -2,11 +2,11 @@
   "name": "@lightmill/connection",
   "version": "2.0.0",
   "description": "Interface to LightMill's server.",
-  "main": "lib/lightmill-connection.js",
-  "module": "src/index",
+  "main": "dist/lightmill-connection.js",
+  "module": "esm/index",
   "files": [
-    "lib",
-    "src"
+    "dist",
+    "esm"
   ],
   "devDependencies": {
     "array-range": "^1.0.1",
