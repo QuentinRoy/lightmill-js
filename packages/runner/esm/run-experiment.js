@@ -1,80 +1,11 @@
 import { RunInterface } from '@lightmill/connection';
+import runTrials from './run-trials';
 import LocalValueStorage from './local-value-storage';
-
-// Create a copy of an error with a header appended to its message.
-function errorWithHeader(e, header) {
-  const err = new Error(e.message ? `${header}: ${e.message}` : header);
-  err.original = e;
-  err.stack = e.stack;
-  if (e.type) err.type = e.type;
-  return err;
-}
-
-// Return a function that will throw an error after appending a header.
-function throwWithHeader(header) {
-  return e => {
-    throw errorWithHeader(e, header);
-  };
-}
-
-/**
- * Run the trials of an experiment.
- * @param  {Object}  connection  The connection to the run on the lightmill
- * server.
- * @param  {Object}  app  The app of the experiment.
- * @param  {int}  queueSize  Max number of pending trial result posts before
- * starting a new trial.
- * @return {Promise}  A promise resolved when all trials have run.
- */
-export const runTrials = async (connection, app, queueSize) =>
-  new Promise(async (resolve, reject) => {
-    try {
-      // Init the loop.
-      let trial = await connection
-        .getCurrentTrial()
-        .catch(throwWithHeader('Could not retrieve current trial info'));
-      let block;
-
-      /* eslint-disable no-await-in-loop */
-      while (trial) {
-        // If the block has changed, init the new one.
-        if (block !== trial.block) {
-          block = trial.block; // eslint-disable-line prefer-destructuring
-          await Promise.resolve(app.initBlock && app.initBlock(block)).catch(
-            throwWithHeader('Could not init block')
-          );
-        }
-
-        // Make sure there is less than queueSize pending trial result posts
-        // before starting the trial.
-        await connection.flush(queueSize);
-
-        // Run the trial and fetch the results.
-        const results = await app.runTrial(trial);
-
-        // Post the results (without waiting).
-        connection
-          .postResults(results)
-          .catch(e =>
-            reject(errorWithHeader(e, 'Could not post trial results'))
-          );
-        // End the trial.
-        trial = await connection
-          .endTrial()
-          .catch(throwWithHeader('Could not switch to next trial'));
-      }
-      /* eslint-enable no-await-in-loop */
-
-      // Fully flush the post queue.
-      await connection.flush();
-      resolve();
-    } catch (e) {
-      reject(e);
-    }
-  });
+import { throwWithHeader } from './utils';
 
 /**
  * Run an experiment.
+ *
  * @param {Object} app The application of the experiment.
  * @param {function(): Promise} [app.start] Initialize the experiment.
  * @param {function(): Promise} [app.initRun] Initialize the run.
@@ -84,13 +15,12 @@ export const runTrials = async (connection, app, queueSize) =>
  * @param {function(): Promise} [app.crash] Called if an error is thrown during
  * the run.
  * @param {Object} config Configuration.
- * @param {string} config.experimentId The id of the experiment.
- *                                     This is required is config.connection is
- * not provided.
+ * @param {string} config.experimentId The id of the experiment. This is
+ * required is config.connection is not provided.
  * @param {string} [config.runId] The id of a run to connect to.
  * @param {string} [config.serverAddress] The address of the xp server.
  * @param {string} [config.experimentDesignAddr] The path toward a touchstone
- *                                               experiment design xml file.
+ * experiment design xml file.
  * @param {string} [config.queueSize] The maximum number of pending trial result
  * posts before starting a new trial.
  * @param {Object} [config.runStorage] Used to store the running run.
@@ -98,7 +28,7 @@ export const runTrials = async (connection, app, queueSize) =>
  * usually need to provide this.
  * @returns {Promise} A promise resolved once the experiment is done.
  */
-export async function runExperiment(
+export default async (
   app,
   {
     experimentId,
@@ -115,7 +45,7 @@ export async function runExperiment(
       experimentDesignAddr
     )
   }
-) {
+) => {
   let run_; // eslint-disable-line no-underscore-dangle
   try {
     // Returns a promise that initializes the connection and registers the run.
@@ -154,6 +84,4 @@ export async function runExperiment(
     if (app.crash) app.crash(e.message, e, run_);
     throw e;
   }
-}
-
-export default runExperiment;
+};
