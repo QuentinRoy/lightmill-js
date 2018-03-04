@@ -1,48 +1,52 @@
 {
-  "name": "lightmill-app",
+  "name": "@lightmill/runner",
   "version": "2.0.0",
-  "description": "Base application for lightmill-runner.",
-  "main": "./lightmill-app.js",
+  "description": "JS Runner for LightMill.",
+  "main": "lib/lightmill-runner.js",
+  "module": "src/index",
   "files": [
-    "lightmill-app.css",
-    "lightmill-app.js",
-    "lightmill-app.js.map"
+    "lib",
+    "src"
   ],
   "devDependencies": {
-    "babel-core": "^6.25.0",
+    "array-range": "^1.0.1",
+    "ava": "^0.25.0",
     "babel-plugin-external-helpers": "^6.22.0",
+    "babel-plugin-transform-es2015-modules-commonjs": "^6.24.1",
+    "babel-plugin-transform-runtime": "^6.23.0",
     "babel-preset-env": "^1.6.0",
     "cross-env": "^5.1.3",
     "eslint": "^4.4.1",
     "eslint-config-airbnb-base": "^12.1.0",
     "eslint-plugin-import": "^2.7.0",
+    "promise.defer": "^1.0.1",
     "rollup": "^0.56.3",
     "rollup-plugin-babel": "^3.0.1",
     "rollup-plugin-commonjs": "^8.1.0",
     "rollup-plugin-node-resolve": "^3.0.0",
-    "rollup-plugin-pug": "^0.1.6",
-    "rollup-plugin-sass": "^0.6.0"
+    "sinon": "^4.4.2",
+    "wait-then": "^0.1.2"
   },
   "dependencies": {
-    "pug-runtime": "^2.0.3"
+    "babel-runtime": "^6.25.0",
+    "@lightmill/connection": "^2.0.0"
   },
   "scripts": {
-    "test": "",
+    "test": "cross-env NODE_ENV=test ava",
     "build": "cross-env NODE_ENV=production rollup --config rollup.config.js",
     "prepublish": "npm run build"
   },
   "keywords": [
     "experiment",
-    "lightmill",
-    "application"
+    "lightmill"
   ],
   "author": "Quentin Roy <quentin@quentinroy.fr>",
+  "repository": "https://github.com/QuentinRoy/lightmill-js/tree/master/packages/lightmill-connection",
   "license": "MIT",
   "ava": {
     "require": [
       "babel-register"
     ],
     "babel": "inherit"
-  },
-  "repository": "https://github.com/QuentinRoy/lightmill-js/tree/master/packages/lightmill-app"
+  }
 }
