@@ -20,7 +20,7 @@
     "eslint-config-airbnb-base": "12.1.0",
     "eslint-plugin-import": "2.9.0",
     "promise.defer": "1.0.1",
-    "rollup": "0.56.3",
+    "rollup": "0.56.4",
     "rollup-plugin-babel": "3.0.3",
     "rollup-plugin-commonjs": "9.0.0",
     "rollup-plugin-node-resolve": "3.0.3",
