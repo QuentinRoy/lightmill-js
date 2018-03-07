@@ -1,12 +1,7 @@
-import './templates/base.scss';
-import crashTemplate from './templates/crash.pug';
-import './templates/crash.scss';
-import blockInitTemplate from './templates/block-init.pug';
-import './templates/block-init.scss';
-import endTemplate from './templates/end.pug';
-import './templates/end.scss';
-import waitTemplate from './templates/wait.pug';
-import './templates/wait.scss';
+import end from './end';
+import initBlock from './block-init';
+import crash from './crash';
+import wait from './wait';
 
 /**
  * @typedef {Object} BlockInfo
@@ -20,8 +15,6 @@ import './templates/wait.scss';
  * asked for.
  */
 
-const XP_APP_BASE_CLASSNAME = 'xp-app-base';
-
 /**
  * Standard Experimentation App Base class for lightmill-client providing wait, crash, end and
  * initBlock views. This is an abstract class that does not provide a `runTrial` handle
@@ -30,7 +23,7 @@ const XP_APP_BASE_CLASSNAME = 'xp-app-base';
  * @constructor
  * @abstract
  */
-export default class XpAppBase {
+class XpAppBase {
   /**
    * @param  {HTMLElement} node The node where to user for the app.
    */
@@ -54,21 +47,10 @@ export default class XpAppBase {
 
   /**
    * Show the wait view.
-   * @param  {HTMLElement} node The node where to mount the view.
-   * @param  {String} [message] The wait message.
-   * @returns {undefined}
-   */
-  static wait(node, message) {
-    // eslint-disable-next-line no-param-reassign
-    node.innerHTML = waitTemplate({ message });
-  }
-
-  /**
-   * Show the wait view.
    * @returns {undefined}
    */
   wait() {
-    this.constructor.wait(this.node);
+    wait(this.node);
   }
 
   /**
@@ -81,57 +63,13 @@ export default class XpAppBase {
 
   /**
    * Show the crash view.
-   * @param  {HTMLElement} node The node where to mount the view.
-   * @param  {String} message The error message.
-   * @param  {Error} [error] The error that has been raised.
-   * @param  {Object} [run] The current run.
-   * @returns {undefined}
-   */
-  static crash(node, message, error, run) {
-    // eslint-disable-next-line no-param-reassign
-    node.innerHTML = crashTemplate({
-      run,
-      message,
-      stack: error && error.stack
-    });
-    const detailsButton = node.querySelector('.details-button');
-    detailsButton.addEventListener('click', evt => {
-      evt.preventDefault();
-      node
-        .querySelector(`.${XP_APP_BASE_CLASSNAME}`)
-        .classList.toggle('with-details');
-    });
-  }
-
-  /**
-   * Show the crash view.
    * @param  {String} message The error message.
    * @param  {Error} [error]  The error that has been raised.
    * @param  {Object} [run]   The current run.
    * @returns {undefined}
    */
   crash(message, error, run) {
-    this.constructor.crash(this.node, message, error, run);
-  }
-
-  /**
-   * Show the block initialization view.
-   * @param {HTMLElement} node The node where to mount the view.
-   * @param {BlockInfo} blockInfo Information about the block.
-   * @return {Promise} Resolved when the user click/tap on the view.
-   */
-  static initBlock(node, blockInfo) {
-    return new Promise(resolve => {
-      // eslint-disable-next-line no-param-reassign
-      node.innerHTML = blockInitTemplate(blockInfo);
-      const appNode = node.querySelector(`.${XP_APP_BASE_CLASSNAME}`);
-      const listener = evt => {
-        evt.preventDefault();
-        appNode.removeEventListener('click', listener);
-        resolve();
-      };
-      appNode.addEventListener('click', listener);
-    });
+    crash(this.node, message, error, run);
   }
 
   /**
@@ -140,7 +78,7 @@ export default class XpAppBase {
    * @return {Promise} Resolved when the user click/tap on the view.
    */
   initBlock(blockInfo) {
-    return this.constructor.initBlock(this.node, blockInfo).then(res => {
+    return initBlock(this.node, blockInfo).then(res => {
       this.wait();
       return res;
     });
@@ -148,19 +86,15 @@ export default class XpAppBase {
 
   /**
    * Show the end view.
-   * @param {HTMLElement} node The node where to mount the view.
-   * @returns {undefined}
-   */
-  static end(node) {
-    // eslint-disable-next-line no-param-reassign
-    node.innerHTML = endTemplate();
-  }
-
-  /**
-   * Show the end view.
    * @returns {undefined}
    */
   end() {
-    this.constructor.end(this.node);
+    end(this.node);
   }
 }
+
+// Set up static the view handlers as static property of XpAppBase for
+// cjs.
+Object.assign(XpAppBase, { end, initBlock, crash, wait });
+
+export { end, initBlock, crash, wait };

@@ -17,7 +17,8 @@ plugins:
 overrides:
   - files:
       - packages/**/__tests__/**/*.js
-      - "packages/**/*.test.js"
+      - packages/**/*.test.js
+      - packages/**/gulpfile.js      
     env:
       browser: false
       jest: true

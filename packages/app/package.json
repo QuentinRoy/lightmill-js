@@ -11,9 +11,14 @@
     "babel-plugin-external-helpers": "6.22.0",
     "babel-preset-env": "1.6.1",
     "cross-env": "5.1.4",
+    "del": "^3.0.0",
     "eslint": "4.19.1",
     "eslint-config-airbnb-base": "12.1.0",
     "eslint-plugin-import": "2.9.0",
+    "gulp": "^4",
+    "gulp-rename": "^1.2.2",
+    "gulp-rollup-each": "^2.0.2",
+    "gulp-sass": "4",
     "rollup": "0.57.1",
     "rollup-plugin-babel": "3.0.3",
     "rollup-plugin-commonjs": "9.1.0",
@@ -22,12 +27,12 @@
     "rollup-plugin-sass": "0.6.0"
   },
   "dependencies": {
-    "pug-runtime": "^2.0.3"
+    "pug-runtime": "^2.0.4"
   },
   "scripts": {
     "test": "cross-env NODE_ENV=test jest",
     "coverage": "yarn test --coverage",
-    "build": "cross-env NODE_ENV=production rollup --config rollup.config.js",
+    "build": "gulp",
     "prepublish": "npm run build"
   },
   "keywords": [
@@ -49,5 +54,4 @@
       "src/**/*.js"
     ]
   }
-
 }
