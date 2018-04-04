@@ -19,7 +19,7 @@
     "eslint": "4.18.2",
     "eslint-config-airbnb-base": "12.1.0",
     "eslint-plugin-import": "2.9.0",
-    "jest": "22.4.2",
+    "jest": "22.4.3",
     "promise.defer": "1.0.1",
     "rollup": "0.57.1",
     "rollup-plugin-babel": "3.0.3",
