@@ -1,6 +1,7 @@
 /* eslint-disable import/no-extraneous-dependencies */
 import resolve from 'rollup-plugin-node-resolve';
 import commonjs from 'rollup-plugin-commonjs';
+import async from 'rollup-plugin-async';
 import babel from 'rollup-plugin-babel';
 
 export default {
@@ -19,6 +20,7 @@ export default {
   plugins: [
     resolve(),
     commonjs(),
+    async(),
     babel({
       exclude: 'node_modules/**' // only transpile our source code
     })
