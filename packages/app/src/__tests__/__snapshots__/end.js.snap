@@ -1,0 +1,18 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Waiting view can be removed 1`] = `<div />`;
+
+exports[`Waiting view can be shown 1`] = `
+<div>
+  <div
+    class="xp-app-base xp-app-base-end"
+  >
+    <h1>
+      The end
+    </h1>
+    <p>
+      Thank you for your participation.
+    </p>
+  </div>
+</div>
+`;

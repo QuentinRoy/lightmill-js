@@ -1,0 +1,41 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Block view can be removed programmatically 1`] = `<div />`;
+
+exports[`Block view can be shown 1`] = `
+<div>
+  <div
+    class="xp-app-base xp-app-base-block"
+  >
+    <div
+      class="block"
+    >
+      <div
+        class="message"
+      >
+        Time for a break?
+      </div>
+      <h1>
+        Block NaN
+      </h1>
+      <div
+        class="values"
+      >
+        <div
+          class="value"
+        >
+          <val
+            class="factor name"
+          />
+          : 
+          <val
+            class="name"
+          />
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`Block view is removed when clicked 1`] = `<div />`;

@@ -1,0 +1,87 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Waiting view can be removed 1`] = `<div />`;
+
+exports[`Waiting view can be shown 1`] = `
+<div>
+  <div
+    class="xp-app-base xp-app-base-crash"
+  >
+    <div
+      class="banner"
+    >
+      <h1>
+        Something went wrong
+      </h1>
+      <div>
+        Please call your experimenter.
+      </div>
+    </div>
+    <div
+      class="details"
+    >
+      <h3>
+        Run unknown
+      </h3>
+      <h4
+        class="message"
+      >
+        message
+      </h4>
+      <pre
+        class="stack"
+      >
+        err stack
+      </pre>
+    </div>
+    <a
+      class="details-button"
+      href="#"
+    >
+      show details
+    </a>
+  </div>
+</div>
+`;
+
+exports[`Waiting view can display additional details on the error 1`] = `
+<div>
+  <div
+    class="xp-app-base xp-app-base-crash with-details"
+  >
+    <div
+      class="banner"
+    >
+      <h1>
+        Something went wrong
+      </h1>
+      <div>
+        Please call your experimenter.
+      </div>
+    </div>
+    <div
+      class="details"
+    >
+      <h3>
+        Run unknown
+      </h3>
+      <h4
+        class="message"
+      >
+        message
+      </h4>
+      <pre
+        class="stack"
+      >
+        err stack
+      </pre>
+    </div>
+    <a
+      class="details-button"
+      href="#"
+    >
+      show details
+    </a>
+  </div>
+</div>
+`;
