@@ -12,7 +12,6 @@
     "eslint-plugin-import": "2.9.0",
     "eslint-plugin-prettier": "2.6.0",
     "husky": "0.14.3",
-    "jest-transform-pug": "0.1.0",
     "lerna": "2.9.1",
     "prettier": "1.11.1",
     "pug": "2.0.3"
@@ -20,9 +19,9 @@
   "scripts": {
     "build": "lerna run build",
     "postinstall": "yarn build",
-    "lint": "eslint packages",
-    "test": "jest",
-    "coverage": "jest --coverage",
+    "lint": "eslint .",
+    "test": "lerna run test",
+    "coverage": "lerna run coverage",
     "bootstrap": "lerna bootstrap",
     "publish": "lerna publish --conventional-commits",
     "postrewrite": "yarn git-hook",
@@ -37,18 +36,5 @@
   "workspaces": [
     "packages/*"
   ],
-  "dependencies": {},
-  "jest": {
-    "collectCoverageFrom": [
-      "packages/*/esm/**/*.js",
-      "packages/*/src/**/*.js"
-    ],
-    "transform": {
-      "^.+\\.js$": "babel-jest",
-      "\\.(pug)$": "jest-transform-pug"
-    },
-    "moduleNameMapper": {
-      "\\.(css|styl|less|sass|scss)$": "<rootDir>/test-tools/jest-stub-styles.js"
-    }
-  }
+  "dependencies": {}
 }
