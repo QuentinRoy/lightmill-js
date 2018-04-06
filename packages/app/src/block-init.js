@@ -11,21 +11,24 @@ import './views/block-init.scss';
  * @return {Promise} Resolved when the user click/tap on the view.
  */
 export default (node, blockInfo) => {
+  let remove;
   const promise = new Promise(resolve => {
     node.innerHTML = blockInitTemplate(blockInfo);
     const appNode = node.querySelector(`.${XP_APP_BASE_CLASS_NAME}`);
 
     const done = evt => {
       evt.preventDefault();
+      remove();
+    };
+
+    remove = () => {
       appNode.removeEventListener('click', done);
       node.innerHTML = '';
-      resolve(appNode);
+      resolve();
     };
 
     appNode.addEventListener('click', done);
-
-    // Attach the done handler to the returned promise.
-    promise.remove = done;
   });
+  promise.remove = remove;
   return promise;
 };
