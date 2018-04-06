@@ -5,7 +5,7 @@ exports[`Waiting view can be removed 1`] = `<div />`;
 exports[`Waiting view can be shown 1`] = `
 <div>
   <div
-    class="xp-app-base xp-app-base-end"
+    class="lightmill-base-app lightmill-base-app-end"
   >
     <h1>
       The end

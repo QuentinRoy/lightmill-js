@@ -24,7 +24,7 @@ describe('Waiting view', () => {
   });
   it('can display additional details on the error', () => {
     crash(node, 'message', err);
-    simulant.fire(node.querySelector('.details-button'), 'click');
+    simulant.fire(node.querySelector('.lightmill-details-button'), 'click');
     expect(node).toMatchSnapshot();
   });
 });

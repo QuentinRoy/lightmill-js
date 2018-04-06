@@ -18,12 +18,12 @@ export default (node, message, error, run) => {
     message,
     stack: error && error.stack
   });
-  const detailsButton = node.querySelector('.details-button');
+  const detailsButton = node.querySelector('.lightmill-details-button');
   detailsButton.addEventListener('click', evt => {
     evt.preventDefault();
     node
       .querySelector(`.${XP_APP_BASE_CLASS_NAME}`)
-      .classList.toggle('with-details');
+      .classList.toggle('lightmill-with-details');
   });
   return {
     remove() {

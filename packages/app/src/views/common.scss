@@ -1,1 +1,2 @@
-$app-class: xp-app-base;
+$class-prefix: lightmill-;
+$app-class: #{$class-prefix}base-app;

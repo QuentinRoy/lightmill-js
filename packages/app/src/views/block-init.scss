@@ -9,18 +9,18 @@ $practice-background: #079649;
   background-color: $measured-background;
   color: $measured-color;
 
-  &.practice {
+  &.#{$class-prefix}practice {
     background-color: $practice-background;
     color: $practice-color;
   }
 
-  .block {
+  .#{$class-prefix}block {
     margin: 3em 0;
     padding: 2em;
     vertical-align: middle;
     text-align: center;
 
-    .message {
+    .#{$class-prefix}message {
       border-bottom: 5em;
       font-size: 1.5em;
     }
@@ -29,7 +29,7 @@ $practice-background: #079649;
       font-size: 5em;
     }
 
-    .values {
+    .#{$class-prefix}values {
       font-size: 1.5em;
     }
   }

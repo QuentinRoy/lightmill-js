@@ -5,13 +5,13 @@ exports[`Block view can be removed programmatically 1`] = `<div />`;
 exports[`Block view can be shown 1`] = `
 <div>
   <div
-    class="xp-app-base xp-app-base-block"
+    class="lightmill-base-app lightmill-base-app-block"
   >
     <div
-      class="block"
+      class="lightmill-block"
     >
       <div
-        class="message"
+        class="lightmill-message"
       >
         Time for a break?
       </div>
@@ -19,18 +19,12 @@ exports[`Block view can be shown 1`] = `
         Block NaN
       </h1>
       <div
-        class="values"
+        class="lightmill-values"
       >
         <div
-          class="value"
+          class="lightmill-value"
         >
-          <val
-            class="factor name"
-          />
-          : 
-          <val
-            class="name"
-          />
+          mock-factor-name: mock-factor-value-name
         </div>
       </div>
     </div>

@@ -1,18 +1,18 @@
-.xp-app-base.xp-app-base-crash
+.lightmill-base-app.lightmill-base-app-crash
 
-  .banner
+  .lightmill-banner
     h1
       | Something went wrong
 
     div
       | Please call your experimenter.
     
-  .details
+  .lightmill-details
     h3
       | Run #{run ? run.id : 'unknown'}
-    h4.message= message
+    h4.lightmill-message= message
     if stack
-      pre.stack= stack
+      pre.lightmill-stack= stack
   
-  a.details-button(href='#')
+  a.lightmill-details-button(href='#')
     | show details

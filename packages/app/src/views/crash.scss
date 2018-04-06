@@ -13,7 +13,7 @@ $detail-button-color: #000;
   text-align: center;
   color: $color;
 
-  .banner {
+  .#{$class-prefix}banner {
     margin-top: 2em;
     background-color: $banner-background-color;
     padding: 1em;
@@ -24,7 +24,7 @@ $detail-button-color: #000;
     }
   }
 
-  .details {
+  .#{$class-prefix}details {
     display: none;
     margin-top: 5em;
     margin-right: 10%;
@@ -39,18 +39,18 @@ $detail-button-color: #000;
     overflow-x: scroll;
   }
 
-  .details-button {
+  .#{$class-prefix}details-button {
     display: block;
     margin-top: 6em;
     color: $detail-button-color;
   }
 
-  &.with-details {
-    .details-button {
+  &.#{$class-prefix}with-details {
+    .#{$class-prefix}details-button {
       display: none;
     }
 
-    .details {
+    .#{$class-prefix}details {
       display: inherit;
     }
   }

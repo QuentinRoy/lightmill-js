@@ -10,7 +10,7 @@ $animation-name: #{$app-class}-wait-spin;
 .#{$app-class}-wait {
   background-color: $background-color;
 
-  .puck-wrapper {
+  .#{$class-prefix}puck-wrapper {
     position: absolute;
     top: 50%;
     left: 50%;
@@ -20,7 +20,7 @@ $animation-name: #{$app-class}-wait-spin;
     width: $puck-wrapper-size;
     height: $puck-wrapper-size;
 
-    .puck {
+    .#{$class-prefix}puck {
       position: absolute;
       border-radius: $puck-radius;
       background-color: $puck-color;
@@ -28,12 +28,12 @@ $animation-name: #{$app-class}-wait-spin;
       height: $puck-radius * 2;
     }
 
-    .puck-1 {
+    .#{$class-prefix}puck-1 {
       top: 0;
       left: 0;
     }
 
-    .puck-2 {
+    .#{$class-prefix}puck-2 {
       right: 0;
       bottom: 0;
     }

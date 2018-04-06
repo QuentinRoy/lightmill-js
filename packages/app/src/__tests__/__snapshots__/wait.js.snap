@@ -5,16 +5,16 @@ exports[`Waiting view can be removed 1`] = `<div />`;
 exports[`Waiting view can be shown 1`] = `
 <div>
   <div
-    class="xp-app-base xp-app-base-wait"
+    class="lightmill-base-app lightmill-base-app-wait"
   >
     <div
-      class="puck-wrapper"
+      class="lightmill-puck-wrapper"
     >
       <div
-        class="puck puck-1"
+        class="lightmill-puck lightmill-puck-1"
       />
       <div
-        class="puck puck-2"
+        class="lightmill-puck lightmill-puck-2"
       />
     </div>
   </div>

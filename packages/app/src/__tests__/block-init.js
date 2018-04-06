@@ -13,7 +13,9 @@ beforeEach(() => {
       number: 10,
       measuredBlockNum: 5,
       practice: false,
-      factorValues: [{ factor: { name: 'factor' }, name: 'factor-value' }]
+      factorValues: [
+        { factor: { name: 'mock-factor-name' }, name: 'mock-factor-value-name' }
+      ]
     });
 });
 
@@ -30,7 +32,7 @@ describe('Block view', () => {
 
   it('is removed when clicked', async () => {
     createView();
-    await simulant.fire(node.querySelector('.xp-app-base'), 'click');
+    await simulant.fire(node.querySelector('.lightmill-base-app'), 'click');
     expect(node).toMatchSnapshot();
   });
 
@@ -59,7 +61,7 @@ describe('Block view', () => {
     await new Promise(resolve => setTimeout(resolve, 0));
     expect(resolved).toBe(false);
 
-    await simulant.fire(node.querySelector('.xp-app-base'), 'click');
+    await simulant.fire(node.querySelector('.lightmill-base-app'), 'click');
     expect(resolved).toBe(true);
   });
 });

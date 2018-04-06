@@ -1,10 +1,10 @@
-.xp-app-base.xp-app-base-block(class=practice?'practice':'')
-  .block
+.lightmill-base-app.lightmill-base-app-block(class=practice?'lightmill-practice':'')
+  .lightmill-block
     if subjectiveAssessment
-      .message
+      .lightmill-message
         | Please give your subjective assessment.
     else if number !== 0
-      .message
+      .lightmill-message
         | Time for a break?
 
     h1
@@ -13,7 +13,9 @@
       else
         | Block #{measuredBlockNumber + 1}
 
-    .values
+    .lightmill-values
       each val in factorValues
-        .value
-          | #[val.factor.name]: #[val.name]
+        .lightmill-value
+          = val.factor.name
+          | :
+          = " " + val.name
