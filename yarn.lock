@@ -3317,7 +3317,7 @@ jest-snapshot@^22.4.3:
     natural-compare "^1.4.0"
     pretty-format "^22.4.3"
 
-jest-transform-pug@^0.1.0:
+jest-transform-pug@0.1.0:
   version "0.1.0"
   resolved "https://registry.yarnpkg.com/jest-transform-pug/-/jest-transform-pug-0.1.0.tgz#d40330b1a0762dd860be9e6e45c2e95b9fb03784"
 
@@ -4968,7 +4968,7 @@ rimraf@2, rimraf@^2.2.8, rimraf@^2.5.1, rimraf@^2.5.2, rimraf@^2.5.4, rimraf@^2.
   dependencies:
     glob "^7.0.5"
 
-rollup-plugin-async@^1.2.0:
+rollup-plugin-async@1.2.0:
   version "1.2.0"
   resolved "https://registry.yarnpkg.com/rollup-plugin-async/-/rollup-plugin-async-1.2.0.tgz#f95fdd29f8b6f2332b5a89a9d64ee8087b12b249"
   dependencies:
@@ -5130,7 +5130,7 @@ signal-exit@^3.0.0, signal-exit@^3.0.2:
   version "3.0.2"
   resolved "https://registry.yarnpkg.com/signal-exit/-/signal-exit-3.0.2.tgz#b5fdc08f1287ea1178628e415e25132b73646c6d"
 
-simulant@^0.2.2:
+simulant@0.2.2:
   version "0.2.2"
   resolved "https://registry.yarnpkg.com/simulant/-/simulant-0.2.2.tgz#f1bce52712b6a7a0da38ddfdda7e83b20b1da01e"
 
