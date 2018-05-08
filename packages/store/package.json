@@ -1,0 +1,24 @@
+{
+  "name": "@lightmill/store",
+  "version": "0.1.0",
+  "description": "Store handling the results of a lightmill experiment.",
+  "main": "dist/lightmill-store.js",
+  "repository": "https://github.com/QuentinRoy/lightmill-js/tree/master/packages/store",
+  "author": "Quentin Roy <quentin@quentinroy.fr>",
+  "license": "MIT",
+  "private": false,
+  "devDependencies": {
+    "babel-core": "^6.26.3",
+    "babel-plugin-transform-object-rest-spread": "^6.26.0",
+    "babel-preset-env": "^1.6.1",
+    "cross-env": "^5.1.4",
+    "jest": "^23.4.2",
+    "pouchdb": "^7.0.0",
+    "pouchdb-adapter-memory": "^7.0.0"
+  },
+  "scripts": {
+    "test": "cross-env NODE_ENV=test jest",
+    "coverage": "yarn run test --coverage"
+  },
+  "peerDependencies": {}
+}
