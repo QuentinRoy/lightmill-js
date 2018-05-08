@@ -48,8 +48,11 @@ describe('runTrials', () => {
     const app = { runTrial: jest.fn(() => trialPromises.shift()) };
     const prom = runTrials(connection, app);
     trialDefers[0].resolve({ res: 1 });
-    trialDefers[1].resolve({ res: 2 });
     postDefers[0].resolve();
+    trialDefers[1].resolve({ res: 2 });
+    // We wait before rejecting to leave opportunity for the next trial to start
+    // before the rejection.
+    await wait();
     postDefers[1].reject(new Error('test error'));
     await expect(prom).rejects.toThrow(
       'Could not post trial results: test error'
