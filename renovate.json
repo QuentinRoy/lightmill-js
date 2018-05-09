@@ -11,11 +11,15 @@
   "packageRules": [
     {
       "packagePatterns": ["eslint"],
-      "groupName": "eslint"
+      "groupName": "lint"
     },
     {
-      "packagePatterns": ["rollup"],
-      "groupName": "rollup"
+      "packagePatterns": ["rollup", "babel"],
+      "groupName": "build"
+    },
+    {
+      "packagePatterns": ["jest", "simulant"],
+      "groupName": "tests"
     }
   ]
 }
