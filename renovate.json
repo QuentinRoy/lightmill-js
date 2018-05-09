@@ -10,12 +10,16 @@
   ],
   "packageRules": [
     {
-      "packagePatterns": ["eslint"],
-      "groupName": "eslint"
+      "packagePatterns": ["eslint", "commitlint", "lerna"],
+      "groupName": "ci"
     },
     {
-      "packagePatterns": ["rollup"],
-      "groupName": "rollup"
+      "packagePatterns": ["rollup", "babel"],
+      "groupName": "build"
+    },
+    {
+      "packagePatterns": ["jest", "simulant"],
+      "groupName": "tests"
     }
   ]
 }
