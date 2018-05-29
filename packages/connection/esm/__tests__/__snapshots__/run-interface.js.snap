@@ -7,6 +7,12 @@ exports[`RunInterface #flush is delegated on the queue 1`] = `
       42,
     ],
   ],
+  "results": Array [
+    Object {
+      "isThrow": false,
+      "value": Promise {},
+    },
+  ],
 }
 `;
 
@@ -25,6 +31,12 @@ exports[`RunInterface #postResults posts the results sequentially 1`] = `
         "token": "token",
       },
     ],
+  ],
+  "results": Array [
+    Object {
+      "isThrow": false,
+      "value": Promise {},
+    },
   ],
 }
 `;
@@ -56,6 +68,16 @@ exports[`RunInterface #postResults posts the results sequentially 2`] = `
         "token": "token",
       },
     ],
+  ],
+  "results": Array [
+    Object {
+      "isThrow": false,
+      "value": Promise {},
+    },
+    Object {
+      "isThrow": false,
+      "value": Promise {},
+    },
   ],
 }
 `;
@@ -100,6 +122,20 @@ exports[`RunInterface #postResults posts the results sequentially 3`] = `
       },
     ],
   ],
+  "results": Array [
+    Object {
+      "isThrow": false,
+      "value": Promise {},
+    },
+    Object {
+      "isThrow": false,
+      "value": Promise {},
+    },
+    Object {
+      "isThrow": false,
+      "value": Promise {},
+    },
+  ],
 }
 `;
 
@@ -119,6 +155,12 @@ exports[`RunInterface #postResults properly posts the measures 1`] = `
       },
     ],
   ],
+  "results": Array [
+    Object {
+      "isThrow": false,
+      "value": Promise {},
+    },
+  ],
 }
 `;
 
@@ -128,6 +170,12 @@ exports[`checkExperimentAndImportIfNeeded checks for an experiment on the server
     Array [
       "xp",
     ],
+  ],
+  "results": Array [
+    Object {
+      "isThrow": false,
+      "value": Promise {},
+    },
   ],
 }
 `;
@@ -141,6 +189,12 @@ exports[`checkExperimentAndImportIfNeeded checks for an experiment on the server
       "http://host.path:1234/design.xml",
     ],
   ],
+  "results": Array [
+    Object {
+      "isThrow": false,
+      "value": Promise {},
+    },
+  ],
 }
 `;
 
@@ -150,6 +204,12 @@ exports[`checkExperimentAndImportIfNeeded fails without trying to import if it i
     Array [
       "xp",
     ],
+  ],
+  "results": Array [
+    Object {
+      "isThrow": false,
+      "value": Promise {},
+    },
   ],
 }
 `;
@@ -164,6 +224,12 @@ exports[`connectToRun properly locks, ask for run's plan and for run's current t
       "runid",
     ],
   ],
+  "results": Array [
+    Object {
+      "isThrow": false,
+      "value": Promise {},
+    },
+  ],
 }
 `;
 
@@ -174,6 +240,12 @@ exports[`connectToRun properly locks, ask for run's plan and for run's current t
       "xpid",
       "runid",
     ],
+  ],
+  "results": Array [
+    Object {
+      "isThrow": false,
+      "value": Promise {},
+    },
   ],
 }
 `;
@@ -186,6 +258,12 @@ exports[`connectToRun properly locks, ask for run's plan and for run's current t
       "runid",
     ],
   ],
+  "results": Array [
+    Object {
+      "isThrow": false,
+      "value": Promise {},
+    },
+  ],
 }
 `;
 
@@ -195,6 +273,12 @@ exports[`selectRun asks for an available run if no run is provided 1`] = `
     Array [
       "xpid",
     ],
+  ],
+  "results": Array [
+    Object {
+      "isThrow": false,
+      "value": Promise {},
+    },
   ],
 }
 `;
@@ -206,6 +290,12 @@ exports[`selectRun asks for the specified run if it is provided 1`] = `
       "xpid",
       "runid",
     ],
+  ],
+  "results": Array [
+    Object {
+      "isThrow": false,
+      "value": Promise {},
+    },
   ],
 }
 `;

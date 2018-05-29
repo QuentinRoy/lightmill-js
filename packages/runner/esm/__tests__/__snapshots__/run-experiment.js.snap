@@ -28,6 +28,12 @@ exports[`runExperiment calls \`app.crash\` then throws if runTrials goes wrong 1
             "calls": Array [
               Array [],
             ],
+            "results": Array [
+              Object {
+                "isThrow": false,
+                "value": Promise {},
+              },
+            ],
           },
           "mockName": "connection",
         },
@@ -42,6 +48,28 @@ exports[`runExperiment calls \`app.crash\` then throws if runTrials goes wrong 1
       "runTrials rejection",
       [Error: runTrials error],
     ],
+  ],
+  "results": Array [
+    Object {
+      "isThrow": false,
+      "value": undefined,
+    },
+    Object {
+      "isThrow": false,
+      "value": undefined,
+    },
+    Object {
+      "isThrow": false,
+      "value": undefined,
+    },
+    Object {
+      "isThrow": false,
+      "value": undefined,
+    },
+    Object {
+      "isThrow": false,
+      "value": undefined,
+    },
   ],
 }
 `;
@@ -81,10 +109,22 @@ exports[`runExperiment runs as expected if every app handlers are provided 1`] =
             "calls": Array [
               Array [],
             ],
+            "results": Array [
+              Object {
+                "isThrow": false,
+                "value": Promise {},
+              },
+            ],
           },
           "getRun": [MockFunction] {
             "calls": Array [
               Array [],
+            ],
+            "results": Array [
+              Object {
+                "isThrow": false,
+                "value": Promise {},
+              },
             ],
           },
           "mockName": "connection",
@@ -94,6 +134,12 @@ exports[`runExperiment runs as expected if every app handlers are provided 1`] =
             "calls": Array [
               Array [],
             ],
+            "results": Array [
+              Object {
+                "isThrow": false,
+                "value": null,
+              },
+            ],
           },
           "initBlock": [MockFunction],
           "mockName": "app",
@@ -101,6 +147,12 @@ exports[`runExperiment runs as expected if every app handlers are provided 1`] =
           "start": [MockFunction] {
             "calls": Array [
               Array [],
+            ],
+            "results": Array [
+              Object {
+                "isThrow": false,
+                "value": Promise {},
+              },
             ],
           },
         },
@@ -127,6 +179,52 @@ exports[`runExperiment runs as expected if every app handlers are provided 1`] =
       "app.end",
       Array [],
     ],
+  ],
+  "results": Array [
+    Object {
+      "isThrow": false,
+      "value": undefined,
+    },
+    Object {
+      "isThrow": false,
+      "value": undefined,
+    },
+    Object {
+      "isThrow": false,
+      "value": undefined,
+    },
+    Object {
+      "isThrow": false,
+      "value": undefined,
+    },
+    Object {
+      "isThrow": false,
+      "value": undefined,
+    },
+    Object {
+      "isThrow": false,
+      "value": undefined,
+    },
+    Object {
+      "isThrow": false,
+      "value": undefined,
+    },
+    Object {
+      "isThrow": false,
+      "value": undefined,
+    },
+    Object {
+      "isThrow": false,
+      "value": undefined,
+    },
+    Object {
+      "isThrow": false,
+      "value": undefined,
+    },
+    Object {
+      "isThrow": false,
+      "value": undefined,
+    },
   ],
 }
 `;
@@ -158,10 +256,22 @@ exports[`runExperiment works properly even if only \`app.runTrial\` is provided 
             "calls": Array [
               Array [],
             ],
+            "results": Array [
+              Object {
+                "isThrow": false,
+                "value": Promise {},
+              },
+            ],
           },
           "getRun": [MockFunction] {
             "calls": Array [
               Array [],
+            ],
+            "results": Array [
+              Object {
+                "isThrow": false,
+                "value": Promise {},
+              },
             ],
           },
           "mockName": "connection",
@@ -189,6 +299,40 @@ exports[`runExperiment works properly even if only \`app.runTrial\` is provided 
       "connection.disconnect resolution",
       undefined,
     ],
+  ],
+  "results": Array [
+    Object {
+      "isThrow": false,
+      "value": undefined,
+    },
+    Object {
+      "isThrow": false,
+      "value": undefined,
+    },
+    Object {
+      "isThrow": false,
+      "value": undefined,
+    },
+    Object {
+      "isThrow": false,
+      "value": undefined,
+    },
+    Object {
+      "isThrow": false,
+      "value": undefined,
+    },
+    Object {
+      "isThrow": false,
+      "value": undefined,
+    },
+    Object {
+      "isThrow": false,
+      "value": undefined,
+    },
+    Object {
+      "isThrow": false,
+      "value": undefined,
+    },
   ],
 }
 `;

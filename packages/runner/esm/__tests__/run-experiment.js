@@ -174,7 +174,7 @@ describe('runExperiment', () => {
     expect(spyGroup.all).toMatchSnapshot();
   });
 
-  it('calls app.crash then throws for any possible things that can go wrong.');
+  it.skip('calls app.crash then throws for any possible things that can go wrong.', () => {});
 
-  it('creates a RunInterface using stored run id if none are provided');
+  it.skip('creates a RunInterface using stored run id if none are provided', () => {});
 });
