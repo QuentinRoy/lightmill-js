@@ -5,6 +5,12 @@ exports[`isExperimentLoadedOnServer checks if the experiment is available on the
   "calls": Array [
     Array [],
   ],
+  "results": Array [
+    Object {
+      "isThrow": false,
+      "value": Promise {},
+    },
+  ],
 }
 `;
 
@@ -13,6 +19,16 @@ exports[`isExperimentLoadedOnServer checks if the experiment is available on the
   "calls": Array [
     Array [],
     Array [],
+  ],
+  "results": Array [
+    Object {
+      "isThrow": false,
+      "value": Promise {},
+    },
+    Object {
+      "isThrow": false,
+      "value": Promise {},
+    },
   ],
 }
 `;
