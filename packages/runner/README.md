@@ -20,4 +20,4 @@ LightMill runner exports one function: `runExperiment(app, config)`:
 - `config.runId` (optional): The identifier of a potential target run.
 - `config.serverAddr` (default: hostname:5000): The address of the server .
 - `config.experimentDesignAddr` (optional): The path toward an experiment design file to be imported into the server if the experiment has not been loaded yet.
-- `config.queueSize` (default: 1): The maximum number of pending trial result posts before starting a new trial. More parallel posts means that there is less change the user will be waiting before a trial starts, but also increases the number of trials that might be lost in case a trial fails to be recorded.
+- `config.queueSize` (default: 1): The maximum number of pending trial result posts before starting a new trial. More parallel posts means that there is less change the user will be waiting before a trial starts, but also increases the number of trials that might be lost in case a trial makes the app to crash.
