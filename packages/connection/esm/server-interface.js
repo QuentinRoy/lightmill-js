@@ -57,7 +57,8 @@ const jsonThrowingFetch = (...args) =>
 function getApiAddress(serverAddress, apiPath) {
   if (typeof apiPath === 'string') {
     return [serverAddress, apiPath].join('/');
-  } else if (apiPath) {
+  }
+  if (apiPath) {
     return [serverAddress, ...apiPath].join('/');
   }
   return serverAddress;
