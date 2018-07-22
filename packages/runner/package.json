@@ -6,13 +6,14 @@
   "module": "esm/index",
   "files": [
     "dist",
-    "esm",
-    "!**/__tests__"
+    "esm/**/!(*.test|*.spec).js"
   ],
   "devDependencies": {
     "array-range": "1.0.1",
     "babel-plugin-external-helpers": "6.22.0",
+    "babel-plugin-transform-async-generator-functions": "^6.24.1",
     "babel-plugin-transform-es2015-modules-commonjs": "6.26.2",
+    "babel-plugin-transform-object-rest-spread": "^6.26.0",
     "babel-plugin-transform-runtime": "6.23.0",
     "babel-preset-env": "1.7.0",
     "cross-env": "5.2.0",
@@ -29,7 +30,6 @@
     "wait-then": "0.1.2"
   },
   "dependencies": {
-    "@lightmill/connection": "^2.0.0",
     "babel-runtime": "^6.25.0"
   },
   "scripts": {
@@ -49,5 +49,6 @@
     "collectCoverageFrom": [
       "esm/**/*.js"
     ]
-  }
+  },
+  "private": true
 }

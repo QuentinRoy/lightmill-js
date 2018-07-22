@@ -12,7 +12,6 @@ export default {
     file: './dist/lightmill-runner.js',
     sourcemap: true,
     globals: {
-      '@lightmill/connection': 'LightMillConnection',
       'babel-runtime/regenerator': 'regeneratorRuntime'
     }
   },
@@ -24,5 +23,5 @@ export default {
       exclude: 'node_modules/**' // only transpile our source code
     })
   ],
-  external: ['babel-runtime/regenerator', '@lightmill/connection']
+  external: ['babel-runtime/regenerator']
 };
