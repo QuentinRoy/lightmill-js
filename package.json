@@ -30,7 +30,7 @@
     "commitmsg": "commitlint -e $GIT_PARAMS"
   },
   "devEngines": {
-    "node": ">= 7.x",
+    "node": ">= 8.x",
     "npm": ">= 4.x <= 5.x"
   },
   "workspaces": [
