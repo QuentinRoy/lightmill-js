@@ -74,8 +74,12 @@ function askServer(address, options = {}) {
   const fetchOptions = Object.assign({ cache: 'no-cache' }, options, {
     headers
   });
+  // Make sure there is no cache on devices that ignores 'no-cache'.
+  const finalAddress = `${address}${
+    address.includes('?') ? '&' : '?'
+  }__reqTime=${Date.now()}}`;
   // Fetch.
-  return jsonThrowingFetch(address, fetchOptions);
+  return jsonThrowingFetch(finalAddress, fetchOptions);
 }
 
 // Send data to a server.
