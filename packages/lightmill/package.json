@@ -8,6 +8,6 @@
   "author": "Quentin Roy <quentin@quentinroy.fr>",
   "license": "MIT",
   "description": "LightMill is a framework used to manage, run and log user experiments.",
-  "version": "2.0.0-1",
+  "version": "2.0.1",
   "repository": "https://github.com/QuentinRoy/lightmill-js/tree/master/packages/lightmill"
 }

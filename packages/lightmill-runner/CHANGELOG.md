@@ -1,7 +1,15 @@
 # Change Log
 
 All notable changes to this project will be documented in this file.
-See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
+See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
+
+<a name="2.0.1"></a>
+## [2.0.1](https://github.com/QuentinRoy/lightmill-js/tree/master/packages/lightmill-connection/compare/v2.0.0...v2.0.1) (2018-07-31)
+
+
+
+
+**Note:** Version bump only for package lightmill-runner
 
 <a name="2.0.0-3"></a>
 # 2.0.0-3 (2017-08-08)

@@ -1,6 +1,6 @@
 {
   "name": "lightmill-connection",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Interface to LightMill's server.",
   "main": "lib/lightmill-connection.js",
   "module": "src/index",
