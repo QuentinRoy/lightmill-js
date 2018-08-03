@@ -19,6 +19,7 @@
     "eslint": "5.2.0",
     "eslint-config-airbnb-base": "13.0.0",
     "eslint-plugin-import": "2.13.0",
+    "jest": "23.4.2",
     "promise.defer": "1.0.1",
     "rollup": "0.63.4",
     "rollup-plugin-async": "1.2.0",
@@ -29,8 +30,7 @@
   },
   "dependencies": {
     "babel-runtime": "^6.25.0",
-    "deep-freeze": "0.0.1",
-    "jest": "^23.0.0",
+    "deep-freeze": "^0.0.1",
     "unfetch": "^3.0.0"
   },
   "scripts": {
