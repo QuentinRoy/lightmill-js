@@ -7,10 +7,10 @@ export default {
   input: 'esm/index.js',
   output: {
     format: 'umd',
-    name: 'LightMillStaticDesign',
-    file: './dist/lightmill-static-design.js',
+    name: 'LightMillConvertTouchstone',
+    file: './dist/lightmill-convert-touchstone.js',
     sourcemap: true,
-    exports: 'named'
+    globals: { sax: 'sax' }
   },
   plugins: [
     resolve(),
@@ -18,5 +18,6 @@ export default {
     babel({
       exclude: 'node_modules/**' // only transpile our source code
     })
-  ]
+  ],
+  external: ['sax']
 };

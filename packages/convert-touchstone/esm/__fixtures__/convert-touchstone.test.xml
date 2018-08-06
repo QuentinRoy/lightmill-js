@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<experiment author="Quentin Roy" description="Some useless text"
+    id="test" name="Test">
+    <factor id="factorInt" kind="key" name="UselessName"
+        tag="Within Subject" type="Integer">
+        <value id="1" name=""/>
+        <value id="2" name=""/>
+    </factor>
+    <factor id="factorFloat" kind="key" name="UselessOtherName"
+        tag="Within Subject" type="Float">
+        <value id=".5" name=""/>
+        <value id="10.254" name=""/>
+    </factor>
+    <factor id="factorString" kind="key" name="" tag="Within Subject" type="String">
+        <value id="foo" name=""/>
+        <value id="bar" name=""/>
+    </factor>
+    <run id="S0">
+        <setup class="SetUptest"/>
+        <practice class="DefaultBlockClass">
+            <trial values="factorInt=2,factorFloat=10.254,factorString=foo"/>
+            <trial values="factorInt=1,factorFloat=10.254,factorString=bar"/>
+        </practice>
+        <practice class="DefaultBlockClass" values="factorInt=2">
+            <trial values="factorFloat=10.254,factorString=bar"/>
+            <trial values="factorFloat=10.254,factorString=foo"/>
+        </practice>
+        <block class="DefaultBlockClass" number="1" total="2" values="factorInt=2">
+            <trial number="0" total="4" values="factorFloat=.5,factorString=foo"/>
+            <trial number="1" total="4" values="factorFloat=10.254,factorString=foo"/>
+            <trial number="2" total="4" values="factorFloat=.5,factorString=bar"/>
+            <trial number="3" total="4" values="factorFloat=10.254,factorString=bar"/>
+        </block>
+        <practice class="DefaultBlockClass" values="factorInt=1">
+            <trial values="factorFloat=10.254,factorString=bar"/>
+            <trial values="factorFloat=10.254,factorString=foo"/>
+        </practice>
+        <block class="DefaultBlockClass" number="2" total="2" values="factorInt=1">
+            <trial number="0" total="4" values="factorFloat=10.254,factorString=bar"/>
+            <trial number="1" total="4" values="factorFloat=10.254,factorString=foo"/>
+            <trial number="2" total="4" values="factorFloat=.5,factorString=bar"/>
+            <trial number="3" total="4" values="factorFloat=.5,factorString=foo"/>
+        </block>
+    </run>
+    <run id="S1">
+        <setup class="SetUptest"/>
+        <practice class="DefaultBlockClass">
+            <trial values="factorInt=2,factorFloat=.5,factorString=foo"/>
+            <trial values="factorInt=2,factorFloat=10.254,factorString=foo"/>
+        </practice>
+        <practice class="DefaultBlockClass" values="factorInt=1">
+            <trial values="factorFloat=10.254,factorString=foo"/>
+            <trial values="factorFloat=10.254,factorString=bar"/>
+        </practice>
+        <block class="DefaultBlockClass" number="1" total="2" values="factorInt=1">
+            <trial number="0" total="4" values="factorFloat=.5,factorString=bar"/>
+            <trial number="1" total="4" values="factorFloat=.5,factorString=foo"/>
+            <trial number="2" total="4" values="factorFloat=10.254,factorString=foo"/>
+            <trial number="3" total="4" values="factorFloat=10.254,factorString=bar"/>
+        </block>
+        <practice class="DefaultBlockClass" values="factorInt=2">
+            <trial values="factorFloat=10.254,factorString=bar"/>
+            <trial values="factorFloat=.5,factorString=foo"/>
+        </practice>
+        <block class="DefaultBlockClass" number="2" total="2" values="factorInt=2">
+            <trial number="0" total="4" values="factorFloat=10.254,factorString=bar"/>
+            <trial number="1" total="4" values="factorFloat=.5,factorString=bar"/>
+            <trial number="2" total="4" values="factorFloat=.5,factorString=foo"/>
+            <trial number="3" total="4" values="factorFloat=10.254,factorString=foo"/>
+        </block>
+    </run>
+</experiment>
