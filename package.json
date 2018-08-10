@@ -33,6 +33,11 @@
     "node": ">= 8.x",
     "npm": ">= 4.x <= 5.x"
   },
+  "ignoreChanges": [
+    "**/__fixtures__/**",
+    "**/__tests__/**",
+    "**/*.md"
+  ],
   "workspaces": [
     "packages/*"
   ],

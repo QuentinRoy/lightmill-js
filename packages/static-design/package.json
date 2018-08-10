@@ -1,12 +1,12 @@
 {
   "name": "@lightmill/static-design",
-  "version": "0.1.0",
+  "version": "3.0.0-alpha.0",
   "description": "Control the flow of trials based on a static design.",
   "main": "dist/lightmill-static-design.js",
   "repository": "https://github.com/QuentinRoy/lightmill-js/tree/master/packages/store",
   "author": "Quentin Roy <quentin@quentinroy.fr>",
   "license": "MIT",
-  "dependencies": {},
+  "access": "public",
   "devDependencies": {
     "babel-core": "^6.26.3",
     "babel-plugin-transform-object-rest-spread": "^6.26.0",
