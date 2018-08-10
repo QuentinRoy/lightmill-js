@@ -1,6 +1,6 @@
 # @lightmill/convert-touchstone
 
-Convert a touchstone XML design file as produce by the [touchstone](https://www.lri.fr/%7Eappert/website/touchstone/touchstone.html)'s [design platform](https://github.com/jdfekete/touchstone-platforms/tree/master/design-platform) to a format that can be directly provided to [@lightmill/static-design](../static-design).
+Convert a touchstone XML design file as produce by [touchstone](https://www.lri.fr/%7Eappert/website/touchstone/touchstone.html)'s [design platform](https://github.com/jdfekete/touchstone-platforms/tree/master/design-platform) to a format that can be directly provided to [@lightmill/static-design](../static-design).
 
 ## Install
 
@@ -20,7 +20,7 @@ Note: You might not need to install @lightmill/convert-touchstone, [`npx`](https
 lightmill-convert-touchstone <input-file>
 ```
 
-Or (if you do not need to install it and prefer to use `npx`).
+Or (if you do not need to install it and prefer to use `npx`):
 
 ```sh
 npx @lightmill/convert-touchstone <input-file>
@@ -28,7 +28,7 @@ npx @lightmill/convert-touchstone <input-file>
 
 ## API
 
-### convertTouchstone(touchStoneXML, [options], [blockStartupTask], [trialTask]) ⇒ <code>Promise.&lt;object&gt;</code>
+### convertTouchstone(touchStoneXML, [options]) ⇒ <code>Promise.&lt;object&gt;</code>
 **Returns**: <code>Promise.&lt;object&gt;</code> - The experimental design converted into a format
 supported by @lightmill/static-design.
 
