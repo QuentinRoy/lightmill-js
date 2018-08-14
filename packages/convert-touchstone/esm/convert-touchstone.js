@@ -32,10 +32,10 @@ const typeParsers = {
 /**
  * @param {String|stream.Readable} touchStoneXML The XML to parse.
  * @param {object} [options] Options
- * @param {string} [options.blockStartupTask='block-startup'] The type of the
+ * @param {string} [options.blockStartupType='block-startup'] The type of the
  * task to insert at each block startup. Set to null to disable block startup
  * tasks.
- * @param {string} [options.trialTask='trial'] The type of trial's task.
+ * @param {string} [options.trialType='trial'] The type of trial's task.
  * @return {Promise<object>} The experimental design converted into a format
  * supported by @lightmill/static-design.
  */

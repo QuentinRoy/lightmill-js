@@ -36,5 +36,5 @@ supported by @lightmill/static-design.
 | --- | --- | --- | --- |
 | touchStoneXML | <code>String</code> \| <code>stream.Readable</code> |  | The XML to parse. |
 | [options] | <code>object</code> |  | Options |
-| [options.blockStartupTask] | <code>string</code> | <code>&quot;&#x27;block-startup&#x27;&quot;</code> | The type of the task to insert at each block startup. Set to null to disable block startup tasks. |
-| [options.trialTask] | <code>string</code> | <code>&quot;&#x27;trial&#x27;&quot;</code> | The type of trial's task. |
+| [options.blockStartupType] | <code>string</code> | <code>&quot;&#x27;block-startup&#x27;&quot;</code> | The type of the task to insert at each block startup. Set to null to disable block startup tasks. |
+| [options.trialType] | <code>string</code> | <code>&quot;&#x27;trial&#x27;&quot;</code> | The type of trial's task. |
