@@ -7,9 +7,9 @@ const wait = t =>
 
 test('reduceAsyncIterator', async () => {
   async function* gen() {
-    yield 0;
-    await wait(0);
     yield 1;
+    await wait(0);
+    yield 2;
     await wait(0);
     yield 4;
     await wait(0);
@@ -17,14 +17,14 @@ test('reduceAsyncIterator', async () => {
   }
   // Without init.
   await expect(reduceAsyncIterator(gen(), (acc, v) => acc + v)).resolves.toBe(
-    14
+    16
   );
   // With init.
   await expect(
     reduceAsyncIterator(gen(), (acc, v, i) => [...acc, { v, i }], [])
   ).resolves.toEqual([
-    { v: 0, i: 0 },
-    { v: 1, i: 1 },
+    { v: 1, i: 0 },
+    { v: 2, i: 1 },
     { v: 4, i: 2 },
     { v: 9, i: 3 }
   ]);
@@ -38,8 +38,8 @@ test('reduceAsyncIterator', async () => {
       []
     )
   ).resolves.toEqual([
-    { v: 0, i: 0 },
-    { v: 1, i: 1 },
+    { v: 1, i: 0 },
+    { v: 2, i: 1 },
     { v: 4, i: 2 },
     { v: 9, i: 3 }
   ]);
