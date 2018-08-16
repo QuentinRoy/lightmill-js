@@ -54,7 +54,7 @@ describe('Runner#start', () => {
       taskIterator: genTasks(),
       store,
       taskManager
-    }).start();
+    }).run();
     expect(taskManager.mock.calls).toEqual([
       [{ id: 'task1', callIndex: 0 }],
       [{ id: 'task2', callIndex: 3 }],
