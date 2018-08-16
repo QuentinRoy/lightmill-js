@@ -1,7 +1,7 @@
 import { reduceAsyncIterator } from './utils';
 
 export default ({ store, taskIterator, taskManager }) => ({
-  start: () => {
+  run: () => {
     const taskLogger = store.getLogger('task');
     return reduceAsyncIterator(
       taskIterator,
