@@ -1,26 +1,11 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`Runner#start calls the taskManager for each tasks, and log the result 1`] = `
+exports[`Runner#start calls the taskManager for each tasks, and log the result: store.complete 1`] = `
 [MockFunction] {
   "calls": Array [
-    Array [
-      Object {
-        "i": 1,
-        "id": "task2",
-      },
-    ],
-    Array [
-      Object {
-        "i": 4,
-        "id": "task3",
-      },
-    ],
+    Array [],
   ],
   "results": Array [
-    Object {
-      "isThrow": false,
-      "value": Promise {},
-    },
     Object {
       "isThrow": false,
       "value": Promise {},
@@ -29,7 +14,64 @@ exports[`Runner#start calls the taskManager for each tasks, and log the result 1
 }
 `;
 
-exports[`Runner#start calls the taskManager for each tasks, and log the result 2`] = `
+exports[`Runner#start calls the taskManager for each tasks, and log the result: store.getLogger 1`] = `
+[MockFunction] {
+  "calls": Array [
+    Array [
+      "task",
+    ],
+  ],
+  "results": Array [
+    Object {
+      "isThrow": false,
+      "value": Object {
+        "log": [MockFunction] {
+          "calls": Array [
+            Array [
+              "task2",
+              Object {
+                "measures": Object {
+                  "i": 2,
+                  "result": "result-task2",
+                },
+                "task": Object {
+                  "i": 1,
+                  "id": "task2",
+                },
+              },
+            ],
+            Array [
+              "task3",
+              Object {
+                "measures": Object {
+                  "i": 5,
+                  "result": "result-task3",
+                },
+                "task": Object {
+                  "i": 4,
+                  "id": "task3",
+                },
+              },
+            ],
+          ],
+          "results": Array [
+            Object {
+              "isThrow": false,
+              "value": Promise {},
+            },
+            Object {
+              "isThrow": false,
+              "value": Promise {},
+            },
+          ],
+        },
+      },
+    },
+  ],
+}
+`;
+
+exports[`Runner#start calls the taskManager for each tasks, and log the result: taskLogger.log 1`] = `
 [MockFunction] {
   "calls": Array [
     Array [
@@ -72,12 +114,27 @@ exports[`Runner#start calls the taskManager for each tasks, and log the result 2
 }
 `;
 
-exports[`Runner#start calls the taskManager for each tasks, and log the result 3`] = `
+exports[`Runner#start calls the taskManager for each tasks, and log the result: taskManager 1`] = `
 [MockFunction] {
   "calls": Array [
-    Array [],
+    Array [
+      Object {
+        "i": 1,
+        "id": "task2",
+      },
+    ],
+    Array [
+      Object {
+        "i": 4,
+        "id": "task3",
+      },
+    ],
   ],
   "results": Array [
+    Object {
+      "isThrow": false,
+      "value": Promise {},
+    },
     Object {
       "isThrow": false,
       "value": Promise {},

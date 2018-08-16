@@ -8,7 +8,8 @@ const wait = t =>
 describe('Runner#start', () => {
   let genTasks;
   let taskManager;
-  let logger;
+  let store;
+  let taskLogger;
 
   beforeEach(() => {
     // i is used to make sure all functions are called in the right order,
@@ -31,11 +32,16 @@ describe('Runner#start', () => {
       await wait(0);
       return { result: `result-${task.id}`, i: getCallNb() };
     });
-    logger = {
+    taskLogger = {
       log: jest.fn(async () => {
         await wait(0);
         return { i: getCallNb() };
-      }),
+      })
+    };
+    store = {
+      getLogger: jest.fn(
+        taskType => (taskType === 'task' ? taskLogger : undefined)
+      ),
       complete: jest.fn(async () => {
         await wait(0);
         return { i: getCallNb() };
@@ -46,11 +52,12 @@ describe('Runner#start', () => {
   it('calls the taskManager for each tasks, and log the result', async () => {
     await runner({
       taskIterator: genTasks(),
-      store: logger,
+      store,
       taskManager
     }).start();
-    expect(taskManager).toMatchSnapshot();
-    expect(logger.log).toMatchSnapshot();
-    expect(logger.complete).toMatchSnapshot();
+    expect(store.getLogger).toMatchSnapshot('store.getLogger');
+    expect(taskManager).toMatchSnapshot('taskManager');
+    expect(taskLogger.log).toMatchSnapshot('taskLogger.log');
+    expect(store.complete).toMatchSnapshot('store.complete');
   });
 });
