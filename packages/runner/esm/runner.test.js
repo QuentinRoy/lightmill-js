@@ -7,7 +7,7 @@ const wait = t =>
 
 describe('Runner#start', () => {
   let genTasks;
-  let taskManager;
+  let runTask;
   let store;
   let taskLogger;
 
@@ -28,7 +28,7 @@ describe('Runner#start', () => {
       yield { id: 'task3', callIndex: getCallIndex() };
       await wait(0);
     });
-    taskManager = jest.fn(async task => {
+    runTask = jest.fn(async task => {
       await wait(0);
       return { result: `result-${task.id}`, callIndex: getCallIndex() };
     });
@@ -53,9 +53,9 @@ describe('Runner#start', () => {
     await runner({
       taskIterator: genTasks(),
       store,
-      taskManager
+      runTask
     }).run();
-    expect(taskManager.mock.calls).toEqual([
+    expect(runTask.mock.calls).toEqual([
       [{ id: 'task1', callIndex: 0 }],
       [{ id: 'task2', callIndex: 3 }],
       [{ id: 'task3', callIndex: 6 }]
