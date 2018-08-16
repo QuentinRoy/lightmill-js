@@ -1,19 +1,33 @@
 // eslint-disable-next-line import/prefer-default-export
-export const reduceAsyncIterator = async (iterator, reducer, init) => {
-  let next = await iterator.next();
-  let acc = init;
-  let i = 0;
-  if (init === undefined && !next.done) {
-    acc = next.value;
-    next = await iterator.next();
-    i += 1;
-  }
-  while (!next.done) {
-    // eslint-disable-next-line no-await-in-loop
-    acc = await reducer(acc, next.value, i);
-    // eslint-disable-next-line no-await-in-loop
-    next = await iterator.next();
-    i += 1;
-  }
-  return acc;
+export const asyncReduce = (iterator, reducer, init) => {
+  const next = () => Promise.resolve().then(() => iterator.next());
+
+  const startup =
+    init === undefined
+      ? next().then(r => ({ initAcc: r.value, initIndex: 1 }))
+      : Promise.resolve({ initIndex: 0, initAcc: init });
+
+  const reduceEnd = ({ initAcc, initIndex }) =>
+    next().then(
+      ({ done, value }) =>
+        done
+          ? initAcc
+          : Promise.resolve()
+              .then(() => reducer(initAcc, value, initIndex))
+              .then(acc =>
+                reduceEnd({ initAcc: acc, initIndex: initIndex + 1 })
+              )
+    );
+
+  return startup.then(reduceEnd);
 };
+
+export const asyncForEach = (iterator, callback) =>
+  asyncReduce(
+    iterator,
+    (_, value, index) =>
+      Promise.resolve()
+        .then(() => callback(value, index))
+        .then(() => {}),
+    null
+  );
