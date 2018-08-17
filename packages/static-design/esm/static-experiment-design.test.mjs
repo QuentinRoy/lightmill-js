@@ -1,5 +1,5 @@
-import StaticExperimentDesign from './static-experiment-design';
-import StaticRunDesign from './run-iterator';
+import StaticExperimentDesign from './static-experiment-design.mjs';
+import StaticRunDesign from './run-iterator.mjs';
 
 jest.mock('./run-iterator');
 

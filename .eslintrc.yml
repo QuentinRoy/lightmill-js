@@ -12,12 +12,16 @@ rules:
     - peerDependencies: true
   prettier/prettier: error
   class-methods-use-this: 0
+  import/extensions: 
+    - error
+    - always
+    - ignorePackages: true
 plugins:
   - prettier
 overrides:
   - files:
-      - packages/**/__tests__/**/*.js
-      - "packages/**/*.test.js"
+      - packages/**/__tests__/**/*@(.mjs|.js)
+      - packages/**/*.test@(.mjs|.js)
     env:
       browser: false
       jest: true

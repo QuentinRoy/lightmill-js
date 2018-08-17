@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { promisify } from 'util';
-import convert from './convert-touchstone';
+import convert from './convert-touchstone.mjs';
 
 const TEST_DATA_PATH = path.join(
   __dirname,

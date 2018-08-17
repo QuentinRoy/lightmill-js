@@ -1,4 +1,4 @@
-import RunIterator from './run-iterator';
+import RunIterator from './run-iterator.mjs';
 
 export default experimentalDesign => ({
   /**

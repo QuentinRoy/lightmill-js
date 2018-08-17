@@ -1,4 +1,4 @@
-import runner from './runner';
+import runner from './runner.mjs';
 
 const wait = t =>
   new Promise(resolve => {

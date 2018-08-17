@@ -1,4 +1,4 @@
-import { asyncForEach } from './utils';
+import { asyncForEach } from './utils.mjs';
 
 export default ({ store, taskIterator, runTask }) => ({
   run: () => {

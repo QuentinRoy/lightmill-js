@@ -5,7 +5,7 @@ import babel from 'rollup-plugin-babel';
 import async from 'rollup-plugin-async';
 
 export default {
-  input: 'esm/index.js',
+  input: 'esm/index',
   output: {
     format: 'umd',
     name: 'LightMillRunner',

@@ -2,8 +2,8 @@
   "name": "@lightmill/convert-touchstone",
   "version": "3.0.0-alpha.2",
   "description": "Converts touchstone XML exports to lightmill format.",
-  "main": "dist/lightmill-convert-touchstone.js",
-  "module": "esm/index.js",
+  "main": "dist/lightmill-convert-touchstone",
+  "module": "dist/lightmill-convert-touchstone.mjs",
   "author": "Quentin Roy <quentin@quentinroy.fr>",
   "license": "MIT",
   "access": "public",
@@ -24,7 +24,9 @@
   "scripts": {
     "test": "cross-env NODE_ENV=test jest",
     "coverage": "yarn run test --coverage",
-    "build": "cross-env NODE_ENV=production rollup --config rollup.config.js",
+    "build-esm": "node ../../build-tools/esm-reexport.js -s ./esm/index.mjs -o ./dist/lightmill-convert-touchstone.mjs -nd",
+    "build-umd": "cross-env NODE_ENV=production rollup --config rollup.config.js",
+    "build": "yarn build-esm; yarn build-umd",
     "prepublish": "npm run build"
   },
   "files": [
@@ -34,5 +36,24 @@
   ],
   "bin": {
     "lightmill-convert-touchstone": "./bin/cli.js"
+  },
+  "jest": {
+    "testMatch": [
+      "**/__tests__/**/*.?(m)js?(x)",
+      "**/?(*.)(spec|test).?(m)js?(x)"
+    ],
+    "moduleFileExtensions": [
+      "js",
+      "json",
+      "jsx",
+      "node",
+      "mjs"
+    ],
+    "transform": {
+      "^.+.m?js$": "babel-jest"
+    },
+    "collectCoverageFrom": [
+      "esm/**/*.?(m)js?(x)"
+    ]
   }
 }

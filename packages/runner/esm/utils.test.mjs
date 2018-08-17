@@ -1,4 +1,4 @@
-import { asyncReduce, asyncForEach } from './utils';
+import { asyncReduce, asyncForEach } from './utils.mjs';
 
 let wait;
 let generators;
