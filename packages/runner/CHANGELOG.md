@@ -1,7 +1,33 @@
 # Change Log
 
 All notable changes to this project will be documented in this file.
-See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
+See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
+
+<a name="3.0.0-alpha.2"></a>
+# [3.0.0-alpha.2](https://github.com/QuentinRoy/lightmill-js/tree/master/packages/lightmill-connection/compare/v3.0.0-alpha.1...v3.0.0-alpha.2) (2018-08-17)
+
+
+### Bug Fixes
+
+* **runner:** fix first task always being skipped ([e5f543c](https://github.com/QuentinRoy/lightmill-js/tree/master/packages/lightmill-connection/commit/e5f543c))
+
+
+### Features
+
+* **runner:** new interface for the stores ([b776bbb](https://github.com/QuentinRoy/lightmill-js/tree/master/packages/lightmill-connection/commit/b776bbb))
+* **runner:** refactor runner to remove babel-runtime dependency ([47832c0](https://github.com/QuentinRoy/lightmill-js/tree/master/packages/lightmill-connection/commit/47832c0))
+* **runner:** rename runner.start() to run ([57349c1](https://github.com/QuentinRoy/lightmill-js/tree/master/packages/lightmill-connection/commit/57349c1))
+* **runner:** rename runner's taskManager argument to runTask ([b1fdaf4](https://github.com/QuentinRoy/lightmill-js/tree/master/packages/lightmill-connection/commit/b1fdaf4))
+
+
+### BREAKING CHANGES
+
+* **runner:** runner's taskManager argument  have been rename to runTask
+* **runner:** runner.start has been rename to run.
+* **runner:** Stores do not need to implement `log` anymore but should implement `getLogger(logType)` that returns the corresponding logger instead.
+
+
+
 
 <a name="2.0.0-3"></a>
 # 2.0.0-3 (2017-08-08)

@@ -1,6 +1,6 @@
 {
   "name": "@lightmill/static-design",
-  "version": "3.0.0-alpha.1",
+  "version": "3.0.0-alpha.2",
   "description": "Control the flow of trials based on a static design.",
   "main": "dist/lightmill-static-design.js",
   "repository": "https://github.com/QuentinRoy/lightmill-js/tree/master/packages/store",
