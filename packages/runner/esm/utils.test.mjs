@@ -1,4 +1,4 @@
-import { asyncReduce, asyncForEach } from './utils.mjs';
+import { asyncReduce, asyncForEach, oneShot } from './utils.mjs';
 
 let wait;
 let generators;
@@ -14,7 +14,7 @@ beforeEach(() => {
       const arr = ['a', 'b', 'c', 'd'];
       return arr[Symbol.iterator]();
     },
-    async: async function* gen() {
+    async: async function* async() {
       yield 'a';
       await wait(0);
       yield 'b';
@@ -32,17 +32,17 @@ describeEachSyncs(`asyncReduce with %s iterator`, sync => {
   it('reduces without init', async () => {
     const gen = generators[sync];
     // Without init.
-    await expect(
-      asyncReduce(gen(), (acc, v, i) => `${acc}${v}${i},`)
-    ).resolves.toBe('ab1,c2,d3,');
+    await expect(asyncReduce(gen(), (acc, v) => `${acc}${v},`)).resolves.toBe(
+      'ab,c,d,'
+    );
   });
 
   it('reduces with init', async () => {
     const gen = generators[sync];
     // Without init.
     await expect(
-      asyncReduce(gen(), (acc, v, i) => `${acc}${v}${i},`, 'test:')
-    ).resolves.toBe('test:a0,b1,c2,d3,');
+      asyncReduce(gen(), (acc, v) => `${acc}${v},`, 'test:')
+    ).resolves.toBe('test:a,b,c,d,');
   });
 
   it('waits for async reducers', async () => {
@@ -51,7 +51,7 @@ describeEachSyncs(`asyncReduce with %s iterator`, sync => {
       asyncReduce(
         gen(),
         (acc, v, i) => {
-          const result = `${acc}${v}${i},`;
+          const result = `${acc}${v},`;
           // return asynchronously
           if (i % 2) return wait(0).then(() => result);
           // return synchronously
@@ -59,7 +59,7 @@ describeEachSyncs(`asyncReduce with %s iterator`, sync => {
         },
         'test:'
       )
-    ).resolves.toBe('test:a0,b1,c2,d3,');
+    ).resolves.toBe('test:a,b,c,d,');
   });
 });
 
@@ -68,37 +68,34 @@ describeEachSyncs(`asyncForEach with %s iterator`, sync => {
     const gen = generators[sync];
     const callback = jest.fn();
     await asyncForEach(gen(), callback);
-    expect(callback.mock.calls).toEqual([
-      ['a', 0],
-      ['b', 1],
-      ['c', 2],
-      ['d', 3]
-    ]);
+    expect(callback.mock.calls).toEqual([['a'], ['b'], ['c'], ['d']]);
   });
+
   it('waits for its callback to resolve if it returned a promise', async () => {
     const gen = generators[sync];
     const acc = [];
-    const asyncCallback = (value, i) => {
-      acc.push(`${value}${i}-async-start`);
+    const asyncCallback = value => {
+      acc.push(`${value}-async-start`);
       return wait(0).then(() => {
-        acc.push(`${value}${i}-async-end`);
+        acc.push(`${value}-async-end`);
       });
     };
-    const syncCallback = (value, i) => {
-      acc.push(`${value}${i}-sync`);
+    const syncCallback = value => {
+      acc.push(`${value}-sync`);
     };
     const callback = jest.fn(
-      (value, i) => (i % 2 ? syncCallback(value, i) : asyncCallback(value, i))
+      value =>
+        ['b', 'd'].includes(value) ? syncCallback(value) : asyncCallback(value)
     );
 
     await asyncForEach(gen(), callback);
     expect(acc).toEqual([
-      'a0-async-start',
-      'a0-async-end',
-      'b1-sync',
-      'c2-async-start',
-      'c2-async-end',
-      'd3-sync'
+      'a-async-start',
+      'a-async-end',
+      'b-sync',
+      'c-async-start',
+      'c-async-end',
+      'd-sync'
     ]);
   });
 });

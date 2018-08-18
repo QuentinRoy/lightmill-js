@@ -1,6 +1,6 @@
 import { asyncForEach } from './utils.mjs';
 
-export default ({ store, taskIterator, runTask }) => ({
+const Runner = ({ store, taskIterator, runTask }) => ({
   run: () => {
     const taskLogger = store.getLogger('task');
     const runThenLog = task =>
@@ -12,3 +12,5 @@ export default ({ store, taskIterator, runTask }) => ({
       .then(() => {});
   }
 });
+
+export default Runner;
