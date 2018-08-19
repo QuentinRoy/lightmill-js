@@ -1,0 +1,209 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Runner#run rejects if the logger rejects: task logger 1`] = `
+Object {
+  "log": [MockFunction] {
+    "calls": Array [
+      Array [
+        Object {
+          "measures": Object {
+            "callIndex": 1,
+            "result": "result-task1",
+          },
+          "task": Object {
+            "callIndex": 0,
+            "id": "task1",
+          },
+        },
+        Object {
+          "id": "task1",
+        },
+      ],
+      Array [
+        Object {
+          "measures": Object {
+            "callIndex": 3,
+            "result": "result-task2",
+          },
+          "task": Object {
+            "callIndex": 2,
+            "id": "task2",
+          },
+        },
+        Object {
+          "id": "task2",
+        },
+      ],
+    ],
+    "results": Array [
+      Object {
+        "isThrow": false,
+        "value": Promise {},
+      },
+      Object {
+        "isThrow": false,
+        "value": Promise {},
+      },
+    ],
+  },
+}
+`;
+
+exports[`Runner#run rejects if the logger rejects: throwing logger 1`] = `
+[MockFunction] {
+  "calls": Array [
+    Array [
+      Object {
+        "callIndex": 0,
+        "id": "task1",
+      },
+    ],
+    Array [
+      Object {
+        "callIndex": 2,
+        "id": "task2",
+      },
+    ],
+  ],
+  "results": Array [
+    Object {
+      "isThrow": false,
+      "value": Promise {},
+    },
+    Object {
+      "isThrow": false,
+      "value": Promise {},
+    },
+  ],
+}
+`;
+
+exports[`Runner#run rejects if the taskIterator rejects: task logger 1`] = `
+Object {
+  "log": [MockFunction] {
+    "calls": Array [
+      Array [
+        Object {
+          "measures": Object {
+            "callIndex": 0,
+            "result": "result-task1",
+          },
+          "task": Object {
+            "id": "task1",
+          },
+        },
+        Object {
+          "id": "task1",
+        },
+      ],
+      Array [
+        Object {
+          "measures": Object {
+            "callIndex": 2,
+            "result": "result-task2",
+          },
+          "task": Object {
+            "id": "task2",
+          },
+        },
+        Object {
+          "id": "task2",
+        },
+      ],
+    ],
+    "results": Array [
+      Object {
+        "isThrow": false,
+        "value": Promise {},
+      },
+      Object {
+        "isThrow": false,
+        "value": Promise {},
+      },
+    ],
+  },
+}
+`;
+
+exports[`Runner#run rejects if the taskIterator rejects: throwing task iterator 1`] = `
+[MockFunction] {
+  "calls": Array [
+    Array [
+      Object {
+        "id": "task1",
+      },
+    ],
+    Array [
+      Object {
+        "id": "task2",
+      },
+    ],
+  ],
+  "results": Array [
+    Object {
+      "isThrow": false,
+      "value": Promise {},
+    },
+    Object {
+      "isThrow": false,
+      "value": Promise {},
+    },
+  ],
+}
+`;
+
+exports[`Runner#run rejects if the taskManager rejects: task logger 1`] = `
+Object {
+  "log": [MockFunction] {
+    "calls": Array [
+      Array [
+        Object {
+          "measures": "result-task1",
+          "task": Object {
+            "callIndex": 0,
+            "id": "task1",
+          },
+        },
+        Object {
+          "id": "task1",
+        },
+      ],
+    ],
+    "results": Array [
+      Object {
+        "isThrow": false,
+        "value": Promise {},
+      },
+    ],
+  },
+}
+`;
+
+exports[`Runner#run rejects if the taskManager rejects: throwing run task 1`] = `
+[MockFunction] {
+  "calls": Array [
+    Array [
+      Object {
+        "callIndex": 0,
+        "id": "task1",
+      },
+    ],
+    Array [
+      Object {
+        "callIndex": 2,
+        "id": "task2",
+      },
+    ],
+  ],
+  "results": Array [
+    Object {
+      "isThrow": false,
+      "value": Promise {},
+    },
+    Object {
+      "isThrow": false,
+      "value": Promise {},
+    },
+  ],
+}
+`;

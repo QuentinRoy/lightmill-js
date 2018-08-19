@@ -50,7 +50,9 @@ describe('Runner#run', () => {
   });
 
   it('calls the taskManager for each tasks, and log the result', async () => {
-    await Runner({ taskIterator: genTasks(), store, runTask }).run();
+    await expect(
+      Runner({ taskIterator: genTasks(), store, runTask }).run()
+    ).resolves.toBe(undefined);
     expect(runTask.mock.calls).toEqual([
       [{ id: 'task1', callIndex: 0 }],
       [{ id: 'task2', callIndex: 3 }],
@@ -85,5 +87,49 @@ describe('Runner#run', () => {
     expect(store.complete.mock.results[0].value).resolves.toEqual({
       callIndex: 9
     });
+  });
+
+  it('rejects if the taskManager rejects', async () => {
+    const throwingRunTask = jest.fn(async task => {
+      if (task.id === 'task2') throw new Error('mock error');
+      return `result-${task.id}`;
+    });
+    await expect(
+      Runner({
+        store,
+        runTask: throwingRunTask,
+        taskIterator: genTasks()
+      }).run()
+    ).rejects.toThrow('mock error');
+    expect(throwingRunTask).toMatchSnapshot('throwing run task');
+    expect(taskLogger).toMatchSnapshot('task logger');
+  });
+
+  it('rejects if the logger rejects', async () => {
+    taskLogger = {
+      log: jest.fn(async ({ task }) => {
+        if (task.id === 'task2') throw new Error('mock error');
+      })
+    };
+    await expect(
+      Runner({ store, runTask, taskIterator: genTasks() }).run()
+    ).rejects.toThrow('mock error');
+    expect(runTask).toMatchSnapshot('throwing logger');
+    expect(taskLogger).toMatchSnapshot('task logger');
+  });
+
+  it('rejects if the taskIterator rejects', async () => {
+    genTasks = jest.fn(async function* mockGenTasks() {
+      await wait(0);
+      yield { id: 'task1' };
+      await wait(0);
+      yield { id: 'task2' };
+      throw new Error('mock error');
+    });
+    await expect(
+      Runner({ store, runTask, taskIterator: genTasks() }).run()
+    ).rejects.toThrow('mock error');
+    expect(runTask).toMatchSnapshot('throwing task iterator');
+    expect(taskLogger).toMatchSnapshot('task logger');
   });
 });

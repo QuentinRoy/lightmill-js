@@ -2,6 +2,7 @@ import { asyncReduce, asyncForEach, oneShot } from './utils.mjs';
 
 let wait;
 let generators;
+let throwingGenerators;
 
 beforeEach(() => {
   wait = t =>
@@ -22,6 +23,20 @@ beforeEach(() => {
       yield 'c';
       await wait(0);
       yield 'd';
+    }
+  };
+  throwingGenerators = {
+    sync: async function* syncThatThrows() {
+      yield 'a';
+      await wait(0);
+      yield 'b';
+      await wait(0);
+      throw new Error('mock-generator-error');
+    },
+    async: function* syncThatThrows() {
+      yield 'a';
+      yield 'b';
+      throw new Error('mock-generator-error');
     }
   };
 });
@@ -61,6 +76,41 @@ describeEachSyncs(`asyncReduce with %s iterator`, sync => {
       )
     ).resolves.toBe('test:a,b,c,d,');
   });
+
+  it('rejects if a sync reducers throws', async () => {
+    const gen = generators[sync];
+    const reducer = jest.fn((acc, v) => {
+      if (v === 'c') throw new Error('mock-reducer-error');
+      return `${acc}${v},`;
+    });
+    await expect(asyncReduce(gen(), reducer, 'test:')).rejects.toThrow(
+      'mock-reducer-error'
+    );
+    expect(reducer).toMatchSnapshot();
+  });
+
+  it('rejects if an async reducers throws', async () => {
+    const gen = generators[sync];
+    const reducer = jest.fn((acc, v) =>
+      wait(0).then(() => {
+        if (v === 'c') throw new Error('mock-reducer-error');
+        return `${acc}${v},`;
+      })
+    );
+    await expect(asyncReduce(gen(), reducer, 'test:')).rejects.toThrow(
+      'mock-reducer-error'
+    );
+    expect(reducer).toMatchSnapshot();
+  });
+
+  it('rejects if the iterator throws', async () => {
+    const gen = throwingGenerators[sync];
+    const reducer = jest.fn((acc, v) => `${acc}${v},`, 'test:');
+    await expect(asyncReduce(gen(), reducer, 'test:')).rejects.toThrow(
+      'mock-generator-error'
+    );
+    expect(reducer).toMatchSnapshot();
+  });
 });
 
 describeEachSyncs(`asyncForEach with %s iterator`, sync => {
@@ -97,5 +147,38 @@ describeEachSyncs(`asyncForEach with %s iterator`, sync => {
       'c-async-end',
       'd-sync'
     ]);
+  });
+
+  it('rejects if a sync callback throws', async () => {
+    const gen = generators[sync];
+    const callback = jest.fn(v => {
+      if (v === 'b') throw new Error('mock-callback-error');
+    });
+    await expect(asyncForEach(gen(), callback)).rejects.toThrow(
+      'mock-callback-error'
+    );
+    expect(callback).toMatchSnapshot();
+  });
+
+  it('rejects if an async callback throws', async () => {
+    const gen = generators[sync];
+    const callback = jest.fn(v =>
+      wait(0).then(() => {
+        if (v === 'b') throw new Error('mock-callback-error');
+      })
+    );
+    await expect(asyncForEach(gen(), callback)).rejects.toThrow(
+      'mock-callback-error'
+    );
+    expect(callback).toMatchSnapshot();
+  });
+
+  it('rejects if the iterator throws', async () => {
+    const gen = throwingGenerators[sync];
+    const callback = jest.fn();
+    await expect(asyncReduce(gen(), callback)).rejects.toThrow(
+      'mock-generator-error'
+    );
+    expect(callback).toMatchSnapshot();
   });
 });
