@@ -58,27 +58,27 @@ describe('Runner#run', () => {
     ]);
     expect(taskLogger.log.mock.calls).toEqual([
       [
-        'task1',
         {
           task: { id: 'task1', callIndex: 0 },
           measures: { result: 'result-task1', callIndex: 1 }
-        }
+        },
+        { id: 'task1' }
       ],
       // call 2 should correspond to the above call to logTask
       [
-        'task2',
         {
           task: { id: 'task2', callIndex: 3 },
           measures: { result: 'result-task2', callIndex: 4 }
-        }
+        },
+        { id: 'task2' }
       ],
       // call 5 should correspond to the above call to logTask
       [
-        'task3',
         {
           task: { id: 'task3', callIndex: 6 },
           measures: { result: 'result-task3', callIndex: 7 }
-        }
+        },
+        { id: 'task3' }
       ]
       // call 6 should correspond to the above call to logTask
     ]);

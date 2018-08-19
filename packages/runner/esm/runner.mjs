@@ -5,7 +5,7 @@ const Runner = ({ store, taskIterator, runTask }) => ({
     const taskLogger = store.getLogger('task');
     const runThenLog = task =>
       runTask(task)
-        .then(measures => taskLogger.log(task.id, { task, measures }))
+        .then(measures => taskLogger.log({ task, measures }, { id: task.id }))
         .then(() => {});
     return asyncForEach(taskIterator, runThenLog)
       .then(() => store.complete())
