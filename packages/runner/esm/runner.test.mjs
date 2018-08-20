@@ -1,11 +1,11 @@
-import runner from './runner.mjs';
+import Runner from './runner.mjs';
 
 const wait = t =>
   new Promise(resolve => {
     setTimeout(resolve, t);
   });
 
-describe('Runner#start', () => {
+describe('Runner#run', () => {
   let genTasks;
   let runTask;
   let store;
@@ -50,11 +50,7 @@ describe('Runner#start', () => {
   });
 
   it('calls the taskManager for each tasks, and log the result', async () => {
-    await runner({
-      taskIterator: genTasks(),
-      store,
-      runTask
-    }).run();
+    await Runner({ taskIterator: genTasks(), store, runTask }).run();
     expect(runTask.mock.calls).toEqual([
       [{ id: 'task1', callIndex: 0 }],
       [{ id: 'task2', callIndex: 3 }],
