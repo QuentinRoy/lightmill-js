@@ -8,7 +8,7 @@ export default {
   input: 'esm/index',
   output: {
     format: 'umd',
-    name: 'LightMillRunner',
+    name: 'lightmill.Runner',
     file: './dist/lightmill-runner.js',
     sourcemap: true,
     globals: {

@@ -7,7 +7,7 @@ export default {
   input: 'esm/index',
   output: {
     format: 'umd',
-    name: 'LightMillConvertTouchstone',
+    name: 'lightmill.convertTouchstone',
     file: './dist/lightmill-convert-touchstone.js',
     sourcemap: true,
     globals: { sax: 'sax' }

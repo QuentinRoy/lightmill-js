@@ -4,15 +4,23 @@ Convert a touchstone XML design file as produce by [touchstone](https://www.lri.
 
 ## Install
 
-@lightmill/convert-touchstone requires [nodeJS](https://nodejs.org).
-
-This is how you can install the executable globally:
+### NPM
 
 ```sh
-npm install -g @lightmill/convert-touchstone
+npm install @lightmill/convert-touchstone
 ```
 
 Note: You might not need to install @lightmill/convert-touchstone, [`npx`](https://www.npmjs.com/package/npx) can be used to download and immediately run the program.
+
+### Direct download
+
+Download the latest version then, then in your html file:
+
+```html
+<script src="lightmill-convert-touchstone.js"></script>
+```
+
+The library will be injected in `lightmill.convertTouchstone`.
 
 ## Usage
 

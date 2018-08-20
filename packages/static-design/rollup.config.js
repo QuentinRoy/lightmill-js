@@ -7,7 +7,7 @@ export default {
   input: 'esm/index',
   output: {
     format: 'umd',
-    name: 'LightMillStaticDesign',
+    name: 'lightmill.staticDesign',
     file: './dist/lightmill-static-design.js',
     sourcemap: true,
     exports: 'named'
