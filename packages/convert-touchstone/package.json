@@ -32,7 +32,7 @@
   "files": [
     "dist",
     "bin",
-    "esm/**/!(*.test|*.spec).js"
+    "esm/**/!(*.test|*.spec).?(m)js"
   ],
   "bin": {
     "lightmill-convert-touchstone": "./bin/cli.js"
