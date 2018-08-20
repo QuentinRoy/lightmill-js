@@ -6,7 +6,7 @@
   "module": "dist/lightmill-runner.mjs",
   "files": [
     "dist",
-    "esm/**/!(*.test|*.spec).js"
+    "esm/**/!(*.test|*.spec).?(m)js"
   ],
   "license": "MIT",
   "access": "public",
