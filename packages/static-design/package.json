@@ -1,6 +1,6 @@
 {
   "name": "@lightmill/static-design",
-  "version": "3.0.0-alpha.3",
+  "version": "3.0.0-alpha.4",
   "description": "Control the flow of trials based on a static design.",
   "main": "dist/lightmill-static-design",
   "module": "dist/lightmill-static-design.mjs",
