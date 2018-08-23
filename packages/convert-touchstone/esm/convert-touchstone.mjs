@@ -29,19 +29,74 @@ const typeParsers = {
   string: x => x
 };
 
+const createTaskGetter = mapper => {
+  if (!mapper) {
+    return () => [];
+  }
+  if (typeof mapper === 'string' || mapper instanceof String) {
+    return container => [{ ...container, type: mapper }];
+  }
+  if (typeof mapper === 'function') {
+    return (...args) => createTaskGetter(mapper(...args))(...args);
+  }
+  if (Array.isArray(mapper)) {
+    const getters = mapper.map(createTaskGetter);
+    return (...args) =>
+      getters.reduce((acc, getter) => [...acc, ...getter(...args)], []);
+  }
+  return () => [mapper];
+};
+
 /**
  * @param {String|stream.Readable} touchStoneXML The XML to parse.
  * @param {object} [options] Options
- * @param {string} [options.blockStartupType='block-startup'] The type of the
- * task to insert at each block startup. Set to null to disable block startup
- * tasks.
- * @param {string} [options.trialType='trial'] The type of trial's task.
+ * @param {string|object|array|function} [options.preBlocks] The type of the
+ * task to insert before each block or a function to map the block values to
+ * task(s).
+ * @param {string|object|array|function} [options.postBlocks] The type of the
+ * task to insert after each block or a function to map the block values to
+ * task(s).
+ * @param {string|object|array|function} [options.preRuns] The type of the task
+ * to insert before each run or a function to map the run values to task(s).
+ * @param {string|object|array|function} [options.postRuns] The type of the task
+ * to insert after each run or a function to map the run values to task(s).
+ * @param {string|object|array|function} [options.trials=trial] The type of
+ * the task to insert for each trial or a function to map the trial values
+ * to task(s).
  * @return {Promise<object>} The experimental design converted into a format
  * supported by @lightmill/static-design.
+ *
+ * @example
+ * // Map each run to a task to insert before the trials of the run.
+ * const preRuns = (run, experiment) => ({
+ *   ...run,
+ *   type: 'pre-run'
+ * });
+ * // Mappers can also be strings...
+ * const postRuns = 'post-run';  // This is the same as above.
+ * // ...arrays (if several tasks need to be inserted)...
+ * const preBlocks = [
+ *   { type: 'pre-block-1' },
+ *   { type: 'pre-block-2' }
+ * ];
+ * // ...or functions that returns arrays.
+ * const postBlocks = (block, run, experiment) => [
+ *   { type: 'post-block-1', runId: run.id },
+ *   { ...block , type: 'post-block-2' }
+ *   'post-block-2' // This is the same as above.
+ * ];
+ * convertTouchStone(data, { preBlocks, postBlocks, postRuns, preRuns })
+ *   .then(doSomething);
  */
 const convertTouchstone = (
   touchStoneXML,
-  { blockStartupType = 'block-startup', trialType = 'trial' } = {}
+  {
+    preBlocks = undefined,
+    postBlocks = undefined,
+    preRuns = undefined,
+    postRuns = undefined,
+    trials = 'trial'
+  } = {}
 ) =>
   new Promise((resolve, reject) => {
     const saxParser =
@@ -51,9 +106,17 @@ const convertTouchstone = (
     // Handlers to parse values (initialized using factor types).
     const valueParsers = {};
 
-    let experiment;
-    let currentRun;
-    let currentBlock;
+    const getPreBlockTasks = createTaskGetter(preBlocks);
+    const getPostBlockTasks = createTaskGetter(postBlocks);
+    const getPreRunTasks = createTaskGetter(preRuns);
+    const getPostRunTasks = createTaskGetter(postRuns);
+    const getTrialTasks = createTaskGetter(trials);
+
+    let runs = null;
+    let experiment = null;
+    let currentRun = null;
+    let currentTasks = null;
+    let currentBlock = null;
 
     // Handlers to be called on open tag events.
     const openHandlers = {
@@ -66,12 +129,13 @@ const convertTouchstone = (
       },
       experiment({ attributes: { author, description, id } }) {
         if (experiment) throw new Error('There can only be one experiment tag');
-        experiment = { author, description, id, runs: [] };
+        experiment = { author, description, id };
+        runs = [];
       },
       run({ attributes: { id } }) {
         if (currentRun) throw new Error('Runs cannot be nested');
-        currentRun = { id, tasks: [] };
-        experiment.runs.push(currentRun);
+        currentRun = { id };
+        currentTasks = getPreRunTasks(currentRun, experiment);
       },
       block(blockNode, practice = false) {
         if (currentBlock) throw new Error('Blocks cannot be nested');
@@ -80,17 +144,16 @@ const convertTouchstone = (
           ...parseValues(blockNode.attributes.values, valueParsers),
           ...(practice ? {} : { number: +blockNode.attributes.number })
         };
-        if (blockStartupType) {
-          currentRun.tasks.push({ type: blockStartupType, ...currentBlock });
-        }
+        currentTasks.push(
+          ...getPreBlockTasks(currentBlock, currentRun, experiment)
+        );
       },
       practice(practiceNode) {
         return openHandlers.block(practiceNode, true);
       },
       trial(trialNode) {
-        currentRun.tasks.push({
+        const trial = {
           ...currentBlock,
-          type: trialType,
           ...(currentBlock.practice
             ? {}
             : {
@@ -98,7 +161,8 @@ const convertTouchstone = (
                 blockNumber: +currentBlock.number
               }),
           ...parseValues(trialNode.attributes.values, valueParsers)
-        });
+        };
+        currentTasks.push(...getTrialTasks(trial));
       }
     };
 
@@ -111,12 +175,23 @@ const convertTouchstone = (
       trial() {},
       experiment() {
         if (currentRun) throw new Error('Experiment tag closed before run tag');
-        resolve(experiment);
+        resolve({ ...experiment, runs });
+        experiment = null;
+        runs = null;
+        currentTasks = null;
+        currentBlock = null;
       },
       run() {
+        currentTasks.push(...getPostRunTasks(currentRun, experiment));
+        runs.push({ ...currentRun, tasks: currentTasks });
         currentRun = null;
+        currentBlock = null;
+        currentTasks = null;
       },
       block() {
+        currentTasks.push(
+          ...getPostBlockTasks(currentBlock, currentRun, experiment)
+        );
         currentBlock = null;
       },
       practice(...args) {

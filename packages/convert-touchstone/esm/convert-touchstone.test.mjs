@@ -11,27 +11,80 @@ const TEST_DATA_PATH = path.join(
 const readFile = promisify(fs.readFile);
 
 describe('convert', async () => {
+  let fixture;
+  beforeAll(async () => {
+    fixture = (await readFile(TEST_DATA_PATH)).toString();
+  });
+
   it('accepts read stream as input', async () => {
     await expect(
       convert(fs.createReadStream(TEST_DATA_PATH))
     ).resolves.toMatchSnapshot();
   });
   it('accepts strings as input', async () => {
-    const buffer = await readFile(TEST_DATA_PATH);
-    await expect(convert(buffer.toString())).resolves.toMatchSnapshot();
+    await expect(convert(fixture)).resolves.toMatchSnapshot();
   });
-  it("block and trial's type can be changed", async () => {
+  it('pres, posts, and trials options can be specified as strings', async () => {
     await expect(
-      convert(fs.createReadStream(TEST_DATA_PATH), {
-        blockStartupType: 'mock-block-startup',
-        trialType: 'mock-trial'
+      convert(fixture, {
+        trials: 'mock-trial',
+        preRuns: 'mock-pre-run',
+        postRuns: 'mock-post-run',
+        preBlocks: 'mock-pre-block',
+        postBlocks: 'mock-post-block'
       })
     ).resolves.toMatchSnapshot();
   });
-  it('block startups can be disabled', async () => {
+  it('pres, posts, and trials options can be specified as functions', async () => {
+    let i = -1;
+    const getI = () => {
+      i += 1;
+      return i;
+    };
+    const trials = jest.fn(() => ({ type: 'mock-trial', i: getI() }));
+    const preRuns = jest.fn(() => ({ type: 'mock-pre-run', i: getI() }));
+    const postRuns = jest.fn(() => ({ type: 'mock-post-run', i: getI() }));
+    const preBlocks = jest.fn(() => ({ type: 'mock-pre-block', i: getI() }));
+    const postBlocks = jest.fn(() => ({ type: 'mock-post-block', i: getI() }));
     await expect(
-      convert(fs.createReadStream(TEST_DATA_PATH), {
-        blockStartupType: false
+      convert(fixture, { preRuns, postRuns, preBlocks, postBlocks, trials })
+    ).resolves.toMatchSnapshot();
+    expect(trials).toMatchSnapshot('trials');
+    expect(preRuns).toMatchSnapshot('preRuns');
+    expect(postRuns).toMatchSnapshot('postRuns');
+    expect(preBlocks).toMatchSnapshot('preBlocks');
+    expect(postBlocks).toMatchSnapshot('postBlocks');
+  });
+  it('pres, posts, and trials options can be specified as objects', async () => {
+    await expect(
+      convert(fixture, {
+        trials: { type: 'mock-trial' },
+        preRuns: { type: 'mock-pre-run' },
+        postRuns: { type: 'mock-post-run' },
+        preBlocks: { type: 'mock-pre-block' },
+        postBlocks: { type: 'mock-post-block' }
+      })
+    ).resolves.toMatchSnapshot();
+  });
+  it('pres, posts, and trials can be specified as arrays of objects', async () => {
+    await expect(
+      convert(fixture, {
+        trials: [{ type: 'trial-1' }, { type: 'trial-2' }],
+        preRuns: [{ type: 'pre-run-1' }, { type: 'pre-run-2' }],
+        postRuns: [{ type: 'post-run-1' }, { type: 'post-run-2' }],
+        preBlocks: [{ type: 'pre-block-1' }, { type: 'pre-block-2' }],
+        postBlocks: [{ type: 'post-block-1' }, { type: 'post-block-2' }]
+      })
+    ).resolves.toMatchSnapshot();
+  });
+  it('pres, posts, and trials options can be specified as arrays of strings', async () => {
+    await expect(
+      convert(fixture, {
+        trials: ['trial-1', 'trial-2'],
+        preRuns: ['pre-run-1', 'pre-run-2'],
+        postRuns: ['post-run-1', 'post-run-2'],
+        preBlocks: ['pre-block-1', 'pre-block-2'],
+        postBlocks: ['post-block-1', 'post-block-2']
       })
     ).resolves.toMatchSnapshot();
   });
