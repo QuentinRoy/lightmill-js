@@ -10,10 +10,6 @@ Object {
       "id": "S0",
       "tasks": Array [
         Object {
-          "practice": true,
-          "type": "block-startup",
-        },
-        Object {
           "factorFloat": 10.254,
           "factorInt": 2,
           "factorString": "foo",
@@ -28,11 +24,6 @@ Object {
           "type": "trial",
         },
         Object {
-          "factorInt": 2,
-          "practice": true,
-          "type": "block-startup",
-        },
-        Object {
           "factorFloat": 10.254,
           "factorInt": 2,
           "factorString": "bar",
@@ -45,12 +36,6 @@ Object {
           "factorString": "foo",
           "practice": true,
           "type": "trial",
-        },
-        Object {
-          "factorInt": 2,
-          "number": 1,
-          "practice": false,
-          "type": "block-startup",
         },
         Object {
           "blockNumber": 1,
@@ -89,11 +74,6 @@ Object {
           "type": "trial",
         },
         Object {
-          "factorInt": 1,
-          "practice": true,
-          "type": "block-startup",
-        },
-        Object {
           "factorFloat": 10.254,
           "factorInt": 1,
           "factorString": "bar",
@@ -106,12 +86,6 @@ Object {
           "factorString": "foo",
           "practice": true,
           "type": "trial",
-        },
-        Object {
-          "factorInt": 1,
-          "number": 2,
-          "practice": false,
-          "type": "block-startup",
         },
         Object {
           "blockNumber": 2,
@@ -155,10 +129,6 @@ Object {
       "id": "S1",
       "tasks": Array [
         Object {
-          "practice": true,
-          "type": "block-startup",
-        },
-        Object {
           "factorFloat": 0.5,
           "factorInt": 2,
           "factorString": "foo",
@@ -173,11 +143,6 @@ Object {
           "type": "trial",
         },
         Object {
-          "factorInt": 1,
-          "practice": true,
-          "type": "block-startup",
-        },
-        Object {
           "factorFloat": 10.254,
           "factorInt": 1,
           "factorString": "foo",
@@ -190,12 +155,6 @@ Object {
           "factorString": "bar",
           "practice": true,
           "type": "trial",
-        },
-        Object {
-          "factorInt": 1,
-          "number": 1,
-          "practice": false,
-          "type": "block-startup",
         },
         Object {
           "blockNumber": 1,
@@ -234,11 +193,6 @@ Object {
           "type": "trial",
         },
         Object {
-          "factorInt": 2,
-          "practice": true,
-          "type": "block-startup",
-        },
-        Object {
           "factorFloat": 10.254,
           "factorInt": 2,
           "factorString": "bar",
@@ -251,12 +205,6 @@ Object {
           "factorString": "foo",
           "practice": true,
           "type": "trial",
-        },
-        Object {
-          "factorInt": 2,
-          "number": 2,
-          "practice": false,
-          "type": "block-startup",
         },
         Object {
           "blockNumber": 2,
@@ -310,10 +258,6 @@ Object {
       "id": "S0",
       "tasks": Array [
         Object {
-          "practice": true,
-          "type": "block-startup",
-        },
-        Object {
           "factorFloat": 10.254,
           "factorInt": 2,
           "factorString": "foo",
@@ -328,11 +272,6 @@ Object {
           "type": "trial",
         },
         Object {
-          "factorInt": 2,
-          "practice": true,
-          "type": "block-startup",
-        },
-        Object {
           "factorFloat": 10.254,
           "factorInt": 2,
           "factorString": "bar",
@@ -345,12 +284,6 @@ Object {
           "factorString": "foo",
           "practice": true,
           "type": "trial",
-        },
-        Object {
-          "factorInt": 2,
-          "number": 1,
-          "practice": false,
-          "type": "block-startup",
         },
         Object {
           "blockNumber": 1,
@@ -389,11 +322,6 @@ Object {
           "type": "trial",
         },
         Object {
-          "factorInt": 1,
-          "practice": true,
-          "type": "block-startup",
-        },
-        Object {
           "factorFloat": 10.254,
           "factorInt": 1,
           "factorString": "bar",
@@ -406,12 +334,6 @@ Object {
           "factorString": "foo",
           "practice": true,
           "type": "trial",
-        },
-        Object {
-          "factorInt": 1,
-          "number": 2,
-          "practice": false,
-          "type": "block-startup",
         },
         Object {
           "blockNumber": 2,
@@ -455,10 +377,6 @@ Object {
       "id": "S1",
       "tasks": Array [
         Object {
-          "practice": true,
-          "type": "block-startup",
-        },
-        Object {
           "factorFloat": 0.5,
           "factorInt": 2,
           "factorString": "foo",
@@ -473,11 +391,6 @@ Object {
           "type": "trial",
         },
         Object {
-          "factorInt": 1,
-          "practice": true,
-          "type": "block-startup",
-        },
-        Object {
           "factorFloat": 10.254,
           "factorInt": 1,
           "factorString": "foo",
@@ -490,12 +403,6 @@ Object {
           "factorString": "bar",
           "practice": true,
           "type": "trial",
-        },
-        Object {
-          "factorInt": 1,
-          "number": 1,
-          "practice": false,
-          "type": "block-startup",
         },
         Object {
           "blockNumber": 1,
@@ -534,11 +441,6 @@ Object {
           "type": "trial",
         },
         Object {
-          "factorInt": 2,
-          "practice": true,
-          "type": "block-startup",
-        },
-        Object {
           "factorFloat": 10.254,
           "factorInt": 2,
           "factorString": "bar",
@@ -551,12 +453,6 @@ Object {
           "factorString": "foo",
           "practice": true,
           "type": "trial",
-        },
-        Object {
-          "factorInt": 2,
-          "number": 2,
-          "practice": false,
-          "type": "block-startup",
         },
         Object {
           "blockNumber": 2,
@@ -600,7 +496,7 @@ Object {
 }
 `;
 
-exports[`convert block and trial's type can be changed 1`] = `
+exports[`convert pres, posts, and trials can be specified as arrays of objects 1`] = `
 Object {
   "author": "Quentin Roy",
   "description": "Some useless text",
@@ -610,144 +506,160 @@ Object {
       "id": "S0",
       "tasks": Array [
         Object {
-          "practice": true,
-          "type": "mock-block-startup",
+          "type": "pre-run-1",
         },
         Object {
-          "factorFloat": 10.254,
-          "factorInt": 2,
-          "factorString": "foo",
-          "practice": true,
-          "type": "mock-trial",
+          "type": "pre-run-2",
         },
         Object {
-          "factorFloat": 10.254,
-          "factorInt": 1,
-          "factorString": "bar",
-          "practice": true,
-          "type": "mock-trial",
+          "type": "pre-block-1",
         },
         Object {
-          "factorInt": 2,
-          "practice": true,
-          "type": "mock-block-startup",
+          "type": "pre-block-2",
         },
         Object {
-          "factorFloat": 10.254,
-          "factorInt": 2,
-          "factorString": "bar",
-          "practice": true,
-          "type": "mock-trial",
+          "type": "trial-1",
         },
         Object {
-          "factorFloat": 10.254,
-          "factorInt": 2,
-          "factorString": "foo",
-          "practice": true,
-          "type": "mock-trial",
+          "type": "trial-2",
         },
         Object {
-          "factorInt": 2,
-          "number": 1,
-          "practice": false,
-          "type": "mock-block-startup",
+          "type": "trial-1",
         },
         Object {
-          "blockNumber": 1,
-          "factorFloat": 0.5,
-          "factorInt": 2,
-          "factorString": "foo",
-          "number": 0,
-          "practice": false,
-          "type": "mock-trial",
+          "type": "trial-2",
         },
         Object {
-          "blockNumber": 1,
-          "factorFloat": 10.254,
-          "factorInt": 2,
-          "factorString": "foo",
-          "number": 1,
-          "practice": false,
-          "type": "mock-trial",
+          "type": "post-block-1",
         },
         Object {
-          "blockNumber": 1,
-          "factorFloat": 0.5,
-          "factorInt": 2,
-          "factorString": "bar",
-          "number": 2,
-          "practice": false,
-          "type": "mock-trial",
+          "type": "post-block-2",
         },
         Object {
-          "blockNumber": 1,
-          "factorFloat": 10.254,
-          "factorInt": 2,
-          "factorString": "bar",
-          "number": 3,
-          "practice": false,
-          "type": "mock-trial",
+          "type": "pre-block-1",
         },
         Object {
-          "factorInt": 1,
-          "practice": true,
-          "type": "mock-block-startup",
+          "type": "pre-block-2",
         },
         Object {
-          "factorFloat": 10.254,
-          "factorInt": 1,
-          "factorString": "bar",
-          "practice": true,
-          "type": "mock-trial",
+          "type": "trial-1",
         },
         Object {
-          "factorFloat": 10.254,
-          "factorInt": 1,
-          "factorString": "foo",
-          "practice": true,
-          "type": "mock-trial",
+          "type": "trial-2",
         },
         Object {
-          "factorInt": 1,
-          "number": 2,
-          "practice": false,
-          "type": "mock-block-startup",
+          "type": "trial-1",
         },
         Object {
-          "blockNumber": 2,
-          "factorFloat": 10.254,
-          "factorInt": 1,
-          "factorString": "bar",
-          "number": 0,
-          "practice": false,
-          "type": "mock-trial",
+          "type": "trial-2",
         },
         Object {
-          "blockNumber": 2,
-          "factorFloat": 10.254,
-          "factorInt": 1,
-          "factorString": "foo",
-          "number": 1,
-          "practice": false,
-          "type": "mock-trial",
+          "type": "post-block-1",
         },
         Object {
-          "blockNumber": 2,
-          "factorFloat": 0.5,
-          "factorInt": 1,
-          "factorString": "bar",
-          "number": 2,
-          "practice": false,
-          "type": "mock-trial",
+          "type": "post-block-2",
         },
         Object {
-          "blockNumber": 2,
-          "factorFloat": 0.5,
-          "factorInt": 1,
-          "factorString": "foo",
-          "number": 3,
-          "practice": false,
-          "type": "mock-trial",
+          "type": "pre-block-1",
+        },
+        Object {
+          "type": "pre-block-2",
+        },
+        Object {
+          "type": "trial-1",
+        },
+        Object {
+          "type": "trial-2",
+        },
+        Object {
+          "type": "trial-1",
+        },
+        Object {
+          "type": "trial-2",
+        },
+        Object {
+          "type": "trial-1",
+        },
+        Object {
+          "type": "trial-2",
+        },
+        Object {
+          "type": "trial-1",
+        },
+        Object {
+          "type": "trial-2",
+        },
+        Object {
+          "type": "post-block-1",
+        },
+        Object {
+          "type": "post-block-2",
+        },
+        Object {
+          "type": "pre-block-1",
+        },
+        Object {
+          "type": "pre-block-2",
+        },
+        Object {
+          "type": "trial-1",
+        },
+        Object {
+          "type": "trial-2",
+        },
+        Object {
+          "type": "trial-1",
+        },
+        Object {
+          "type": "trial-2",
+        },
+        Object {
+          "type": "post-block-1",
+        },
+        Object {
+          "type": "post-block-2",
+        },
+        Object {
+          "type": "pre-block-1",
+        },
+        Object {
+          "type": "pre-block-2",
+        },
+        Object {
+          "type": "trial-1",
+        },
+        Object {
+          "type": "trial-2",
+        },
+        Object {
+          "type": "trial-1",
+        },
+        Object {
+          "type": "trial-2",
+        },
+        Object {
+          "type": "trial-1",
+        },
+        Object {
+          "type": "trial-2",
+        },
+        Object {
+          "type": "trial-1",
+        },
+        Object {
+          "type": "trial-2",
+        },
+        Object {
+          "type": "post-block-1",
+        },
+        Object {
+          "type": "post-block-2",
+        },
+        Object {
+          "type": "post-run-1",
+        },
+        Object {
+          "type": "post-run-2",
         },
       ],
     },
@@ -755,144 +667,160 @@ Object {
       "id": "S1",
       "tasks": Array [
         Object {
-          "practice": true,
-          "type": "mock-block-startup",
+          "type": "pre-run-1",
         },
         Object {
-          "factorFloat": 0.5,
-          "factorInt": 2,
-          "factorString": "foo",
-          "practice": true,
-          "type": "mock-trial",
+          "type": "pre-run-2",
         },
         Object {
-          "factorFloat": 10.254,
-          "factorInt": 2,
-          "factorString": "foo",
-          "practice": true,
-          "type": "mock-trial",
+          "type": "pre-block-1",
         },
         Object {
-          "factorInt": 1,
-          "practice": true,
-          "type": "mock-block-startup",
+          "type": "pre-block-2",
         },
         Object {
-          "factorFloat": 10.254,
-          "factorInt": 1,
-          "factorString": "foo",
-          "practice": true,
-          "type": "mock-trial",
+          "type": "trial-1",
         },
         Object {
-          "factorFloat": 10.254,
-          "factorInt": 1,
-          "factorString": "bar",
-          "practice": true,
-          "type": "mock-trial",
+          "type": "trial-2",
         },
         Object {
-          "factorInt": 1,
-          "number": 1,
-          "practice": false,
-          "type": "mock-block-startup",
+          "type": "trial-1",
         },
         Object {
-          "blockNumber": 1,
-          "factorFloat": 0.5,
-          "factorInt": 1,
-          "factorString": "bar",
-          "number": 0,
-          "practice": false,
-          "type": "mock-trial",
+          "type": "trial-2",
         },
         Object {
-          "blockNumber": 1,
-          "factorFloat": 0.5,
-          "factorInt": 1,
-          "factorString": "foo",
-          "number": 1,
-          "practice": false,
-          "type": "mock-trial",
+          "type": "post-block-1",
         },
         Object {
-          "blockNumber": 1,
-          "factorFloat": 10.254,
-          "factorInt": 1,
-          "factorString": "foo",
-          "number": 2,
-          "practice": false,
-          "type": "mock-trial",
+          "type": "post-block-2",
         },
         Object {
-          "blockNumber": 1,
-          "factorFloat": 10.254,
-          "factorInt": 1,
-          "factorString": "bar",
-          "number": 3,
-          "practice": false,
-          "type": "mock-trial",
+          "type": "pre-block-1",
         },
         Object {
-          "factorInt": 2,
-          "practice": true,
-          "type": "mock-block-startup",
+          "type": "pre-block-2",
         },
         Object {
-          "factorFloat": 10.254,
-          "factorInt": 2,
-          "factorString": "bar",
-          "practice": true,
-          "type": "mock-trial",
+          "type": "trial-1",
         },
         Object {
-          "factorFloat": 0.5,
-          "factorInt": 2,
-          "factorString": "foo",
-          "practice": true,
-          "type": "mock-trial",
+          "type": "trial-2",
         },
         Object {
-          "factorInt": 2,
-          "number": 2,
-          "practice": false,
-          "type": "mock-block-startup",
+          "type": "trial-1",
         },
         Object {
-          "blockNumber": 2,
-          "factorFloat": 10.254,
-          "factorInt": 2,
-          "factorString": "bar",
-          "number": 0,
-          "practice": false,
-          "type": "mock-trial",
+          "type": "trial-2",
         },
         Object {
-          "blockNumber": 2,
-          "factorFloat": 0.5,
-          "factorInt": 2,
-          "factorString": "bar",
-          "number": 1,
-          "practice": false,
-          "type": "mock-trial",
+          "type": "post-block-1",
         },
         Object {
-          "blockNumber": 2,
-          "factorFloat": 0.5,
-          "factorInt": 2,
-          "factorString": "foo",
-          "number": 2,
-          "practice": false,
-          "type": "mock-trial",
+          "type": "post-block-2",
         },
         Object {
-          "blockNumber": 2,
-          "factorFloat": 10.254,
-          "factorInt": 2,
-          "factorString": "foo",
-          "number": 3,
-          "practice": false,
-          "type": "mock-trial",
+          "type": "pre-block-1",
+        },
+        Object {
+          "type": "pre-block-2",
+        },
+        Object {
+          "type": "trial-1",
+        },
+        Object {
+          "type": "trial-2",
+        },
+        Object {
+          "type": "trial-1",
+        },
+        Object {
+          "type": "trial-2",
+        },
+        Object {
+          "type": "trial-1",
+        },
+        Object {
+          "type": "trial-2",
+        },
+        Object {
+          "type": "trial-1",
+        },
+        Object {
+          "type": "trial-2",
+        },
+        Object {
+          "type": "post-block-1",
+        },
+        Object {
+          "type": "post-block-2",
+        },
+        Object {
+          "type": "pre-block-1",
+        },
+        Object {
+          "type": "pre-block-2",
+        },
+        Object {
+          "type": "trial-1",
+        },
+        Object {
+          "type": "trial-2",
+        },
+        Object {
+          "type": "trial-1",
+        },
+        Object {
+          "type": "trial-2",
+        },
+        Object {
+          "type": "post-block-1",
+        },
+        Object {
+          "type": "post-block-2",
+        },
+        Object {
+          "type": "pre-block-1",
+        },
+        Object {
+          "type": "pre-block-2",
+        },
+        Object {
+          "type": "trial-1",
+        },
+        Object {
+          "type": "trial-2",
+        },
+        Object {
+          "type": "trial-1",
+        },
+        Object {
+          "type": "trial-2",
+        },
+        Object {
+          "type": "trial-1",
+        },
+        Object {
+          "type": "trial-2",
+        },
+        Object {
+          "type": "trial-1",
+        },
+        Object {
+          "type": "trial-2",
+        },
+        Object {
+          "type": "post-block-1",
+        },
+        Object {
+          "type": "post-block-2",
+        },
+        Object {
+          "type": "post-run-1",
+        },
+        Object {
+          "type": "post-run-2",
         },
       ],
     },
@@ -900,7 +828,7 @@ Object {
 }
 `;
 
-exports[`convert block startups can be disabled 1`] = `
+exports[`convert pres, posts, and trials options can be specified as arrays of strings 1`] = `
 Object {
   "author": "Quentin Roy",
   "description": "Some useless text",
@@ -910,32 +838,116 @@ Object {
       "id": "S0",
       "tasks": Array [
         Object {
+          "id": "S0",
+          "type": "pre-run-1",
+        },
+        Object {
+          "id": "S0",
+          "type": "pre-run-2",
+        },
+        Object {
+          "practice": true,
+          "type": "pre-block-1",
+        },
+        Object {
+          "practice": true,
+          "type": "pre-block-2",
+        },
+        Object {
           "factorFloat": 10.254,
           "factorInt": 2,
           "factorString": "foo",
           "practice": true,
-          "type": "trial",
+          "type": "trial-1",
+        },
+        Object {
+          "factorFloat": 10.254,
+          "factorInt": 2,
+          "factorString": "foo",
+          "practice": true,
+          "type": "trial-2",
         },
         Object {
           "factorFloat": 10.254,
           "factorInt": 1,
           "factorString": "bar",
           "practice": true,
-          "type": "trial",
+          "type": "trial-1",
+        },
+        Object {
+          "factorFloat": 10.254,
+          "factorInt": 1,
+          "factorString": "bar",
+          "practice": true,
+          "type": "trial-2",
+        },
+        Object {
+          "practice": true,
+          "type": "post-block-1",
+        },
+        Object {
+          "practice": true,
+          "type": "post-block-2",
+        },
+        Object {
+          "factorInt": 2,
+          "practice": true,
+          "type": "pre-block-1",
+        },
+        Object {
+          "factorInt": 2,
+          "practice": true,
+          "type": "pre-block-2",
         },
         Object {
           "factorFloat": 10.254,
           "factorInt": 2,
           "factorString": "bar",
           "practice": true,
-          "type": "trial",
+          "type": "trial-1",
+        },
+        Object {
+          "factorFloat": 10.254,
+          "factorInt": 2,
+          "factorString": "bar",
+          "practice": true,
+          "type": "trial-2",
         },
         Object {
           "factorFloat": 10.254,
           "factorInt": 2,
           "factorString": "foo",
           "practice": true,
-          "type": "trial",
+          "type": "trial-1",
+        },
+        Object {
+          "factorFloat": 10.254,
+          "factorInt": 2,
+          "factorString": "foo",
+          "practice": true,
+          "type": "trial-2",
+        },
+        Object {
+          "factorInt": 2,
+          "practice": true,
+          "type": "post-block-1",
+        },
+        Object {
+          "factorInt": 2,
+          "practice": true,
+          "type": "post-block-2",
+        },
+        Object {
+          "factorInt": 2,
+          "number": 1,
+          "practice": false,
+          "type": "pre-block-1",
+        },
+        Object {
+          "factorInt": 2,
+          "number": 1,
+          "practice": false,
+          "type": "pre-block-2",
         },
         Object {
           "blockNumber": 1,
@@ -944,7 +956,16 @@ Object {
           "factorString": "foo",
           "number": 0,
           "practice": false,
-          "type": "trial",
+          "type": "trial-1",
+        },
+        Object {
+          "blockNumber": 1,
+          "factorFloat": 0.5,
+          "factorInt": 2,
+          "factorString": "foo",
+          "number": 0,
+          "practice": false,
+          "type": "trial-2",
         },
         Object {
           "blockNumber": 1,
@@ -953,7 +974,16 @@ Object {
           "factorString": "foo",
           "number": 1,
           "practice": false,
-          "type": "trial",
+          "type": "trial-1",
+        },
+        Object {
+          "blockNumber": 1,
+          "factorFloat": 10.254,
+          "factorInt": 2,
+          "factorString": "foo",
+          "number": 1,
+          "practice": false,
+          "type": "trial-2",
         },
         Object {
           "blockNumber": 1,
@@ -962,7 +992,16 @@ Object {
           "factorString": "bar",
           "number": 2,
           "practice": false,
-          "type": "trial",
+          "type": "trial-1",
+        },
+        Object {
+          "blockNumber": 1,
+          "factorFloat": 0.5,
+          "factorInt": 2,
+          "factorString": "bar",
+          "number": 2,
+          "practice": false,
+          "type": "trial-2",
         },
         Object {
           "blockNumber": 1,
@@ -971,21 +1010,88 @@ Object {
           "factorString": "bar",
           "number": 3,
           "practice": false,
-          "type": "trial",
+          "type": "trial-1",
+        },
+        Object {
+          "blockNumber": 1,
+          "factorFloat": 10.254,
+          "factorInt": 2,
+          "factorString": "bar",
+          "number": 3,
+          "practice": false,
+          "type": "trial-2",
+        },
+        Object {
+          "factorInt": 2,
+          "number": 1,
+          "practice": false,
+          "type": "post-block-1",
+        },
+        Object {
+          "factorInt": 2,
+          "number": 1,
+          "practice": false,
+          "type": "post-block-2",
+        },
+        Object {
+          "factorInt": 1,
+          "practice": true,
+          "type": "pre-block-1",
+        },
+        Object {
+          "factorInt": 1,
+          "practice": true,
+          "type": "pre-block-2",
         },
         Object {
           "factorFloat": 10.254,
           "factorInt": 1,
           "factorString": "bar",
           "practice": true,
-          "type": "trial",
+          "type": "trial-1",
+        },
+        Object {
+          "factorFloat": 10.254,
+          "factorInt": 1,
+          "factorString": "bar",
+          "practice": true,
+          "type": "trial-2",
         },
         Object {
           "factorFloat": 10.254,
           "factorInt": 1,
           "factorString": "foo",
           "practice": true,
-          "type": "trial",
+          "type": "trial-1",
+        },
+        Object {
+          "factorFloat": 10.254,
+          "factorInt": 1,
+          "factorString": "foo",
+          "practice": true,
+          "type": "trial-2",
+        },
+        Object {
+          "factorInt": 1,
+          "practice": true,
+          "type": "post-block-1",
+        },
+        Object {
+          "factorInt": 1,
+          "practice": true,
+          "type": "post-block-2",
+        },
+        Object {
+          "factorInt": 1,
+          "number": 2,
+          "practice": false,
+          "type": "pre-block-1",
+        },
+        Object {
+          "factorInt": 1,
+          "number": 2,
+          "practice": false,
+          "type": "pre-block-2",
         },
         Object {
           "blockNumber": 2,
@@ -994,7 +1100,16 @@ Object {
           "factorString": "bar",
           "number": 0,
           "practice": false,
-          "type": "trial",
+          "type": "trial-1",
+        },
+        Object {
+          "blockNumber": 2,
+          "factorFloat": 10.254,
+          "factorInt": 1,
+          "factorString": "bar",
+          "number": 0,
+          "practice": false,
+          "type": "trial-2",
         },
         Object {
           "blockNumber": 2,
@@ -1003,7 +1118,16 @@ Object {
           "factorString": "foo",
           "number": 1,
           "practice": false,
-          "type": "trial",
+          "type": "trial-1",
+        },
+        Object {
+          "blockNumber": 2,
+          "factorFloat": 10.254,
+          "factorInt": 1,
+          "factorString": "foo",
+          "number": 1,
+          "practice": false,
+          "type": "trial-2",
         },
         Object {
           "blockNumber": 2,
@@ -1012,7 +1136,16 @@ Object {
           "factorString": "bar",
           "number": 2,
           "practice": false,
-          "type": "trial",
+          "type": "trial-1",
+        },
+        Object {
+          "blockNumber": 2,
+          "factorFloat": 0.5,
+          "factorInt": 1,
+          "factorString": "bar",
+          "number": 2,
+          "practice": false,
+          "type": "trial-2",
         },
         Object {
           "blockNumber": 2,
@@ -1021,7 +1154,36 @@ Object {
           "factorString": "foo",
           "number": 3,
           "practice": false,
-          "type": "trial",
+          "type": "trial-1",
+        },
+        Object {
+          "blockNumber": 2,
+          "factorFloat": 0.5,
+          "factorInt": 1,
+          "factorString": "foo",
+          "number": 3,
+          "practice": false,
+          "type": "trial-2",
+        },
+        Object {
+          "factorInt": 1,
+          "number": 2,
+          "practice": false,
+          "type": "post-block-1",
+        },
+        Object {
+          "factorInt": 1,
+          "number": 2,
+          "practice": false,
+          "type": "post-block-2",
+        },
+        Object {
+          "id": "S0",
+          "type": "post-run-1",
+        },
+        Object {
+          "id": "S0",
+          "type": "post-run-2",
         },
       ],
     },
@@ -1029,32 +1191,116 @@ Object {
       "id": "S1",
       "tasks": Array [
         Object {
+          "id": "S1",
+          "type": "pre-run-1",
+        },
+        Object {
+          "id": "S1",
+          "type": "pre-run-2",
+        },
+        Object {
+          "practice": true,
+          "type": "pre-block-1",
+        },
+        Object {
+          "practice": true,
+          "type": "pre-block-2",
+        },
+        Object {
           "factorFloat": 0.5,
           "factorInt": 2,
           "factorString": "foo",
           "practice": true,
-          "type": "trial",
+          "type": "trial-1",
+        },
+        Object {
+          "factorFloat": 0.5,
+          "factorInt": 2,
+          "factorString": "foo",
+          "practice": true,
+          "type": "trial-2",
         },
         Object {
           "factorFloat": 10.254,
           "factorInt": 2,
           "factorString": "foo",
           "practice": true,
-          "type": "trial",
+          "type": "trial-1",
+        },
+        Object {
+          "factorFloat": 10.254,
+          "factorInt": 2,
+          "factorString": "foo",
+          "practice": true,
+          "type": "trial-2",
+        },
+        Object {
+          "practice": true,
+          "type": "post-block-1",
+        },
+        Object {
+          "practice": true,
+          "type": "post-block-2",
+        },
+        Object {
+          "factorInt": 1,
+          "practice": true,
+          "type": "pre-block-1",
+        },
+        Object {
+          "factorInt": 1,
+          "practice": true,
+          "type": "pre-block-2",
         },
         Object {
           "factorFloat": 10.254,
           "factorInt": 1,
           "factorString": "foo",
           "practice": true,
-          "type": "trial",
+          "type": "trial-1",
+        },
+        Object {
+          "factorFloat": 10.254,
+          "factorInt": 1,
+          "factorString": "foo",
+          "practice": true,
+          "type": "trial-2",
         },
         Object {
           "factorFloat": 10.254,
           "factorInt": 1,
           "factorString": "bar",
           "practice": true,
-          "type": "trial",
+          "type": "trial-1",
+        },
+        Object {
+          "factorFloat": 10.254,
+          "factorInt": 1,
+          "factorString": "bar",
+          "practice": true,
+          "type": "trial-2",
+        },
+        Object {
+          "factorInt": 1,
+          "practice": true,
+          "type": "post-block-1",
+        },
+        Object {
+          "factorInt": 1,
+          "practice": true,
+          "type": "post-block-2",
+        },
+        Object {
+          "factorInt": 1,
+          "number": 1,
+          "practice": false,
+          "type": "pre-block-1",
+        },
+        Object {
+          "factorInt": 1,
+          "number": 1,
+          "practice": false,
+          "type": "pre-block-2",
         },
         Object {
           "blockNumber": 1,
@@ -1063,7 +1309,16 @@ Object {
           "factorString": "bar",
           "number": 0,
           "practice": false,
-          "type": "trial",
+          "type": "trial-1",
+        },
+        Object {
+          "blockNumber": 1,
+          "factorFloat": 0.5,
+          "factorInt": 1,
+          "factorString": "bar",
+          "number": 0,
+          "practice": false,
+          "type": "trial-2",
         },
         Object {
           "blockNumber": 1,
@@ -1072,7 +1327,16 @@ Object {
           "factorString": "foo",
           "number": 1,
           "practice": false,
-          "type": "trial",
+          "type": "trial-1",
+        },
+        Object {
+          "blockNumber": 1,
+          "factorFloat": 0.5,
+          "factorInt": 1,
+          "factorString": "foo",
+          "number": 1,
+          "practice": false,
+          "type": "trial-2",
         },
         Object {
           "blockNumber": 1,
@@ -1081,7 +1345,16 @@ Object {
           "factorString": "foo",
           "number": 2,
           "practice": false,
-          "type": "trial",
+          "type": "trial-1",
+        },
+        Object {
+          "blockNumber": 1,
+          "factorFloat": 10.254,
+          "factorInt": 1,
+          "factorString": "foo",
+          "number": 2,
+          "practice": false,
+          "type": "trial-2",
         },
         Object {
           "blockNumber": 1,
@@ -1090,21 +1363,88 @@ Object {
           "factorString": "bar",
           "number": 3,
           "practice": false,
-          "type": "trial",
+          "type": "trial-1",
+        },
+        Object {
+          "blockNumber": 1,
+          "factorFloat": 10.254,
+          "factorInt": 1,
+          "factorString": "bar",
+          "number": 3,
+          "practice": false,
+          "type": "trial-2",
+        },
+        Object {
+          "factorInt": 1,
+          "number": 1,
+          "practice": false,
+          "type": "post-block-1",
+        },
+        Object {
+          "factorInt": 1,
+          "number": 1,
+          "practice": false,
+          "type": "post-block-2",
+        },
+        Object {
+          "factorInt": 2,
+          "practice": true,
+          "type": "pre-block-1",
+        },
+        Object {
+          "factorInt": 2,
+          "practice": true,
+          "type": "pre-block-2",
         },
         Object {
           "factorFloat": 10.254,
           "factorInt": 2,
           "factorString": "bar",
           "practice": true,
-          "type": "trial",
+          "type": "trial-1",
+        },
+        Object {
+          "factorFloat": 10.254,
+          "factorInt": 2,
+          "factorString": "bar",
+          "practice": true,
+          "type": "trial-2",
         },
         Object {
           "factorFloat": 0.5,
           "factorInt": 2,
           "factorString": "foo",
           "practice": true,
-          "type": "trial",
+          "type": "trial-1",
+        },
+        Object {
+          "factorFloat": 0.5,
+          "factorInt": 2,
+          "factorString": "foo",
+          "practice": true,
+          "type": "trial-2",
+        },
+        Object {
+          "factorInt": 2,
+          "practice": true,
+          "type": "post-block-1",
+        },
+        Object {
+          "factorInt": 2,
+          "practice": true,
+          "type": "post-block-2",
+        },
+        Object {
+          "factorInt": 2,
+          "number": 2,
+          "practice": false,
+          "type": "pre-block-1",
+        },
+        Object {
+          "factorInt": 2,
+          "number": 2,
+          "practice": false,
+          "type": "pre-block-2",
         },
         Object {
           "blockNumber": 2,
@@ -1113,7 +1453,16 @@ Object {
           "factorString": "bar",
           "number": 0,
           "practice": false,
-          "type": "trial",
+          "type": "trial-1",
+        },
+        Object {
+          "blockNumber": 2,
+          "factorFloat": 10.254,
+          "factorInt": 2,
+          "factorString": "bar",
+          "number": 0,
+          "practice": false,
+          "type": "trial-2",
         },
         Object {
           "blockNumber": 2,
@@ -1122,7 +1471,16 @@ Object {
           "factorString": "bar",
           "number": 1,
           "practice": false,
-          "type": "trial",
+          "type": "trial-1",
+        },
+        Object {
+          "blockNumber": 2,
+          "factorFloat": 0.5,
+          "factorInt": 2,
+          "factorString": "bar",
+          "number": 1,
+          "practice": false,
+          "type": "trial-2",
         },
         Object {
           "blockNumber": 2,
@@ -1131,7 +1489,16 @@ Object {
           "factorString": "foo",
           "number": 2,
           "practice": false,
-          "type": "trial",
+          "type": "trial-1",
+        },
+        Object {
+          "blockNumber": 2,
+          "factorFloat": 0.5,
+          "factorInt": 2,
+          "factorString": "foo",
+          "number": 2,
+          "practice": false,
+          "type": "trial-2",
         },
         Object {
           "blockNumber": 2,
@@ -1140,7 +1507,1797 @@ Object {
           "factorString": "foo",
           "number": 3,
           "practice": false,
-          "type": "trial",
+          "type": "trial-1",
+        },
+        Object {
+          "blockNumber": 2,
+          "factorFloat": 10.254,
+          "factorInt": 2,
+          "factorString": "foo",
+          "number": 3,
+          "practice": false,
+          "type": "trial-2",
+        },
+        Object {
+          "factorInt": 2,
+          "number": 2,
+          "practice": false,
+          "type": "post-block-1",
+        },
+        Object {
+          "factorInt": 2,
+          "number": 2,
+          "practice": false,
+          "type": "post-block-2",
+        },
+        Object {
+          "id": "S1",
+          "type": "post-run-1",
+        },
+        Object {
+          "id": "S1",
+          "type": "post-run-2",
+        },
+      ],
+    },
+  ],
+}
+`;
+
+exports[`convert pres, posts, and trials options can be specified as functions 1`] = `
+Object {
+  "author": "Quentin Roy",
+  "description": "Some useless text",
+  "id": "test",
+  "runs": Array [
+    Object {
+      "id": "S0",
+      "tasks": Array [
+        Object {
+          "i": 0,
+          "type": "mock-pre-run",
+        },
+        Object {
+          "i": 1,
+          "type": "mock-pre-block",
+        },
+        Object {
+          "i": 2,
+          "type": "mock-trial",
+        },
+        Object {
+          "i": 3,
+          "type": "mock-trial",
+        },
+        Object {
+          "i": 4,
+          "type": "mock-post-block",
+        },
+        Object {
+          "i": 5,
+          "type": "mock-pre-block",
+        },
+        Object {
+          "i": 6,
+          "type": "mock-trial",
+        },
+        Object {
+          "i": 7,
+          "type": "mock-trial",
+        },
+        Object {
+          "i": 8,
+          "type": "mock-post-block",
+        },
+        Object {
+          "i": 9,
+          "type": "mock-pre-block",
+        },
+        Object {
+          "i": 10,
+          "type": "mock-trial",
+        },
+        Object {
+          "i": 11,
+          "type": "mock-trial",
+        },
+        Object {
+          "i": 12,
+          "type": "mock-trial",
+        },
+        Object {
+          "i": 13,
+          "type": "mock-trial",
+        },
+        Object {
+          "i": 14,
+          "type": "mock-post-block",
+        },
+        Object {
+          "i": 15,
+          "type": "mock-pre-block",
+        },
+        Object {
+          "i": 16,
+          "type": "mock-trial",
+        },
+        Object {
+          "i": 17,
+          "type": "mock-trial",
+        },
+        Object {
+          "i": 18,
+          "type": "mock-post-block",
+        },
+        Object {
+          "i": 19,
+          "type": "mock-pre-block",
+        },
+        Object {
+          "i": 20,
+          "type": "mock-trial",
+        },
+        Object {
+          "i": 21,
+          "type": "mock-trial",
+        },
+        Object {
+          "i": 22,
+          "type": "mock-trial",
+        },
+        Object {
+          "i": 23,
+          "type": "mock-trial",
+        },
+        Object {
+          "i": 24,
+          "type": "mock-post-block",
+        },
+        Object {
+          "i": 25,
+          "type": "mock-post-run",
+        },
+      ],
+    },
+    Object {
+      "id": "S1",
+      "tasks": Array [
+        Object {
+          "i": 26,
+          "type": "mock-pre-run",
+        },
+        Object {
+          "i": 27,
+          "type": "mock-pre-block",
+        },
+        Object {
+          "i": 28,
+          "type": "mock-trial",
+        },
+        Object {
+          "i": 29,
+          "type": "mock-trial",
+        },
+        Object {
+          "i": 30,
+          "type": "mock-post-block",
+        },
+        Object {
+          "i": 31,
+          "type": "mock-pre-block",
+        },
+        Object {
+          "i": 32,
+          "type": "mock-trial",
+        },
+        Object {
+          "i": 33,
+          "type": "mock-trial",
+        },
+        Object {
+          "i": 34,
+          "type": "mock-post-block",
+        },
+        Object {
+          "i": 35,
+          "type": "mock-pre-block",
+        },
+        Object {
+          "i": 36,
+          "type": "mock-trial",
+        },
+        Object {
+          "i": 37,
+          "type": "mock-trial",
+        },
+        Object {
+          "i": 38,
+          "type": "mock-trial",
+        },
+        Object {
+          "i": 39,
+          "type": "mock-trial",
+        },
+        Object {
+          "i": 40,
+          "type": "mock-post-block",
+        },
+        Object {
+          "i": 41,
+          "type": "mock-pre-block",
+        },
+        Object {
+          "i": 42,
+          "type": "mock-trial",
+        },
+        Object {
+          "i": 43,
+          "type": "mock-trial",
+        },
+        Object {
+          "i": 44,
+          "type": "mock-post-block",
+        },
+        Object {
+          "i": 45,
+          "type": "mock-pre-block",
+        },
+        Object {
+          "i": 46,
+          "type": "mock-trial",
+        },
+        Object {
+          "i": 47,
+          "type": "mock-trial",
+        },
+        Object {
+          "i": 48,
+          "type": "mock-trial",
+        },
+        Object {
+          "i": 49,
+          "type": "mock-trial",
+        },
+        Object {
+          "i": 50,
+          "type": "mock-post-block",
+        },
+        Object {
+          "i": 51,
+          "type": "mock-post-run",
+        },
+      ],
+    },
+  ],
+}
+`;
+
+exports[`convert pres, posts, and trials options can be specified as functions: postBlocks 1`] = `
+[MockFunction] {
+  "calls": Array [
+    Array [
+      Object {
+        "practice": true,
+      },
+      Object {
+        "id": "S0",
+      },
+      Object {
+        "author": "Quentin Roy",
+        "description": "Some useless text",
+        "id": "test",
+      },
+    ],
+    Array [
+      Object {
+        "factorInt": 2,
+        "practice": true,
+      },
+      Object {
+        "id": "S0",
+      },
+      Object {
+        "author": "Quentin Roy",
+        "description": "Some useless text",
+        "id": "test",
+      },
+    ],
+    Array [
+      Object {
+        "factorInt": 2,
+        "number": 1,
+        "practice": false,
+      },
+      Object {
+        "id": "S0",
+      },
+      Object {
+        "author": "Quentin Roy",
+        "description": "Some useless text",
+        "id": "test",
+      },
+    ],
+    Array [
+      Object {
+        "factorInt": 1,
+        "practice": true,
+      },
+      Object {
+        "id": "S0",
+      },
+      Object {
+        "author": "Quentin Roy",
+        "description": "Some useless text",
+        "id": "test",
+      },
+    ],
+    Array [
+      Object {
+        "factorInt": 1,
+        "number": 2,
+        "practice": false,
+      },
+      Object {
+        "id": "S0",
+      },
+      Object {
+        "author": "Quentin Roy",
+        "description": "Some useless text",
+        "id": "test",
+      },
+    ],
+    Array [
+      Object {
+        "practice": true,
+      },
+      Object {
+        "id": "S1",
+      },
+      Object {
+        "author": "Quentin Roy",
+        "description": "Some useless text",
+        "id": "test",
+      },
+    ],
+    Array [
+      Object {
+        "factorInt": 1,
+        "practice": true,
+      },
+      Object {
+        "id": "S1",
+      },
+      Object {
+        "author": "Quentin Roy",
+        "description": "Some useless text",
+        "id": "test",
+      },
+    ],
+    Array [
+      Object {
+        "factorInt": 1,
+        "number": 1,
+        "practice": false,
+      },
+      Object {
+        "id": "S1",
+      },
+      Object {
+        "author": "Quentin Roy",
+        "description": "Some useless text",
+        "id": "test",
+      },
+    ],
+    Array [
+      Object {
+        "factorInt": 2,
+        "practice": true,
+      },
+      Object {
+        "id": "S1",
+      },
+      Object {
+        "author": "Quentin Roy",
+        "description": "Some useless text",
+        "id": "test",
+      },
+    ],
+    Array [
+      Object {
+        "factorInt": 2,
+        "number": 2,
+        "practice": false,
+      },
+      Object {
+        "id": "S1",
+      },
+      Object {
+        "author": "Quentin Roy",
+        "description": "Some useless text",
+        "id": "test",
+      },
+    ],
+  ],
+  "results": Array [
+    Object {
+      "isThrow": false,
+      "value": Object {
+        "i": 4,
+        "type": "mock-post-block",
+      },
+    },
+    Object {
+      "isThrow": false,
+      "value": Object {
+        "i": 8,
+        "type": "mock-post-block",
+      },
+    },
+    Object {
+      "isThrow": false,
+      "value": Object {
+        "i": 14,
+        "type": "mock-post-block",
+      },
+    },
+    Object {
+      "isThrow": false,
+      "value": Object {
+        "i": 18,
+        "type": "mock-post-block",
+      },
+    },
+    Object {
+      "isThrow": false,
+      "value": Object {
+        "i": 24,
+        "type": "mock-post-block",
+      },
+    },
+    Object {
+      "isThrow": false,
+      "value": Object {
+        "i": 30,
+        "type": "mock-post-block",
+      },
+    },
+    Object {
+      "isThrow": false,
+      "value": Object {
+        "i": 34,
+        "type": "mock-post-block",
+      },
+    },
+    Object {
+      "isThrow": false,
+      "value": Object {
+        "i": 40,
+        "type": "mock-post-block",
+      },
+    },
+    Object {
+      "isThrow": false,
+      "value": Object {
+        "i": 44,
+        "type": "mock-post-block",
+      },
+    },
+    Object {
+      "isThrow": false,
+      "value": Object {
+        "i": 50,
+        "type": "mock-post-block",
+      },
+    },
+  ],
+}
+`;
+
+exports[`convert pres, posts, and trials options can be specified as functions: postRuns 1`] = `
+[MockFunction] {
+  "calls": Array [
+    Array [
+      Object {
+        "id": "S0",
+      },
+      Object {
+        "author": "Quentin Roy",
+        "description": "Some useless text",
+        "id": "test",
+      },
+    ],
+    Array [
+      Object {
+        "id": "S1",
+      },
+      Object {
+        "author": "Quentin Roy",
+        "description": "Some useless text",
+        "id": "test",
+      },
+    ],
+  ],
+  "results": Array [
+    Object {
+      "isThrow": false,
+      "value": Object {
+        "i": 25,
+        "type": "mock-post-run",
+      },
+    },
+    Object {
+      "isThrow": false,
+      "value": Object {
+        "i": 51,
+        "type": "mock-post-run",
+      },
+    },
+  ],
+}
+`;
+
+exports[`convert pres, posts, and trials options can be specified as functions: preBlocks 1`] = `
+[MockFunction] {
+  "calls": Array [
+    Array [
+      Object {
+        "practice": true,
+      },
+      Object {
+        "id": "S0",
+      },
+      Object {
+        "author": "Quentin Roy",
+        "description": "Some useless text",
+        "id": "test",
+      },
+    ],
+    Array [
+      Object {
+        "factorInt": 2,
+        "practice": true,
+      },
+      Object {
+        "id": "S0",
+      },
+      Object {
+        "author": "Quentin Roy",
+        "description": "Some useless text",
+        "id": "test",
+      },
+    ],
+    Array [
+      Object {
+        "factorInt": 2,
+        "number": 1,
+        "practice": false,
+      },
+      Object {
+        "id": "S0",
+      },
+      Object {
+        "author": "Quentin Roy",
+        "description": "Some useless text",
+        "id": "test",
+      },
+    ],
+    Array [
+      Object {
+        "factorInt": 1,
+        "practice": true,
+      },
+      Object {
+        "id": "S0",
+      },
+      Object {
+        "author": "Quentin Roy",
+        "description": "Some useless text",
+        "id": "test",
+      },
+    ],
+    Array [
+      Object {
+        "factorInt": 1,
+        "number": 2,
+        "practice": false,
+      },
+      Object {
+        "id": "S0",
+      },
+      Object {
+        "author": "Quentin Roy",
+        "description": "Some useless text",
+        "id": "test",
+      },
+    ],
+    Array [
+      Object {
+        "practice": true,
+      },
+      Object {
+        "id": "S1",
+      },
+      Object {
+        "author": "Quentin Roy",
+        "description": "Some useless text",
+        "id": "test",
+      },
+    ],
+    Array [
+      Object {
+        "factorInt": 1,
+        "practice": true,
+      },
+      Object {
+        "id": "S1",
+      },
+      Object {
+        "author": "Quentin Roy",
+        "description": "Some useless text",
+        "id": "test",
+      },
+    ],
+    Array [
+      Object {
+        "factorInt": 1,
+        "number": 1,
+        "practice": false,
+      },
+      Object {
+        "id": "S1",
+      },
+      Object {
+        "author": "Quentin Roy",
+        "description": "Some useless text",
+        "id": "test",
+      },
+    ],
+    Array [
+      Object {
+        "factorInt": 2,
+        "practice": true,
+      },
+      Object {
+        "id": "S1",
+      },
+      Object {
+        "author": "Quentin Roy",
+        "description": "Some useless text",
+        "id": "test",
+      },
+    ],
+    Array [
+      Object {
+        "factorInt": 2,
+        "number": 2,
+        "practice": false,
+      },
+      Object {
+        "id": "S1",
+      },
+      Object {
+        "author": "Quentin Roy",
+        "description": "Some useless text",
+        "id": "test",
+      },
+    ],
+  ],
+  "results": Array [
+    Object {
+      "isThrow": false,
+      "value": Object {
+        "i": 1,
+        "type": "mock-pre-block",
+      },
+    },
+    Object {
+      "isThrow": false,
+      "value": Object {
+        "i": 5,
+        "type": "mock-pre-block",
+      },
+    },
+    Object {
+      "isThrow": false,
+      "value": Object {
+        "i": 9,
+        "type": "mock-pre-block",
+      },
+    },
+    Object {
+      "isThrow": false,
+      "value": Object {
+        "i": 15,
+        "type": "mock-pre-block",
+      },
+    },
+    Object {
+      "isThrow": false,
+      "value": Object {
+        "i": 19,
+        "type": "mock-pre-block",
+      },
+    },
+    Object {
+      "isThrow": false,
+      "value": Object {
+        "i": 27,
+        "type": "mock-pre-block",
+      },
+    },
+    Object {
+      "isThrow": false,
+      "value": Object {
+        "i": 31,
+        "type": "mock-pre-block",
+      },
+    },
+    Object {
+      "isThrow": false,
+      "value": Object {
+        "i": 35,
+        "type": "mock-pre-block",
+      },
+    },
+    Object {
+      "isThrow": false,
+      "value": Object {
+        "i": 41,
+        "type": "mock-pre-block",
+      },
+    },
+    Object {
+      "isThrow": false,
+      "value": Object {
+        "i": 45,
+        "type": "mock-pre-block",
+      },
+    },
+  ],
+}
+`;
+
+exports[`convert pres, posts, and trials options can be specified as functions: preRuns 1`] = `
+[MockFunction] {
+  "calls": Array [
+    Array [
+      Object {
+        "id": "S0",
+      },
+      Object {
+        "author": "Quentin Roy",
+        "description": "Some useless text",
+        "id": "test",
+      },
+    ],
+    Array [
+      Object {
+        "id": "S1",
+      },
+      Object {
+        "author": "Quentin Roy",
+        "description": "Some useless text",
+        "id": "test",
+      },
+    ],
+  ],
+  "results": Array [
+    Object {
+      "isThrow": false,
+      "value": Object {
+        "i": 0,
+        "type": "mock-pre-run",
+      },
+    },
+    Object {
+      "isThrow": false,
+      "value": Object {
+        "i": 26,
+        "type": "mock-pre-run",
+      },
+    },
+  ],
+}
+`;
+
+exports[`convert pres, posts, and trials options can be specified as functions: trials 1`] = `
+[MockFunction] {
+  "calls": Array [
+    Array [
+      Object {
+        "factorFloat": 10.254,
+        "factorInt": 2,
+        "factorString": "foo",
+        "practice": true,
+      },
+    ],
+    Array [
+      Object {
+        "factorFloat": 10.254,
+        "factorInt": 1,
+        "factorString": "bar",
+        "practice": true,
+      },
+    ],
+    Array [
+      Object {
+        "factorFloat": 10.254,
+        "factorInt": 2,
+        "factorString": "bar",
+        "practice": true,
+      },
+    ],
+    Array [
+      Object {
+        "factorFloat": 10.254,
+        "factorInt": 2,
+        "factorString": "foo",
+        "practice": true,
+      },
+    ],
+    Array [
+      Object {
+        "blockNumber": 1,
+        "factorFloat": 0.5,
+        "factorInt": 2,
+        "factorString": "foo",
+        "number": 0,
+        "practice": false,
+      },
+    ],
+    Array [
+      Object {
+        "blockNumber": 1,
+        "factorFloat": 10.254,
+        "factorInt": 2,
+        "factorString": "foo",
+        "number": 1,
+        "practice": false,
+      },
+    ],
+    Array [
+      Object {
+        "blockNumber": 1,
+        "factorFloat": 0.5,
+        "factorInt": 2,
+        "factorString": "bar",
+        "number": 2,
+        "practice": false,
+      },
+    ],
+    Array [
+      Object {
+        "blockNumber": 1,
+        "factorFloat": 10.254,
+        "factorInt": 2,
+        "factorString": "bar",
+        "number": 3,
+        "practice": false,
+      },
+    ],
+    Array [
+      Object {
+        "factorFloat": 10.254,
+        "factorInt": 1,
+        "factorString": "bar",
+        "practice": true,
+      },
+    ],
+    Array [
+      Object {
+        "factorFloat": 10.254,
+        "factorInt": 1,
+        "factorString": "foo",
+        "practice": true,
+      },
+    ],
+    Array [
+      Object {
+        "blockNumber": 2,
+        "factorFloat": 10.254,
+        "factorInt": 1,
+        "factorString": "bar",
+        "number": 0,
+        "practice": false,
+      },
+    ],
+    Array [
+      Object {
+        "blockNumber": 2,
+        "factorFloat": 10.254,
+        "factorInt": 1,
+        "factorString": "foo",
+        "number": 1,
+        "practice": false,
+      },
+    ],
+    Array [
+      Object {
+        "blockNumber": 2,
+        "factorFloat": 0.5,
+        "factorInt": 1,
+        "factorString": "bar",
+        "number": 2,
+        "practice": false,
+      },
+    ],
+    Array [
+      Object {
+        "blockNumber": 2,
+        "factorFloat": 0.5,
+        "factorInt": 1,
+        "factorString": "foo",
+        "number": 3,
+        "practice": false,
+      },
+    ],
+    Array [
+      Object {
+        "factorFloat": 0.5,
+        "factorInt": 2,
+        "factorString": "foo",
+        "practice": true,
+      },
+    ],
+    Array [
+      Object {
+        "factorFloat": 10.254,
+        "factorInt": 2,
+        "factorString": "foo",
+        "practice": true,
+      },
+    ],
+    Array [
+      Object {
+        "factorFloat": 10.254,
+        "factorInt": 1,
+        "factorString": "foo",
+        "practice": true,
+      },
+    ],
+    Array [
+      Object {
+        "factorFloat": 10.254,
+        "factorInt": 1,
+        "factorString": "bar",
+        "practice": true,
+      },
+    ],
+    Array [
+      Object {
+        "blockNumber": 1,
+        "factorFloat": 0.5,
+        "factorInt": 1,
+        "factorString": "bar",
+        "number": 0,
+        "practice": false,
+      },
+    ],
+    Array [
+      Object {
+        "blockNumber": 1,
+        "factorFloat": 0.5,
+        "factorInt": 1,
+        "factorString": "foo",
+        "number": 1,
+        "practice": false,
+      },
+    ],
+    Array [
+      Object {
+        "blockNumber": 1,
+        "factorFloat": 10.254,
+        "factorInt": 1,
+        "factorString": "foo",
+        "number": 2,
+        "practice": false,
+      },
+    ],
+    Array [
+      Object {
+        "blockNumber": 1,
+        "factorFloat": 10.254,
+        "factorInt": 1,
+        "factorString": "bar",
+        "number": 3,
+        "practice": false,
+      },
+    ],
+    Array [
+      Object {
+        "factorFloat": 10.254,
+        "factorInt": 2,
+        "factorString": "bar",
+        "practice": true,
+      },
+    ],
+    Array [
+      Object {
+        "factorFloat": 0.5,
+        "factorInt": 2,
+        "factorString": "foo",
+        "practice": true,
+      },
+    ],
+    Array [
+      Object {
+        "blockNumber": 2,
+        "factorFloat": 10.254,
+        "factorInt": 2,
+        "factorString": "bar",
+        "number": 0,
+        "practice": false,
+      },
+    ],
+    Array [
+      Object {
+        "blockNumber": 2,
+        "factorFloat": 0.5,
+        "factorInt": 2,
+        "factorString": "bar",
+        "number": 1,
+        "practice": false,
+      },
+    ],
+    Array [
+      Object {
+        "blockNumber": 2,
+        "factorFloat": 0.5,
+        "factorInt": 2,
+        "factorString": "foo",
+        "number": 2,
+        "practice": false,
+      },
+    ],
+    Array [
+      Object {
+        "blockNumber": 2,
+        "factorFloat": 10.254,
+        "factorInt": 2,
+        "factorString": "foo",
+        "number": 3,
+        "practice": false,
+      },
+    ],
+  ],
+  "results": Array [
+    Object {
+      "isThrow": false,
+      "value": Object {
+        "i": 2,
+        "type": "mock-trial",
+      },
+    },
+    Object {
+      "isThrow": false,
+      "value": Object {
+        "i": 3,
+        "type": "mock-trial",
+      },
+    },
+    Object {
+      "isThrow": false,
+      "value": Object {
+        "i": 6,
+        "type": "mock-trial",
+      },
+    },
+    Object {
+      "isThrow": false,
+      "value": Object {
+        "i": 7,
+        "type": "mock-trial",
+      },
+    },
+    Object {
+      "isThrow": false,
+      "value": Object {
+        "i": 10,
+        "type": "mock-trial",
+      },
+    },
+    Object {
+      "isThrow": false,
+      "value": Object {
+        "i": 11,
+        "type": "mock-trial",
+      },
+    },
+    Object {
+      "isThrow": false,
+      "value": Object {
+        "i": 12,
+        "type": "mock-trial",
+      },
+    },
+    Object {
+      "isThrow": false,
+      "value": Object {
+        "i": 13,
+        "type": "mock-trial",
+      },
+    },
+    Object {
+      "isThrow": false,
+      "value": Object {
+        "i": 16,
+        "type": "mock-trial",
+      },
+    },
+    Object {
+      "isThrow": false,
+      "value": Object {
+        "i": 17,
+        "type": "mock-trial",
+      },
+    },
+    Object {
+      "isThrow": false,
+      "value": Object {
+        "i": 20,
+        "type": "mock-trial",
+      },
+    },
+    Object {
+      "isThrow": false,
+      "value": Object {
+        "i": 21,
+        "type": "mock-trial",
+      },
+    },
+    Object {
+      "isThrow": false,
+      "value": Object {
+        "i": 22,
+        "type": "mock-trial",
+      },
+    },
+    Object {
+      "isThrow": false,
+      "value": Object {
+        "i": 23,
+        "type": "mock-trial",
+      },
+    },
+    Object {
+      "isThrow": false,
+      "value": Object {
+        "i": 28,
+        "type": "mock-trial",
+      },
+    },
+    Object {
+      "isThrow": false,
+      "value": Object {
+        "i": 29,
+        "type": "mock-trial",
+      },
+    },
+    Object {
+      "isThrow": false,
+      "value": Object {
+        "i": 32,
+        "type": "mock-trial",
+      },
+    },
+    Object {
+      "isThrow": false,
+      "value": Object {
+        "i": 33,
+        "type": "mock-trial",
+      },
+    },
+    Object {
+      "isThrow": false,
+      "value": Object {
+        "i": 36,
+        "type": "mock-trial",
+      },
+    },
+    Object {
+      "isThrow": false,
+      "value": Object {
+        "i": 37,
+        "type": "mock-trial",
+      },
+    },
+    Object {
+      "isThrow": false,
+      "value": Object {
+        "i": 38,
+        "type": "mock-trial",
+      },
+    },
+    Object {
+      "isThrow": false,
+      "value": Object {
+        "i": 39,
+        "type": "mock-trial",
+      },
+    },
+    Object {
+      "isThrow": false,
+      "value": Object {
+        "i": 42,
+        "type": "mock-trial",
+      },
+    },
+    Object {
+      "isThrow": false,
+      "value": Object {
+        "i": 43,
+        "type": "mock-trial",
+      },
+    },
+    Object {
+      "isThrow": false,
+      "value": Object {
+        "i": 46,
+        "type": "mock-trial",
+      },
+    },
+    Object {
+      "isThrow": false,
+      "value": Object {
+        "i": 47,
+        "type": "mock-trial",
+      },
+    },
+    Object {
+      "isThrow": false,
+      "value": Object {
+        "i": 48,
+        "type": "mock-trial",
+      },
+    },
+    Object {
+      "isThrow": false,
+      "value": Object {
+        "i": 49,
+        "type": "mock-trial",
+      },
+    },
+  ],
+}
+`;
+
+exports[`convert pres, posts, and trials options can be specified as objects 1`] = `
+Object {
+  "author": "Quentin Roy",
+  "description": "Some useless text",
+  "id": "test",
+  "runs": Array [
+    Object {
+      "id": "S0",
+      "tasks": Array [
+        Object {
+          "type": "mock-pre-run",
+        },
+        Object {
+          "type": "mock-pre-block",
+        },
+        Object {
+          "type": "mock-trial",
+        },
+        Object {
+          "type": "mock-trial",
+        },
+        Object {
+          "type": "mock-post-block",
+        },
+        Object {
+          "type": "mock-pre-block",
+        },
+        Object {
+          "type": "mock-trial",
+        },
+        Object {
+          "type": "mock-trial",
+        },
+        Object {
+          "type": "mock-post-block",
+        },
+        Object {
+          "type": "mock-pre-block",
+        },
+        Object {
+          "type": "mock-trial",
+        },
+        Object {
+          "type": "mock-trial",
+        },
+        Object {
+          "type": "mock-trial",
+        },
+        Object {
+          "type": "mock-trial",
+        },
+        Object {
+          "type": "mock-post-block",
+        },
+        Object {
+          "type": "mock-pre-block",
+        },
+        Object {
+          "type": "mock-trial",
+        },
+        Object {
+          "type": "mock-trial",
+        },
+        Object {
+          "type": "mock-post-block",
+        },
+        Object {
+          "type": "mock-pre-block",
+        },
+        Object {
+          "type": "mock-trial",
+        },
+        Object {
+          "type": "mock-trial",
+        },
+        Object {
+          "type": "mock-trial",
+        },
+        Object {
+          "type": "mock-trial",
+        },
+        Object {
+          "type": "mock-post-block",
+        },
+        Object {
+          "type": "mock-post-run",
+        },
+      ],
+    },
+    Object {
+      "id": "S1",
+      "tasks": Array [
+        Object {
+          "type": "mock-pre-run",
+        },
+        Object {
+          "type": "mock-pre-block",
+        },
+        Object {
+          "type": "mock-trial",
+        },
+        Object {
+          "type": "mock-trial",
+        },
+        Object {
+          "type": "mock-post-block",
+        },
+        Object {
+          "type": "mock-pre-block",
+        },
+        Object {
+          "type": "mock-trial",
+        },
+        Object {
+          "type": "mock-trial",
+        },
+        Object {
+          "type": "mock-post-block",
+        },
+        Object {
+          "type": "mock-pre-block",
+        },
+        Object {
+          "type": "mock-trial",
+        },
+        Object {
+          "type": "mock-trial",
+        },
+        Object {
+          "type": "mock-trial",
+        },
+        Object {
+          "type": "mock-trial",
+        },
+        Object {
+          "type": "mock-post-block",
+        },
+        Object {
+          "type": "mock-pre-block",
+        },
+        Object {
+          "type": "mock-trial",
+        },
+        Object {
+          "type": "mock-trial",
+        },
+        Object {
+          "type": "mock-post-block",
+        },
+        Object {
+          "type": "mock-pre-block",
+        },
+        Object {
+          "type": "mock-trial",
+        },
+        Object {
+          "type": "mock-trial",
+        },
+        Object {
+          "type": "mock-trial",
+        },
+        Object {
+          "type": "mock-trial",
+        },
+        Object {
+          "type": "mock-post-block",
+        },
+        Object {
+          "type": "mock-post-run",
+        },
+      ],
+    },
+  ],
+}
+`;
+
+exports[`convert pres, posts, and trials options can be specified as strings 1`] = `
+Object {
+  "author": "Quentin Roy",
+  "description": "Some useless text",
+  "id": "test",
+  "runs": Array [
+    Object {
+      "id": "S0",
+      "tasks": Array [
+        Object {
+          "id": "S0",
+          "type": "mock-pre-run",
+        },
+        Object {
+          "practice": true,
+          "type": "mock-pre-block",
+        },
+        Object {
+          "factorFloat": 10.254,
+          "factorInt": 2,
+          "factorString": "foo",
+          "practice": true,
+          "type": "mock-trial",
+        },
+        Object {
+          "factorFloat": 10.254,
+          "factorInt": 1,
+          "factorString": "bar",
+          "practice": true,
+          "type": "mock-trial",
+        },
+        Object {
+          "practice": true,
+          "type": "mock-post-block",
+        },
+        Object {
+          "factorInt": 2,
+          "practice": true,
+          "type": "mock-pre-block",
+        },
+        Object {
+          "factorFloat": 10.254,
+          "factorInt": 2,
+          "factorString": "bar",
+          "practice": true,
+          "type": "mock-trial",
+        },
+        Object {
+          "factorFloat": 10.254,
+          "factorInt": 2,
+          "factorString": "foo",
+          "practice": true,
+          "type": "mock-trial",
+        },
+        Object {
+          "factorInt": 2,
+          "practice": true,
+          "type": "mock-post-block",
+        },
+        Object {
+          "factorInt": 2,
+          "number": 1,
+          "practice": false,
+          "type": "mock-pre-block",
+        },
+        Object {
+          "blockNumber": 1,
+          "factorFloat": 0.5,
+          "factorInt": 2,
+          "factorString": "foo",
+          "number": 0,
+          "practice": false,
+          "type": "mock-trial",
+        },
+        Object {
+          "blockNumber": 1,
+          "factorFloat": 10.254,
+          "factorInt": 2,
+          "factorString": "foo",
+          "number": 1,
+          "practice": false,
+          "type": "mock-trial",
+        },
+        Object {
+          "blockNumber": 1,
+          "factorFloat": 0.5,
+          "factorInt": 2,
+          "factorString": "bar",
+          "number": 2,
+          "practice": false,
+          "type": "mock-trial",
+        },
+        Object {
+          "blockNumber": 1,
+          "factorFloat": 10.254,
+          "factorInt": 2,
+          "factorString": "bar",
+          "number": 3,
+          "practice": false,
+          "type": "mock-trial",
+        },
+        Object {
+          "factorInt": 2,
+          "number": 1,
+          "practice": false,
+          "type": "mock-post-block",
+        },
+        Object {
+          "factorInt": 1,
+          "practice": true,
+          "type": "mock-pre-block",
+        },
+        Object {
+          "factorFloat": 10.254,
+          "factorInt": 1,
+          "factorString": "bar",
+          "practice": true,
+          "type": "mock-trial",
+        },
+        Object {
+          "factorFloat": 10.254,
+          "factorInt": 1,
+          "factorString": "foo",
+          "practice": true,
+          "type": "mock-trial",
+        },
+        Object {
+          "factorInt": 1,
+          "practice": true,
+          "type": "mock-post-block",
+        },
+        Object {
+          "factorInt": 1,
+          "number": 2,
+          "practice": false,
+          "type": "mock-pre-block",
+        },
+        Object {
+          "blockNumber": 2,
+          "factorFloat": 10.254,
+          "factorInt": 1,
+          "factorString": "bar",
+          "number": 0,
+          "practice": false,
+          "type": "mock-trial",
+        },
+        Object {
+          "blockNumber": 2,
+          "factorFloat": 10.254,
+          "factorInt": 1,
+          "factorString": "foo",
+          "number": 1,
+          "practice": false,
+          "type": "mock-trial",
+        },
+        Object {
+          "blockNumber": 2,
+          "factorFloat": 0.5,
+          "factorInt": 1,
+          "factorString": "bar",
+          "number": 2,
+          "practice": false,
+          "type": "mock-trial",
+        },
+        Object {
+          "blockNumber": 2,
+          "factorFloat": 0.5,
+          "factorInt": 1,
+          "factorString": "foo",
+          "number": 3,
+          "practice": false,
+          "type": "mock-trial",
+        },
+        Object {
+          "factorInt": 1,
+          "number": 2,
+          "practice": false,
+          "type": "mock-post-block",
+        },
+        Object {
+          "id": "S0",
+          "type": "mock-post-run",
+        },
+      ],
+    },
+    Object {
+      "id": "S1",
+      "tasks": Array [
+        Object {
+          "id": "S1",
+          "type": "mock-pre-run",
+        },
+        Object {
+          "practice": true,
+          "type": "mock-pre-block",
+        },
+        Object {
+          "factorFloat": 0.5,
+          "factorInt": 2,
+          "factorString": "foo",
+          "practice": true,
+          "type": "mock-trial",
+        },
+        Object {
+          "factorFloat": 10.254,
+          "factorInt": 2,
+          "factorString": "foo",
+          "practice": true,
+          "type": "mock-trial",
+        },
+        Object {
+          "practice": true,
+          "type": "mock-post-block",
+        },
+        Object {
+          "factorInt": 1,
+          "practice": true,
+          "type": "mock-pre-block",
+        },
+        Object {
+          "factorFloat": 10.254,
+          "factorInt": 1,
+          "factorString": "foo",
+          "practice": true,
+          "type": "mock-trial",
+        },
+        Object {
+          "factorFloat": 10.254,
+          "factorInt": 1,
+          "factorString": "bar",
+          "practice": true,
+          "type": "mock-trial",
+        },
+        Object {
+          "factorInt": 1,
+          "practice": true,
+          "type": "mock-post-block",
+        },
+        Object {
+          "factorInt": 1,
+          "number": 1,
+          "practice": false,
+          "type": "mock-pre-block",
+        },
+        Object {
+          "blockNumber": 1,
+          "factorFloat": 0.5,
+          "factorInt": 1,
+          "factorString": "bar",
+          "number": 0,
+          "practice": false,
+          "type": "mock-trial",
+        },
+        Object {
+          "blockNumber": 1,
+          "factorFloat": 0.5,
+          "factorInt": 1,
+          "factorString": "foo",
+          "number": 1,
+          "practice": false,
+          "type": "mock-trial",
+        },
+        Object {
+          "blockNumber": 1,
+          "factorFloat": 10.254,
+          "factorInt": 1,
+          "factorString": "foo",
+          "number": 2,
+          "practice": false,
+          "type": "mock-trial",
+        },
+        Object {
+          "blockNumber": 1,
+          "factorFloat": 10.254,
+          "factorInt": 1,
+          "factorString": "bar",
+          "number": 3,
+          "practice": false,
+          "type": "mock-trial",
+        },
+        Object {
+          "factorInt": 1,
+          "number": 1,
+          "practice": false,
+          "type": "mock-post-block",
+        },
+        Object {
+          "factorInt": 2,
+          "practice": true,
+          "type": "mock-pre-block",
+        },
+        Object {
+          "factorFloat": 10.254,
+          "factorInt": 2,
+          "factorString": "bar",
+          "practice": true,
+          "type": "mock-trial",
+        },
+        Object {
+          "factorFloat": 0.5,
+          "factorInt": 2,
+          "factorString": "foo",
+          "practice": true,
+          "type": "mock-trial",
+        },
+        Object {
+          "factorInt": 2,
+          "practice": true,
+          "type": "mock-post-block",
+        },
+        Object {
+          "factorInt": 2,
+          "number": 2,
+          "practice": false,
+          "type": "mock-pre-block",
+        },
+        Object {
+          "blockNumber": 2,
+          "factorFloat": 10.254,
+          "factorInt": 2,
+          "factorString": "bar",
+          "number": 0,
+          "practice": false,
+          "type": "mock-trial",
+        },
+        Object {
+          "blockNumber": 2,
+          "factorFloat": 0.5,
+          "factorInt": 2,
+          "factorString": "bar",
+          "number": 1,
+          "practice": false,
+          "type": "mock-trial",
+        },
+        Object {
+          "blockNumber": 2,
+          "factorFloat": 0.5,
+          "factorInt": 2,
+          "factorString": "foo",
+          "number": 2,
+          "practice": false,
+          "type": "mock-trial",
+        },
+        Object {
+          "blockNumber": 2,
+          "factorFloat": 10.254,
+          "factorInt": 2,
+          "factorString": "foo",
+          "number": 3,
+          "practice": false,
+          "type": "mock-trial",
+        },
+        Object {
+          "factorInt": 2,
+          "number": 2,
+          "practice": false,
+          "type": "mock-post-block",
+        },
+        Object {
+          "id": "S1",
+          "type": "mock-post-run",
         },
       ],
     },
