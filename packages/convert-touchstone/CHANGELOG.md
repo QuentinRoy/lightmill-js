@@ -3,6 +3,22 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+<a name="3.0.0-alpha.6"></a>
+# [3.0.0-alpha.6](https://github.com/QuentinRoy/lightmill-js/compare/v3.0.0-alpha.5...v3.0.0-alpha.6) (2018-08-24)
+
+
+### Features
+
+* **convert-touchstone:** mappers for post/pre blocks/runs and trials ([5adb177](https://github.com/QuentinRoy/lightmill-js/commit/5adb177))
+
+
+### BREAKING CHANGES
+
+* **convert-touchstone:** The trialsType options has been rename to trials. The blockStartupType option has been rename to preBlocks.
+
+
+
+
 <a name="3.0.0-alpha.4"></a>
 # [3.0.0-alpha.4](https://github.com/QuentinRoy/lightmill-js/compare/v3.0.0-alpha.3...v3.0.0-alpha.4) (2018-08-20)
 
