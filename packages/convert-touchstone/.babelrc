@@ -3,20 +3,17 @@
     "test": {
       "presets": [
         [
-          "env",
+          "@babel/preset-env",
           {
             "targets": { "node": "current" }
           }
         ]
-      ],
-      "plugins": [
-        "transform-object-rest-spread"
       ]
     },
     "production": {
       "presets": [
         [
-          "env",
+          "@babel/preset-env",
           {
             "targets": { "browsers": ">1%" },
             "modules": false,
@@ -25,16 +22,10 @@
         ]
       ],
       "plugins": [
-        "transform-object-rest-spread",
         [
-          "transform-runtime",
-          {
-            "helpers": false,
-            "polyfill": false,
-            "regenerator": true
-          }
-        ],
-        "external-helpers"
+          "@babel/plugin-transform-runtime",
+          { "helpers": false, "regenerator": true }
+        ]
       ]
     }
   }
