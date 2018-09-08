@@ -3,9 +3,9 @@
   "license": "MIT",
   "private": true,
   "devDependencies": {
-    "@commitlint/cli": "7.1.1",
-    "@commitlint/config-conventional": "7.1.1",
-    "@commitlint/config-lerna-scopes": "7.1.1",
+    "@commitlint/cli": "7.1.2",
+    "@commitlint/config-conventional": "7.1.2",
+    "@commitlint/config-lerna-scopes": "7.1.2",
     "eslint": "5.5.0",
     "eslint-config-airbnb-base": "13.1.0",
     "eslint-config-prettier": "3.0.1",
@@ -13,7 +13,7 @@
     "eslint-plugin-prettier": "2.6.2",
     "fs-extra": "7.0.0",
     "husky": "0.14.3",
-    "lerna": "3.2.1",
+    "lerna": "3.3.0",
     "minimist": "1.2.0",
     "prettier": "1.14.2",
     "pug": "2.0.3"
