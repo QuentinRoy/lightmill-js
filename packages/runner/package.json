@@ -24,10 +24,10 @@
     "eslint-plugin-import": "2.14.0",
     "jest": "23.6.0",
     "promise.defer": "1.0.1",
-    "rollup": "0.66.0",
+    "rollup": "0.66.2",
     "rollup-plugin-async": "1.2.0",
     "rollup-plugin-babel": "3.0.7",
-    "rollup-plugin-commonjs": "9.1.6",
+    "rollup-plugin-commonjs": "9.1.8",
     "rollup-plugin-node-resolve": "3.4.0",
     "wait-then": "0.1.2"
   },
