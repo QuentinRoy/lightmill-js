@@ -26,10 +26,7 @@
     "coverage": "lerna run coverage",
     "bootstrap": "lerna bootstrap",
     "publish": "lerna publish --conventional-commits --cd-version prerelease",
-    "postrewrite": "yarn git-hook",
-    "precommit": "yarn git-hook",
-    "git-hook": "yarn lint && yarn test",
-    "commitmsg": "commitlint -e $GIT_PARAMS"
+    "git-hook": "yarn lint && yarn test"
   },
   "devEngines": {
     "node": ">= 8.x",
@@ -42,5 +39,12 @@
   ],
   "workspaces": [
     "packages/*"
-  ]
+  ],
+  "husky": {
+    "hooks": {
+      "commit-msg": "commitlint -e $HUSKY_GIT_PARAMS",
+      "post-rewrite": "yarn git-hook",
+      "pre-commit": "yarn git-hook"
+    }
+  }
 }
