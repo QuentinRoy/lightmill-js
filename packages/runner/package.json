@@ -21,7 +21,7 @@
     "cross-env": "5.2.0",
     "eslint": "5.16.0",
     "eslint-config-airbnb-base": "13.1.0",
-    "eslint-plugin-import": "2.17.2",
+    "eslint-plugin-import": "2.17.3",
     "jest": "23.6.0",
     "promise.defer": "1.0.1",
     "rollup": "0.68.2",
