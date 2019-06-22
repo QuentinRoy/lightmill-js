@@ -26,7 +26,7 @@
     "promise.defer": "1.0.1",
     "rollup": "0.68.2",
     "rollup-plugin-async": "1.2.0",
-    "rollup-plugin-babel": "4.3.2",
+    "rollup-plugin-babel": "4.3.3",
     "rollup-plugin-commonjs": "9.3.4",
     "rollup-plugin-node-resolve": "4.2.4",
     "wait-then": "0.1.2"
