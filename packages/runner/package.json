@@ -24,7 +24,7 @@
     "eslint-plugin-import": "2.18.2",
     "jest": "23.6.0",
     "promise.defer": "1.0.1",
-    "rollup": "1.27.5",
+    "rollup": "1.27.6",
     "rollup-plugin-async": "1.2.0",
     "rollup-plugin-babel": "4.3.3",
     "rollup-plugin-commonjs": "10.1.0",
