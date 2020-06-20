@@ -11,10 +11,10 @@
   "license": "MIT",
   "access": "public",
   "devDependencies": {
-    "@babel/core": "7.10.2",
+    "@babel/core": "7.10.3",
     "@babel/plugin-external-helpers": "7.10.1",
-    "@babel/plugin-transform-runtime": "7.10.1",
-    "@babel/preset-env": "7.10.2",
+    "@babel/plugin-transform-runtime": "7.10.3",
+    "@babel/preset-env": "7.10.3",
     "array-range": "1.0.1",
     "babel-core": "7.0.0-bridge.0",
     "babel-preset-env": "1.7.0",
