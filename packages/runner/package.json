@@ -14,7 +14,7 @@
     "@babel/core": "7.12.10",
     "@babel/plugin-external-helpers": "7.12.1",
     "@babel/plugin-transform-runtime": "7.12.10",
-    "@babel/preset-env": "7.12.10",
+    "@babel/preset-env": "7.12.11",
     "array-range": "1.0.1",
     "babel-core": "7.0.0-bridge.0",
     "babel-preset-env": "1.7.0",
