@@ -8098,10 +8098,10 @@ promise-retry@^1.1.1:
     err-code "^1.0.0"
     retry "^0.10.0"
 
-promise.defer@1.0.1:
-  version "1.0.1"
-  resolved "https://registry.yarnpkg.com/promise.defer/-/promise.defer-1.0.1.tgz#21103b5b6ecd9ae36f903301e8a347f84477c4ec"
-  integrity sha1-IRA7W27NmuNvkDMB6KNH+ER3xOw=
+promise.defer@2.0.0:
+  version "2.0.0"
+  resolved "https://registry.yarnpkg.com/promise.defer/-/promise.defer-2.0.0.tgz#3b1dbd896824ac14f3fcf40248b7e720503af316"
+  integrity sha512-7T9TPDmRF8Zb5eLx7+OqnXUyaBs7nTKj63seeW3mTAce+IMf9yoSZf/1iT5dAYRtO4fqxfKUuRasBWY/5a2wlw==
 
 promise@^7.0.1:
   version "7.3.1"
