@@ -18,7 +18,7 @@
     "array-range": "1.0.1",
     "babel-core": "7.0.0-bridge.0",
     "babel-preset-env": "1.7.0",
-    "cross-env": "5.2.1",
+    "cross-env": "7.0.3",
     "eslint": "5.16.0",
     "eslint-config-airbnb-base": "13.2.0",
     "eslint-plugin-import": "2.23.2",
