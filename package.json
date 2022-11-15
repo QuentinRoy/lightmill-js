@@ -3,20 +3,15 @@
   "license": "MIT",
   "private": true,
   "devDependencies": {
-    "@commitlint/cli": "7.6.1",
-    "@commitlint/config-conventional": "7.6.0",
-    "@commitlint/config-lerna-scopes": "7.6.0",
     "eslint": "5.16.0",
     "eslint-config-airbnb-base": "13.2.0",
     "eslint-config-prettier": "3.6.0",
     "eslint-plugin-import": "2.23.2",
     "eslint-plugin-prettier": "3.4.0",
     "fs-extra": "10.0.0",
-    "husky": "1.3.1",
     "lerna": "3.22.1",
     "minimist": "1.2.5",
-    "prettier": "1.19.1",
-    "pug": "2.0.4"
+    "prettier": "1.19.1"
   },
   "scripts": {
     "build": "lerna run build",
@@ -25,26 +20,9 @@
     "test": "lerna run test",
     "coverage": "lerna run coverage",
     "bootstrap": "lerna bootstrap",
-    "publish": "lerna publish --conventional-commits --cd-version prerelease",
-    "git-hook": "yarn lint && yarn test"
+    "publish": "lerna publish --conventional-commits --cd-version prerelease"
   },
-  "devEngines": {
-    "node": ">= 8.x",
-    "npm": ">= 4.x <= 5.x"
-  },
-  "ignoreChanges": [
-    "**/__fixtures__/**",
-    "**/__tests__/**",
-    "**/*.md"
-  ],
   "workspaces": [
     "packages/*"
-  ],
-  "husky": {
-    "hooks": {
-      "commit-msg": "commitlint -e $HUSKY_GIT_PARAMS",
-      "post-rewrite": "yarn git-hook",
-      "pre-commit": "yarn git-hook"
-    }
-  }
+  ]
 }
