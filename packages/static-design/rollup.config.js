@@ -10,13 +10,13 @@ export default {
     name: 'lightmill.staticDesign',
     file: './dist/lightmill-static-design.js',
     sourcemap: true,
-    exports: 'named'
+    exports: 'named',
   },
   plugins: [
     resolve(),
     commonjs(),
     babel({
-      exclude: 'node_modules/**' // only transpile our source code
-    })
-  ]
+      exclude: 'node_modules/**', // only transpile our source code
+    }),
+  ],
 };

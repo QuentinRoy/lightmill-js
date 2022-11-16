@@ -22,7 +22,7 @@
   "scripts": {
     "test": "cross-env NODE_ENV=test jest",
     "coverage": "pnpm run test --coverage",
-    "build-esm": "node ../../build-tools/esm-reexport.js -nds ./esm/index.mjs -o ./dist/lightmill-static-design.mjs",
+    "build-esm": "node ../../build-tools/esm-reexport.cjs -nds ./esm/index.mjs -o ./dist/lightmill-static-design.mjs",
     "build-umd": "cross-env NODE_ENV=production rollup --config rollup.config.js",
     "build": "pnpm build-esm; pnpm build-umd"
   },

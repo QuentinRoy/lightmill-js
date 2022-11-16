@@ -5,8 +5,8 @@ let generators;
 let throwingGenerators;
 
 beforeEach(() => {
-  wait = t =>
-    new Promise(resolve => {
+  wait = (t) =>
+    new Promise((resolve) => {
       setTimeout(resolve, t);
     });
 
@@ -23,7 +23,7 @@ beforeEach(() => {
       yield 'c';
       await wait(0);
       yield 'd';
-    }
+    },
   };
   throwingGenerators = {
     sync: async function* syncThatThrows() {
@@ -37,13 +37,13 @@ beforeEach(() => {
       yield 'a';
       yield 'b';
       throw new Error('mock-generator-error');
-    }
+    },
   };
 });
 
 const describeEachSyncs = describe.each(['sync', 'async']);
 
-describeEachSyncs(`asyncReduce with %s iterator`, sync => {
+describeEachSyncs(`asyncReduce with %s iterator`, (sync) => {
   it('reduces without init', async () => {
     const gen = generators[sync];
     // Without init.
@@ -113,7 +113,7 @@ describeEachSyncs(`asyncReduce with %s iterator`, sync => {
   });
 });
 
-describeEachSyncs(`asyncForEach with %s iterator`, sync => {
+describeEachSyncs(`asyncForEach with %s iterator`, (sync) => {
   it('calls its callback for each values', async () => {
     const gen = generators[sync];
     const callback = jest.fn();
@@ -124,16 +124,16 @@ describeEachSyncs(`asyncForEach with %s iterator`, sync => {
   it('waits for its callback to resolve if it returned a promise', async () => {
     const gen = generators[sync];
     const acc = [];
-    const asyncCallback = value => {
+    const asyncCallback = (value) => {
       acc.push(`${value}-async-start`);
       return wait(0).then(() => {
         acc.push(`${value}-async-end`);
       });
     };
-    const syncCallback = value => {
+    const syncCallback = (value) => {
       acc.push(`${value}-sync`);
     };
-    const callback = jest.fn(value =>
+    const callback = jest.fn((value) =>
       ['b', 'd'].includes(value) ? syncCallback(value) : asyncCallback(value)
     );
 
@@ -144,13 +144,13 @@ describeEachSyncs(`asyncForEach with %s iterator`, sync => {
       'b-sync',
       'c-async-start',
       'c-async-end',
-      'd-sync'
+      'd-sync',
     ]);
   });
 
   it('rejects if a sync callback throws', async () => {
     const gen = generators[sync];
-    const callback = jest.fn(v => {
+    const callback = jest.fn((v) => {
       if (v === 'b') throw new Error('mock-callback-error');
     });
     await expect(asyncForEach(gen(), callback)).rejects.toThrow(
@@ -161,7 +161,7 @@ describeEachSyncs(`asyncForEach with %s iterator`, sync => {
 
   it('rejects if an async callback throws', async () => {
     const gen = generators[sync];
-    const callback = jest.fn(v =>
+    const callback = jest.fn((v) =>
       wait(0).then(() => {
         if (v === 'b') throw new Error('mock-callback-error');
       })

@@ -13,7 +13,7 @@ const {
   s: source,
   o: output,
   d: withDefault,
-  n: withNamed
+  n: withNamed,
 } = require('minimist')(process.argv.slice(2));
 
 let failed = false;
@@ -44,7 +44,7 @@ mkdirs(targetDir)
     )
   )
   .then(() => process.stderr.write(`created ${output}.\n`))
-  .catch(e => {
+  .catch((e) => {
     // Write stderr as it is info not actual output of the program as per
     // UNIX convention.
     process.stderr.write(e.message);

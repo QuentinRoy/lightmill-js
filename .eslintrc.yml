@@ -1,33 +1,39 @@
 ---
 root: true
+parserOptions:
+  sourceType: 'module'
 env:
-  browser: true
+  es2022: true
 extends:
-  - airbnb-base
-  - prettier
-rules:
-  valid-jsdoc: error
-  import/no-extraneous-dependencies:
-    - error
-    - peerDependencies: true
-  prettier/prettier: error
-  class-methods-use-this: 0
-  import/extensions: 
-    - error
-    - always
-    - ignorePackages: true
+  - 'eslint:recommended'
+  - 'prettier'
 plugins:
-  - prettier
+  - 'import'
+rules:
+  valid-jsdoc: 'error'
+  import/no-extraneous-dependencies:
+    - 'error'
+    - peerDependencies: true
+  class-methods-use-this: 0
+  import/extensions:
+    - 'error'
+    - 'always'
+    - ignorePackages: true
 overrides:
   - files:
-      - packages/**/__tests__/**/*@(.mjs|.js)
-      - packages/**/*.test@(.mjs|.js)
+      - 'packages/**/__tests__/**/*@(.mjs|.js)'
+      - 'packages/**/*.test@(.mjs|.js)'
     env:
-      browser: false
       jest: true
+      node: true
     rules:
       import/no-extraneous-dependencies:
-      - error
-      - devDependencies: true
-        peerDependencies: true
-
+        - error
+        - devDependencies: true
+          peerDependencies: true
+  - files:
+      - '*.cjs'
+    parserOptions:
+      sourceType: 'script'
+    env:
+      node: true

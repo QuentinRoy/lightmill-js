@@ -1,6 +1,6 @@
 import RunIterator from './run-iterator.mjs';
 
-export default experimentalDesign => ({
+export default (experimentalDesign) => ({
   /**
    * @param {string[]} startedRuns The list of runs that has already been
    * started (even if they may not all have completed yet).
@@ -9,9 +9,9 @@ export default experimentalDesign => ({
   getAvailableRuns(startedRuns) {
     return Promise.resolve(
       experimentalDesign.runs
-        .map(r => r.id)
-        .filter(runId =>
-          startedRuns.every(startedRunId => startedRunId !== runId)
+        .map((r) => r.id)
+        .filter((runId) =>
+          startedRuns.every((startedRunId) => startedRunId !== runId)
         )
     );
   },
@@ -24,7 +24,7 @@ export default experimentalDesign => ({
    * @return {{next, getId}} A run iterator.
    */
   startRun(runId, options) {
-    const run = experimentalDesign.runs.find(r => r.id === runId);
+    const run = experimentalDesign.runs.find((r) => r.id === runId);
     if (!run) {
       return Promise.reject(new Error(`Cannot find run with id ${runId}`));
     }
@@ -36,5 +36,5 @@ export default experimentalDesign => ({
    */
   getId() {
     return Promise.resolve(experimentalDesign.id);
-  }
+  },
 });

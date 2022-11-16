@@ -10,14 +10,14 @@ export default {
     name: 'lightmill.convertTouchstone',
     file: './dist/lightmill-convert-touchstone.js',
     sourcemap: true,
-    globals: { sax: 'sax' }
+    globals: { sax: 'sax' },
   },
   plugins: [
     resolve(),
     commonjs(),
     babel({
-      exclude: 'node_modules/**' // only transpile our source code
-    })
+      exclude: 'node_modules/**', // only transpile our source code
+    }),
   ],
-  external: ['sax']
+  external: ['sax'],
 };

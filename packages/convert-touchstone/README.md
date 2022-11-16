@@ -35,15 +35,16 @@ npx @lightmill/convert-touchstone <input-file>
 ```
 
 ## API
-| Param | Type | Default | Description |
-| --- | --- | --- | --- |
-| touchStoneXML | <code>String</code> \| <code>stream.Readable</code> |  | The XML to parse. |
-| [options] | <code>object</code> |  | Options |
-| [options.preBlocks] | <code>string</code> \| <code>object</code> \| <code>array</code> \| <code>function</code> |  | The type of the task to insert before each block or a function to map the block values to task(s). |
-| [options.postBlocks] | <code>string</code> \| <code>object</code> \| <code>array</code> \| <code>function</code> |  | The type of the task to insert after each block or a function to map the block values to task(s). |
-| [options.preRuns] | <code>string</code> \| <code>object</code> \| <code>array</code> \| <code>function</code> |  | The type of the task to insert before each run or a function to map the run values to task(s). |
-| [options.postRuns] | <code>string</code> \| <code>object</code> \| <code>array</code> \| <code>function</code> |  | The type of the task to insert after each run or a function to map the run values to task(s). |
-| [options.trials] | <code>string</code> \| <code>object</code> \| <code>array</code> \| <code>function</code> | <code>&quot;trial&quot;</code> | The type of the task to insert for each trial or a function to map the trial values to task(s). |
+
+| Param                | Type                                                                                      | Default                        | Description                                                                                        |
+| -------------------- | ----------------------------------------------------------------------------------------- | ------------------------------ | -------------------------------------------------------------------------------------------------- |
+| touchStoneXML        | <code>String</code> \| <code>stream.Readable</code>                                       |                                | The XML to parse.                                                                                  |
+| [options]            | <code>object</code>                                                                       |                                | Options                                                                                            |
+| [options.preBlocks]  | <code>string</code> \| <code>object</code> \| <code>array</code> \| <code>function</code> |                                | The type of the task to insert before each block or a function to map the block values to task(s). |
+| [options.postBlocks] | <code>string</code> \| <code>object</code> \| <code>array</code> \| <code>function</code> |                                | The type of the task to insert after each block or a function to map the block values to task(s).  |
+| [options.preRuns]    | <code>string</code> \| <code>object</code> \| <code>array</code> \| <code>function</code> |                                | The type of the task to insert before each run or a function to map the run values to task(s).     |
+| [options.postRuns]   | <code>string</code> \| <code>object</code> \| <code>array</code> \| <code>function</code> |                                | The type of the task to insert after each run or a function to map the run values to task(s).      |
+| [options.trials]     | <code>string</code> \| <code>object</code> \| <code>array</code> \| <code>function</code> | <code>&quot;trial&quot;</code> | The type of the task to insert for each trial or a function to map the trial values to task(s).    |
 
 ## Example
 

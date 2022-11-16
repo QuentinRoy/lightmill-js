@@ -1,7 +1,7 @@
 import Runner from './runner.mjs';
 
-const wait = t =>
-  new Promise(resolve => {
+const wait = (t) =>
+  new Promise((resolve) => {
     setTimeout(resolve, t);
   });
 
@@ -28,7 +28,7 @@ describe('Runner#run', () => {
       yield { id: 'task3', callIndex: getCallIndex() };
       await wait(0);
     });
-    runTask = jest.fn(async task => {
+    runTask = jest.fn(async (task) => {
       await wait(0);
       return { result: `result-${task.id}`, callIndex: getCallIndex() };
     });
@@ -36,16 +36,16 @@ describe('Runner#run', () => {
       log: jest.fn(async () => {
         await wait(0);
         return { callIndex: getCallIndex() };
-      })
+      }),
     };
     store = {
-      getLogger: jest.fn(taskType =>
+      getLogger: jest.fn((taskType) =>
         taskType === 'task' ? taskLogger : undefined
       ),
       complete: jest.fn(async () => {
         await wait(0);
         return { callIndex: getCallIndex() };
-      })
+      }),
     };
   });
 
@@ -56,41 +56,41 @@ describe('Runner#run', () => {
     expect(runTask.mock.calls).toEqual([
       [{ id: 'task1', callIndex: 0 }],
       [{ id: 'task2', callIndex: 3 }],
-      [{ id: 'task3', callIndex: 6 }]
+      [{ id: 'task3', callIndex: 6 }],
     ]);
     expect(taskLogger.log.mock.calls).toEqual([
       [
         {
           task: { id: 'task1', callIndex: 0 },
-          measures: { result: 'result-task1', callIndex: 1 }
+          measures: { result: 'result-task1', callIndex: 1 },
         },
-        { id: 'task1' }
+        { id: 'task1' },
       ],
       // call 2 should correspond to the above call to logTask
       [
         {
           task: { id: 'task2', callIndex: 3 },
-          measures: { result: 'result-task2', callIndex: 4 }
+          measures: { result: 'result-task2', callIndex: 4 },
         },
-        { id: 'task2' }
+        { id: 'task2' },
       ],
       // call 5 should correspond to the above call to logTask
       [
         {
           task: { id: 'task3', callIndex: 6 },
-          measures: { result: 'result-task3', callIndex: 7 }
+          measures: { result: 'result-task3', callIndex: 7 },
         },
-        { id: 'task3' }
-      ]
+        { id: 'task3' },
+      ],
       // call 6 should correspond to the above call to logTask
     ]);
-    expect(store.complete.mock.results[0].value).resolves.toEqual({
-      callIndex: 9
+    await expect(store.complete.mock.results[0].value).resolves.toEqual({
+      callIndex: 9,
     });
   });
 
   it('rejects if the taskManager rejects', async () => {
-    const throwingRunTask = jest.fn(async task => {
+    const throwingRunTask = jest.fn(async (task) => {
       if (task.id === 'task2') throw new Error('mock error');
       return `result-${task.id}`;
     });
@@ -98,7 +98,7 @@ describe('Runner#run', () => {
       Runner({
         store,
         runTask: throwingRunTask,
-        taskIterator: genTasks()
+        taskIterator: genTasks(),
       }).run()
     ).rejects.toThrow('mock error');
     expect(throwingRunTask).toMatchSnapshot('throwing run task');
@@ -109,7 +109,7 @@ describe('Runner#run', () => {
     taskLogger = {
       log: jest.fn(async ({ task }) => {
         if (task.id === 'task2') throw new Error('mock error');
-      })
+      }),
     };
     await expect(
       Runner({ store, runTask, taskIterator: genTasks() }).run()

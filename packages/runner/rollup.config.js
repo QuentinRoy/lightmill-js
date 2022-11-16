@@ -12,16 +12,16 @@ export default {
     file: './dist/lightmill-runner.js',
     sourcemap: true,
     globals: {
-      'babel-runtime/regenerator': 'regeneratorRuntime'
-    }
+      'babel-runtime/regenerator': 'regeneratorRuntime',
+    },
   },
   plugins: [
     resolve(),
     commonjs(),
     async(),
     babel({
-      exclude: 'node_modules/**' // only transpile our source code
-    })
+      exclude: 'node_modules/**', // only transpile our source code
+    }),
   ],
-  external: ['babel-runtime/regenerator']
+  external: ['babel-runtime/regenerator'],
 };

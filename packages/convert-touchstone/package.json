@@ -29,7 +29,7 @@
   "scripts": {
     "test": "cross-env NODE_ENV=test jest",
     "coverage": "pnpm run test --coverage",
-    "build-esm": "node ../../build-tools/esm-reexport.js -s ./esm/index.mjs -o ./dist/lightmill-convert-touchstone.mjs -nd",
+    "build-esm": "node ../../build-tools/esm-reexport.cjs -s ./esm/index.mjs -o ./dist/lightmill-convert-touchstone.mjs -nd",
     "build-umd": "cross-env NODE_ENV=production rollup --config rollup.config.js",
     "build": "pnpm run build-esm; pnpm run build-umd",
     "prepublish": "pnpm run build"

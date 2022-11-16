@@ -13,28 +13,28 @@ import sax from 'sax';
 const parseValues = (valuesString, valueParsers = {}) =>
   valuesString
     ? Object.assign(
-        ...valuesString.split(',').map(valueString => {
+        ...valuesString.split(',').map((valueString) => {
           const [valName, val] = valueString.split('=');
           return {
             [valName]:
-              valName in valueParsers ? valueParsers[valName](val) : val
+              valName in valueParsers ? valueParsers[valName](val) : val,
           };
         })
       )
     : {};
 
 const typeParsers = {
-  integer: x => parseInt(x, 10),
-  float: x => parseFloat(x),
-  string: x => x
+  integer: (x) => parseInt(x, 10),
+  float: (x) => parseFloat(x),
+  string: (x) => x,
 };
 
-const createTaskGetter = mapper => {
+const createTaskGetter = (mapper) => {
   if (!mapper) {
     return () => [];
   }
   if (typeof mapper === 'string' || mapper instanceof String) {
-    return container => [{ ...container, type: mapper }];
+    return (container) => [{ ...container, type: mapper }];
   }
   if (typeof mapper === 'function') {
     return (...args) => createTaskGetter(mapper(...args))(...args);
@@ -95,7 +95,7 @@ const convertTouchstone = (
     postBlocks = undefined,
     preRuns = undefined,
     postRuns = undefined,
-    trials = 'trial'
+    trials = 'trial',
   } = {}
 ) =>
   new Promise((resolve, reject) => {
@@ -142,7 +142,7 @@ const convertTouchstone = (
         currentBlock = {
           practice,
           ...parseValues(blockNode.attributes.values, valueParsers),
-          ...(practice ? {} : { number: +blockNode.attributes.number })
+          ...(practice ? {} : { number: +blockNode.attributes.number }),
         };
         currentTasks.push(
           ...getPreBlockTasks(currentBlock, currentRun, experiment)
@@ -158,12 +158,12 @@ const convertTouchstone = (
             ? {}
             : {
                 number: +trialNode.attributes.number,
-                blockNumber: +currentBlock.number
+                blockNumber: +currentBlock.number,
               }),
-          ...parseValues(trialNode.attributes.values, valueParsers)
+          ...parseValues(trialNode.attributes.values, valueParsers),
         };
         currentTasks.push(...getTrialTasks(trial));
-      }
+      },
     };
 
     // Handlers to be called on tag close events.
@@ -196,15 +196,15 @@ const convertTouchstone = (
       },
       practice(...args) {
         return closeHandlers.block(...args);
-      }
+      },
     };
 
     // Attach the handlers to the sax parser.
     [
-      { event: 'opentag', handlers: openHandlers, handlerMap: x => x.name },
-      { event: 'closetag', handlers: closeHandlers, handlerMap: x => x }
+      { event: 'opentag', handlers: openHandlers, handlerMap: (x) => x.name },
+      { event: 'closetag', handlers: closeHandlers, handlerMap: (x) => x },
     ].forEach(({ event, handlers, handlerMap }) => {
-      saxParser[`on${event}`] = x => {
+      saxParser[`on${event}`] = (x) => {
         const handlerName = handlerMap(x);
         const handler = handlers[handlerName];
         if (!handler) {

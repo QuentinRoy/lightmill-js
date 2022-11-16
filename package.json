@@ -2,16 +2,15 @@
   "name": "lightmill",
   "license": "MIT",
   "private": true,
+  "type": "module",
   "devDependencies": {
-    "eslint": "5.16.0",
-    "eslint-config-airbnb-base": "13.2.0",
-    "eslint-config-prettier": "3.6.0",
-    "eslint-plugin-import": "2.23.2",
-    "eslint-plugin-prettier": "3.4.0",
-    "prettier": "1.19.1"
+    "eslint": "8.27.0",
+    "eslint-config-prettier": "8.5.0",
+    "eslint-plugin-import": "2.26.0",
+    "prettier": "2.7.1"
   },
   "scripts": {
-    "lint": "eslint ."
+    "lint": "eslint . && prettier --check ."
   },
   "dependencies": {
     "fs-extra": "^10.1.0",

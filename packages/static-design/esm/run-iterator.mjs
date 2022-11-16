@@ -5,7 +5,7 @@ export default (
   let startIndex = 0;
 
   if (resumeAfter != null) {
-    const lastTaskIndex = tasks.findIndex(s => s.id === resumeAfter);
+    const lastTaskIndex = tasks.findIndex((s) => s.id === resumeAfter);
     if (lastTaskIndex < 0) {
       throw new Error(
         `Cannot resume after task "${resumeAfter}": the task could not be found`
