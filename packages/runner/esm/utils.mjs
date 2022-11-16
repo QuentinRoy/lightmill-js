@@ -30,12 +30,11 @@ export const asyncReduce = (iterator, reducer, init, parallel = false) => {
         );
 
   return pFrom(init)
-    .then(
-      init_ => (init === undefined ? aNext() : { done: false, value: init_ })
+    .then(init_ =>
+      init === undefined ? aNext() : { done: false, value: init_ }
     )
-    .then(
-      ({ done, value }) =>
-        done ? value : aNext().then(next => reduceEnd(value, next))
+    .then(({ done, value }) =>
+      done ? value : aNext().then(next => reduceEnd(value, next))
     );
 };
 

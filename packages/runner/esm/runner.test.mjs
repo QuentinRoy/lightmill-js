@@ -39,8 +39,8 @@ describe('Runner#run', () => {
       })
     };
     store = {
-      getLogger: jest.fn(
-        taskType => (taskType === 'task' ? taskLogger : undefined)
+      getLogger: jest.fn(taskType =>
+        taskType === 'task' ? taskLogger : undefined
       ),
       complete: jest.fn(async () => {
         await wait(0);

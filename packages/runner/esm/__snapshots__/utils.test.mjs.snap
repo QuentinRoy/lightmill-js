@@ -2,21 +2,21 @@
 
 exports[`asyncForEach with async iterator rejects if a sync callback throws 1`] = `
 [MockFunction] {
-  "calls": Array [
-    Array [
+  "calls": [
+    [
       "a",
     ],
-    Array [
+    [
       "b",
     ],
   ],
-  "results": Array [
-    Object {
-      "isThrow": false,
+  "results": [
+    {
+      "type": "return",
       "value": undefined,
     },
-    Object {
-      "isThrow": true,
+    {
+      "type": "throw",
       "value": [Error: mock-callback-error],
     },
   ],
@@ -25,21 +25,21 @@ exports[`asyncForEach with async iterator rejects if a sync callback throws 1`] 
 
 exports[`asyncForEach with async iterator rejects if an async callback throws 1`] = `
 [MockFunction] {
-  "calls": Array [
-    Array [
+  "calls": [
+    [
       "a",
     ],
-    Array [
+    [
       "b",
     ],
   ],
-  "results": Array [
-    Object {
-      "isThrow": false,
+  "results": [
+    {
+      "type": "return",
       "value": Promise {},
     },
-    Object {
-      "isThrow": false,
+    {
+      "type": "return",
       "value": Promise {},
     },
   ],
@@ -48,15 +48,15 @@ exports[`asyncForEach with async iterator rejects if an async callback throws 1`
 
 exports[`asyncForEach with async iterator rejects if the iterator throws 1`] = `
 [MockFunction] {
-  "calls": Array [
-    Array [
+  "calls": [
+    [
       "a",
       "b",
     ],
   ],
-  "results": Array [
-    Object {
-      "isThrow": false,
+  "results": [
+    {
+      "type": "return",
       "value": undefined,
     },
   ],
@@ -65,21 +65,21 @@ exports[`asyncForEach with async iterator rejects if the iterator throws 1`] = `
 
 exports[`asyncForEach with sync iterator rejects if a sync callback throws 1`] = `
 [MockFunction] {
-  "calls": Array [
-    Array [
+  "calls": [
+    [
       "a",
     ],
-    Array [
+    [
       "b",
     ],
   ],
-  "results": Array [
-    Object {
-      "isThrow": false,
+  "results": [
+    {
+      "type": "return",
       "value": undefined,
     },
-    Object {
-      "isThrow": true,
+    {
+      "type": "throw",
       "value": [Error: mock-callback-error],
     },
   ],
@@ -88,21 +88,21 @@ exports[`asyncForEach with sync iterator rejects if a sync callback throws 1`] =
 
 exports[`asyncForEach with sync iterator rejects if an async callback throws 1`] = `
 [MockFunction] {
-  "calls": Array [
-    Array [
+  "calls": [
+    [
       "a",
     ],
-    Array [
+    [
       "b",
     ],
   ],
-  "results": Array [
-    Object {
-      "isThrow": false,
+  "results": [
+    {
+      "type": "return",
       "value": Promise {},
     },
-    Object {
-      "isThrow": false,
+    {
+      "type": "return",
       "value": Promise {},
     },
   ],
@@ -111,15 +111,15 @@ exports[`asyncForEach with sync iterator rejects if an async callback throws 1`]
 
 exports[`asyncForEach with sync iterator rejects if the iterator throws 1`] = `
 [MockFunction] {
-  "calls": Array [
-    Array [
+  "calls": [
+    [
       "a",
       "b",
     ],
   ],
-  "results": Array [
-    Object {
-      "isThrow": false,
+  "results": [
+    {
+      "type": "return",
       "value": undefined,
     },
   ],
@@ -128,31 +128,31 @@ exports[`asyncForEach with sync iterator rejects if the iterator throws 1`] = `
 
 exports[`asyncReduce with async iterator rejects if a sync reducers throws 1`] = `
 [MockFunction] {
-  "calls": Array [
-    Array [
+  "calls": [
+    [
       "test:",
       "a",
     ],
-    Array [
+    [
       "test:a,",
       "b",
     ],
-    Array [
+    [
       "test:a,b,",
       "c",
     ],
   ],
-  "results": Array [
-    Object {
-      "isThrow": false,
+  "results": [
+    {
+      "type": "return",
       "value": "test:a,",
     },
-    Object {
-      "isThrow": false,
+    {
+      "type": "return",
       "value": "test:a,b,",
     },
-    Object {
-      "isThrow": true,
+    {
+      "type": "throw",
       "value": [Error: mock-reducer-error],
     },
   ],
@@ -161,31 +161,31 @@ exports[`asyncReduce with async iterator rejects if a sync reducers throws 1`] =
 
 exports[`asyncReduce with async iterator rejects if an async reducers throws 1`] = `
 [MockFunction] {
-  "calls": Array [
-    Array [
+  "calls": [
+    [
       "test:",
       "a",
     ],
-    Array [
+    [
       "test:a,",
       "b",
     ],
-    Array [
+    [
       "test:a,b,",
       "c",
     ],
   ],
-  "results": Array [
-    Object {
-      "isThrow": false,
+  "results": [
+    {
+      "type": "return",
       "value": Promise {},
     },
-    Object {
-      "isThrow": false,
+    {
+      "type": "return",
       "value": Promise {},
     },
-    Object {
-      "isThrow": false,
+    {
+      "type": "return",
       "value": Promise {},
     },
   ],
@@ -194,23 +194,23 @@ exports[`asyncReduce with async iterator rejects if an async reducers throws 1`]
 
 exports[`asyncReduce with async iterator rejects if the iterator throws 1`] = `
 [MockFunction] {
-  "calls": Array [
-    Array [
+  "calls": [
+    [
       "test:",
       "a",
     ],
-    Array [
+    [
       "test:a,",
       "b",
     ],
   ],
-  "results": Array [
-    Object {
-      "isThrow": false,
+  "results": [
+    {
+      "type": "return",
       "value": "test:a,",
     },
-    Object {
-      "isThrow": false,
+    {
+      "type": "return",
       "value": "test:a,b,",
     },
   ],
@@ -219,31 +219,31 @@ exports[`asyncReduce with async iterator rejects if the iterator throws 1`] = `
 
 exports[`asyncReduce with sync iterator rejects if a sync reducers throws 1`] = `
 [MockFunction] {
-  "calls": Array [
-    Array [
+  "calls": [
+    [
       "test:",
       "a",
     ],
-    Array [
+    [
       "test:a,",
       "b",
     ],
-    Array [
+    [
       "test:a,b,",
       "c",
     ],
   ],
-  "results": Array [
-    Object {
-      "isThrow": false,
+  "results": [
+    {
+      "type": "return",
       "value": "test:a,",
     },
-    Object {
-      "isThrow": false,
+    {
+      "type": "return",
       "value": "test:a,b,",
     },
-    Object {
-      "isThrow": true,
+    {
+      "type": "throw",
       "value": [Error: mock-reducer-error],
     },
   ],
@@ -252,31 +252,31 @@ exports[`asyncReduce with sync iterator rejects if a sync reducers throws 1`] = 
 
 exports[`asyncReduce with sync iterator rejects if an async reducers throws 1`] = `
 [MockFunction] {
-  "calls": Array [
-    Array [
+  "calls": [
+    [
       "test:",
       "a",
     ],
-    Array [
+    [
       "test:a,",
       "b",
     ],
-    Array [
+    [
       "test:a,b,",
       "c",
     ],
   ],
-  "results": Array [
-    Object {
-      "isThrow": false,
+  "results": [
+    {
+      "type": "return",
       "value": Promise {},
     },
-    Object {
-      "isThrow": false,
+    {
+      "type": "return",
       "value": Promise {},
     },
-    Object {
-      "isThrow": false,
+    {
+      "type": "return",
       "value": Promise {},
     },
   ],
@@ -285,23 +285,23 @@ exports[`asyncReduce with sync iterator rejects if an async reducers throws 1`] 
 
 exports[`asyncReduce with sync iterator rejects if the iterator throws 1`] = `
 [MockFunction] {
-  "calls": Array [
-    Array [
+  "calls": [
+    [
       "test:",
       "a",
     ],
-    Array [
+    [
       "test:a,",
       "b",
     ],
   ],
-  "results": Array [
-    Object {
-      "isThrow": false,
+  "results": [
+    {
+      "type": "return",
       "value": "test:a,",
     },
-    Object {
-      "isThrow": false,
+    {
+      "type": "return",
       "value": "test:a,b,",
     },
   ],

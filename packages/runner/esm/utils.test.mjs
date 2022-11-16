@@ -1,4 +1,4 @@
-import { asyncReduce, asyncForEach, oneShot } from './utils.mjs';
+import { asyncReduce, asyncForEach } from './utils.mjs';
 
 let wait;
 let generators;
@@ -133,9 +133,8 @@ describeEachSyncs(`asyncForEach with %s iterator`, sync => {
     const syncCallback = value => {
       acc.push(`${value}-sync`);
     };
-    const callback = jest.fn(
-      value =>
-        ['b', 'd'].includes(value) ? syncCallback(value) : asyncCallback(value)
+    const callback = jest.fn(value =>
+      ['b', 'd'].includes(value) ? syncCallback(value) : asyncCallback(value)
     );
 
     await asyncForEach(gen(), callback);

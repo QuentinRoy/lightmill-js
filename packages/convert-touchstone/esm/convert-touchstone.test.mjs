@@ -10,7 +10,7 @@ const TEST_DATA_PATH = path.join(
 
 const readFile = promisify(fs.readFile);
 
-describe('convert', async () => {
+describe('convert', () => {
   let fixture;
   beforeAll(async () => {
     fixture = (await readFile(TEST_DATA_PATH)).toString();
@@ -35,7 +35,7 @@ describe('convert', async () => {
       })
     ).resolves.toMatchSnapshot();
   });
-  it('pres, posts, and trials options can be specified as functions', async () => {
+  it('pres, posts, and trials options can be specified as functions', () => {
     let i = -1;
     const getI = () => {
       i += 1;
@@ -46,7 +46,7 @@ describe('convert', async () => {
     const postRuns = jest.fn(() => ({ type: 'mock-post-run', i: getI() }));
     const preBlocks = jest.fn(() => ({ type: 'mock-pre-block', i: getI() }));
     const postBlocks = jest.fn(() => ({ type: 'mock-post-block', i: getI() }));
-    await expect(
+    expect(
       convert(fixture, { preRuns, postRuns, preBlocks, postBlocks, trials })
     ).resolves.toMatchSnapshot();
     expect(trials).toMatchSnapshot('trials');
@@ -55,8 +55,8 @@ describe('convert', async () => {
     expect(preBlocks).toMatchSnapshot('preBlocks');
     expect(postBlocks).toMatchSnapshot('postBlocks');
   });
-  it('pres, posts, and trials options can be specified as objects', async () => {
-    await expect(
+  it('pres, posts, and trials options can be specified as objects', () => {
+    expect(
       convert(fixture, {
         trials: { type: 'mock-trial' },
         preRuns: { type: 'mock-pre-run' },
@@ -66,8 +66,8 @@ describe('convert', async () => {
       })
     ).resolves.toMatchSnapshot();
   });
-  it('pres, posts, and trials can be specified as arrays of objects', async () => {
-    await expect(
+  it('pres, posts, and trials can be specified as arrays of objects', () => {
+    expect(
       convert(fixture, {
         trials: [{ type: 'trial-1' }, { type: 'trial-2' }],
         preRuns: [{ type: 'pre-run-1' }, { type: 'pre-run-2' }],
@@ -77,8 +77,8 @@ describe('convert', async () => {
       })
     ).resolves.toMatchSnapshot();
   });
-  it('pres, posts, and trials options can be specified as arrays of strings', async () => {
-    await expect(
+  it('pres, posts, and trials options can be specified as arrays of strings', () => {
+    expect(
       convert(fixture, {
         trials: ['trial-1', 'trial-2'],
         preRuns: ['pre-run-1', 'pre-run-2'],

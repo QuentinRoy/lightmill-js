@@ -1,9 +1,9 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
 exports[`RunIterator#next iterates through each tasks (including trials and block inits) 1`] = `
-Object {
+{
   "done": false,
-  "value": Object {
+  "value": {
     "id": "s00",
     "testData": "block-0",
     "type": "mock-type-1",
@@ -12,9 +12,9 @@ Object {
 `;
 
 exports[`RunIterator#next iterates through each tasks (including trials and block inits) 2`] = `
-Object {
+{
   "done": false,
-  "value": Object {
+  "value": {
     "id": "s01",
     "testData": "trial-0-0",
     "type": "mock-type-2",
@@ -23,9 +23,9 @@ Object {
 `;
 
 exports[`RunIterator#next iterates through each tasks (including trials and block inits) 3`] = `
-Object {
+{
   "done": false,
-  "value": Object {
+  "value": {
     "id": "s02",
     "testData": "trial-0-1",
     "type": "mock-type-2",
@@ -34,9 +34,9 @@ Object {
 `;
 
 exports[`RunIterator#next iterates through each tasks (including trials and block inits) 4`] = `
-Object {
+{
   "done": false,
-  "value": Object {
+  "value": {
     "id": "s03",
     "testData": "block-1",
     "type": "mock-type-1",
@@ -45,9 +45,9 @@ Object {
 `;
 
 exports[`RunIterator#next iterates through each tasks (including trials and block inits) 5`] = `
-Object {
+{
   "done": false,
-  "value": Object {
+  "value": {
     "id": "s04",
     "testData": "trial-1-0",
     "type": "mock-type-2",
@@ -56,9 +56,9 @@ Object {
 `;
 
 exports[`RunIterator#next iterates through each tasks (including trials and block inits) 6`] = `
-Object {
+{
   "done": false,
-  "value": Object {
+  "value": {
     "id": "s05",
     "testData": "trial-1-1",
     "type": "mock-type-2",
@@ -67,7 +67,7 @@ Object {
 `;
 
 exports[`RunIterator#next iterates through each tasks (including trials and block inits) 7`] = `
-Object {
+{
   "done": true,
   "value": undefined,
 }
