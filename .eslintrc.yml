@@ -1,14 +1,18 @@
 ---
 root: true
+parser: '@typescript-eslint/parser'
 parserOptions:
   sourceType: 'module'
+  project: './tsconfig.json'
 env:
   es2022: true
 extends:
   - 'eslint:recommended'
+  - 'plugin:@typescript-eslint/recommended'
   - 'prettier'
 plugins:
   - 'import'
+  - '@typescript-eslint'
 rules:
   valid-jsdoc: 'error'
   import/no-extraneous-dependencies:
@@ -19,13 +23,12 @@ rules:
     - 'error'
     - 'always'
     - ignorePackages: true
+  prefer-const: 0
+  '@typescript-eslint/no-unused-vars': ['warn', { ignoreRestSiblings: true }]
 overrides:
   - files:
-      - 'packages/**/__tests__/**/*@(.mjs|.js)'
-      - 'packages/**/*.test@(.mjs|.js)'
-    env:
-      jest: true
-      node: true
+      - 'packages/**/__tests__/**/*@(.mjs|.js|.ts|.cjs)'
+      - 'packages/**/*.test@(.mjs|.js|.ts|.cjs)'
     rules:
       import/no-extraneous-dependencies:
         - error
@@ -35,5 +38,9 @@ overrides:
       - '*.cjs'
     parserOptions:
       sourceType: 'script'
+    env:
+      node: true
+  - files:
+      - 'packages/**/bin/**/*@(.mjs|.js|.ts|.cjs)'
     env:
       node: true

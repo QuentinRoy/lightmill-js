@@ -1,19 +1,18 @@
 #!/usr/bin/env node
 
-const yargs = require('yargs');
-const fs = require('fs');
-const convertTouchstone = require('../dist/lightmill-convert-touchstone.mjs');
+import { command } from 'yargs';
+import { createReadStream } from 'fs';
+import convertTouchstone from '../dist/convert-touchstone.js';
 
-const cliArgs = yargs
-  .command(
-    '* <input-file> [options]',
-    "Convert touchstone files to lightmill's static-runner format",
-    (yargs_) => {
-      yargs_.positional('input-file', {
-        describe: 'An xml file as exported by the touchstone design platform',
-      });
-    }
-  )
+const { inputFile, ...options } = command(
+  '* <input-file> [options]',
+  "Convert touchstone files to lightmill's static-runner format",
+  (yargs_) => {
+    yargs_.positional('input-file', {
+      describe: 'An xml file as exported by the touchstone design platform',
+    });
+  }
+)
   .option('trials', {
     alias: 't',
     default: 'trial',
@@ -43,11 +42,10 @@ const cliArgs = yargs
   .strict()
   .help().argv;
 
-convertTouchstone(fs.createReadStream(cliArgs.inputFile), cliArgs)
-  .then((design) => {
-    process.stdout.write(JSON.stringify(design, null, 2));
-  })
-  .catch((error) => {
-    process.stderr.write(error);
-    process.exit(1);
-  });
+try {
+  const design = await convertTouchstone(createReadStream(inputFile), options);
+  process.stdout.write(JSON.stringify(design, null, 2));
+} catch (error) {
+  process.stderr.write(error);
+  process.exit(1);
+}

@@ -1,6 +1,6 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Vitest Snapshot v1
 
-exports[`convert accepts read stream as input 1`] = `
+exports[`convert > accepts a readable stream as input 1`] = `
 {
   "author": "Quentin Roy",
   "description": "Some useless text",
@@ -248,7 +248,7 @@ exports[`convert accepts read stream as input 1`] = `
 }
 `;
 
-exports[`convert accepts strings as input 1`] = `
+exports[`convert > accepts a string as input 1`] = `
 {
   "author": "Quentin Roy",
   "description": "Some useless text",
@@ -496,7 +496,7 @@ exports[`convert accepts strings as input 1`] = `
 }
 `;
 
-exports[`convert pres, posts, and trials can be specified as arrays of objects 1`] = `
+exports[`convert > pres, posts, and trials can be specified as arrays of objects 1`] = `
 {
   "author": "Quentin Roy",
   "description": "Some useless text",
@@ -828,7 +828,7 @@ exports[`convert pres, posts, and trials can be specified as arrays of objects 1
 }
 `;
 
-exports[`convert pres, posts, and trials options can be specified as arrays of strings 1`] = `
+exports[`convert > pres, posts, and trials options can be specified as arrays of strings 1`] = `
 {
   "author": "Quentin Roy",
   "description": "Some useless text",
@@ -1544,7 +1544,7 @@ exports[`convert pres, posts, and trials options can be specified as arrays of s
 }
 `;
 
-exports[`convert pres, posts, and trials options can be specified as functions 1`] = `
+exports[`convert > pres, posts, and trials options can be specified as functions > convert 1`] = `
 {
   "author": "Quentin Roy",
   "description": "Some useless text",
@@ -1772,8 +1772,8 @@ exports[`convert pres, posts, and trials options can be specified as functions 1
 }
 `;
 
-exports[`convert pres, posts, and trials options can be specified as functions: postBlocks 1`] = `
-[MockFunction] {
+exports[`convert > pres, posts, and trials options can be specified as functions > postBlock 1`] = `
+[MockFunction spy] {
   "calls": [
     [
       {
@@ -1993,8 +1993,8 @@ exports[`convert pres, posts, and trials options can be specified as functions: 
 }
 `;
 
-exports[`convert pres, posts, and trials options can be specified as functions: postRuns 1`] = `
-[MockFunction] {
+exports[`convert > pres, posts, and trials options can be specified as functions > postRun 1`] = `
+[MockFunction spy] {
   "calls": [
     [
       {
@@ -2036,8 +2036,8 @@ exports[`convert pres, posts, and trials options can be specified as functions: 
 }
 `;
 
-exports[`convert pres, posts, and trials options can be specified as functions: preBlocks 1`] = `
-[MockFunction] {
+exports[`convert > pres, posts, and trials options can be specified as functions > preBlock 1`] = `
+[MockFunction spy] {
   "calls": [
     [
       {
@@ -2257,8 +2257,8 @@ exports[`convert pres, posts, and trials options can be specified as functions: 
 }
 `;
 
-exports[`convert pres, posts, and trials options can be specified as functions: preRuns 1`] = `
-[MockFunction] {
+exports[`convert > pres, posts, and trials options can be specified as functions > preRun 1`] = `
+[MockFunction spy] {
   "calls": [
     [
       {
@@ -2300,8 +2300,8 @@ exports[`convert pres, posts, and trials options can be specified as functions: 
 }
 `;
 
-exports[`convert pres, posts, and trials options can be specified as functions: trials 1`] = `
-[MockFunction] {
+exports[`convert > pres, posts, and trials options can be specified as functions > trial 1`] = `
+[MockFunction spy] {
   "calls": [
     [
       {
@@ -2310,6 +2310,17 @@ exports[`convert pres, posts, and trials options can be specified as functions: 
         "factorString": "foo",
         "practice": true,
       },
+      {
+        "practice": true,
+      },
+      {
+        "id": "S0",
+      },
+      {
+        "author": "Quentin Roy",
+        "description": "Some useless text",
+        "id": "test",
+      },
     ],
     [
       {
@@ -2318,6 +2329,17 @@ exports[`convert pres, posts, and trials options can be specified as functions: 
         "factorString": "bar",
         "practice": true,
       },
+      {
+        "practice": true,
+      },
+      {
+        "id": "S0",
+      },
+      {
+        "author": "Quentin Roy",
+        "description": "Some useless text",
+        "id": "test",
+      },
     ],
     [
       {
@@ -2326,6 +2348,18 @@ exports[`convert pres, posts, and trials options can be specified as functions: 
         "factorString": "bar",
         "practice": true,
       },
+      {
+        "factorInt": 2,
+        "practice": true,
+      },
+      {
+        "id": "S0",
+      },
+      {
+        "author": "Quentin Roy",
+        "description": "Some useless text",
+        "id": "test",
+      },
     ],
     [
       {
@@ -2333,6 +2367,18 @@ exports[`convert pres, posts, and trials options can be specified as functions: 
         "factorInt": 2,
         "factorString": "foo",
         "practice": true,
+      },
+      {
+        "factorInt": 2,
+        "practice": true,
+      },
+      {
+        "id": "S0",
+      },
+      {
+        "author": "Quentin Roy",
+        "description": "Some useless text",
+        "id": "test",
       },
     ],
     [
@@ -2344,6 +2390,19 @@ exports[`convert pres, posts, and trials options can be specified as functions: 
         "number": 0,
         "practice": false,
       },
+      {
+        "factorInt": 2,
+        "number": 1,
+        "practice": false,
+      },
+      {
+        "id": "S0",
+      },
+      {
+        "author": "Quentin Roy",
+        "description": "Some useless text",
+        "id": "test",
+      },
     ],
     [
       {
@@ -2353,6 +2412,19 @@ exports[`convert pres, posts, and trials options can be specified as functions: 
         "factorString": "foo",
         "number": 1,
         "practice": false,
+      },
+      {
+        "factorInt": 2,
+        "number": 1,
+        "practice": false,
+      },
+      {
+        "id": "S0",
+      },
+      {
+        "author": "Quentin Roy",
+        "description": "Some useless text",
+        "id": "test",
       },
     ],
     [
@@ -2364,6 +2436,19 @@ exports[`convert pres, posts, and trials options can be specified as functions: 
         "number": 2,
         "practice": false,
       },
+      {
+        "factorInt": 2,
+        "number": 1,
+        "practice": false,
+      },
+      {
+        "id": "S0",
+      },
+      {
+        "author": "Quentin Roy",
+        "description": "Some useless text",
+        "id": "test",
+      },
     ],
     [
       {
@@ -2374,6 +2459,19 @@ exports[`convert pres, posts, and trials options can be specified as functions: 
         "number": 3,
         "practice": false,
       },
+      {
+        "factorInt": 2,
+        "number": 1,
+        "practice": false,
+      },
+      {
+        "id": "S0",
+      },
+      {
+        "author": "Quentin Roy",
+        "description": "Some useless text",
+        "id": "test",
+      },
     ],
     [
       {
@@ -2382,6 +2480,18 @@ exports[`convert pres, posts, and trials options can be specified as functions: 
         "factorString": "bar",
         "practice": true,
       },
+      {
+        "factorInt": 1,
+        "practice": true,
+      },
+      {
+        "id": "S0",
+      },
+      {
+        "author": "Quentin Roy",
+        "description": "Some useless text",
+        "id": "test",
+      },
     ],
     [
       {
@@ -2389,6 +2499,18 @@ exports[`convert pres, posts, and trials options can be specified as functions: 
         "factorInt": 1,
         "factorString": "foo",
         "practice": true,
+      },
+      {
+        "factorInt": 1,
+        "practice": true,
+      },
+      {
+        "id": "S0",
+      },
+      {
+        "author": "Quentin Roy",
+        "description": "Some useless text",
+        "id": "test",
       },
     ],
     [
@@ -2400,6 +2522,19 @@ exports[`convert pres, posts, and trials options can be specified as functions: 
         "number": 0,
         "practice": false,
       },
+      {
+        "factorInt": 1,
+        "number": 2,
+        "practice": false,
+      },
+      {
+        "id": "S0",
+      },
+      {
+        "author": "Quentin Roy",
+        "description": "Some useless text",
+        "id": "test",
+      },
     ],
     [
       {
@@ -2409,6 +2544,19 @@ exports[`convert pres, posts, and trials options can be specified as functions: 
         "factorString": "foo",
         "number": 1,
         "practice": false,
+      },
+      {
+        "factorInt": 1,
+        "number": 2,
+        "practice": false,
+      },
+      {
+        "id": "S0",
+      },
+      {
+        "author": "Quentin Roy",
+        "description": "Some useless text",
+        "id": "test",
       },
     ],
     [
@@ -2420,6 +2568,19 @@ exports[`convert pres, posts, and trials options can be specified as functions: 
         "number": 2,
         "practice": false,
       },
+      {
+        "factorInt": 1,
+        "number": 2,
+        "practice": false,
+      },
+      {
+        "id": "S0",
+      },
+      {
+        "author": "Quentin Roy",
+        "description": "Some useless text",
+        "id": "test",
+      },
     ],
     [
       {
@@ -2430,6 +2591,19 @@ exports[`convert pres, posts, and trials options can be specified as functions: 
         "number": 3,
         "practice": false,
       },
+      {
+        "factorInt": 1,
+        "number": 2,
+        "practice": false,
+      },
+      {
+        "id": "S0",
+      },
+      {
+        "author": "Quentin Roy",
+        "description": "Some useless text",
+        "id": "test",
+      },
     ],
     [
       {
@@ -2438,6 +2612,17 @@ exports[`convert pres, posts, and trials options can be specified as functions: 
         "factorString": "foo",
         "practice": true,
       },
+      {
+        "practice": true,
+      },
+      {
+        "id": "S1",
+      },
+      {
+        "author": "Quentin Roy",
+        "description": "Some useless text",
+        "id": "test",
+      },
     ],
     [
       {
@@ -2446,6 +2631,17 @@ exports[`convert pres, posts, and trials options can be specified as functions: 
         "factorString": "foo",
         "practice": true,
       },
+      {
+        "practice": true,
+      },
+      {
+        "id": "S1",
+      },
+      {
+        "author": "Quentin Roy",
+        "description": "Some useless text",
+        "id": "test",
+      },
     ],
     [
       {
@@ -2454,6 +2650,18 @@ exports[`convert pres, posts, and trials options can be specified as functions: 
         "factorString": "foo",
         "practice": true,
       },
+      {
+        "factorInt": 1,
+        "practice": true,
+      },
+      {
+        "id": "S1",
+      },
+      {
+        "author": "Quentin Roy",
+        "description": "Some useless text",
+        "id": "test",
+      },
     ],
     [
       {
@@ -2461,6 +2669,18 @@ exports[`convert pres, posts, and trials options can be specified as functions: 
         "factorInt": 1,
         "factorString": "bar",
         "practice": true,
+      },
+      {
+        "factorInt": 1,
+        "practice": true,
+      },
+      {
+        "id": "S1",
+      },
+      {
+        "author": "Quentin Roy",
+        "description": "Some useless text",
+        "id": "test",
       },
     ],
     [
@@ -2472,6 +2692,19 @@ exports[`convert pres, posts, and trials options can be specified as functions: 
         "number": 0,
         "practice": false,
       },
+      {
+        "factorInt": 1,
+        "number": 1,
+        "practice": false,
+      },
+      {
+        "id": "S1",
+      },
+      {
+        "author": "Quentin Roy",
+        "description": "Some useless text",
+        "id": "test",
+      },
     ],
     [
       {
@@ -2481,6 +2714,19 @@ exports[`convert pres, posts, and trials options can be specified as functions: 
         "factorString": "foo",
         "number": 1,
         "practice": false,
+      },
+      {
+        "factorInt": 1,
+        "number": 1,
+        "practice": false,
+      },
+      {
+        "id": "S1",
+      },
+      {
+        "author": "Quentin Roy",
+        "description": "Some useless text",
+        "id": "test",
       },
     ],
     [
@@ -2492,6 +2738,19 @@ exports[`convert pres, posts, and trials options can be specified as functions: 
         "number": 2,
         "practice": false,
       },
+      {
+        "factorInt": 1,
+        "number": 1,
+        "practice": false,
+      },
+      {
+        "id": "S1",
+      },
+      {
+        "author": "Quentin Roy",
+        "description": "Some useless text",
+        "id": "test",
+      },
     ],
     [
       {
@@ -2502,6 +2761,19 @@ exports[`convert pres, posts, and trials options can be specified as functions: 
         "number": 3,
         "practice": false,
       },
+      {
+        "factorInt": 1,
+        "number": 1,
+        "practice": false,
+      },
+      {
+        "id": "S1",
+      },
+      {
+        "author": "Quentin Roy",
+        "description": "Some useless text",
+        "id": "test",
+      },
     ],
     [
       {
@@ -2510,6 +2782,18 @@ exports[`convert pres, posts, and trials options can be specified as functions: 
         "factorString": "bar",
         "practice": true,
       },
+      {
+        "factorInt": 2,
+        "practice": true,
+      },
+      {
+        "id": "S1",
+      },
+      {
+        "author": "Quentin Roy",
+        "description": "Some useless text",
+        "id": "test",
+      },
     ],
     [
       {
@@ -2517,6 +2801,18 @@ exports[`convert pres, posts, and trials options can be specified as functions: 
         "factorInt": 2,
         "factorString": "foo",
         "practice": true,
+      },
+      {
+        "factorInt": 2,
+        "practice": true,
+      },
+      {
+        "id": "S1",
+      },
+      {
+        "author": "Quentin Roy",
+        "description": "Some useless text",
+        "id": "test",
       },
     ],
     [
@@ -2528,6 +2824,19 @@ exports[`convert pres, posts, and trials options can be specified as functions: 
         "number": 0,
         "practice": false,
       },
+      {
+        "factorInt": 2,
+        "number": 2,
+        "practice": false,
+      },
+      {
+        "id": "S1",
+      },
+      {
+        "author": "Quentin Roy",
+        "description": "Some useless text",
+        "id": "test",
+      },
     ],
     [
       {
@@ -2537,6 +2846,19 @@ exports[`convert pres, posts, and trials options can be specified as functions: 
         "factorString": "bar",
         "number": 1,
         "practice": false,
+      },
+      {
+        "factorInt": 2,
+        "number": 2,
+        "practice": false,
+      },
+      {
+        "id": "S1",
+      },
+      {
+        "author": "Quentin Roy",
+        "description": "Some useless text",
+        "id": "test",
       },
     ],
     [
@@ -2548,6 +2870,19 @@ exports[`convert pres, posts, and trials options can be specified as functions: 
         "number": 2,
         "practice": false,
       },
+      {
+        "factorInt": 2,
+        "number": 2,
+        "practice": false,
+      },
+      {
+        "id": "S1",
+      },
+      {
+        "author": "Quentin Roy",
+        "description": "Some useless text",
+        "id": "test",
+      },
     ],
     [
       {
@@ -2557,6 +2892,19 @@ exports[`convert pres, posts, and trials options can be specified as functions: 
         "factorString": "foo",
         "number": 3,
         "practice": false,
+      },
+      {
+        "factorInt": 2,
+        "number": 2,
+        "practice": false,
+      },
+      {
+        "id": "S1",
+      },
+      {
+        "author": "Quentin Roy",
+        "description": "Some useless text",
+        "id": "test",
       },
     ],
   ],
@@ -2761,7 +3109,7 @@ exports[`convert pres, posts, and trials options can be specified as functions: 
 }
 `;
 
-exports[`convert pres, posts, and trials options can be specified as objects 1`] = `
+exports[`convert > pres, posts, and trials options can be specified as objects 1`] = `
 {
   "author": "Quentin Roy",
   "description": "Some useless text",
@@ -2937,7 +3285,7 @@ exports[`convert pres, posts, and trials options can be specified as objects 1`]
 }
 `;
 
-exports[`convert pres, posts, and trials options can be specified as strings 1`] = `
+exports[`convert > pres, posts, and trials options can be specified as strings 1`] = `
 {
   "author": "Quentin Roy",
   "description": "Some useless text",
