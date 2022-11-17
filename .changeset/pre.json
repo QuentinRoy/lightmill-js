@@ -1,0 +1,10 @@
+{
+  "mode": "pre",
+  "tag": "alpha",
+  "initialVersions": {
+    "@lightmill/convert-touchstone": "3.0.0-alpha.6",
+    "@lightmill/runner": "3.0.0-alpha.5",
+    "@lightmill/static-design": "3.0.0-alpha.5"
+  },
+  "changesets": []
+}

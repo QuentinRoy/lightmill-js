@@ -13,6 +13,7 @@
     "lint": "eslint . && prettier --check ."
   },
   "dependencies": {
+    "@changesets/cli": "^2.25.2",
     "fs-extra": "^10.1.0",
     "minimist": "^1.2.7"
   }
