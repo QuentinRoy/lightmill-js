@@ -1,11 +1,12 @@
-import { asyncReduce, asyncForEach } from './utils.mjs';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { asyncForEach, asyncReduce } from '../src/utils.js';
 
 let wait;
 let generators;
 let throwingGenerators;
 
 beforeEach(() => {
-  wait = (t) =>
+  wait = (t: number) =>
     new Promise((resolve) => {
       setTimeout(resolve, t);
     });
@@ -79,7 +80,7 @@ describeEachSyncs(`asyncReduce with %s iterator`, (sync) => {
 
   it('rejects if a sync reducers throws', async () => {
     const gen = generators[sync];
-    const reducer = jest.fn((acc, v) => {
+    const reducer = vi.fn((acc, v) => {
       if (v === 'c') throw new Error('mock-reducer-error');
       return `${acc}${v},`;
     });
@@ -91,7 +92,7 @@ describeEachSyncs(`asyncReduce with %s iterator`, (sync) => {
 
   it('rejects if an async reducers throws', async () => {
     const gen = generators[sync];
-    const reducer = jest.fn((acc, v) =>
+    const reducer = vi.fn((acc, v) =>
       wait(0).then(() => {
         if (v === 'c') throw new Error('mock-reducer-error');
         return `${acc}${v},`;
@@ -105,7 +106,7 @@ describeEachSyncs(`asyncReduce with %s iterator`, (sync) => {
 
   it('rejects if the iterator throws', async () => {
     const gen = throwingGenerators[sync];
-    const reducer = jest.fn((acc, v) => `${acc}${v},`, 'test:');
+    const reducer = vi.fn((acc, v) => `${acc}${v},`);
     await expect(asyncReduce(gen(), reducer, 'test:')).rejects.toThrow(
       'mock-generator-error'
     );
@@ -116,14 +117,19 @@ describeEachSyncs(`asyncReduce with %s iterator`, (sync) => {
 describeEachSyncs(`asyncForEach with %s iterator`, (sync) => {
   it('calls its callback for each values', async () => {
     const gen = generators[sync];
-    const callback = jest.fn();
+    const callback = vi.fn();
     await asyncForEach(gen(), callback);
-    expect(callback.mock.calls).toEqual([['a'], ['b'], ['c'], ['d']]);
+    expect(callback.mock.calls).toEqual([
+      ['a', 0],
+      ['b', 1],
+      ['c', 2],
+      ['d', 3],
+    ]);
   });
 
   it('waits for its callback to resolve if it returned a promise', async () => {
     const gen = generators[sync];
-    const acc = [];
+    const acc: string[] = [];
     const asyncCallback = (value) => {
       acc.push(`${value}-async-start`);
       return wait(0).then(() => {
@@ -133,7 +139,7 @@ describeEachSyncs(`asyncForEach with %s iterator`, (sync) => {
     const syncCallback = (value) => {
       acc.push(`${value}-sync`);
     };
-    const callback = jest.fn((value) =>
+    const callback = vi.fn((value) =>
       ['b', 'd'].includes(value) ? syncCallback(value) : asyncCallback(value)
     );
 
@@ -150,18 +156,21 @@ describeEachSyncs(`asyncForEach with %s iterator`, (sync) => {
 
   it('rejects if a sync callback throws', async () => {
     const gen = generators[sync];
-    const callback = jest.fn((v) => {
+    const callback = vi.fn((v) => {
       if (v === 'b') throw new Error('mock-callback-error');
     });
     await expect(asyncForEach(gen(), callback)).rejects.toThrow(
       'mock-callback-error'
     );
-    expect(callback).toMatchSnapshot();
+    expect(callback.mock.calls).toEqual([
+      ['a', 0],
+      ['b', 1],
+    ]);
   });
 
   it('rejects if an async callback throws', async () => {
     const gen = generators[sync];
-    const callback = jest.fn((v) =>
+    const callback = vi.fn((v) =>
       wait(0).then(() => {
         if (v === 'b') throw new Error('mock-callback-error');
       })
@@ -169,15 +178,21 @@ describeEachSyncs(`asyncForEach with %s iterator`, (sync) => {
     await expect(asyncForEach(gen(), callback)).rejects.toThrow(
       'mock-callback-error'
     );
-    expect(callback).toMatchSnapshot();
+    expect(callback.mock.calls).toEqual([
+      ['a', 0],
+      ['b', 1],
+    ]);
   });
 
   it('rejects if the iterator throws', async () => {
     const gen = throwingGenerators[sync];
-    const callback = jest.fn();
-    await expect(asyncReduce(gen(), callback)).rejects.toThrow(
+    const callback = vi.fn();
+    await expect(asyncForEach(gen(), callback)).rejects.toThrow(
       'mock-generator-error'
     );
-    expect(callback).toMatchSnapshot();
+    expect(callback.mock.calls).toEqual([
+      ['a', 0],
+      ['b', 1],
+    ]);
   });
 });
