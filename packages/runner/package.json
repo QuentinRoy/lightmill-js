@@ -1,6 +1,6 @@
 {
   "name": "@lightmill/runner",
-  "version": "3.0.0-alpha.5",
+  "version": "3.0.0-alpha.6",
   "description": "JS Runner for LightMill.",
   "license": "MIT",
   "type": "module",
@@ -27,5 +27,9 @@
   "keywords": [
     "experiment",
     "lightmill"
-  ]
+  ],
+  "private": false,
+  "publishConfig": {
+    "access": "public"
+  }
 }

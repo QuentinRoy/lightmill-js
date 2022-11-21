@@ -1,7 +1,7 @@
 {
   "name": "@lightmill/convert-touchstone",
   "packageManager": "pnpm@7.13.4",
-  "version": "3.0.0-alpha.6",
+  "version": "3.0.0-alpha.7",
   "type": "module",
   "description": "Converts touchstone XML exports to lightmill format.",
   "exports": {
@@ -34,5 +34,9 @@
   "files": [
     "dist",
     "bin"
-  ]
+  ],
+  "private": false,
+  "publishConfig": {
+    "access": "public"
+  }
 }
