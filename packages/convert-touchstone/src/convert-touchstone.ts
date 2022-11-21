@@ -1,20 +1,15 @@
 import * as sax from 'sax';
+import StaticDesign from '@lightmill/static-design';
 
 export type ExperimentBase = {
   author: string;
   description: string;
   id: string;
 };
-export type Experiment<T extends Task> = ExperimentBase & {
-  runs: Run<T>[];
-};
-export type RunBase = {
-  id: string;
-};
-export type Run<T extends Task> = RunBase & {
+export type RunBase = { id: string };
+export type Run<T extends BaseTask> = RunBase & {
   tasks: Array<T>;
 };
-export type FactorValues = Record<string, unknown>;
 export type Trial = (
   | { practice: false; number: number; blockNumber: number }
   | { practice: true }
@@ -22,7 +17,11 @@ export type Trial = (
   FactorValues;
 export type Block = ({ practice: false; number: number } | { practice: true }) &
   FactorValues;
-export type Task = Record<string, unknown> & { type: string };
+export type FactorValues = Record<string, unknown>;
+export type BaseTask = { type: string; id: string };
+export type UndefinedTask = BaseTask & Record<string, unknown>;
+export type DesignConfig<T extends BaseTask> = ExperimentBase &
+  ConstructorParameters<typeof StaticDesign<T>>[0];
 
 type TypeParserKey = 'integer' | 'float' | 'string';
 type TypeParser = ((x: string) => number) | ((x: string) => string);
@@ -31,26 +30,26 @@ const typeParsers: Record<TypeParserKey, TypeParser> = {
   float: (x: string) => parseFloat(x),
   string: (x: string) => x,
 };
+type FacultativeId<T> = Omit<T, 'id'> & { id?: string };
 
 type MapperArgs = [Record<string, unknown>, ...Record<string, unknown>[]];
-type Mapper<FArgs extends MapperArgs, T extends Task> =
+type Mapper<FArgs extends MapperArgs, T> =
   | string
   | T
-  | ((...args: FArgs) => string | T | Array<T>)
-  | Array<T | string>;
-type DefinedMapper<FArgs extends MapperArgs, T extends Task> =
-  | T
+  | Array<string | T>
+  | ((...args: FArgs) => string | T | Array<string | T>);
+type DefinedMapper<FArgs extends MapperArgs, T> =
   | ((...args: FArgs) => T | Array<T>)
+  | T
   | Array<T>;
-
-type MapperOptions<T extends Task> = {
+type MapperOptions<T> = {
   preBlock?: Mapper<[Block, RunBase, ExperimentBase], T>;
   postBlock?: Mapper<[Block, RunBase, ExperimentBase], T>;
   trial?: Mapper<[Trial, Block, RunBase, ExperimentBase], T>;
   preRun?: Mapper<[RunBase, ExperimentBase], T>;
   postRun?: Mapper<[RunBase, ExperimentBase], T>;
 };
-type DefinedMapperOptions<T extends Task> = {
+type DefinedMapperOptions<T> = {
   preBlock?: DefinedMapper<[Block, RunBase, ExperimentBase], T>;
   postBlock?: DefinedMapper<[Block, RunBase, ExperimentBase], T>;
   trial?: DefinedMapper<[Trial, Block, RunBase, ExperimentBase], T>;
@@ -59,22 +58,9 @@ type DefinedMapperOptions<T extends Task> = {
 };
 
 /**
- * @param {String|stream.Readable} touchStoneXML The XML to parse.
- * @param {object} [options] Options
- * @param {string|object|array|function} [options.preBlock] The type of the
- * task to insert before each block or a function to map the block values to
- * task(s).
- * @param {string|object|array|function} [options.postBlock] The type of the
- * task to insert after each block or a function to map the block values to
- * task(s).
- * @param {string|object|array|function} [options.preRun] The type of the task
- * to insert before each run or a function to map the run values to task(s).
- * @param {string|object|array|function} [options.postRun] The type of the task
- * to insert after each run or a function to map the run values to task(s).
- * @param {string|object|array|function} [options.trial=trial] The type of
- * the task to insert for each trial or a function to map the trial values
- * to task(s).
- * @return {Promise<object>} The experimental design converted into a format
+ * @param touchStoneXML The XML to parse.
+ * @param [options] Options
+ * @return The experimental design converted into a format
  * supported by @lightmill/static-design.
  *
  * @example
@@ -85,28 +71,28 @@ type DefinedMapperOptions<T extends Task> = {
  * });
  * // Mappers can also be strings...
  * const postRuns = 'post-run';  // This is the same as above.
- * // ...arrays (if several tasks need to be inserted)...
+ * // ...arrays of string (if several tasks need to be inserted)...
  * const preBlocks = [
- *   { type: 'pre-block-1' },
- *   { type: 'pre-block-2' }
+ *   'pre-block-1',
+ *   'pre-block-2',
  * ];
- * // ...or functions that returns arrays.
+ * // ...or functions that returns Task or array of Tasks.
  * const postBlocks = (block, run, experiment) => [
- *   { type: 'post-block-1', runId: run.id },
- *   { ...block , type: 'post-block-2' }
- *   'post-block-2' // This is the same as above.
+ *   { type: 'post-block-1', runId: run.id, id: getId(block, run, experiment) },
+ *   { ...block , type: 'post-block-2', id: getId(block, run, experiment) }
  * ];
  * convertTouchStone(data, { preBlocks, postBlocks, postRuns, preRuns })
  *   .then(doSomething);
  */
-export default function convertTouchstone<T extends Task>(
+export default function convertTouchstone<T extends BaseTask>(
   touchStoneXML: string | { pipe: (arg0: sax.SAXStream) => void },
-  opts: DefinedMapperOptions<T> & Required<Pick<MapperOptions<T>, 'trial'>>
-): Promise<Experiment<T>>;
+  opts: DefinedMapperOptions<FacultativeId<T>> &
+    Required<Pick<DefinedMapperOptions<FacultativeId<T>>, 'trial'>>
+): Promise<DesignConfig<T>>;
 export default function convertTouchstone(
   touchStoneXML: string | { pipe: (arg0: sax.SAXStream) => void },
-  opts?: MapperOptions<Task>
-): Promise<Experiment<Task>>;
+  opts?: MapperOptions<FacultativeId<UndefinedTask>>
+): Promise<DesignConfig<UndefinedTask>>;
 export default function convertTouchstone(
   touchStoneXML: string | { pipe: (arg0: sax.SAXStream) => void },
   {
@@ -114,9 +100,9 @@ export default function convertTouchstone(
     postBlock = undefined,
     preRun = undefined,
     postRun = undefined,
-    trial = 'trial',
-  }: MapperOptions<Task> = {}
-): Promise<Experiment<Task>> {
+    trial = createDefaultTrialMapper(),
+  }: MapperOptions<FacultativeId<UndefinedTask>> = {}
+): Promise<DesignConfig<UndefinedTask>> {
   return new Promise((resolve, reject) => {
     const saxParser =
       typeof touchStoneXML === 'string'
@@ -126,14 +112,24 @@ export default function convertTouchstone(
     // Handlers to parse values (initialized using factor types).
     const valueParsers: Record<string, TypeParser> = {};
 
-    const getPreBlockTasks = createTaskGetter(preBlock);
-    const getPostBlockTasks = createTaskGetter(postBlock);
-    const getPreRunTasks = createTaskGetter(preRun);
-    const getPostRunTasks = createTaskGetter(postRun);
-    const getTrialTasks = createTaskGetter(trial);
+    const taskIdManager = new IdManager();
+    const getTaskId = (type: string, requestedId?: string) => {
+      if (requestedId == null) {
+        return taskIdManager.makeNew(type);
+      } else {
+        taskIdManager.add(requestedId);
+        return requestedId;
+      }
+    };
 
-    let experiment: Experiment<Task> | null = null;
-    let currentRun: Run<Task> | null = null;
+    const getPreBlockTasks = createTaskGetter(preBlock, getTaskId);
+    const getPostBlockTasks = createTaskGetter(postBlock, getTaskId);
+    const getPreRunTasks = createTaskGetter(preRun, getTaskId);
+    const getPostRunTasks = createTaskGetter(postRun, getTaskId);
+    const getTrialTasks = createTaskGetter(trial, getTaskId);
+
+    let experiment: DesignConfig<BaseTask> | null = null;
+    let currentRun: Run<BaseTask> | null = null;
     let currentBlock: Block | null = null;
 
     // Handlers to be called on open tag events.
@@ -159,7 +155,7 @@ export default function convertTouchstone(
         if (experiment != null) {
           throw new Error('There can only be one experiment tag');
         }
-        experiment = { author, description, id, runs: [] };
+        experiment = { author, description, id, timelines: [] };
       },
       run({ attributes: { id } }: sax.Tag) {
         if (currentRun != null) throw new Error('Runs cannot be nested');
@@ -167,11 +163,11 @@ export default function convertTouchstone(
           throw new Error('Blocks must be inside an experiment');
         }
         currentRun = { id, tasks: [] };
-        experiment.runs.push(currentRun);
+        experiment.timelines.push(currentRun);
         // This is very protective, but it ensures mappers cannot mess with
         // our internal state.
         let { tasks, ...runBase } = currentRun;
-        let { runs, ...experimentBase } = experiment;
+        let { timelines, ...experimentBase } = experiment;
         currentRun.tasks = getPreRunTasks(runBase, experimentBase);
       },
       block(blockNode: sax.Tag, practice = false) {
@@ -193,7 +189,7 @@ export default function convertTouchstone(
         // This is very protective, but it ensures mappers cannot mess with
         // our internal state.
         let { tasks, ...runBase } = currentRun;
-        let { runs, ...experimentBase } = experiment;
+        let { timelines, ...experimentBase } = experiment;
         currentRun.tasks.push(
           ...getPreBlockTasks({ ...currentBlock }, runBase, experimentBase)
         );
@@ -229,7 +225,7 @@ export default function convertTouchstone(
         // This is very protective, but it ensures mappers cannot mess with
         // our internal state.
         let { tasks, ...runBase } = currentRun;
-        let { runs, ...experimentBase } = experiment;
+        let { timelines, ...experimentBase } = experiment;
         currentRun.tasks.push(
           ...getTrialTasks(trial, { ...currentBlock }, runBase, experimentBase)
         );
@@ -270,11 +266,12 @@ export default function convertTouchstone(
         }
         // This is very protective, but it ensures mappers cannot mess with
         // our internal state.
-        let { runs, ...experimentBase } = experiment;
+        let { timelines, ...experimentBase } = experiment;
         let { tasks, ...runBase } = currentRun;
         currentRun.tasks.push(...getPostRunTasks(runBase, experimentBase));
         currentRun = null;
         currentBlock = null;
+        taskIdManager.reset();
       },
       block() {
         if (currentRun == null) {
@@ -288,7 +285,7 @@ export default function convertTouchstone(
         }
         // This is very protective, but it ensures mappers cannot mess with
         // our internal state.
-        let { runs, ...experimentBase } = experiment;
+        let { timelines, ...experimentBase } = experiment;
         let { tasks, ...runBase } = currentRun;
         currentRun.tasks.push(
           ...getPostBlockTasks(currentBlock, runBase, experimentBase)
@@ -299,8 +296,6 @@ export default function convertTouchstone(
         return closeHandlers.block();
       },
     };
-
-    // Attach the handlers to the sax parser.
 
     const handleCloseTag = (tagName: string) => {
       if (!(tagName in closeHandlers)) {
@@ -353,16 +348,6 @@ export default function convertTouchstone(
   });
 }
 
-/**
- * Parse the values string (as encoded by touchstone).
- * @param {string} valuesString The values encoded in a string.
- * E.g. "val1=foo,val2=bar".
- * @param {object} valueParsers Handlers to transform values based on their
- * name. E.g. { val1: x => +x } can be used to map val1 to numbers.
- * @return {object} An object whose keys are the name of the values, and values
- * the values.
- * @private
- */
 function parseValues<K extends string, P extends (value: string) => unknown>(
   valuesString: string,
   valueParsers?: Record<K, P>
@@ -380,42 +365,86 @@ function parseValues<K extends string, P extends (value: string) => unknown>(
   return values;
 }
 
-function createTaskGetter<FArgs extends MapperArgs, T extends Task>(
-  mapper?: DefinedMapper<FArgs, T>
+class IdManager {
+  #lastIdNumbers = new Map<string, number>();
+  #ids = new Set<string>();
+
+  makeNew(type: string) {
+    let idNumber = this.#lastIdNumbers.get(type) || 0;
+    this.#lastIdNumbers.set(type, idNumber + 1);
+    let id = `${type}-${idNumber}`;
+    this.add(id);
+    return id;
+  }
+
+  add(id: string) {
+    if (this.#ids.has(id)) {
+      throw new Error(`Duplicate id "${id}"`);
+    }
+    this.#ids.add(id);
+  }
+
+  reset() {
+    this.#lastIdNumbers.clear();
+    this.#ids.clear();
+  }
+}
+
+function createTaskGetter<FArgs extends MapperArgs, T extends BaseTask>(
+  mapper: DefinedMapper<FArgs, FacultativeId<T>> | undefined,
+  getId: (type: string, requestedId?: string) => string
 ): (...args: FArgs) => Array<T>;
-function createTaskGetter<FArgs extends MapperArgs, T extends Task>(
-  mapper?: Mapper<FArgs, T>
-): (...args: FArgs) => Array<Task>;
-function createTaskGetter<FArgs extends MapperArgs, T extends Task>(
-  mapper?: Mapper<FArgs, T>
-): (...args: FArgs) => Array<Task> {
+function createTaskGetter<FArgs extends MapperArgs, T extends BaseTask>(
+  mapper: Mapper<FArgs, FacultativeId<T>> | undefined,
+  getId: (type: string, requestedId?: string) => string
+): (...args: FArgs) => Array<BaseTask>;
+function createTaskGetter<FArgs extends MapperArgs, T extends BaseTask>(
+  mapper: Mapper<FArgs, FacultativeId<T>> | undefined,
+  getId: (type: string, requestedId?: string) => string
+): (...args: FArgs) => Array<BaseTask> {
   if (mapper == null) {
     return () => [];
   }
-  if (typeof mapper === 'string' || mapper instanceof String) {
-    return (
-      container: Record<string, unknown>,
-      // The rest argument must be included for typescript to be happy.
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      ...rest: Record<string, unknown>[]
-    ) => [{ ...container, type: mapper as string }];
+  if (typeof mapper !== 'function') {
+    let innerValue = mapper;
+    mapper = () => innerValue;
   }
-  if (typeof mapper === 'function') {
-    return (...args: FArgs) => {
-      let value = mapper(...args);
-      let getter = createTaskGetter(value);
-      return getter(args[0], ...args.slice(1));
-    };
-  }
-  if (Array.isArray(mapper)) {
-    const getters = mapper.map(createTaskGetter);
-    return (...args) => {
-      let result: Array<Task> = [];
-      for (let i = 0; i < getters.length; i++) {
-        result.push(...getters[i](args[0], ...args.slice(1)));
+  let getValue = mapper;
+  return (...args: FArgs) => {
+    let value = getValue(...args);
+    if (!Array.isArray(value)) {
+      value = [value];
+    }
+    return value.map((task) => {
+      if (typeof task === 'string') {
+        return {
+          ...args[0],
+          type: task,
+          id: getId(task, undefined),
+        };
       }
-      return result;
-    };
-  }
-  return () => [mapper];
+      let requestedId: string | undefined = undefined;
+      if ('id' in task) {
+        if (typeof task.id !== 'string') {
+          throw new Error('Cannot use id in mapper if it is not a string');
+        }
+        requestedId = task.id;
+      }
+      return { ...task, id: getId(task.type, requestedId) };
+    });
+  };
+}
+
+function createDefaultTrialMapper() {
+  let lastPracticeTrialId = 0;
+  return function (trial: Trial, block: Block): BaseTask {
+    let id: string;
+    if (trial.practice || block.practice) {
+      lastPracticeTrialId += 1;
+      id = `practice-trial-${lastPracticeTrialId}`;
+    } else {
+      id = `trial-${block.number}-${trial.number}`;
+    }
+    return { ...trial, type: 'trial', id };
+  };
 }

@@ -20,6 +20,7 @@
     "yargs": "12.0.5"
   },
   "devDependencies": {
+    "@lightmill/static-design": "workspace:*",
     "cross-env": "^7.0.3",
     "@types/sax": "^1.2.4",
     "vite": "^3.2.4",
