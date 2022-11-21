@@ -1,6 +1,7 @@
 ---
 '@lightmill/convert-touchstone': minor
 '@lightmill/runner': minor
+'@lightmill/static-design': minor
 ---
 
-Provide typescript types.
+Refactor to typescript. The library now provides typescript types.

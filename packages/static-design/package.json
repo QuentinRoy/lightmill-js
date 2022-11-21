@@ -1,52 +1,35 @@
 {
   "name": "@lightmill/static-design",
+  "type": "module",
   "version": "3.0.0-alpha.5",
-  "description": "Control the flow of trials based on a static design.",
-  "main": "dist/lightmill-static-design",
-  "module": "dist/lightmill-static-design.mjs",
-  "repository": "https://github.com/QuentinRoy/lightmill-js/tree/master/packages/store",
-  "author": "Quentin Roy <quentin@quentinroy.fr>",
+  "description": "Select timelines and control the flow of trials based on a static design.",
+  "author": "Quentin Roy <contact@quentinroy.fr>",
   "license": "MIT",
   "access": "public",
   "devDependencies": {
-    "@babel/core": "7.20.2",
-    "@babel/preset-env": "7.20.2",
-    "babel-core": "7.0.0-bridge.0",
     "cross-env": "7.0.3",
-    "jest": "29.3.1",
-    "rollup": "1.32.1",
-    "rollup-plugin-babel": "4.4.0",
-    "rollup-plugin-commonjs": "10.1.0",
-    "rollup-plugin-node-resolve": "5.2.0"
+    "typescript": "^4.9.3",
+    "vite": "^3.2.4",
+    "vitest": "^0.25.2"
   },
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./*": {
+      "import": "./dist/*.js",
+      "types": "./dist/*.d.ts"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/runner.d.ts",
   "scripts": {
-    "test": "cross-env NODE_ENV=test jest",
-    "coverage": "pnpm run test --coverage",
-    "build-esm": "node ../../build-tools/esm-reexport.cjs -nds ./esm/index.mjs -o ./dist/lightmill-static-design.mjs",
-    "build-umd": "cross-env NODE_ENV=production rollup --config rollup.config.js",
-    "build": "pnpm build-esm; pnpm build-umd"
+    "test": "cross-env NODE_ENV=test vitest",
+    "build": "tsc -b tsconfig.json",
+    "prepublish": "pnpm run build"
   },
   "files": [
-    "esm/**/!(*.test|*.spec).?(m)js",
     "dist"
-  ],
-  "jest": {
-    "testMatch": [
-      "**/__tests__/**/*.?(m)js?(x)",
-      "**/?(*.)(spec|test).?(m)js?(x)"
-    ],
-    "moduleFileExtensions": [
-      "js",
-      "json",
-      "jsx",
-      "node",
-      "mjs"
-    ],
-    "transform": {
-      "^.+.m?js$": "babel-jest"
-    },
-    "collectCoverageFrom": [
-      "esm/**/*.?(m)js?(x)"
-    ]
-  }
+  ]
 }

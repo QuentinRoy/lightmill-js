@@ -1,6 +1,8 @@
-import RunIterator from './run-iterator.mjs';
+import { beforeEach, describe, expect, it } from 'vitest';
 
-let designConfig;
+import TimelineIterator, { Timeline } from '../src/timeline-iterator.js';
+
+let designConfig: Timeline<{ id: string; type: string; testData?: string }>;
 
 beforeEach(() => {
   designConfig = {
@@ -18,7 +20,7 @@ beforeEach(() => {
 
 describe('RunIterator#next', () => {
   it('iterates through each tasks (including trials and block inits)', async () => {
-    const design = RunIterator(designConfig);
+    const design = new TimelineIterator(designConfig);
     await expect(design.next()).resolves.toEqual({
       done: false,
       value: { id: 's00', type: 'mock-type-1', testData: 'block-0' },
@@ -54,7 +56,7 @@ describe('RunIterator#next', () => {
   });
 
   it("resumes just after resumeAfter' s task", async () => {
-    const design = RunIterator(designConfig, { resumeAfter: 's03' });
+    const design = new TimelineIterator(designConfig, { resumeAfter: 's03' });
     await expect(design.next()).resolves.toEqual({
       done: false,
       value: { id: 's04', type: 'mock-type-2', testData: 'trial-1-0' },
@@ -63,14 +65,14 @@ describe('RunIterator#next', () => {
 
   it('crashes if the resumeFrom task cannot be found', () => {
     expect(() => {
-      RunIterator(designConfig, { resumeAfter: 'some-unknown-id' });
+      new TimelineIterator(designConfig, { resumeAfter: 'some-unknown-id' });
     }).toThrow(
       'Cannot resume after task "some-unknown-id": the task could not be found'
     );
   });
 
   it('resumes with the resumeWith task if provided', async () => {
-    const design = RunIterator(designConfig, {
+    const design = new TimelineIterator(designConfig, {
       resumeAfter: 's01',
       resumeWith: { id: 'resume-task', type: 'resume' },
     });
@@ -85,14 +87,14 @@ describe('RunIterator#next', () => {
   });
 
   it('finishes immediately if the resume from task corresponds to the last task', async () => {
-    const design = RunIterator(designConfig, { resumeAfter: 's05' });
+    const design = new TimelineIterator(designConfig, { resumeAfter: 's05' });
     await expect(design.next()).resolves.toEqual({ done: true });
   });
 });
 
 describe('RunIterator#getId', () => {
   it('returns the id of the run', async () => {
-    const design = RunIterator(designConfig);
+    const design = new TimelineIterator(designConfig);
     await expect(design.getId()).resolves.toBe('mock-run-id');
   });
 });
