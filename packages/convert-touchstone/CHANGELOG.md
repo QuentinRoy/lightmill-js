@@ -1,5 +1,11 @@
 # Change Log
 
+## 3.0.0-alpha.8
+
+### Major Changes
+
+- 508deac: Update export result so it matches @lightmill/static-design argument: (1) ensure ids are provided or generated for every tasks, (2) rename result's `runs` property to `timelines`.
+
 ## 3.0.0-alpha.7
 
 ### Major Changes
