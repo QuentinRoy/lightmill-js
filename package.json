@@ -11,7 +11,9 @@
     "prettier": "2.7.1"
   },
   "scripts": {
-    "lint": "eslint . && prettier --check ."
+    "lint": "eslint . && prettier --check .",
+    "changeset": "changeset",
+    "release": "changeset publish"
   },
   "dependencies": {
     "@changesets/cli": "^2.25.2",
