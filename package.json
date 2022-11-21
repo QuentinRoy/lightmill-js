@@ -3,6 +3,7 @@
   "license": "MIT",
   "private": true,
   "type": "module",
+  "packageManager": "pnpm@7.17.0",
   "devDependencies": {
     "eslint": "8.27.0",
     "eslint-config-prettier": "8.5.0",
