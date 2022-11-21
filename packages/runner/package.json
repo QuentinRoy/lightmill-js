@@ -28,8 +28,5 @@
     "experiment",
     "lightmill"
   ],
-  "private": false,
-  "publishConfig": {
-    "access": "public"
-  }
+  "private": false
 }
