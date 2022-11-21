@@ -5,7 +5,7 @@
   "packageManager": "pnpm@7.17.0",
   "private": false,
   "devDependencies": {
-    "eslint": "8.27.0",
+    "eslint": "8.28.0",
     "eslint-config-prettier": "8.5.0",
     "eslint-plugin-import": "2.26.0",
     "prettier": "2.7.1"
@@ -15,7 +15,8 @@
   },
   "dependencies": {
     "@changesets/cli": "^2.25.2",
-    "fs-extra": "^10.1.0",
-    "minimist": "^1.2.7"
+    "@typescript-eslint/eslint-plugin": "^5.43.0",
+    "@typescript-eslint/parser": "^5.43.0",
+    "typescript": "4.8.4"
   }
 }
