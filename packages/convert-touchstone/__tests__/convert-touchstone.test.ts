@@ -43,15 +43,35 @@ describe('convert', () => {
 
   it('pres, posts, and trials options can be specified as functions', async () => {
     let i = -1;
-    const getI = () => {
+    const getId = () => {
       i += 1;
-      return i;
+      return `${i}`;
     };
-    const trial = vi.fn(() => ({ type: 'mock-trial', i: getI() }));
-    const preRun = vi.fn(() => ({ type: 'mock-pre-run', i: getI() }));
-    const postRun = vi.fn(() => ({ type: 'mock-post-run', i: getI() }));
-    const preBlock = vi.fn(() => ({ type: 'mock-pre-block', i: getI() }));
-    const postBlock = vi.fn(() => ({ type: 'mock-post-block', i: getI() }));
+    const trial = vi.fn(() => ({
+      type: 'mock-trial',
+      id: getId(),
+      data: 'data',
+    }));
+    const preRun = vi.fn(() => ({
+      type: 'mock-pre-run',
+      id: getId(),
+      data: 'data',
+    }));
+    const postRun = vi.fn(() => ({
+      type: 'mock-post-run',
+      id: getId(),
+      data: 'data',
+    }));
+    const preBlock = vi.fn(() => ({
+      type: 'mock-pre-block',
+      id: getId(),
+      data: 'data',
+    }));
+    const postBlock = vi.fn(() => ({
+      type: 'mock-post-block',
+      id: getId(),
+      data: 'data',
+    }));
     await expect(
       convert(fixture, { preRun, postRun, preBlock, postBlock, trial })
     ).resolves.toMatchSnapshot('convert');
@@ -62,14 +82,14 @@ describe('convert', () => {
     expect(postBlock).toMatchSnapshot('postBlock');
   });
 
-  it('pres, posts, and trials options can be specified as objects', async () => {
+  it('pres, posts, and trials options can be specified as strings', async () => {
     await expect(
       convert(fixture, {
-        trial: { type: 'mock-trial' },
-        preRun: { type: 'mock-pre-run' },
-        postRun: { type: 'mock-post-run' },
-        preBlock: { type: 'mock-pre-block' },
-        postBlock: { type: 'mock-post-block' },
+        trial: 'mock-trial',
+        preRun: 'mock-pre-run',
+        postRun: 'mock-post-run',
+        preBlock: 'mock-pre-block',
+        postBlock: 'mock-post-block',
       })
     ).resolves.toMatchSnapshot();
   });

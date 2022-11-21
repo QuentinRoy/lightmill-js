@@ -25,6 +25,7 @@ importers:
 
   packages/convert-touchstone:
     specifiers:
+      '@lightmill/static-design': workspace:*
       '@types/sax': ^1.2.4
       cross-env: ^7.0.3
       sax: ^1.2.4
@@ -36,6 +37,7 @@ importers:
       sax: 1.2.4
       yargs: 12.0.5
     devDependencies:
+      '@lightmill/static-design': link:../static-design
       '@types/sax': 1.2.4
       cross-env: 7.0.3
       typescript: 4.8.4

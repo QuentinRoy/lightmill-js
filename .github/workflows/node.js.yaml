@@ -25,6 +25,7 @@ jobs:
       - run: pnpm run -r build
 
   test:
+    needs: ['build']
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -36,6 +37,7 @@ jobs:
           node-version: 18.12.x
           cache: 'pnpm'
       - run: pnpm install --frozen-lockfile
+      - run: pnpm run -r build
       - run: pnpm run -r test
 
   lint:

@@ -1,12 +1,13 @@
+export type BaseTask = { id: string };
 export type Timeline<Task, Id extends string = string> = {
   id: Id;
   tasks: Task[];
 };
-export type TimelineIteratorOptions<Task extends { id: string }> = {
+export type TimelineIteratorOptions<Task extends BaseTask> = {
   resumeAfter?: Task['id'];
   resumeWith?: Task;
 };
-export default class TimelineIterator<Task extends { id: string }>
+export default class TimelineIterator<Task extends BaseTask>
   implements AsyncIterator<Task, undefined, undefined>
 {
   #tasksIterator: Iterator<Task>;

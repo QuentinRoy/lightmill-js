@@ -1,4 +1,5 @@
 import TimelineIterator, {
+  BaseTask,
   Timeline,
   TimelineIteratorOptions,
 } from './timeline-iterator.js';
@@ -9,7 +10,7 @@ type DesignConfig<Task, TimelineId extends string> = {
 };
 
 export default class StaticDesign<
-  Task extends { id: string },
+  Task extends BaseTask,
   TimelineId extends string = string
 > {
   #config;
