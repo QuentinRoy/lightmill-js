@@ -1,0 +1,54 @@
+{
+  "name": "@lightmill/react-experiment",
+  "version": "0.0.0",
+  "description": "React utility to run HCI experiments on the web.",
+  "license": "MIT",
+  "type": "module",
+  "author": "Quentin Roy <contact@quentinroy.fr>",
+  "access": "public",
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "import": "./dist/main.js",
+      "types": "./dist/main.d.ts"
+    },
+    "./*": {
+      "import": "./dist/*.js",
+      "types": "./dist/*.d.ts"
+    }
+  },
+  "main": "dist/main.js",
+  "types": "./dist/main.d.ts",
+  "peerDependencies": {
+    "react": "^18.2.0"
+  },
+  "devDependencies": {
+    "@lightmill/runner": "workspace:*",
+    "@testing-library/dom": "^8.19.0",
+    "@testing-library/jest-dom": "^5.16.5",
+    "@testing-library/react": "^13.4.0",
+    "@testing-library/user-event": "^14.4.3",
+    "@types/react": "^18.0.25",
+    "@types/testing-library__jest-dom": "^5.14.5",
+    "@vitejs/plugin-react": "^2.2.0",
+    "cross-env": "^7.0.3",
+    "jsdom": "^20.0.3",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "typescript": "4.9.3",
+    "vite": "^3.2.4",
+    "vitest": "^0.25.2"
+  },
+  "scripts": {
+    "test": "cross-env NODE_ENV=test vitest",
+    "build": "tsc -b tsconfig.build.json",
+    "prepublish": "pnpm run build"
+  },
+  "keywords": [
+    "experiment",
+    "lightmill"
+  ],
+  "private": false
+}
