@@ -1,122 +1,47 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { asyncForEach, asyncReduce } from '../src/utils.js';
+import { describe, expect, it, vi } from 'vitest';
+import { asyncForEach } from '../src/utils.js';
 
-let wait;
-let generators;
-let throwingGenerators;
+function wait(t: number) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, t);
+  });
+}
 
-beforeEach(() => {
-  wait = (t: number) =>
-    new Promise((resolve) => {
-      setTimeout(resolve, t);
-    });
-
-  generators = {
-    sync: () => {
-      const arr = ['a', 'b', 'c', 'd'];
-      return arr[Symbol.iterator]();
-    },
-    async: async function* async() {
-      yield 'a';
-      await wait(0);
-      yield 'b';
-      await wait(0);
-      yield 'c';
-      await wait(0);
-      yield 'd';
-    },
-  };
-  throwingGenerators = {
-    sync: async function* syncThatThrows() {
-      yield 'a';
-      await wait(0);
-      yield 'b';
-      await wait(0);
-      throw new Error('mock-generator-error');
-    },
-    async: function* syncThatThrows() {
-      yield 'a';
-      yield 'b';
-      throw new Error('mock-generator-error');
-    },
-  };
-});
+let generators = {
+  sync: () => {
+    const arr = ['a', 'b', 'c', 'd'];
+    return arr[Symbol.iterator]();
+  },
+  async: async function* async() {
+    yield 'a';
+    await wait(0);
+    yield 'b';
+    await wait(0);
+    yield 'c';
+    await wait(0);
+    yield 'd';
+  },
+};
+let throwingGenerators = {
+  sync: function* syncThatThrows() {
+    yield 'a';
+    yield 'b';
+    throw new Error('mock-generator-error');
+  },
+  async: async function* syncThatThrows() {
+    yield 'a';
+    await wait(0);
+    yield 'b';
+    await wait(0);
+    throw new Error('mock-generator-error');
+  },
+};
 
 const describeEachSyncs = describe.each(['sync', 'async']);
 
-describeEachSyncs(`asyncReduce with %s iterator`, (sync) => {
-  it('reduces without init', async () => {
-    const gen = generators[sync];
-    // Without init.
-    await expect(asyncReduce(gen(), (acc, v) => `${acc}${v},`)).resolves.toBe(
-      'ab,c,d,'
-    );
-  });
-
-  it('reduces with init', async () => {
-    const gen = generators[sync];
-    // Without init.
-    await expect(
-      asyncReduce(gen(), (acc, v) => `${acc}${v},`, 'test:')
-    ).resolves.toBe('test:a,b,c,d,');
-  });
-
-  it('waits for async reducers', async () => {
-    const gen = generators[sync];
-    await expect(
-      asyncReduce(
-        gen(),
-        (acc, v, i) => {
-          const result = `${acc}${v},`;
-          // return asynchronously
-          if (i % 2) return wait(0).then(() => result);
-          // return synchronously
-          return result;
-        },
-        'test:'
-      )
-    ).resolves.toBe('test:a,b,c,d,');
-  });
-
-  it('rejects if a sync reducers throws', async () => {
-    const gen = generators[sync];
-    const reducer = vi.fn((acc, v) => {
-      if (v === 'c') throw new Error('mock-reducer-error');
-      return `${acc}${v},`;
-    });
-    await expect(asyncReduce(gen(), reducer, 'test:')).rejects.toThrow(
-      'mock-reducer-error'
-    );
-    expect(reducer).toMatchSnapshot();
-  });
-
-  it('rejects if an async reducers throws', async () => {
-    const gen = generators[sync];
-    const reducer = vi.fn((acc, v) =>
-      wait(0).then(() => {
-        if (v === 'c') throw new Error('mock-reducer-error');
-        return `${acc}${v},`;
-      })
-    );
-    await expect(asyncReduce(gen(), reducer, 'test:')).rejects.toThrow(
-      'mock-reducer-error'
-    );
-    expect(reducer).toMatchSnapshot();
-  });
-
-  it('rejects if the iterator throws', async () => {
-    const gen = throwingGenerators[sync];
-    const reducer = vi.fn((acc, v) => `${acc}${v},`);
-    await expect(asyncReduce(gen(), reducer, 'test:')).rejects.toThrow(
-      'mock-generator-error'
-    );
-    expect(reducer).toMatchSnapshot();
-  });
-});
-
 describeEachSyncs(`asyncForEach with %s iterator`, (sync) => {
   it('calls its callback for each values', async () => {
-    const gen = generators[sync];
+    const gen = generators[sync as 'sync' | 'async'];
     const callback = vi.fn();
     await asyncForEach(gen(), callback);
     expect(callback.mock.calls).toEqual([
@@ -128,21 +53,19 @@ describeEachSyncs(`asyncForEach with %s iterator`, (sync) => {
   });
 
   it('waits for its callback to resolve if it returned a promise', async () => {
-    const gen = generators[sync];
+    const gen = generators[sync as 'sync' | 'async'];
     const acc: string[] = [];
-    const asyncCallback = (value) => {
+    const asyncCallback = async (value: string) => {
       acc.push(`${value}-async-start`);
-      return wait(0).then(() => {
-        acc.push(`${value}-async-end`);
-      });
+      await wait(0);
+      acc.push(`${value}-async-end`);
     };
-    const syncCallback = (value) => {
+    const syncCallback = (value: string) => {
       acc.push(`${value}-sync`);
     };
     const callback = vi.fn((value) =>
       ['b', 'd'].includes(value) ? syncCallback(value) : asyncCallback(value)
     );
-
     await asyncForEach(gen(), callback);
     expect(acc).toEqual([
       'a-async-start',
@@ -155,13 +78,19 @@ describeEachSyncs(`asyncForEach with %s iterator`, (sync) => {
   });
 
   it('rejects if a sync callback throws', async () => {
-    const gen = generators[sync];
+    const gen = generators[sync as 'sync' | 'async'];
     const callback = vi.fn((v) => {
       if (v === 'b') throw new Error('mock-callback-error');
     });
-    await expect(asyncForEach(gen(), callback)).rejects.toThrow(
-      'mock-callback-error'
-    );
+    if (sync === 'sync') {
+      expect(() => asyncForEach(gen(), callback)).toThrow(
+        'mock-callback-error'
+      );
+    } else {
+      await expect(asyncForEach(gen(), callback)).rejects.toThrow(
+        'mock-callback-error'
+      );
+    }
     expect(callback.mock.calls).toEqual([
       ['a', 0],
       ['b', 1],
@@ -169,7 +98,7 @@ describeEachSyncs(`asyncForEach with %s iterator`, (sync) => {
   });
 
   it('rejects if an async callback throws', async () => {
-    const gen = generators[sync];
+    const gen = generators[sync as 'sync' | 'async'];
     const callback = vi.fn((v) =>
       wait(0).then(() => {
         if (v === 'b') throw new Error('mock-callback-error');
@@ -185,11 +114,17 @@ describeEachSyncs(`asyncForEach with %s iterator`, (sync) => {
   });
 
   it('rejects if the iterator throws', async () => {
-    const gen = throwingGenerators[sync];
+    const gen = throwingGenerators[sync as 'sync' | 'async'];
     const callback = vi.fn();
-    await expect(asyncForEach(gen(), callback)).rejects.toThrow(
-      'mock-generator-error'
-    );
+    if (sync === 'sync') {
+      expect(() => asyncForEach(gen(), callback)).toThrow(
+        'mock-generator-error'
+      );
+    } else {
+      await expect(asyncForEach(gen(), callback)).rejects.toThrow(
+        'mock-generator-error'
+      );
+    }
     expect(callback.mock.calls).toEqual([
       ['a', 0],
       ['b', 1],

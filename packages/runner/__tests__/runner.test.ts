@@ -1,76 +1,154 @@
-import { beforeEach, describe, expect, it, Mock, vi } from 'vitest';
-import run from '../src/runner.js';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const wait = (t: number) =>
-  new Promise((resolve) => {
+import { Runner } from '../src/runner.js';
+
+function wait(t = 0) {
+  return new Promise<void>((resolve) => {
     setTimeout(resolve, t);
   });
+}
 
-const Indexer = () => {
-  let i = -1;
-  return () => {
-    i++;
-    return i;
-  };
+type Task = { type: 'typeA'; dA: number } | { type: 'typeB'; dB: number };
+
+type Deffered<V> = {
+  promise: Promise<V>;
+  resolve: () => void;
+  reject: (err?: Error) => void;
 };
+function deffer<V>(value: V): Deffered<V>;
+function deffer(): Deffered<void>;
+function deffer<V>(value?: V) {
+  let resolve: () => void;
+  let reject: (err?: Error) => void;
+  const promise = new Promise<V>((res, rej) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    resolve = () => res(value as any);
+    reject = rej;
+  });
+  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+  return { promise, resolve: resolve!, reject: reject! };
+}
 
-describe('run', () => {
-  let genTasks: Mock<[], AsyncGenerator<{ id: string }>>;
-  let runTask: Mock<[{ id: string }], Promise<unknown>>;
+describe('Runner', () => {
+  let tasks: Task[];
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  let handler = vi.fn((handlerName: string, ...rest: unknown[]) => wait());
 
   beforeEach(() => {
-    const getCallIndex = Indexer();
-    genTasks = vi.fn(async function* mockGenTasks() {
-      await wait(0);
-      yield { id: 'task1', callIndex: getCallIndex() };
-      await wait(0);
-      yield { id: 'task2', callIndex: getCallIndex() };
-      await wait(0);
-      yield { id: 'task3', callIndex: getCallIndex() };
-      await wait(0);
-    });
-    runTask = vi.fn(async (task) => {
-      await wait(0);
-      return { result: `result-${task.id}`, callIndex: getCallIndex() };
-    });
+    tasks = [
+      { type: 'typeA' as const, dA: 1 },
+      { type: 'typeB' as const, dB: 2 },
+      { type: 'typeA' as const, dA: 3 },
+    ];
+    handler.mockReset();
   });
 
-  it('calls runTask for each tasks, then taskCallback', async () => {
-    await expect(run({ taskIterator: genTasks(), runTask })).resolves.toBe(
-      undefined
-    );
-    expect(runTask.mock.calls).toEqual([
-      [{ id: 'task1', callIndex: 0 }],
-      [{ id: 'task2', callIndex: 2 }],
-      [{ id: 'task3', callIndex: 4 }],
+  it('run tasks and calls their corresponding handlers', async () => {
+    let runner = new Runner<Task>({
+      tasks: {
+        typeA: (...args) => handler('typeA', ...args),
+        typeB: (...args) => handler('typeB', ...args),
+      },
+    });
+    await expect(runner.run(tasks)).resolves.toBe(undefined);
+    expect(handler.mock.calls).toEqual([
+      ['typeA', { type: 'typeA', dA: 1 }],
+      ['typeB', { type: 'typeB', dB: 2 }],
+      ['typeA', { type: 'typeA', dA: 3 }],
     ]);
   });
 
-  it('rejects if the taskManager rejects', async () => {
-    const throwingRunTask = vi.fn(async (task) => {
-      if (task.id === 'task2') throw new Error('mock error');
-      return `result-${task.id}`;
+  it('supports progress handlers', async () => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    let handler = vi.fn((...args: unknown[]) => wait());
+    let runner = new Runner<Task>({
+      tasks: {
+        typeA: (...args) => handler('typeA', ...args),
+        typeB: (...args) => handler('typeB', ...args),
+      },
+      onExperimentStarted: (...args) => handler('onExperimentStarted', ...args),
+      onExperimentCompleted: (...args) =>
+        handler('onExperimentCompleted', ...args),
+      onLoading: (...args) => handler('onLoading', ...args),
     });
-    await expect(
-      run({ runTask: throwingRunTask, taskIterator: genTasks() })
-    ).rejects.toThrow('mock error');
-    expect(throwingRunTask.mock.calls).toEqual([
-      [{ id: 'task1', callIndex: 0 }],
-      [{ id: 'task2', callIndex: 1 }],
+    await expect(runner.run(tasks)).resolves.toBe(undefined);
+    expect(handler.mock.calls).toEqual([
+      ['onExperimentStarted'],
+      ['onLoading'],
+      ['typeA', { type: 'typeA', dA: 1 }],
+      ['onLoading'],
+      ['typeB', { type: 'typeB', dB: 2 }],
+      ['onLoading'],
+      ['typeA', { type: 'typeA', dA: 3 }],
+      ['onLoading'],
+      ['onExperimentCompleted'],
     ]);
   });
 
-  it('rejects if the taskIterator rejects', async () => {
-    const throwingGenTasks = vi.fn(async function* mockGenTasks() {
-      await wait(0);
-      yield { id: 'task1' };
-      await wait(0);
-      yield { id: 'task2' };
-      throw new Error('mock error');
+  it('maintains its state property', async () => {
+    type HanlerArgs = [string, ...unknown[]];
+    let taskDeffers = tasks.map((task) => deffer(task));
+    async function* taskGen() {
+      for (const deffer of taskDeffers) {
+        yield deffer.promise;
+      }
+    }
+    let taskHandler = vi.fn<HanlerArgs, Deffered<void>>(() => {
+      expect(runner.state).toBe('running');
+      return deffer();
     });
-    await expect(
-      run({ runTask, taskIterator: throwingGenTasks() })
-    ).rejects.toThrow('mock error');
-    expect(runTask.mock.calls).toEqual([[{ id: 'task1' }], [{ id: 'task2' }]]);
+    let onExperimentStarted = vi.fn(() => {
+      expect(runner.state).toBe('loading');
+    });
+    let onExperimentCompleted = vi.fn(() => {
+      expect(runner.state).toBe('completed');
+    });
+    let onLoading = vi.fn(() => {
+      expect(runner.state).toBe('loading');
+    });
+    let runner = new Runner<Task>({
+      tasks: {
+        typeA: (...args) => taskHandler('typeA', ...args).promise,
+        typeB: (...args) => taskHandler('typeB', ...args).promise,
+      },
+      onExperimentStarted: onExperimentStarted,
+      onExperimentCompleted: onExperimentCompleted,
+      onLoading: onLoading,
+    });
+    expect(runner.state).toBe('idle');
+    let runPromise = runner.run(taskGen());
+    expect(runner.state).toBe('loading');
+    expect(onExperimentStarted.mock.calls).toEqual([[]]);
+    expect(onLoading.mock.calls).toEqual([[]]);
+    taskDeffers[0].resolve();
+    await wait();
+    expect(taskHandler.mock.calls).toEqual([
+      ['typeA', { type: 'typeA', dA: 1 }],
+    ]);
+    taskHandler.mock.results[0].value.resolve();
+    await wait();
+    expect(runner.state).toBe('loading');
+    expect(onLoading.mock.calls).toEqual([[], []]);
+    taskDeffers[1].resolve();
+    await wait();
+    expect(taskHandler.mock.calls).toEqual([
+      ['typeA', { type: 'typeA', dA: 1 }],
+      ['typeB', { type: 'typeB', dB: 2 }],
+    ]);
+    await wait();
+    taskHandler.mock.results[1].value.resolve();
+    await wait();
+    expect(runner.state).toBe('loading');
+    expect(onLoading.mock.calls).toEqual([[], [], []]);
+    taskDeffers[2].resolve();
+    await wait();
+    expect(taskHandler.mock.calls).toEqual([
+      ['typeA', { type: 'typeA', dA: 1 }],
+      ['typeB', { type: 'typeB', dB: 2 }],
+      ['typeA', { type: 'typeA', dA: 3 }],
+    ]);
+    taskHandler.mock.results[2].value.resolve();
+    await runPromise;
+    expect(onExperimentCompleted.mock.calls).toEqual([[]]);
   });
 });
