@@ -1,5 +1,11 @@
 # Change Log
 
+## 3.0.0-alpha.10
+
+### Major Changes
+
+- d2f8ed5: Remove Runner as a default export. There is no default export anymore. Runner is provided as a named export. RunnerProps type is now exported.
+
 ## 3.0.0-alpha.9
 
 ### Major Changes
