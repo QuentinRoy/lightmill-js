@@ -7,6 +7,7 @@
     [
       "@lightmill/convert-touchstone",
       "@lightmill/runner",
+      "@lightmill/react-experiment",
       "@lightmill/static-design"
     ]
   ],
