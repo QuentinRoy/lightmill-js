@@ -25,6 +25,7 @@
     "files.exclude": {
       "node_modules/": true,
       "packages/": true
-    }
+    },
+    "typescript.tsdk": "ROOT/node_modules/typescript/lib",
   }
 }
