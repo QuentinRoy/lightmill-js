@@ -1,6 +1,6 @@
 {
   "name": "@lightmill/react-experiment",
-  "version": "0.0.0",
+  "version": "3.0.0-alpha.9",
   "description": "React utility to run HCI experiments on the web.",
   "license": "MIT",
   "type": "module",

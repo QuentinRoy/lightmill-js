@@ -4,14 +4,17 @@
   "initialVersions": {
     "@lightmill/convert-touchstone": "3.0.0-alpha.6",
     "@lightmill/runner": "3.0.0-alpha.5",
-    "@lightmill/static-design": "3.0.0-alpha.5"
+    "@lightmill/static-design": "3.0.0-alpha.5",
+    "@lightmill/react-experiment": "0.0.0"
   },
   "changesets": [
+    "eighty-seas-itch",
     "four-hornets-know",
     "itchy-worms-matter",
     "modern-chairs-act",
     "pink-news-prove",
     "stupid-peaches-brush",
-    "tame-tools-battle"
+    "tame-tools-battle",
+    "three-moose-smile"
   ]
 }

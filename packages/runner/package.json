@@ -1,6 +1,6 @@
 {
   "name": "@lightmill/runner",
-  "version": "3.0.0-alpha.6",
+  "version": "3.0.0-alpha.9",
   "description": "JS Runner for LightMill.",
   "license": "MIT",
   "type": "module",

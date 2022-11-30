@@ -1,5 +1,11 @@
 # Change Log
 
+## 3.0.0-alpha.9
+
+### Major Changes
+
+- 37f1b03: New Runner API as default export. The old `run` function is still available as a named export.
+
 ## 3.0.0-alpha.6
 
 ### Major Changes
