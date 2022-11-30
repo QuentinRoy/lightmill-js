@@ -7,7 +7,7 @@
   "scripts": {
     "lint": "eslint . && prettier --check .",
     "changeset": "changeset",
-    "release": "changeset publish"
+    "release": "pnpm -r build && changeset publish"
   },
   "dependencies": {
     "@changesets/cli": "^2.25.2",

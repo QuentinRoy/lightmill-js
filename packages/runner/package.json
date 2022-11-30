@@ -19,7 +19,7 @@
   },
   "scripts": {
     "test": "cross-env NODE_ENV=test vitest",
-    "build": "tsc -b tsconfig.json",
+    "build": "tsc -b tsconfig.build.json",
     "prepublish": "pnpm run build"
   },
   "keywords": [
