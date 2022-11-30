@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, Mock, vi } from 'vitest';
-import run from '../src/run.js';
+import { run } from '../src/run.js';
 
 const wait = (t: number) =>
   new Promise((resolve) => {
