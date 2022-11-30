@@ -1,13 +1,13 @@
 import { describe, expect, it, vi } from 'vitest';
 import { asyncForEach } from '../src/utils.js';
 
-function wait(t: number) {
+function wait(t = 0) {
   return new Promise((resolve) => {
     setTimeout(resolve, t);
   });
 }
 
-let generators = {
+const generators = {
   sync: () => {
     const arr = ['a', 'b', 'c', 'd'];
     return arr[Symbol.iterator]();
@@ -22,7 +22,7 @@ let generators = {
     yield 'd';
   },
 };
-let throwingGenerators = {
+const throwingGenerators = {
   sync: function* syncThatThrows() {
     yield 'a';
     yield 'b';
@@ -37,9 +37,29 @@ let throwingGenerators = {
   },
 };
 
+type Deffered<V> = {
+  promise: Promise<V>;
+  resolve: () => void;
+  reject: (err?: Error) => void;
+};
+function deffer<V>(value: V): Deffered<V>;
+function deffer(): Deffered<void>;
+function deffer<V>(value?: V) {
+  let resolve: () => void;
+  let reject: (err?: Error) => void;
+  const promise = new Promise<V>((res, rej) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    resolve = () => res(value as any);
+    reject = rej;
+  });
+  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+  return { promise, resolve: resolve!, reject: reject! };
+}
+
 const describeEachSyncs = describe.each(['sync', 'async']);
 
-describeEachSyncs(`asyncForEach with %s iterator`, (sync) => {
+describeEachSyncs(`asyncForEach with %s iterator`, (syncArg) => {
+  const sync = syncArg as 'sync' | 'async';
   it('calls its callback for each values', async () => {
     const gen = generators[sync as 'sync' | 'async'];
     const callback = vi.fn();
@@ -53,28 +73,48 @@ describeEachSyncs(`asyncForEach with %s iterator`, (sync) => {
   });
 
   it('waits for its callback to resolve if it returned a promise', async () => {
-    const gen = generators[sync as 'sync' | 'async'];
-    const acc: string[] = [];
-    const asyncCallback = async (value: string) => {
-      acc.push(`${value}-async-start`);
-      await wait(0);
-      acc.push(`${value}-async-end`);
-    };
-    const syncCallback = (value: string) => {
-      acc.push(`${value}-sync`);
-    };
-    const callback = vi.fn((value) =>
-      ['b', 'd'].includes(value) ? syncCallback(value) : asyncCallback(value)
+    const gen = generators[sync];
+    const defers = { b: deffer(), d: deffer() };
+    const log: string[] = [];
+    const callback = vi.fn((value) => {
+      if (value in defers) {
+        log.push(`${value}-async-start`);
+        return defers[value].promise.then(() => {
+          log.push(`${value}-async-end`);
+        });
+      } else {
+        log.push(`${value}-sync`);
+      }
+    });
+    const end = vi.fn();
+    let forEachProm = (asyncForEach(gen(), callback) as Promise<void>).then(
+      () => end()
     );
-    await asyncForEach(gen(), callback);
-    expect(acc).toEqual([
-      'a-async-start',
-      'a-async-end',
-      'b-sync',
-      'c-async-start',
-      'c-async-end',
-      'd-sync',
+    expect(end.mock.calls).toEqual([]);
+    await wait(5);
+    expect(log).toEqual(['a-sync', 'b-async-start']);
+    defers.b.resolve();
+    await wait(5);
+    expect(end.mock.calls).toEqual([]);
+    expect(log).toEqual([
+      'a-sync',
+      'b-async-start',
+      'b-async-end',
+      'c-sync',
+      'd-async-start',
     ]);
+    expect(end.mock.calls).toEqual([]);
+    defers.d.resolve();
+    await forEachProm;
+    expect(log).toEqual([
+      'a-sync',
+      'b-async-start',
+      'b-async-end',
+      'c-sync',
+      'd-async-start',
+      'd-async-end',
+    ]);
+    expect(end.mock.calls).toEqual([[]]);
   });
 
   it('rejects if a sync callback throws', async () => {
