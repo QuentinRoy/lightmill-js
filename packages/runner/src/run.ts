@@ -10,7 +10,7 @@ export type RunProps<Task> = {
   taskIterator: SuperIterator<Task>;
   runTask: (task: Task) => PromiseLike<void>;
 };
-export default function run<Task>({ taskIterator, runTask }: RunProps<Task>) {
+export function run<Task>({ taskIterator, runTask }: RunProps<Task>) {
   if (Symbol.iterator in taskIterator) {
     taskIterator = taskIterator[Symbol.iterator]();
   }

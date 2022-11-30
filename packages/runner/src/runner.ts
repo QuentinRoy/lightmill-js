@@ -1,5 +1,4 @@
-import run, { RunProps, SuperIterator } from './run.js';
-export { run, RunProps };
+import { run, SuperIterator } from './run.js';
 
 export type BaseTask = { type: string };
 export type RunnerProps<Task extends BaseTask> = {
@@ -10,9 +9,6 @@ export type RunnerProps<Task extends BaseTask> = {
   onLoading?: () => void;
   onExperimentCompleted?: () => void;
 };
-export type RunnerInstance<Task extends BaseTask> = {
-  run: (taskIterator: SuperIterator<Task>) => PromiseLike<void>;
-} & RunnerProps<Task>;
 
 export type TaskHander<Task = BaseTask> = (task: Task) => PromiseLike<void>;
 export type TaskHandlers<Task extends { type: string }> = {
