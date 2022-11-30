@@ -1,0 +1,30 @@
+{
+  "folders": [
+    {
+      "name": "ROOT",
+      "path": "../"
+    },
+    {
+      "name": "packages/convert-touchstone",
+      "path": "../packages/convert-touchstone"
+    },
+    {
+      "name": "packages/react-experiment",
+      "path": "../packages/react-experiment"
+    },
+    {
+      "name": "packages/runner",
+      "path": "../packages/runner"
+    },
+    {
+      "name": "packages/static-design",
+      "path": "../packages/static-design"
+    },
+  ],
+  "settings": {
+    "files.exclude": {
+      "node_modules/": true,
+      "packages/": true
+    }
+  }
+}
