@@ -1,5 +1,5 @@
 import * as sax from 'sax';
-import StaticDesign from '@lightmill/static-design';
+import type StaticDesign from '@lightmill/static-design';
 
 export type ExperimentBase = {
   author: string;
