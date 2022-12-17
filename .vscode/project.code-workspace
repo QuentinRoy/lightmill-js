@@ -20,6 +20,10 @@
       "name": "packages/static-design",
       "path": "../packages/static-design"
     },
+    {
+      "name": "packages/log-server",
+      "path": "../packages/log-server"
+    },
   ],
   "settings": {
     "files.exclude": {
