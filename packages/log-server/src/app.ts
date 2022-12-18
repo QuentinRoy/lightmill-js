@@ -64,7 +64,6 @@ export function App({ store }: { store: Store }) {
     id: z.string().optional(),
     experimentId: z.string().optional(),
   });
-  type RunParameter = z.input<typeof RunParameter>;
   router.post('/runs', async (ctx) => {
     let params = parseRequestBody(RunParameter, ctx);
     let runId = await store.addRun(params);
@@ -73,15 +72,22 @@ export function App({ store }: { store: Store }) {
     ctx.status = 200;
   });
 
-  const LogParameter = z.object({ type: z.string(), values: z.record(Json) });
+  const LogsParameterLog = z.object({
+    type: z.string(),
+    values: z.record(Json),
+  });
+  const LogsParameters = z.union([LogsParameterLog, z.array(LogsParameterLog)]);
   router.post('/runs/:id/logs', async (ctx) => {
     let runId = ctx.params.id;
     if (!ctx.session.run || ctx.session.run.id !== runId) {
       ctx.status = 403;
       return;
     }
-    let { type, values } = parseRequestBody(LogParameter, ctx);
-    await store.addLog({ type, runId, values });
+    let params = parseRequestBody(LogsParameters, ctx);
+    if (!Array.isArray(params)) {
+      params = [params];
+    }
+    await store.addLogs(params.map((log) => ({ ...log, runId })));
     ctx.status = 200;
   });
 

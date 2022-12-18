@@ -6,29 +6,23 @@ import * as url from 'url';
 
 const __dirname = url.fileURLToPath(new URL('.', import.meta.url));
 
-import {
-  FileMigrationProvider,
-  Generated,
-  Kysely,
-  Migrator,
-  SqliteDialect,
-} from 'kysely';
+import { FileMigrationProvider, Kysely, Migrator, SqliteDialect } from 'kysely';
 import { JsonObject } from 'type-fest';
 
 type RunTable = {
-  id: Generated<string>;
+  id: string;
   experimentId: string | null;
   createdAt: string;
   endedAt: string | null;
 };
 type LogTable = {
-  id: Generated<bigint>;
+  id: string;
   type: string;
   runId: string;
   createdAt: string;
 };
 type LogValueTable = {
-  logId: bigint;
+  logId: string;
   name: string;
   value: string;
 };
@@ -54,7 +48,6 @@ export class Store {
     if (typeof db === 'string') {
       this.#db = new Kysely({
         dialect: new SqliteDialect({ database: new Database(db) }),
-        log: ['query', 'error'],
       });
     } else {
       this.#db = db;
@@ -77,29 +70,32 @@ export class Store {
     });
   }
 
-  async addLog({
-    type,
-    runId,
-    values,
-  }: {
-    type: string;
-    runId: string;
-    values: JsonObject;
-  }) {
+  async addLogs(
+    logs: Array<{
+      type: string;
+      runId: string;
+      values: JsonObject;
+    }>
+  ) {
     await this.#db.transaction().execute(async (trx) => {
-      let result = await trx
+      let createdAt = new Date().toISOString();
+      let dbLogs = logs.map((log) => {
+        let id = cuid();
+        let values = deconstructValues(log.values, { logId: id });
+        return { ...log, id, values };
+      });
+      await trx
         .insertInto('log')
-        .values({ type, runId, createdAt: new Date().toISOString() })
-        .executeTakeFirstOrThrow();
-      console.log('insert result', { ...result }, result.insertId);
-      if (result.insertId == null) {
-        throw new Error("Inserted log's id is unknown");
-      }
+        .values(
+          dbLogs.map(({ type, runId, id }) => {
+            return { id, type, runId, createdAt };
+          })
+        )
+        .execute();
       await trx
         .insertInto('logValue')
-        .values(deconstructValues(values, { logId: result.insertId }))
+        .values(dbLogs.flatMap((log) => log.values))
         .execute();
-      return result.insertId;
     });
   }
 

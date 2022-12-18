@@ -18,7 +18,7 @@ export async function up(db: Kysely<unknown>) {
 
     await trx.schema
       .createTable('log')
-      .addColumn('id', 'integer', (column) => column.primaryKey())
+      .addColumn('id', 'text', (column) => column.primaryKey())
       .addColumn('type', 'text', (column) => column.notNull())
       .addColumn('runId', 'text', (column) => column.notNull())
       // Some databases (e.g. MySQL) don't support foreign keys on text columns.
@@ -34,7 +34,7 @@ export async function up(db: Kysely<unknown>) {
 
     await trx.schema
       .createTable('logValue')
-      .addColumn('logId', 'integer', (column) => column.notNull())
+      .addColumn('logId', 'text', (column) => column.notNull())
       .addForeignKeyConstraint('valueRun', ['logId'], 'log', ['id'])
       .addColumn('name', 'text', (column) => column.notNull())
       .addPrimaryKeyConstraint('primaryKey', ['logId', 'name'])
