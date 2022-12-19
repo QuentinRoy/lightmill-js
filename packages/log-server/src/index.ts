@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 import { App } from './app.js';
 import { z } from 'zod';
 import dotenv from 'dotenv';

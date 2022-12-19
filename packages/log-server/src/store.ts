@@ -6,7 +6,13 @@ import * as url from 'url';
 
 const __dirname = url.fileURLToPath(new URL('.', import.meta.url));
 
-import { FileMigrationProvider, Kysely, Migrator, SqliteDialect } from 'kysely';
+import {
+  FileMigrationProvider,
+  Generated,
+  Kysely,
+  Migrator,
+  SqliteDialect,
+} from 'kysely';
 import { JsonObject } from 'type-fest';
 
 type RunTable = {
@@ -16,13 +22,13 @@ type RunTable = {
   endedAt: string | null;
 };
 type LogTable = {
-  id: string;
+  id: Generated<bigint>;
   type: string;
   runId: string;
   createdAt: string;
 };
 type LogValueTable = {
-  logId: string;
+  logId: bigint;
   name: string;
   value: string;
 };
@@ -70,6 +76,8 @@ export class Store {
     });
   }
 
+  // This methods is O(n^2) in the number of logs to insert, but n is expected
+  // to be relatively small.
   async addLogs(
     logs: Array<{
       type: string;
@@ -79,23 +87,38 @@ export class Store {
   ) {
     await this.#db.transaction().execute(async (trx) => {
       let createdAt = new Date().toISOString();
-      let dbLogs = logs.map((log) => {
-        let id = cuid();
-        let values = deconstructValues(log.values, { logId: id });
-        return { ...log, id, values };
-      });
-      await trx
+      let dbLogs: Array<{
+        id: bigint;
+        type: string;
+        runId: string;
+        isAssigned?: boolean;
+      }> = await trx
         .insertInto('log')
         .values(
-          dbLogs.map(({ type, runId, id }) => {
-            return { id, type, runId, createdAt };
+          logs.map(({ type, runId }) => {
+            return { type, runId, createdAt };
           })
         )
+        .returning(['id as id', 'type as type', 'runId as runId'])
         .execute();
-      await trx
-        .insertInto('logValue')
-        .values(dbLogs.flatMap((log) => log.values))
-        .execute();
+
+      // Bulk insert returning values does not guarantee order, so we need to
+      // match the log values logs to returned log ids.
+      let dbValues = [];
+      for (let log of logs) {
+        let dbLog = dbLogs.find(
+          (it) =>
+            it.type === log.type && it.runId === log.runId && !it.isAssigned
+        );
+        if (!dbLog) {
+          throw new Error(
+            `failed to find an unassigned inserted log with type "${log.type}" and runId "${log.runId}"`
+          );
+        }
+        dbLog.isAssigned = true;
+        dbValues.push(...deconstructValues(log.values, { logId: dbLog.id }));
+      }
+      await trx.insertInto('logValue').values(dbValues).execute();
     });
   }
 
