@@ -34,6 +34,7 @@ overrides:
         - 'error'
         - peerDependencies: true
           devDependencies: false
+      no-console: 'error'
   - files:
       - '*.cjs'
     parserOptions:
