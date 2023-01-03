@@ -1,19 +1,21 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import Database from 'better-sqlite3';
+import SQliteDB from 'better-sqlite3';
 import cuid from 'cuid';
 import * as url from 'url';
-
-const __dirname = url.fileURLToPath(new URL('.', import.meta.url));
-
 import {
+  Kysely,
   FileMigrationProvider,
   Generated,
-  Kysely,
   Migrator,
+  SelectQueryBuilder,
   SqliteDialect,
 } from 'kysely';
 import { JsonObject } from 'type-fest';
+import { arrayify } from './utils.js';
+
+const __dirname = url.fileURLToPath(new URL('.', import.meta.url));
+const migrationFolder = path.join(__dirname, 'db-migrations');
 
 type RunTable = {
   id: string;
@@ -49,14 +51,19 @@ type Database = {
 
 export class Store {
   #db: Kysely<Database>;
+  #useStreaming: boolean;
 
-  constructor(db: Kysely<Database> | string) {
+  constructor(db: string, opts?: { useStreaming?: false });
+  constructor(db: Kysely<Database>, opts?: { useStreaming?: boolean });
+  constructor(db: Kysely<Database> | string, { useStreaming = false } = {}) {
     if (typeof db === 'string') {
       this.#db = new Kysely({
-        dialect: new SqliteDialect({ database: new Database(db) }),
+        dialect: new SqliteDialect({ database: new SQliteDB(db) }),
       });
+      this.#useStreaming = false;
     } else {
       this.#db = db;
+      this.#useStreaming = useStreaming;
     }
   }
 
@@ -120,6 +127,71 @@ export class Store {
       }
       await trx.insertInto('logValue').values(dbValues).execute();
     });
+  }
+
+  async getLogValueNames(filter: LogFilter = {}) {
+    let result = await this.#db
+      .selectFrom('logValue')
+      .innerJoin('log', 'log.id', 'logValue.logId')
+      .innerJoin('run', 'run.id', 'log.runId')
+      .call(createLogQueryFilter(filter))
+      .groupBy('logValue.name')
+      .orderBy('logValue.name')
+      .select(['logValue.name as name'])
+      .execute();
+    return result.map((it) => it.name);
+  }
+
+  async hasNonEmptyExperimentId() {
+    let result = await this.#db
+      .selectFrom('run')
+      .where('experimentId', 'is not', null)
+      .select('experimentId')
+      .executeTakeFirst();
+    return result != null;
+  }
+
+  async *getLogs(filter: LogFilter = {}) {
+    let request = this.#db
+      .selectFrom('logValue')
+      .innerJoin('log', 'log.id', 'logValue.logId')
+      .innerJoin('run', 'run.id', 'log.runId')
+      .call(createLogQueryFilter(filter))
+      .orderBy('log.id')
+      .select([
+        'log.id as logId',
+        'log.type as logType',
+        'log.createdAt as logCreatedAt', 
+        'log.runId as runId',
+        'run.experimentId as experimentId',
+        'logValue.name as name',
+        'logValue.value as value',
+      ]);
+    let result = this.#useStreaming
+      ? request.stream()
+      : await request.execute();
+
+    let currentLog = null;
+    let currentLogId = null;
+    for await (let row of result) {
+      if (currentLog == null || row.logId !== currentLogId) {
+        if (currentLog != null) {
+          yield currentLog;
+        }
+        currentLog = {
+          type: row.logType,
+          experimentId: row.experimentId ?? undefined,
+          runId: row.runId,
+          createdAt: new Date(row.logCreatedAt),
+          values: {} as JsonObject,
+        };
+        currentLogId = row.logId;
+      }
+      currentLog.values[row.name] = JSON.parse(row.value);
+    }
+    if (currentLog != null) {
+      yield currentLog;
+    }
   }
 
   async setSession({
@@ -193,7 +265,7 @@ export class Store {
       provider: new FileMigrationProvider({
         fs,
         path,
-        migrationFolder: path.join(__dirname, 'db-migrations'),
+        migrationFolder,
       }),
     });
     return migrator.migrateToLatest();
@@ -203,25 +275,49 @@ export class Store {
 function deconstructValues(
   data: JsonObject
 ): Array<{ name: string; value: string }>;
-function deconstructValues<E extends Record<string, unknown>>(
+function deconstructValues<P extends Record<string, unknown>>(
   data: JsonObject,
-  extensions: E
-): Array<E & { name: string; value: string }>;
+  patch: P
+): Array<P & { name: string; value: string }>;
 function deconstructValues(
   data: JsonObject,
-  extensions?: Record<string, unknown>
+  patch?: Record<string, unknown>
 ): Array<JsonObject & { name: string; value: string }> {
   return Object.entries(data).map(([name, value]) => ({
-    ...extensions,
+    ...patch,
     name,
     value: JSON.stringify(value),
   }));
 }
 
-function reconstructValues(values: { name: string; value: string }[]) {
-  let data: JsonObject = {};
-  for (let value of values) {
-    data[value.name] = JSON.parse(value.value);
-  }
-  return data;
+type LogFilter = {
+  type?: string | string[];
+  runId?: string | string[];
+  experimentId?: string | string[];
+};
+
+const filterValues = ['type', 'runId', 'experimentId'] as const;
+const filterColumns = {
+  type: 'log.type',
+  runId: 'log.runId',
+  experimentId: 'run.experimentId',
+} as const;
+function createLogQueryFilter(filter: LogFilter = {}) {
+  return (
+    q: SelectQueryBuilder<Database, 'logValue' | 'log' | 'run', unknown>
+  ) => {
+    for (let filterValue of filterValues) {
+      let targets = arrayify(filter[filterValue], true);
+      if (targets.length > 0) {
+        let col = filterColumns[filterValue];
+        q = q.where((qb) => {
+          for (let target of targets) {
+            qb = qb.orWhere(col, '=', target);
+          }
+          return qb;
+        });
+      }
+    }
+    return q;
+  };
 }

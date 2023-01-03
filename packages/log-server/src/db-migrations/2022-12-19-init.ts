@@ -21,7 +21,9 @@ export async function up(db: Kysely<unknown>) {
       .addColumn('id', 'integer', (column) => column.primaryKey())
       .addColumn('type', 'text', (column) => column.notNull())
       .addColumn('runId', 'text', (column) => column.notNull())
-      // Some databases (e.g. MySQL) don't support foreign keys on text columns.
+      // It is possible to set up the foreign key constraint in addColumn but
+      // some databases, like MySQL, need the constraint to be defined
+      // separately.
       .addForeignKeyConstraint('logRun', ['runId'], 'run', ['id'])
       .addColumn('createdAt', 'datetime', (column) => column.notNull())
       .execute();
@@ -53,7 +55,9 @@ export async function up(db: Kysely<unknown>) {
       .addColumn('runId', 'text', (column) => column.notNull())
       .addColumn('createdAt', 'datetime', (column) => column.notNull())
       .addColumn('expiresAt', 'datetime')
-      // Some databases (e.g. MySQL) don't support foreign keys on text columns.
+      // It is possible to set up the foreign key constraint in addColumn but
+      // some databases, like MySQL, need the constraint to be defined
+      // separately.
       .addForeignKeyConstraint('sessionRun', ['runId'], 'run', ['id'])
       .addColumn('cookie', 'json', (column) => column.notNull())
       .execute();

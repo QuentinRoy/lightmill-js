@@ -22,6 +22,18 @@ export function parseRequestBody<T>(
   }
 }
 
+export function parseRequestQuery<T>(
+  schema: z.ZodSchema<T, z.ZodTypeDef, unknown>,
+  ctx: ParameterizedContext
+): T {
+  let result = schema.safeParse(ctx.request.query);
+  if (result.success) {
+    return result.data;
+  } else {
+    throw new ValidationError('Invalid request query', result.error.issues);
+  }
+}
+
 export function formatErrorMiddleware(
   format: (error: ValidationError) => Record<string, unknown>
 ) {
