@@ -29,7 +29,8 @@ export class SessionStoreAdapter {
   async set(sessionId: string, session: koaSession.Session, ttl: number) {
     await this.#mainStore.setSession({
       id: sessionId,
-      runId: session.run.id,
+      runId: session.run?.id,
+      role: session.role,
       cookie: {
         ...session.cookie,
         expires: session.cookie.expires?.toISOString() ?? null,

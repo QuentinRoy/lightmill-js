@@ -21,7 +21,8 @@
   },
   "scripts": {
     "build": "tsc -b tsconfig.build.json",
-    "prepublish": "pnpm run build"
+    "prepublish": "pnpm run build",
+    "cli": "node --loader ts-node/esm ./src/cli.ts"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.3",

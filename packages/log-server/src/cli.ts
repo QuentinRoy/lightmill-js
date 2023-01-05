@@ -89,9 +89,11 @@ async function migrateDatabase({ database }: MigrateDatabaseParameter) {
     }
   });
   if (error) {
-    log.error('failed to migrate database');
+    log.error(`failed to migrate ${database}`);
     log.error(error);
     process.exit(1);
+  } else {
+    log.info(`${database} migration successful`);
   }
 }
 

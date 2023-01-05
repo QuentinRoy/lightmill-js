@@ -39,7 +39,8 @@ type SessionTable = {
   id: string;
   createdAt: string;
   expiresAt: string | null;
-  runId: string;
+  runId?: string;
+  role: 'admin' | 'participant';
   cookie: string;
 };
 
@@ -218,10 +219,12 @@ export class Store {
     expiresAt,
     runId,
     cookie,
+    role,
   }: {
     id?: string;
     expiresAt?: Date;
-    runId: string;
+    runId?: string;
+    role: 'admin' | 'participant';
     cookie: JsonObject;
   }) {
     // Use explicit column properties to avoid using extra properties in the
@@ -231,6 +234,7 @@ export class Store {
       id: id ?? cuid(),
       expiresAt: expiresAt?.toISOString() ?? undefined,
       runId,
+      role,
       cookie: JSON.stringify(cookie),
     };
     await this.#db
@@ -244,12 +248,13 @@ export class Store {
     let result = await this.#db
       .selectFrom('session')
       .where('session.id', '=', id)
-      .innerJoin('run', 'run.id', 'session.runId')
+      .leftJoin('run', 'run.id', 'session.runId')
       .select([
         'session.id as session.id',
         'session.createdAt as session.createdAt',
         'session.expiresAt as session.expiresAt',
         'session.cookie as session.cookie',
+        'session.role as session.role',
         'run.id as run.id',
         'run.endedAt as run.endedAt',
         'run.createdAt as run.createdAt',
@@ -266,11 +271,19 @@ export class Store {
       cookie: result['session.cookie']
         ? JSON.parse(result['session.cookie'])
         : null,
-      run: {
-        id: result['run.id'],
-        endedAt: result['run.endedAt'] ? new Date(result['run.endedAt']) : null,
-        createdAt: new Date(result['run.createdAt']),
-      },
+      role: result['session.role'],
+      run:
+        result['run.id'] != null
+          ? {
+              id: result['run.id'],
+              endedAt: result['run.endedAt']
+                ? new Date(result['run.endedAt'])
+                : null,
+              createdAt: result['run.createdAt']
+                ? new Date(result['run.createdAt'])
+                : null,
+            }
+          : null,
     };
   }
 

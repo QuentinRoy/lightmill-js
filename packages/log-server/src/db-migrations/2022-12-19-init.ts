@@ -1,4 +1,4 @@
-import { Kysely } from 'kysely';
+import { Kysely, sql } from 'kysely';
 
 export async function up(db: Kysely<unknown>) {
   await db.transaction().execute(async (trx) => {
@@ -52,13 +52,15 @@ export async function up(db: Kysely<unknown>) {
     await trx.schema
       .createTable('session')
       .addColumn('id', 'text', (column) => column.notNull().primaryKey())
-      .addColumn('runId', 'text', (column) => column.notNull())
-      .addColumn('createdAt', 'datetime', (column) => column.notNull())
-      .addColumn('expiresAt', 'datetime')
+      .addColumn('runId', 'text')
       // It is possible to set up the foreign key constraint in addColumn but
       // some databases, like MySQL, need the constraint to be defined
       // separately.
-      .addForeignKeyConstraint('sessionRun', ['runId'], 'run', ['id'])
+      .addForeignKeyConstraint('sessionRunId', ['runId'], 'run', ['id'])
+      .addColumn('role', 'text')
+      .addCheckConstraint('roleCheck', sql`role IN ('admin', 'participant')`)
+      .addColumn('createdAt', 'datetime', (column) => column.notNull())
+      .addColumn('expiresAt', 'datetime')
       .addColumn('cookie', 'json', (column) => column.notNull())
       .execute();
   });

@@ -4,13 +4,16 @@ import bodyParser from 'koa-bodyparser';
 import { z } from 'zod';
 import { randomBytes } from 'node:crypto';
 import dotenv from 'dotenv';
-import session from 'koa-generic-session';
+import session, { Session } from 'koa-generic-session';
+import { PartialDeep } from 'type-fest';
 import {
   formatErrorMiddleware as formatValidationError,
   parseRequestBody,
+  parseRequestQuery,
 } from './validate.js';
 import { Store } from './store.js';
 import { SessionStoreAdapter } from './session-store-adapter.js';
+import { csvExportStream, jsonExportStream } from './export.js';
 
 dotenv.config();
 
@@ -18,7 +21,8 @@ declare module 'koa-generic-session' {
   interface Session {
     createdAt: Date;
     expiresAt: Date | null;
-    run: { id: string; createdAt: Date | null; endedAt: Date | null };
+    run: { id: string; createdAt: Date | null; endedAt: Date | null } | null;
+    role: 'admin' | 'participant';
   }
 }
 
@@ -67,7 +71,11 @@ export function createApp({ store }: { store: Store }) {
   router.post('/runs', async (ctx) => {
     let params = parseRequestBody(RunsParameter, ctx);
     let runId = await store.addRun(params);
-    ctx.session.run = { ...params, id: runId };
+    // Object.assign allows us to use satisfies.
+    Object.assign(ctx.session, {
+      run: { id: runId },
+      role: 'participant',
+    } satisfies PartialDeep<Session>);
     ctx.body = { id: runId };
     ctx.status = 200;
   });
@@ -82,7 +90,8 @@ export function createApp({ store }: { store: Store }) {
   ]);
   router.post('/runs/:id/logs', async (ctx) => {
     let runId = ctx.params.id;
-    if (!ctx.session.run || ctx.session.run.id !== runId) {
+    let session = ctx.session as Session;
+    if (!session.run || session.run.id !== runId) {
       ctx.status = 403;
       return;
     }
@@ -91,6 +100,31 @@ export function createApp({ store }: { store: Store }) {
       params = [params];
     }
     await store.addLogs(params.map((log) => ({ ...log, runId })));
+    ctx.status = 200;
+  });
+
+  const GetLogsParameters = z.object({
+    type: z.union([z.string(), z.array(z.string())]).optional(),
+    runId: z.union([z.string(), z.array(z.string())]).optional(),
+    experimentId: z.union([z.string(), z.array(z.string())]).optional(),
+    format: z.enum(['json', 'csv']).default('json'),
+  });
+  router.get('/logs', async (ctx) => {
+    let session = ctx.session as Session;
+    // Only admins can access this endpoint.
+    // TODO: Add an admin login endpoint.
+    if (session.role !== 'admin') {
+      ctx.status = 403;
+      return;
+    }
+    let { format, ...filter } = parseRequestQuery(GetLogsParameters, ctx);
+    if (format === 'csv') {
+      ctx.body = csvExportStream(store, filter);
+      ctx.headers['content-type'] = 'text/csv';
+    } else {
+      ctx.body = jsonExportStream(store, filter);
+      ctx.headers['content-type'] = 'application/json';
+    }
     ctx.status = 200;
   });
 
