@@ -1,0 +1,56 @@
+{
+  "name": "@lightmill/log-server",
+  "version": "0.0.0",
+  "description": "Server, and middleware to receive, store and export lightmill logs",
+  "author": "Quentin Roy <contact@quentinroy.fr>",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    "import": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "bin": {
+    "log-server": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc -b tsconfig.build.json",
+    "prepublish": "pnpm run build",
+    "cli": "node --loader ts-node/esm ./src/cli.ts"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.3",
+    "@types/koa": "^2.13.5",
+    "@types/koa-bodyparser": "^4.3.10",
+    "@types/koa-generic-session": "^2.2.1",
+    "@types/koa__router": "^12.0.0",
+    "@types/lodash-es": "^4.17.6",
+    "@types/node": "^18.11.14",
+    "@types/yargs": "^17.0.19",
+    "ts-node": "^10.9.1",
+    "type-fest": "^3.4.0",
+    "typescript": "4.9.4"
+  },
+  "dependencies": {
+    "@koa/router": "^12.0.0",
+    "better-sqlite3": "^8.0.1",
+    "csv": "^6.2.5",
+    "cuid": "^2.1.8",
+    "dotenv": "^16.0.3",
+    "koa": "^2.14.1",
+    "koa-bodyparser": "^4.3.0",
+    "koa-generic-session": "^2.3.0",
+    "kysely": "^0.22.0",
+    "lodash-es": "^4.17.21",
+    "loglevel": "^1.8.1",
+    "yargs": "17.6.2",
+    "zod": "^3.20.2"
+  },
+  "packageManager": "pnpm@7.17.0"
+}
