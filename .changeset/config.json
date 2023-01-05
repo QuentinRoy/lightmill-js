@@ -8,7 +8,8 @@
       "@lightmill/convert-touchstone",
       "@lightmill/runner",
       "@lightmill/react-experiment",
-      "@lightmill/static-design"
+      "@lightmill/static-design",
+      "@lightmill/log-server"
     ]
   ],
   "access": "public",
