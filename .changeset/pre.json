@@ -5,7 +5,8 @@
     "@lightmill/convert-touchstone": "3.0.0-alpha.6",
     "@lightmill/runner": "3.0.0-alpha.5",
     "@lightmill/static-design": "3.0.0-alpha.5",
-    "@lightmill/react-experiment": "0.0.0"
+    "@lightmill/react-experiment": "0.0.0",
+    "@lightmill/log-server": "0.0.0"
   },
   "changesets": [
     "eighty-seas-itch",
@@ -17,6 +18,7 @@
     "red-cameras-peel",
     "stupid-peaches-brush",
     "tame-tools-battle",
-    "three-moose-smile"
+    "three-moose-smile",
+    "yellow-lobsters-crash"
   ]
 }
