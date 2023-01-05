@@ -8,11 +8,9 @@ import session from 'koa-generic-session';
 import {
   formatErrorMiddleware as formatValidationError,
   parseRequestBody,
-  parseRequestQuery,
 } from './validate.js';
 import { Store } from './store.js';
 import { SessionStoreAdapter } from './session-store-adapter.js';
-import { csvExportStream, jsonExportStream } from './export.js';
 
 dotenv.config();
 
@@ -93,24 +91,6 @@ export function createApp({ store }: { store: Store }) {
       params = [params];
     }
     await store.addLogs(params.map((log) => ({ ...log, runId })));
-    ctx.status = 200;
-  });
-
-  const GetLogsParameters = z.object({
-    type: z.union([z.string(), z.array(z.string())]).optional(),
-    runId: z.union([z.string(), z.array(z.string())]).optional(),
-    experimentId: z.union([z.string(), z.array(z.string())]).optional(),
-    format: z.enum(['json', 'csv']).default('json'),
-  });
-  router.get('/logs', async (ctx) => {
-    let { format, ...filter } = parseRequestQuery(GetLogsParameters, ctx);
-    if (format === 'csv') {
-      ctx.body = csvExportStream(store, filter);
-      ctx.headers['content-type'] = 'text/csv';
-    } else {
-      ctx.body = jsonExportStream(store, filter);
-      ctx.headers['content-type'] = 'application/json';
-    }
     ctx.status = 200;
   });
 
