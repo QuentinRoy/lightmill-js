@@ -53,6 +53,7 @@ importers:
       '@types/koa__router': ^12.0.0
       '@types/lodash-es': ^4.17.6
       '@types/node': ^18.11.14
+      '@types/yargs': ^17.0.19
       better-sqlite3: ^8.0.1
       csv: ^6.2.5
       cuid: ^2.1.8
@@ -62,9 +63,11 @@ importers:
       koa-generic-session: ^2.3.0
       kysely: ^0.22.0
       lodash-es: ^4.17.21
+      loglevel: ^1.8.1
       ts-node: ^10.9.1
       type-fest: ^3.4.0
       typescript: 4.9.4
+      yargs: 17.6.2
       zod: ^3.20.2
     dependencies:
       '@koa/router': 12.0.0
@@ -77,6 +80,8 @@ importers:
       koa-generic-session: 2.3.0
       kysely: 0.22.0
       lodash-es: 4.17.21
+      loglevel: 1.8.1
+      yargs: 17.6.2
       zod: 3.20.2
     devDependencies:
       '@types/better-sqlite3': 7.6.3
@@ -86,6 +91,7 @@ importers:
       '@types/koa__router': 12.0.0
       '@types/lodash-es': 4.17.6
       '@types/node': 18.11.14
+      '@types/yargs': 17.0.19
       ts-node: 10.9.1_jxffkbksrxcpjftzfp475m3gy4
       type-fest: 3.4.0
       typescript: 4.9.4
@@ -1261,6 +1267,12 @@ packages:
 
   /@types/yargs/17.0.17:
     resolution: {integrity: sha512-72bWxFKTK6uwWJAVT+3rF6Jo6RTojiJ27FQo8Rf60AL+VZbzoVPnMFhKsUnbjR8A3BTCYQ7Mv3hnl8T0A+CX9g==}
+    dependencies:
+      '@types/yargs-parser': 21.0.0
+    dev: true
+
+  /@types/yargs/17.0.19:
+    resolution: {integrity: sha512-cAx3qamwaYX9R0fzOIZAlFpo4A+1uBVCxqpKz9D26uTF4srRXaGTTsikQmaotCtNdbhzyUH7ft6p9ktz9s6UNQ==}
     dependencies:
       '@types/yargs-parser': 21.0.0
     dev: true
@@ -3422,6 +3434,11 @@ packages:
   /lodash/4.17.21:
     resolution: {integrity: sha512-v2kDEe57lecTulaDIuNTPy3Ry4gLGJ6Z1O3vE1krgXZNrsQ+LFTGHVxVjcXPs17LhbZVGedAJv8XZ1tvj5FvSg==}
     dev: true
+
+  /loglevel/1.8.1:
+    resolution: {integrity: sha512-tCRIJM51SHjAayKwC+QAg8hT8vg6z7GSgLJKGvzuPb1Wc+hLzqtuVLxp6/HzSPOozuK+8ErAhy7U/sVzw8Dgfg==}
+    engines: {node: '>= 0.6.0'}
+    dev: false
 
   /loose-envify/1.4.0:
     resolution: {integrity: sha512-lyuxPGr/Wfhrlem2CL/UcnUc1zcqKAImBDzukY7Y5F/yQiNdko6+fRLevlw1HgMySw7f611UIY408EtxRSoK3Q==}

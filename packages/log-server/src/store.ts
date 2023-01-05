@@ -1,8 +1,8 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import * as url from 'node:url';
 import SQliteDB from 'better-sqlite3';
 import cuid from 'cuid';
-import * as url from 'url';
 import {
   Kysely,
   FileMigrationProvider,
@@ -13,6 +13,7 @@ import {
 } from 'kysely';
 import { JsonObject } from 'type-fest';
 import { arrayify } from './utils.js';
+import loglevel, { LogLevelDesc } from 'loglevel';
 
 const __dirname = url.fileURLToPath(new URL('.', import.meta.url));
 const migrationFolder = path.join(__dirname, 'db-migrations');
@@ -53,12 +54,30 @@ export class Store {
   #db: Kysely<Database>;
   #useStreaming: boolean;
 
-  constructor(db: string, opts?: { useStreaming?: false });
+  constructor(
+    db: string,
+    opts?: { useStreaming?: false; logLevel?: LogLevelDesc }
+  );
   constructor(db: Kysely<Database>, opts?: { useStreaming?: boolean });
-  constructor(db: Kysely<Database> | string, { useStreaming = false } = {}) {
+  constructor(
+    db: Kysely<Database> | string,
+    {
+      useStreaming = false,
+      logLevel = loglevel.getLevel(),
+    }: { useStreaming?: boolean; logLevel?: LogLevelDesc } = {}
+  ) {
     if (typeof db === 'string') {
+      const log = loglevel.getLogger('store');
+      log.setLevel(logLevel);
       this.#db = new Kysely({
         dialect: new SqliteDialect({ database: new SQliteDB(db) }),
+        log: (event) => {
+          if (event.level === 'query') {
+            log.debug(event.query.sql, event.query.parameters);
+          } else if (event.level === 'error') {
+            log.error(event.error);
+          }
+        },
       });
       this.#useStreaming = false;
     } else {
@@ -137,7 +156,7 @@ export class Store {
       .call(createLogQueryFilter(filter))
       .groupBy('logValue.name')
       .orderBy('logValue.name')
-      .select(['logValue.name as name'])
+      .select(['logValue.name'])
       .execute();
     return result.map((it) => it.name);
   }
@@ -161,11 +180,11 @@ export class Store {
       .select([
         'log.id as logId',
         'log.type as logType',
-        'log.createdAt as logCreatedAt', 
-        'log.runId as runId',
-        'run.experimentId as experimentId',
-        'logValue.name as name',
-        'logValue.value as value',
+        'log.createdAt as logCreatedAt',
+        'log.runId',
+        'run.experimentId',
+        'logValue.name',
+        'logValue.value',
       ]);
     let result = this.#useStreaming
       ? request.stream()
