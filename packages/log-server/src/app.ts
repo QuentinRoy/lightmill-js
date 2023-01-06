@@ -99,7 +99,7 @@ export function createApp({ store }: { store: Store }) {
       };
       return;
     }
-    if(session.run.endedAt != null) {
+    if (session.run.endedAt != null) {
       ctx.status = 403;
       ctx.body = {
         status: 'error',
