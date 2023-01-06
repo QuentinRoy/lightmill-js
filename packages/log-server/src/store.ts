@@ -10,6 +10,7 @@ import {
   Migrator,
   SelectQueryBuilder,
   SqliteDialect,
+  CamelCasePlugin,
 } from 'kysely';
 import { JsonObject } from 'type-fest';
 import { arrayify } from './utils.js';
@@ -53,38 +54,23 @@ type Database = {
 
 export class Store {
   #db: Kysely<Database>;
-  #useStreaming: boolean;
-
   constructor(
     db: string,
-    opts?: { useStreaming?: false; logLevel?: LogLevelDesc }
-  );
-  constructor(db: Kysely<Database>, opts?: { useStreaming?: boolean });
-  constructor(
-    db: Kysely<Database> | string,
-    {
-      useStreaming = false,
-      logLevel = loglevel.getLevel(),
-    }: { useStreaming?: boolean; logLevel?: LogLevelDesc } = {}
+    { logLevel = loglevel.getLevel() }: { logLevel?: LogLevelDesc } = {}
   ) {
-    if (typeof db === 'string') {
-      const log = loglevel.getLogger('store');
-      log.setLevel(logLevel);
-      this.#db = new Kysely({
-        dialect: new SqliteDialect({ database: new SQliteDB(db) }),
-        log: (event) => {
-          if (event.level === 'query') {
-            log.debug(event.query.sql, event.query.parameters);
-          } else if (event.level === 'error') {
-            log.error(event.error);
-          }
-        },
-      });
-      this.#useStreaming = false;
-    } else {
-      this.#db = db;
-      this.#useStreaming = useStreaming;
-    }
+    const log = loglevel.getLogger('store');
+    log.setLevel(logLevel);
+    this.#db = new Kysely({
+      dialect: new SqliteDialect({ database: new SQliteDB(db) }),
+      log: (event) => {
+        if (event.level === 'query') {
+          log.debug(event.query.sql, event.query.parameters);
+        } else if (event.level === 'error') {
+          log.error(event.error);
+        }
+      },
+      plugins: [new CamelCasePlugin()],
+    });
   }
 
   async addRun({ id, experimentId }: { id?: string; experimentId?: string }) {
@@ -193,13 +179,11 @@ export class Store {
         'logValue.name',
         'logValue.value',
       ]);
-    let result = this.#useStreaming
-      ? request.stream()
-      : await request.execute();
+    let result = await request.execute();
 
     let currentLog = null;
     let currentLogId = null;
-    for await (let row of result) {
+    for (let row of result) {
       if (currentLog == null || row.logId !== currentLogId) {
         if (currentLog != null) {
           yield currentLog;
