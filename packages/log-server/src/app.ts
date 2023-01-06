@@ -99,6 +99,14 @@ export function createApp({ store }: { store: Store }) {
       };
       return;
     }
+    if(session.run.endedAt != null) {
+      ctx.status = 403;
+      ctx.body = {
+        status: 'error',
+        message: 'Cannot add logs to an ended run',
+      };
+      return;
+    }
     let params = parseRequestBody(PostLogsParameters, ctx);
     if (!Array.isArray(params)) {
       params = [params];
@@ -106,6 +114,45 @@ export function createApp({ store }: { store: Store }) {
     await store.addLogs(params.map((log) => ({ ...log, runId })));
     ctx.body = { status: 'ok' };
     ctx.status = 200;
+  });
+
+  const PutRunsParameters = z.object({
+    ended: z.boolean(),
+  });
+  router.put('/runs/:id', async (ctx) => {
+    let runId = ctx.params.id;
+    let session = ctx.session as Session;
+    if (!session.run || session.run.id !== runId) {
+      ctx.status = 403;
+      ctx.body = {
+        status: 'error',
+        message: 'Client not registered or for a different run id',
+      };
+      return;
+    }
+    let params = parseRequestBody(PutRunsParameters, ctx);
+    if (!params.ended && session.run.endedAt != null) {
+      ctx.body = { status: 'error', message: 'Cannot restart an ended run' };
+      ctx.status = 400;
+      return;
+    }
+    if (!params.ended && session.run.endedAt == null) {
+      ctx.body = {
+        status: 'error',
+        message: 'Run has not ended, and cannot restart an ended run anyway',
+      };
+      ctx.status = 400;
+      return;
+    }
+    if (params.ended && session.run.endedAt != null) {
+      ctx.body = { status: 'error', message: 'Run already ended' };
+      ctx.status = 400;
+      return;
+    }
+    await store.endRun(runId);
+    ctx.body = { status: 'ok' };
+    ctx.status = 200;
+    return;
   });
 
   const GetLogsParameters = z.object({
