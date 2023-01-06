@@ -1,7 +1,7 @@
 import { act, render, screen } from '@testing-library/react';
 import userEventPackage from '@testing-library/user-event';
-import { ExperimentConfig } from '../src/config.js';
-import Experiment, { useTask } from '../src/experiment.js';
+import { RunConfig } from '../src/config.js';
+import { Run, useTask } from '../src/run.js';
 
 const userEvent =
   userEventPackage as unknown as typeof userEventPackage.default;
@@ -12,7 +12,7 @@ function wait(ms: number) {
 
 type Task = { type: 'A'; a: string } | { type: 'B'; b: number };
 
-describe('experiment', () => {
+describe('run', () => {
   let Task: (props: { type: string; dataProp: string }) => JSX.Element;
   let tasks: Task[];
   let asyncTaskGen: (
@@ -46,14 +46,14 @@ describe('experiment', () => {
 
   it('renders tasks in accordance with the timeline', async () => {
     const user = userEvent.setup();
-    let config: ExperimentConfig<Task> = {
+    let config: RunConfig<Task> = {
       tasks: {
         A: <Task type="A" dataProp="a" />,
         B: <Task type="B" dataProp="b" />,
       },
       completed: <div data-testid="end" />,
     };
-    render(<Experiment config={config} timeline={tasks} />);
+    render(<Run config={config} timeline={tasks} />);
     expect(screen.getByRole('heading')).toHaveTextContent('Type A');
     expect(screen.getByTestId('data')).toHaveTextContent('hello');
     await user.click(screen.getByRole('button'));
@@ -68,13 +68,13 @@ describe('experiment', () => {
 
   it('renders nothing when the experiment is done if no completed element is provided', async () => {
     const user = userEvent.setup();
-    let config: ExperimentConfig<Task> = {
+    let config: RunConfig<Task> = {
       tasks: {
         A: <Task type="A" dataProp="a" />,
         B: <Task type="B" dataProp="b" />,
       },
     };
-    let { container } = render(<Experiment config={config} timeline={tasks} />);
+    let { container } = render(<Run config={config} timeline={tasks} />);
 
     expect(screen.getByRole('heading')).toHaveTextContent('Type A');
     expect(screen.getByTestId('data')).toHaveTextContent('hello');
@@ -96,7 +96,7 @@ describe('experiment', () => {
         vi.advanceTimersToNextTimer();
       },
     });
-    let config: ExperimentConfig<Task> = {
+    let config: RunConfig<Task> = {
       tasks: {
         A: <Task type="A" dataProp="a" />,
         B: <Task type="B" dataProp="b" />,
@@ -104,7 +104,7 @@ describe('experiment', () => {
       loading: <div data-testid="loading" />,
       completed: <div data-testid="end" />,
     };
-    render(<Experiment config={config} timeline={asyncTaskGen(taskTime)} />);
+    render(<Run config={config} timeline={asyncTaskGen(taskTime)} />);
     expect(screen.getByTestId('loading')).toBeInTheDocument();
     await act(() => {
       vi.advanceTimersByTime(taskTime);

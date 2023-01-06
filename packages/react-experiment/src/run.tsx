@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { BaseTask, ExperimentConfig, RegisteredTask } from './config.js';
+import { BaseTask, RunConfig, RegisteredTask } from './config.js';
 import useManagedTimeline, { Timeline, TimelineState } from './timeline.js';
 
 export type ExperimentState<Task extends BaseTask> = TimelineState<Task>;
@@ -8,14 +8,14 @@ const context = React.createContext<ExperimentState<RegisteredTask> | null>(
   null
 );
 
-export type ExperimentProps<T extends RegisteredTask> = {
-  config: ExperimentConfig<T>;
+export type RunProps<T extends RegisteredTask> = {
+  config: RunConfig<T>;
   timeline: Timeline<T>;
 };
-export default function Experiment<T extends RegisteredTask>({
+export function Run<T extends RegisteredTask>({
   timeline,
   config: { tasks, completed, loading },
-}: ExperimentProps<T>) {
+}: RunProps<T>) {
   let state = useManagedTimeline(timeline);
   if (state.status === 'running') {
     let taskType: T['type'] = state.task.type;

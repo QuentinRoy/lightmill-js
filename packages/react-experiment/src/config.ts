@@ -17,7 +17,7 @@ export type RegisteredTask = RegisterExperiment extends Required<{
     : never
   : AnyTask;
 
-export type ExperimentConfig<T extends BaseTask = RegisteredTask> = {
+export type RunConfig<T extends BaseTask = RegisteredTask> = {
   tasks: Record<T['type'], React.ReactElement>;
   loading?: React.ReactElement;
   completed?: React.ReactElement;
