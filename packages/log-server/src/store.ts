@@ -88,19 +88,25 @@ export class Store {
   }
 
   async addRun({ id, experimentId }: { id?: string; experimentId?: string }) {
-    return this.#db.transaction().execute(async (trx) => {
-      let runId = id ?? cuid();
-      await trx
-        .insertInto('run')
-        .values({
-          id: runId,
-          createdAt: new Date().toISOString(),
-          experimentId,
-          endedAt: null,
-        })
-        .execute();
-      return runId;
-    });
+    let runId = id ?? cuid();
+    await this.#db
+      .insertInto('run')
+      .values({
+        id: runId,
+        createdAt: new Date().toISOString(),
+        experimentId,
+        endedAt: null,
+      })
+      .execute();
+    return runId;
+  }
+
+  async endRun(id: string) {
+    await this.#db
+      .updateTable('run')
+      .set({ endedAt: new Date().toISOString() })
+      .where('id', '=', id)
+      .execute();
   }
 
   // This methods is O(n^2) in the number of logs to insert, but n is expected
