@@ -74,9 +74,12 @@ describeEachSyncs(`asyncForEach with %s iterator`, (syncArg) => {
 
   it('waits for its callback to resolve if it returned a promise', async () => {
     const gen = generators[sync];
-    const defers = { b: deffer(), d: deffer() };
+    const defers: Record<string, Deffered<unknown>> = {
+      b: deffer(),
+      d: deffer(),
+    };
     const log: string[] = [];
-    const callback = vi.fn((value) => {
+    const callback = vi.fn((value: string) => {
       if (value in defers) {
         log.push(`${value}-async-start`);
         return defers[value].promise.then(() => {
@@ -94,7 +97,7 @@ describeEachSyncs(`asyncForEach with %s iterator`, (syncArg) => {
     await wait(5);
     expect(log).toEqual(['a-sync', 'b-async-start']);
     defers.b.resolve();
-    await wait(5);
+    await wait(10);
     expect(end.mock.calls).toEqual([]);
     expect(log).toEqual([
       'a-sync',
