@@ -109,7 +109,7 @@ export function createApp({ store }: { store: Store }) {
     experimentId: z.union([z.string(), z.array(z.string())]).optional(),
     format: z.enum(['json', 'csv']).default('json'),
   });
-  router.get('/logs', async (ctx) => {
+  router.get('/runs/logs', async (ctx) => {
     let session = ctx.session as Session;
     // Only admins can access this endpoint.
     // TODO: Add an admin login endpoint.
