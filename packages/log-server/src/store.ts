@@ -8,9 +8,9 @@ import {
   FileMigrationProvider,
   Generated,
   Migrator,
-  SelectQueryBuilder,
   SqliteDialect,
   CamelCasePlugin,
+  DeduplicateJoinsPlugin,
 } from 'kysely';
 import { JsonObject } from 'type-fest';
 import { arrayify } from './utils.js';
@@ -69,7 +69,7 @@ export class Store {
           log.error(event.error);
         }
       },
-      plugins: [new CamelCasePlugin()],
+      plugins: [new CamelCasePlugin(), new DeduplicateJoinsPlugin()],
     });
   }
 
@@ -98,11 +98,7 @@ export class Store {
   // This methods is O(n^2) in the number of logs to insert, but n is expected
   // to be relatively small.
   async addLogs(
-    logs: Array<{
-      type: string;
-      runId: string;
-      values: JsonObject;
-    }>
+    logs: Array<{ type: string; runId: string; values: JsonObject }>
   ) {
     await this.#db.transaction().execute(async (trx) => {
       let createdAt = new Date().toISOString();
@@ -144,14 +140,41 @@ export class Store {
   async getLogValueNames(filter: LogFilter = {}) {
     let result = await this.#db
       .selectFrom('logValue')
-      .innerJoin('log', 'log.id', 'logValue.logId')
-      .innerJoin('run', 'run.id', 'log.runId')
-      .call(createLogQueryFilter(filter))
-      .groupBy('logValue.name')
-      .orderBy('logValue.name')
-      .select(['logValue.name'])
+      .if(filter.type != null, (qb) =>
+        qb.innerJoin('log', 'log.id', 'logValue.logId').where((qb) => {
+          let types = arrayify(filter.type, true);
+          for (let type of types) {
+            qb = qb.orWhere('log.type', '=', type);
+          }
+          return qb;
+        })
+      )
+      .if(filter.runId != null, (qb) =>
+        qb.innerJoin('log', 'log.id', 'logValue.logId').where((qb) => {
+          let runIds = arrayify(filter.runId, true);
+          for (let runId of runIds) {
+            qb = qb.orWhere('log.runId', '=', runId);
+          }
+          return qb;
+        })
+      )
+      .if(filter.experimentId != null, (qb) =>
+        qb
+          .innerJoin('log', 'log.id', 'logValue.logId')
+          .innerJoin('run', 'run.id', 'log.runId')
+          .where((qb) => {
+            let experimentIds = arrayify(filter.experimentId, true);
+            for (let experimentId of experimentIds) {
+              qb = qb.orWhere('run.experimentId', '=', experimentId);
+            }
+            return qb;
+          })
+      )
+      .select('logValue.name as logValueName')
+      .orderBy('logValueName')
+      .distinct()
       .execute();
-    return result.map((it) => it.name);
+    return result.map((it) => it.logValueName);
   }
 
   async hasNonEmptyExperimentId() {
@@ -164,12 +187,38 @@ export class Store {
   }
 
   async *getLogs(filter: LogFilter = {}) {
-    let request = this.#db
+    let result = await this.#db
       .selectFrom('logValue')
       .innerJoin('log', 'log.id', 'logValue.logId')
       .innerJoin('run', 'run.id', 'log.runId')
-      .call(createLogQueryFilter(filter))
-      .orderBy('log.id')
+      .if(filter.type != null, (qb) =>
+        qb.where((qb) => {
+          let types = arrayify(filter.type, true);
+          for (let type of types) {
+            qb = qb.orWhere('log.type', '=', type);
+          }
+          return qb;
+        })
+      )
+      .if(filter.runId != null, (qb) =>
+        qb.where((qb) => {
+          let runIds = arrayify(filter.runId, true);
+          for (let runId of runIds) {
+            qb = qb.orWhere('log.runId', '=', runId);
+          }
+          return qb;
+        })
+      )
+      .if(filter.experimentId != null, (qb) =>
+        qb.where((qb) => {
+          let experimentIds = arrayify(filter.experimentId, true);
+          for (let experimentId of experimentIds) {
+            qb = qb.orWhere('run.experimentId', '=', experimentId);
+          }
+          return qb;
+        })
+      )
+      .orderBy('logValue.logId')
       .select([
         'log.id as logId',
         'log.type as logType',
@@ -178,8 +227,8 @@ export class Store {
         'run.experimentId',
         'logValue.name',
         'logValue.value',
-      ]);
-    let result = await request.execute();
+      ])
+      .execute();
 
     let currentLog = null;
     let currentLogId = null;
@@ -278,7 +327,7 @@ export class Store {
   }
 
   async deleteSession(id: string) {
-    return this.#db.deleteFrom('session').where('id', '=', id).execute();
+    await this.#db.deleteFrom('session').where('id', '=', id).execute();
   }
 
   async migrateDatabase() {
@@ -317,29 +366,3 @@ type LogFilter = {
   runId?: string | string[];
   experimentId?: string | string[];
 };
-
-const filterValues = ['type', 'runId', 'experimentId'] as const;
-const filterColumns = {
-  type: 'log.type',
-  runId: 'log.runId',
-  experimentId: 'run.experimentId',
-} as const;
-function createLogQueryFilter(filter: LogFilter = {}) {
-  return (
-    q: SelectQueryBuilder<Database, 'logValue' | 'log' | 'run', unknown>
-  ) => {
-    for (let filterValue of filterValues) {
-      let targets = arrayify(filter[filterValue], true);
-      if (targets.length > 0) {
-        let col = filterColumns[filterValue];
-        q = q.where((qb) => {
-          for (let target of targets) {
-            qb = qb.orWhere(col, '=', target);
-          }
-          return qb;
-        });
-      }
-    }
-    return q;
-  };
-}
