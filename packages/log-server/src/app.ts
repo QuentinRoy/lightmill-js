@@ -76,7 +76,7 @@ export function createApp({ store }: { store: Store }) {
       run: { id: runId },
       role: 'participant',
     } satisfies PartialDeep<Session>);
-    ctx.body = { id: runId };
+    ctx.body = { status: 'ok', id: runId };
     ctx.status = 200;
   });
 
@@ -93,6 +93,10 @@ export function createApp({ store }: { store: Store }) {
     let session = ctx.session as Session;
     if (!session.run || session.run.id !== runId) {
       ctx.status = 403;
+      ctx.body = {
+        status: 'error',
+        message: 'Client not registered or for a different run id',
+      };
       return;
     }
     let params = parseRequestBody(PostLogsParameters, ctx);
@@ -100,6 +104,7 @@ export function createApp({ store }: { store: Store }) {
       params = [params];
     }
     await store.addLogs(params.map((log) => ({ ...log, runId })));
+    ctx.body = { status: 'ok' };
     ctx.status = 200;
   });
 
@@ -115,6 +120,10 @@ export function createApp({ store }: { store: Store }) {
     // TODO: Add an admin login endpoint.
     if (session.role !== 'admin') {
       ctx.status = 403;
+      ctx.body = {
+        status: 'error',
+        message: 'Client not logged in as an admin',
+      };
       return;
     }
     let { format, ...filter } = parseRequestQuery(GetLogsParameters, ctx);
