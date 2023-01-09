@@ -42,12 +42,12 @@ export function useTask(
   const state = React.useContext(context);
   if (state == null) {
     throw new Error(
-      'No task found. Is this component rendered in an Experiment?'
+      'No task found. Is this component rendered in a Run?'
     );
   }
   if (state.status !== 'running') {
     throw new Error(
-      'No task is currently running. Is this component rendered in an Experiment?'
+      'No task is currently running. Is this component rendered in a Run?'
     );
   }
   if (type != null && state.task.type !== type) {
