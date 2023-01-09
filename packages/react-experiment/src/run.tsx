@@ -2,11 +2,9 @@ import * as React from 'react';
 import { BaseTask, RunConfig, RegisteredTask } from './config.js';
 import useManagedTimeline, { Timeline, TimelineState } from './timeline.js';
 
-export type ExperimentState<Task extends BaseTask> = TimelineState<Task>;
+export type RunState<Task extends BaseTask> = TimelineState<Task>;
 
-const context = React.createContext<ExperimentState<RegisteredTask> | null>(
-  null
-);
+const context = React.createContext<RunState<RegisteredTask> | null>(null);
 
 export type RunProps<T extends RegisteredTask> = {
   config: RunConfig<T>;
