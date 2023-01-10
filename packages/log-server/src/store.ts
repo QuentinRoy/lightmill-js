@@ -14,20 +14,22 @@ import {
 import { JsonObject } from 'type-fest';
 import loglevel, { LogLevelDesc } from 'loglevel';
 import { arrayify } from './utils.js';
+import { groupBy } from 'remeda';
 
 const __dirname = url.fileURLToPath(new URL('.', import.meta.url));
 const migrationFolder = path.join(__dirname, 'db-migrations');
 
 type RunTable = {
-  id: string;
-  experimentId: string | null;
+  runId: string;
+  experimentId: string;
   createdAt: string;
-  endedAt: string | null;
+  status: 'running' | 'completed' | 'canceled';
 };
 type LogTable = {
-  id: Generated<bigint>;
-  type: string;
+  logId: Generated<bigint>;
+  experimentId: string;
   runId: string;
+  type: string;
   createdAt: string;
 };
 type LogValueTable = {
@@ -64,29 +66,32 @@ export class Store {
   }
 
   async addRun({
-    id,
-    createdAt,
+    runId,
     experimentId,
+    createdAt,
   }: {
-    id: string;
+    runId: string;
+    experimentId: string;
     createdAt: Date;
-    experimentId?: string;
   }) {
-    await this.#db
+    let result = await this.#db
       .insertInto('run')
       .values({
-        id,
-        createdAt: createdAt.toISOString(),
+        runId,
         experimentId,
-        endedAt: null,
+        createdAt: createdAt.toISOString(),
+        status: 'running',
       })
-      .execute();
+      .returning(['runId', 'experimentId'])
+      .executeTakeFirstOrThrow();
+    return { runId: result.runId, experimentId: result.experimentId };
   }
 
-  async getRun(id: string) {
+  async getRun(experimentId: string, runId: string) {
     let selection = await this.#db
       .selectFrom('run')
-      .where('id', '=', id)
+      .where('experimentId', '=', experimentId)
+      .where('runId', '=', runId)
       .selectAll()
       .executeTakeFirst();
     if (!selection) return;
@@ -94,53 +99,56 @@ export class Store {
       ...selection,
       createdAt:
         selection.createdAt != null ? new Date(selection.createdAt) : null,
-      endedAt: selection.endedAt != null ? new Date(selection.endedAt) : null,
     };
   }
 
-  async endRun(id: string) {
+  async setRunStatus(
+    experimentId: string,
+    runId: string,
+    status: RunTable['status']
+  ) {
     await this.#db
       .updateTable('run')
-      .set({ endedAt: new Date().toISOString() })
-      .where('id', '=', id)
+      .where('experimentId', '=', experimentId)
+      .where('runId', '=', runId)
+      .set({ status })
       .execute();
   }
 
-  // This methods is O(n^2) in the number of logs to insert, but n is expected
-  // to be relatively small.
-  async addLogs(
-    logs: Array<{ type: string; runId: string; values: JsonObject }>
+  async addRunLogs(
+    experimentId: string,
+    runId: string,
+    logs: Array<{
+      type: string;
+      values: JsonObject;
+    }>
   ) {
     await this.#db.transaction().execute(async (trx) => {
       let createdAt = new Date().toISOString();
-      let dbLogs = await trx
-        .insertInto('log')
-        .values(
-          logs.map(({ type, runId }) => {
-            return { type, runId, createdAt };
-          })
-        )
-        .returning(['id', 'type', 'runId'])
-        .execute()
-        .then((selection) =>
-          selection.map((it) => ({ ...it, isAssigned: false }))
-        );
+      let dbLogGroups = groupBy(
+        await trx
+          .insertInto('log')
+          .values(
+            logs.map(({ type }) => {
+              return { type, runId, experimentId, createdAt };
+            })
+          )
+          .returning(['logId', 'type'])
+          .execute(),
+        (log) => log.type
+      );
 
       // Bulk insert returning values does not guarantee order, so we need to
       // match the log values logs to returned log ids.
       let dbValues = [];
       for (let log of logs) {
-        let dbLog = dbLogs.find(
-          (it) =>
-            it.type === log.type && it.runId === log.runId && !it.isAssigned
-        );
-        if (!dbLog) {
+        let dbLog = dbLogGroups[log.type].pop();
+        if (dbLog == null) {
           throw new Error(
-            `failed to find an unassigned inserted log with type "${log.type}" and runId "${log.runId}"`
+            `failed to find an unassigned inserted log with type "${log.type}"`
           );
         }
-        dbLog.isAssigned = true;
-        dbValues.push(...deconstructValues(log.values, { logId: dbLog.id }));
+        dbValues.push(...deconstructValues(log.values, { logId: dbLog.logId }));
       }
       await trx.insertInto('logValue').values(dbValues).execute();
     });
@@ -149,91 +157,48 @@ export class Store {
   async getLogValueNames(filter: LogFilter = {}) {
     let result = await this.#db
       .selectFrom('logValue')
-      .if(filter.type != null, (qb) =>
-        qb.innerJoin('log', 'log.id', 'logValue.logId').where((qb) => {
-          let types = arrayify(filter.type, true);
-          for (let type of types) {
-            qb = qb.orWhere('log.type', '=', type);
-          }
-          return qb;
-        })
-      )
-      .if(filter.runId != null, (qb) =>
-        qb.innerJoin('log', 'log.id', 'logValue.logId').where((qb) => {
-          let runIds = arrayify(filter.runId, true);
-          for (let runId of runIds) {
-            qb = qb.orWhere('log.runId', '=', runId);
-          }
-          return qb;
-        })
-      )
-      .if(filter.experimentId != null, (qb) =>
+      .if(filter.experiment != null, (qb) =>
         qb
-          .innerJoin('log', 'log.id', 'logValue.logId')
-          .innerJoin('run', 'run.id', 'log.runId')
-          .where((qb) => {
-            let experimentIds = arrayify(filter.experimentId, true);
-            for (let experimentId of experimentIds) {
-              qb = qb.orWhere('run.experimentId', '=', experimentId);
-            }
-            return qb;
-          })
+          .innerJoin('log', 'log.logId', 'logValue.logId')
+          .where('log.experimentId', 'in', arrayify(filter.experiment, true))
       )
-      .select('logValue.name as logValueName')
-      .orderBy('logValueName')
+      .if(filter.run != null, (qb) =>
+        qb
+          .innerJoin('log', 'log.logId', 'logValue.logId')
+          .where('log.runId', 'in', arrayify(filter.run, true))
+      )
+      .if(filter.type != null, (qb) =>
+        qb
+          .innerJoin('log', 'log.logId', 'logValue.logId')
+          .where('log.type', 'in', arrayify(filter.type, true))
+      )
+      .select('logValue.name')
+      .orderBy('name')
       .distinct()
       .execute();
-    return result.map((it) => it.logValueName);
+    return result.map((it) => it.name);
   }
 
-  async hasNonEmptyExperimentId() {
-    let result = await this.#db
-      .selectFrom('run')
-      .where('experimentId', 'is not', null)
-      .select('experimentId')
-      .executeTakeFirst();
-    return result != null;
-  }
-
-  async *getLogs(filter: LogFilter = {}) {
+  async *getLogs(filter: LogFilter = {}): AsyncGenerator<Log> {
     let result = await this.#db
       .selectFrom('logValue')
-      .innerJoin('log', 'log.id', 'logValue.logId')
-      .innerJoin('run', 'run.id', 'log.runId')
+      .innerJoin('log', 'log.logId', 'logValue.logId')
+      .if(filter.experiment != null, (qb) =>
+        qb.where('log.experimentId', 'in', arrayify(filter.experiment, true))
+      )
+      .if(filter.run != null, (qb) =>
+        qb.where('log.runId', 'in', arrayify(filter.run, true))
+      )
       .if(filter.type != null, (qb) =>
-        qb.where((qb) => {
-          let types = arrayify(filter.type, true);
-          for (let type of types) {
-            qb = qb.orWhere('log.type', '=', type);
-          }
-          return qb;
-        })
-      )
-      .if(filter.runId != null, (qb) =>
-        qb.where((qb) => {
-          let runIds = arrayify(filter.runId, true);
-          for (let runId of runIds) {
-            qb = qb.orWhere('log.runId', '=', runId);
-          }
-          return qb;
-        })
-      )
-      .if(filter.experimentId != null, (qb) =>
-        qb.where((qb) => {
-          let experimentIds = arrayify(filter.experimentId, true);
-          for (let experimentId of experimentIds) {
-            qb = qb.orWhere('run.experimentId', '=', experimentId);
-          }
-          return qb;
-        })
+        qb.where('log.type', 'in', arrayify(filter.type, true))
       )
       .orderBy('logValue.logId')
       .select([
-        'log.id as logId',
+        'log.experimentId as experimentId',
+        'log.runId as runId',
+        'log.logId as logId',
         'log.type as logType',
         'log.createdAt as logCreatedAt',
-        'log.runId',
-        'run.experimentId',
         'logValue.name',
         'logValue.value',
       ])
@@ -247,9 +212,9 @@ export class Store {
           yield currentLog;
         }
         currentLog = {
-          type: row.logType,
-          experimentId: row.experimentId ?? undefined,
+          experimentId: row.experimentId,
           runId: row.runId,
+          type: row.logType,
           createdAt: new Date(row.logCreatedAt),
           values: {} as JsonObject,
         };
@@ -297,8 +262,16 @@ function deconstructValues(
   }));
 }
 
-type LogFilter = {
+export type LogFilter = {
   type?: string | string[];
-  runId?: string | string[];
-  experimentId?: string | string[];
+  run?: string | string[];
+  experiment?: string | string[];
+};
+
+export type Log = {
+  experimentId: string;
+  runId: string;
+  type: string;
+  createdAt: Date;
+  values: JsonObject;
 };

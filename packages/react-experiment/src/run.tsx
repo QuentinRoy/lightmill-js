@@ -1,29 +1,53 @@
 import * as React from 'react';
-import { BaseTask, RunConfig, RegisteredTask } from './config.js';
+import { RunConfig, RegisteredTask } from './config.js';
+import { RegisteredLog } from './config.js';
 import useManagedTimeline, { Timeline, TimelineState } from './timeline.js';
 
-export type RunState<Task extends BaseTask> = TimelineState<Task>;
+export type Logger = {
+  addLog(log: RegisteredLog): Promise<void>;
+  flush(): Promise<void>;
+  completeRun(): Promise<void>;
+  cancelRun(): Promise<void>;
+};
 
-const context = React.createContext<RunState<RegisteredTask> | null>(null);
+const timelineContext =
+  React.createContext<TimelineState<RegisteredTask> | null>(null);
+const loggerContext = React.createContext<Logger | null>(null);
 
 export type RunProps<T extends RegisteredTask> = {
   config: RunConfig<T>;
   timeline: Timeline<T>;
+  logger?: Logger;
 };
 export function Run<T extends RegisteredTask>({
   timeline,
   config: { tasks, completed, loading },
+  logger,
 }: RunProps<T>) {
   let state = useManagedTimeline(timeline);
   if (state.status === 'running') {
     let taskType: T['type'] = state.task.type;
-    return <context.Provider value={state}>{tasks[taskType]}</context.Provider>;
+    return (
+      <loggerContext.Provider value={logger ?? null}>
+        <timelineContext.Provider value={state}>
+          {tasks[taskType]}
+        </timelineContext.Provider>
+      </loggerContext.Provider>
+    );
   }
   if (state.status === 'completed') {
-    return completed ?? null;
+    return completed == null ? null : (
+      <loggerContext.Provider value={logger ?? null}>
+        {completed}
+      </loggerContext.Provider>
+    );
   }
   if (state.status === 'loading') {
-    return loading ?? null;
+    return loading == null ? null : (
+      <loggerContext.Provider value={logger ?? null}>
+        {loading}
+      </loggerContext.Provider>
+    );
   }
   return null;
 }
@@ -39,13 +63,13 @@ export function useTask(): UseTaskResult<RegisteredTask>;
 export function useTask(
   type?: RegisteredTask['type']
 ): UseTaskResult<RegisteredTask> {
-  const state = React.useContext(context);
+  const state = React.useContext(timelineContext);
   if (state == null) {
-    throw new Error('No task found. Is this component rendered in a Run?');
+    throw new Error('No task found. Is this component rendered in a <Run />?');
   }
   if (state.status !== 'running') {
     throw new Error(
-      'No task is currently running. Is this component rendered in a Run?'
+      'No task is currently running. Is this component rendered in a <Run />?'
     );
   }
   if (type != null && state.task.type !== type) {
@@ -59,4 +83,14 @@ export function useTask(
       onTaskCompleted: state.onTaskCompleted,
     };
   }, [state]);
+}
+
+export function useLogger(): Logger {
+  const logger = React.useContext(loggerContext);
+  if (logger == null) {
+    throw new Error(
+      'No logger found. Is this component rendered in a <Run />, and was a logger provided as a prop to <Run />?'
+    );
+  }
+  return logger;
 }

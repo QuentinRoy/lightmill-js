@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 
 import path from 'node:path';
-import { createWriteStream, readFileSync } from 'node:fs';
+import fs from 'node:fs/promises';
+import { readFileSync, createWriteStream } from 'node:fs';
 import * as url from 'node:url';
 import express from 'express';
 import { z } from 'zod';
@@ -52,7 +53,7 @@ type StartParameter = {
   adminPassword?: string;
 };
 async function start({
-  database,
+  database: dbPath,
   port,
   secret,
   adminPassword,
@@ -63,7 +64,19 @@ async function start({
     );
     process.exit(1);
   }
-  let store = new Store(database);
+  let doesDbExist = await fs.access(dbPath, fs.constants.F_OK).then(
+    () => true,
+    () => false
+  );
+  let store = new Store(dbPath);
+  if (!doesDbExist) {
+    let { error } = await store.migrateDatabase();
+    if (error != null) {
+      log.info('Failed to initialize database');
+      log.error(error);
+      process.exit(1);
+    }
+  }
   let server = express()
     .use(cors())
     .use(createLogServer({ store, secret, adminPassword }))

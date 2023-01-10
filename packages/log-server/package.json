@@ -22,7 +22,8 @@
   "scripts": {
     "build": "tsc -b tsconfig.build.json",
     "prepublish": "pnpm run build",
-    "cli": "tsx ./src/cli.ts"
+    "cli": "tsx ./src/cli.ts",
+    "cli-watch": "tsx --watch ./src/cli.ts"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.3",
@@ -42,6 +43,7 @@
     "axios": "^1.2.2",
     "better-sqlite3": "^8.0.1",
     "body-parser": "^1.20.1",
+    "change-case": "^4.1.2",
     "cookie-session": "^2.0.0",
     "cors": "^2.8.5",
     "csv": "^6.2.5",

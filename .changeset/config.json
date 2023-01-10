@@ -3,15 +3,7 @@
   "changelog": "@changesets/cli/changelog",
   "commit": false,
   "fixed": [],
-  "linked": [
-    [
-      "@lightmill/convert-touchstone",
-      "@lightmill/runner",
-      "@lightmill/react-experiment",
-      "@lightmill/static-design",
-      "@lightmill/log-server"
-    ]
-  ],
+  "linked": [["@lightmill/*"]],
   "access": "public",
   "baseBranch": "main",
   "updateInternalDependencies": "patch",

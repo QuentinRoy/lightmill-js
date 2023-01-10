@@ -1,9 +1,14 @@
 import { pipeline, Readable } from 'node:stream';
 import { stringify } from 'csv';
-import { pickBy } from 'remeda';
-import { Store } from './store.js';
+import { mapKeys, pickBy, pipe } from 'remeda';
+import { Log, Store } from './store.js';
+import { toSnakeCase } from './utils.js';
 
-const logColumns = ['type', 'experimentId', 'runId', 'createdAt'] as const;
+const logColumns: Array<keyof Log> = ['type', 'experimentId', 'runId'];
+const renamedLogColumns: Partial<Record<keyof Log, string>> = {
+  experimentId: 'experiment',
+  runId: 'run',
+};
 
 export function csvExportStream(
   store: Store,
@@ -13,13 +18,18 @@ export function csvExportStream(
   return pipeline(
     async function* () {
       let valueColumns = await store.getLogValueNames(filter);
-      let hasNonEmptyExperimentId = await store.hasNonEmptyExperimentId();
       let logColumnFilter = (columnName: string) =>
         !valueColumns.includes(columnName) &&
-        (hasNonEmptyExperimentId || columnName !== 'experimentId') &&
         (filter?.type == null || columnName !== 'type') &&
+        (filter?.experiment == null || columnName !== 'experimentId') &&
+        (filter?.run == null || columnName !== 'runId') &&
         columnName !== 'values';
-      let columns = [...logColumns.filter(logColumnFilter), ...valueColumns];
+      let columns = [
+        ...logColumns
+          .filter(logColumnFilter)
+          .map((c) => renamedLogColumns[c] ?? c),
+        ...valueColumns,
+      ];
       let baseLog: Record<string, undefined> = {};
       // We need to set all columns to undefined to make sure they are included
       // in the CSV even if they are empty.
@@ -29,11 +39,15 @@ export function csvExportStream(
       for await (let log of store.getLogs(filter)) {
         // Note: the type of this appears to be completely incorrect, but it
         // does not matter since it is immediately piped to stringify anyway.
-        yield {
+        yield toSnakeCase({
           ...baseLog,
-          ...pickBy(log, (v, k) => logColumnFilter(k)),
+          ...pipe(
+            log,
+            pickBy((v, k) => logColumnFilter(k)),
+            mapKeys((key) => renamedLogColumns[key] ?? key)
+          ),
           ...log.values,
-        };
+        });
       }
     },
     stringify({
@@ -59,23 +73,21 @@ export function jsonExportStream(
   return Readable.from(stringifyLogs(store.getLogs(filter)));
 }
 
-async function* stringifyLogs(
-  logs: AsyncIterable<{
-    type: string;
-    experimentId?: string;
-  }>
-) {
+async function* stringifyLogs(logs: AsyncIterable<Log>) {
   yield '[';
   let started = false;
   for await (let log of logs) {
     yield started ? ',' : '';
     started = true;
-    yield JSON.stringify(log, stringifyDateReplacer);
+    yield JSON.stringify(
+      mapKeys(log, (key) => renamedLogColumns[key] ?? key),
+      stringifyDateSerializer
+    );
   }
   yield ']';
 }
 
-function stringifyDateReplacer(key: string, value: unknown) {
+function stringifyDateSerializer(key: string, value: unknown) {
   if (value instanceof Date) {
     return value.toISOString();
   }

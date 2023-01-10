@@ -49,8 +49,7 @@
     "prepublish": "pnpm run build"
   },
   "keywords": [
-    "experiment",
-    "lightmill"
+    "experiment"
   ],
   "private": false
 }

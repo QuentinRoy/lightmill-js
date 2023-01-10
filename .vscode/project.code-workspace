@@ -24,6 +24,10 @@
       "name": "packages/log-server",
       "path": "../packages/log-server"
     },
+    {
+      "name": "packages/log-client",
+      "path": "../packages/log-client"
+    },
   ],
   "settings": {
     "files.exclude": {

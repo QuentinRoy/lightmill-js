@@ -1,28 +1,35 @@
 /* eslint-disable @typescript-eslint/no-namespace */
 import express from 'express';
 import { zodiosContext } from '@zodios/express';
-import { Store } from './store.js';
+import { LogFilter, Store } from './store.js';
 import session from 'cookie-session';
 import dotenv from 'dotenv';
 import { SqliteError } from 'better-sqlite3';
 import { NextFunction, Request, RequestHandler, Response } from 'express';
 import { api } from './api.js';
-import cuid from 'cuid';
 import { csvExportStream, jsonExportStream } from './export.js';
 import { pipeline } from 'stream/promises';
 import log from 'loglevel';
 import z from 'zod';
+import cuid from 'cuid';
 
 dotenv.config();
 
 const ctx = zodiosContext(
   z.object({
     session: z.union([
-      z.undefined(),
       z.null(),
-      // Unfortunately this may happen after a session has been deleted.
-      z.object({}),
-      z.object({ role: z.string(), runId: z.string().optional() }),
+      z
+        .object({
+          role: z.union([z.literal('admin'), z.literal('participant')]),
+          runs: z.array(
+            z.object({
+              runId: z.string(),
+              experimentId: z.string(),
+            })
+          ),
+        })
+        .strict(),
     ]),
   })
 );
@@ -56,8 +63,8 @@ export function createLogServer({
         message: `Forbidden role: ${role}`,
       });
     }
-    req.session = { role };
-    res.status(200).json({ status: 'ok', role });
+    req.session = { role, runs: [] };
+    res.status(200).json({ status: 'ok', role, runs: [] });
   });
 
   router.get('/sessions/current', (req, res) => {
@@ -71,7 +78,10 @@ export function createLogServer({
     res.status(200).json({
       status: 'ok',
       role: req.session.role,
-      runId: req.session.runId,
+      runs: req.session.runs.map((r) => ({
+        id: r.runId,
+        experiment: r.experimentId,
+      })),
     });
   });
 
@@ -82,25 +92,15 @@ export function createLogServer({
         message: 'No session found',
       });
       return;
-    } else if (req.session.runId != null) {
-      res.status(403).json({
-        status: 'error',
-        message: 'End run first',
-      });
-      return;
     }
     req.session = null;
     res.status(200).json({ status: 'ok' });
   });
 
-  router.post('/runs', async (req, res, next) => {
+  router.post('/experiments/runs', async (req, res, next) => {
     try {
       if (req.session?.role == null) {
-        res.status(403).json({
-          status: 'error',
-          message: 'Session required to create a run',
-        });
-        return;
+        req.session = { role: 'participant', runs: [] };
       }
       if (req.session.runId != null) {
         res.status(403).json({
@@ -109,20 +109,31 @@ export function createLogServer({
         });
         return;
       }
+      let runId = req.body?.id ?? cuid();
+      let experimentId = req.body?.experiment ?? 'default';
       const run = {
         ...req.body,
-        id: req.body.id ?? cuid(),
+        experimentId,
+        runId,
         createdAt: new Date(),
       };
       await store.addRun(run);
-      req.session.runId = run.id;
-      res.status(200).json({ status: 'ok', id: run.id });
+      req.session.runs.push({ runId, experimentId });
+      res.status(200).json({
+        status: 'ok',
+        run: runId,
+        experiment: experimentId,
+        links: {
+          logs: `/experiments/${experimentId}/runs/${runId}/logs`,
+          run: `/experiments/${experimentId}/runs/${runId}`,
+        },
+      });
     } catch (e) {
       if (e instanceof SqliteError && e.code === 'SQLITE_CONSTRAINT') {
         res.status(400).json({
           status: 'error',
           message:
-            'Could not add run, probably because a run with that ID already exists',
+            'Could not add run, probably because a run with that ID already exists for this experiment',
         });
         return;
       }
@@ -130,110 +141,102 @@ export function createLogServer({
     }
   });
 
-  router.put('/runs/:id', async (req, res, next) => {
-    let runId = req.params.id;
+  router.put('/experiments/:experiment/runs/:run', async (req, res, next) => {
+    let { experiment: experimentId, run: runId } = req.params;
+    experimentId = String(experimentId);
+    runId = String(runId);
     try {
-      if (req.session?.role == null || req.session.runId != runId) {
+      if (
+        req.session?.runs?.find(
+          (r) => r.runId === runId && r.experimentId === experimentId
+        ) == null
+      ) {
         res.status(403).json({
           status: 'error',
-          message: `Client does not have permission run ${runId}`,
+          message: `Client does not have permission to update run "${runId}" of experiment "${experimentId}"`,
         });
         return;
       }
-      let run = await store.getRun(runId);
+      let run = await store.getRun(experimentId, runId);
       if (run == null) {
-        res.status(404).json({
-          status: 'error',
-          message: `Run ${runId} does not exist`,
-        });
-        return;
+        throw new Error(`Session run not found: ${runId}`);
       }
-      if (!req.body.ended && run.endedAt != null) {
-        res.status(400).json({
-          status: 'error',
-          message: 'Cannot restart an ended run',
-        });
-        return;
-      }
-      if (!req.body.ended && run.endedAt == null) {
-        res.status(400).json({
-          status: 'error',
-          message: 'Run has not ended, and cannot restart an ended run anyway',
-        });
-        return;
-      }
-      if (req.body.ended && run.endedAt != null) {
+
+      // At the moment, the only supported put operation is
+      // { "status": "completed" | "canceled" }, so there is nothing more to
+      // check here, zodios does it for us already.
+      if (run.status != 'running') {
         res.status(400).json({
           status: 'error',
           message: 'Run already ended',
         });
         return;
       }
-      await store.endRun(runId);
-      req.session.runId = undefined;
+      await store.setRunStatus(experimentId, runId, req.body.status);
+      req.session.runs = req.session.runs.filter(
+        (r) => r.runId !== runId && r.experimentId !== experimentId
+      );
       res.status(200).json({ status: 'ok' });
     } catch (e) {
       next(e);
     }
   });
 
-  router.post('/logs', async (req, res, next) => {
-    try {
-      if (req.session?.runId == null) {
-        res.status(403).json({
-          status: 'error',
-          message: 'Client does not have a run',
-        });
-        return;
+  router.post(
+    '/experiments/:experiment/runs/:run/logs',
+    async (req, res, next) => {
+      let { experiment: experimentId, run: runId } = req.params;
+      experimentId = String(experimentId);
+      runId = String(runId);
+      try {
+        if (
+          req.session?.runs?.find(
+            (r) => r.runId === runId && r.experimentId === experimentId
+          ) == null
+        ) {
+          res.status(403).json({
+            status: 'error',
+            message: `Client does not have permission to post logs for run "${runId}" of experiment "${experimentId}"`,
+          });
+          return;
+        }
+        let sessionRun = await store.getRun(experimentId, runId);
+        if (sessionRun == null) {
+          // This should not happen in normal use, except if the database is
+          // corrupted, or removed.
+          throw new Error(`Session run not found: ${runId}`);
+        }
+        if (sessionRun.status != 'running') {
+          res.status(403).json({
+            status: 'error',
+            message: 'Cannot add logs to an ended run',
+          });
+          return;
+        }
+        let logs = 'logs' in req.body ? req.body.logs : [req.body.log];
+        await store.addRunLogs(experimentId, runId, logs);
+        res.status(200).json({ status: 'ok' });
+      } catch (e) {
+        next(e);
       }
-      if (req.body.runId != req.session?.runId) {
-        res.status(403).json({
-          status: 'error',
-          message: `Client does not have permission run ${req.body.runId}`,
-        });
-        return;
-      }
-      let sessionRun = await store.getRun(req.body.runId);
-      if (sessionRun == null) {
-        throw new Error(`Session run not found: ${req.body.runId}`);
-      }
-      if (sessionRun.endedAt != null) {
-        res.status(403).json({
-          status: 'error',
-          message: 'Cannot add logs to an ended run',
-        });
-        return;
-      }
-      let logs = 'logs' in req.body ? req.body.logs : [req.body.log];
-      await store.addLogs(logs.map((l) => ({ ...l, runId: req.body.runId })));
-      res.status(200).json({ status: 'ok' });
-    } catch (e) {
-      next(e);
     }
-  });
+  );
 
-  router.get('/logs', async (req, res, next) => {
+  router.get('/experiments/:experiment/runs/logs', async (req, res, next) => {
     try {
-      let { format, ...filter } = req.query;
-
-      // Only admins can access this endpoint without runId.
-      // TODO: Add an admin login endpoint.
-      if (req.session?.role !== 'admin' && filter.runId == null) {
+      if (req.session?.role !== 'admin') {
         res.status(403).json({
           status: 'error',
-          message: 'Only admins can access logs from all runs',
-        });
-        return;
-      } else if (
-        req.session?.role !== 'admin' &&
-        filter.runId != req.session?.runId
-      ) {
-        res.status(403).json({
-          status: 'error',
-          message: `Client does not have permission run ${filter.runId}`,
+          message: 'Access restricted.',
         });
         return;
       }
+      let { format, type } = req.query;
+      let { experiment } = req.params ?? {};
+      let filter: LogFilter = {
+        experiment: experiment == null ? undefined : String(experiment),
+        type: type,
+      };
       if (format === 'csv') {
         res.setHeader('Content-Type', 'text/csv');
         await pipeline(csvExportStream(store, filter), res);
