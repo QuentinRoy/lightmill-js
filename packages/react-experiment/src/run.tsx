@@ -2,11 +2,9 @@ import * as React from 'react';
 import { BaseTask, RunConfig, RegisteredTask } from './config.js';
 import useManagedTimeline, { Timeline, TimelineState } from './timeline.js';
 
-export type ExperimentState<Task extends BaseTask> = TimelineState<Task>;
+export type RunState<Task extends BaseTask> = TimelineState<Task>;
 
-const context = React.createContext<ExperimentState<RegisteredTask> | null>(
-  null
-);
+const context = React.createContext<RunState<RegisteredTask> | null>(null);
 
 export type RunProps<T extends RegisteredTask> = {
   config: RunConfig<T>;
@@ -43,13 +41,11 @@ export function useTask(
 ): UseTaskResult<RegisteredTask> {
   const state = React.useContext(context);
   if (state == null) {
-    throw new Error(
-      'No task found. Is this component rendered in an Experiment?'
-    );
+    throw new Error('No task found. Is this component rendered in a Run?');
   }
   if (state.status !== 'running') {
     throw new Error(
-      'No task is currently running. Is this component rendered in an Experiment?'
+      'No task is currently running. Is this component rendered in a Run?'
     );
   }
   if (type != null && state.task.type !== type) {
