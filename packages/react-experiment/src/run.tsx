@@ -41,9 +41,7 @@ export function useTask(
 ): UseTaskResult<RegisteredTask> {
   const state = React.useContext(context);
   if (state == null) {
-    throw new Error(
-      'No task found. Is this component rendered in a Run?'
-    );
+    throw new Error('No task found. Is this component rendered in a Run?');
   }
   if (state.status !== 'running') {
     throw new Error(
