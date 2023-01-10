@@ -12,9 +12,9 @@ import {
   CamelCasePlugin,
   DeduplicateJoinsPlugin,
 } from 'kysely';
-import { JsonObject } from 'type-fest';
-import { arrayify } from './utils.js';
+import { JsonObject, JsonValue } from 'type-fest';
 import loglevel, { LogLevelDesc } from 'loglevel';
+import { arrayify } from './utils.js';
 
 const __dirname = url.fileURLToPath(new URL('.', import.meta.url));
 const migrationFolder = path.join(__dirname, 'db-migrations');
@@ -38,7 +38,6 @@ type LogValueTable = {
 };
 type SessionTable = {
   id: string;
-  createdAt: string;
   expiresAt: string | null;
   runId?: string;
   role: 'admin' | 'participant';
@@ -73,18 +72,40 @@ export class Store {
     });
   }
 
-  async addRun({ id, experimentId }: { id?: string; experimentId?: string }) {
-    let runId = id ?? cuid();
+  async addRun({
+    id,
+    createdAt,
+    experimentId,
+  }: {
+    id: string;
+    createdAt: Date;
+    experimentId?: string;
+  }) {
     await this.#db
       .insertInto('run')
       .values({
-        id: runId,
-        createdAt: new Date().toISOString(),
+        id,
+        createdAt: createdAt.toISOString(),
         experimentId,
         endedAt: null,
       })
       .execute();
-    return runId;
+    return id;
+  }
+
+  async getRun(id: string) {
+    let selection = await this.#db
+      .selectFrom('run')
+      .where('id', '=', id)
+      .selectAll()
+      .executeTakeFirst();
+    if (!selection) return;
+    return {
+      ...selection,
+      createdAt:
+        selection.createdAt != null ? new Date(selection.createdAt) : null,
+      endedAt: selection.endedAt != null ? new Date(selection.endedAt) : null,
+    };
   }
 
   async endRun(id: string) {
@@ -278,7 +299,7 @@ export class Store {
     };
     await this.#db
       .insertInto('session')
-      .values({ createdAt: new Date().toISOString(), ...values })
+      .values(values)
       .onConflict((conflict) => conflict.column('id').doUpdateSet(values))
       .execute();
   }
@@ -287,42 +308,15 @@ export class Store {
     let result = await this.#db
       .selectFrom('session')
       .where('session.id', '=', id)
-      .leftJoin('run', 'run.id', 'session.runId')
-      .select([
-        'session.id as session.id',
-        'session.createdAt as session.createdAt',
-        'session.expiresAt as session.expiresAt',
-        'session.cookie as session.cookie',
-        'session.role as session.role',
-        'run.id as run.id',
-        'run.endedAt as run.endedAt',
-        'run.createdAt as run.createdAt',
-      ])
+      .select(['id', 'runId', 'expiresAt', 'cookie', 'role'])
       .executeTakeFirst();
     if (!result) return;
 
     return {
-      id: result['session.id'],
-      createdAt: new Date(result['session.createdAt']),
-      expiresAt: result['session.expiresAt']
-        ? new Date(result['session.expiresAt'])
-        : null,
-      cookie: result['session.cookie']
-        ? JSON.parse(result['session.cookie'])
-        : null,
-      role: result['session.role'],
-      run:
-        result['run.id'] != null
-          ? {
-              id: result['run.id'],
-              endedAt: result['run.endedAt']
-                ? new Date(result['run.endedAt'])
-                : null,
-              createdAt: result['run.createdAt']
-                ? new Date(result['run.createdAt'])
-                : null,
-            }
-          : null,
+      ...result,
+      expiresAt:
+        result['expiresAt'] != null ? new Date(result['expiresAt']) : undefined,
+      cookie: JSON.parse(result['cookie']) as JsonValue,
     };
   }
 

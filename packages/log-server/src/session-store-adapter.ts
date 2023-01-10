@@ -1,5 +1,6 @@
-import koaSession from 'koa-generic-session';
+import { Session } from 'koa-generic-session';
 import { Store } from './store.js';
+import { JsonObject } from './utils.js';
 
 export class SessionStoreAdapter {
   #mainStore: Store;
@@ -8,29 +9,31 @@ export class SessionStoreAdapter {
     this.#mainStore = mainStore;
   }
 
-  async get(key: string) {
+  async get(key: string): Promise<Required<Session> | undefined> {
     let session = await this.#mainStore.getSession(key);
     if (!session) return;
-    if (session.expiresAt != null && session.expiresAt < new Date()) {
+    let { cookie, expiresAt, ...logging } = session;
+    if (expiresAt != null && expiresAt < new Date()) {
       await this.#mainStore.deleteSession(key);
       return;
     }
+    cookie = cookie as JsonObject;
     return {
-      ...session,
+      logging,
       cookie: {
-        ...session.cookie,
-        expires: session.cookie.expires
-          ? new Date(session.cookie.expires as string)
+        ...cookie,
+        expires: cookie.expires
+          ? new Date(cookie.expires as string)
           : undefined,
       },
     };
   }
 
-  async set(sessionId: string, session: koaSession.Session, ttl: number) {
+  async set(sessionId: string, session: Required<Session>, ttl: number) {
     await this.#mainStore.setSession({
       id: sessionId,
-      runId: session.run?.id,
-      role: session.role,
+      runId: session.logging.runId,
+      role: session.logging.role,
       cookie: {
         ...session.cookie,
         expires: session.cookie.expires?.toISOString() ?? null,

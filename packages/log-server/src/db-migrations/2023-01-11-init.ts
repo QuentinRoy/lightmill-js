@@ -57,9 +57,8 @@ export async function up(db: Kysely<unknown>) {
       // some databases, like MySQL, need the constraint to be defined
       // separately.
       .addForeignKeyConstraint('sessionRunId', ['runId'], 'run', ['id'])
-      .addColumn('role', 'text')
+      .addColumn('role', 'text', (column) => column.notNull())
       .addCheckConstraint('roleCheck', sql`role IN ('admin', 'participant')`)
-      .addColumn('createdAt', 'datetime', (column) => column.notNull())
       .addColumn('expiresAt', 'datetime')
       .addColumn('cookie', 'json', (column) => column.notNull())
       .execute();
