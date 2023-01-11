@@ -9,41 +9,62 @@ export const PostRunsBody = z.object({
 });
 export type PostRunsAnswer = OkAnswer & { id: string };
 
-export const PutSessionBody = z.object({
-  role: z.enum(['admin', 'participant']).default('participant'),
-});
+export const PostSessionBody = z
+  .object({
+    role: z.enum(['admin', 'participant']).default('participant'),
+    password: z.string().optional(),
+  })
+  .strict();
 export type PutSessionAnswer = OkAnswer & {
-  role: z.output<typeof PutSessionBody>['role'];
+  role: z.output<typeof PostSessionBody>['role'];
 };
 
 export type GetSessionAnswer = OkAnswer & {
-  session: { runId?: string; role: z.output<typeof PutSessionBody>['role'] };
+  session: {
+    runId?: string;
+    role: z.output<typeof PostSessionBody>['role'];
+  };
 };
 
 export type DeleteSessionAnswer = OkAnswer;
 
-export const PutRunsBody = z.object({
-  ended: z.boolean(),
-});
+export const PutRunsBody = z
+  .object({
+    ended: z.boolean(),
+  })
+  .strict();
 export type PutRunsAnswer = OkAnswer;
 
-const PostLogsBodyLog = z.object({
-  runId: z.string(),
-  type: z.string(),
-  values: JsonObject,
-});
+const PostLogsBodyLog = z
+  .object({
+    type: z.string(),
+    values: JsonObject,
+  })
+  .strict();
 export const PostLogsBody = z.union([
-  PostLogsBodyLog,
-  z.array(PostLogsBodyLog),
+  z
+    .object({
+      runId: z.string(),
+      log: PostLogsBodyLog,
+    })
+    .strict(),
+  z
+    .object({
+      runId: z.string(),
+      logs: z.array(PostLogsBodyLog),
+    })
+    .strict(),
 ]);
 export type PostLogsAnswer = OkAnswer;
 
-export const GetLogsParams = z.object({
-  type: z.union([z.string(), z.array(z.string())]).optional(),
-  runId: z.union([z.string(), z.array(z.string())]).optional(),
-  experimentId: z.union([z.string(), z.array(z.string())]).optional(),
-  format: z.enum(['json', 'csv']).default('json'),
-});
+export const GetLogsParams = z
+  .object({
+    type: z.union([z.string(), z.array(z.string())]).optional(),
+    runId: z.union([z.string(), z.array(z.string())]).optional(),
+    experimentId: z.union([z.string(), z.array(z.string())]).optional(),
+    format: z.enum(['json', 'csv']).default('json'),
+  })
+  .strict();
 export type GetLogsAnswer = JsonValue[] | string; // WARNING: This is not checked.
 
 export type ErrorAnswer = { status: 'error'; message: string };

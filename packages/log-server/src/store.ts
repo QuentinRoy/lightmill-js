@@ -2,7 +2,6 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import * as url from 'node:url';
 import SQliteDB from 'better-sqlite3';
-import cuid from 'cuid';
 import {
   Kysely,
   FileMigrationProvider,
@@ -12,7 +11,7 @@ import {
   CamelCasePlugin,
   DeduplicateJoinsPlugin,
 } from 'kysely';
-import { JsonObject, JsonValue } from 'type-fest';
+import { JsonObject } from 'type-fest';
 import loglevel, { LogLevelDesc } from 'loglevel';
 import { arrayify } from './utils.js';
 
@@ -36,19 +35,11 @@ type LogValueTable = {
   name: string;
   value: string;
 };
-type SessionTable = {
-  id: string;
-  expiresAt: string | null;
-  runId?: string;
-  role: 'admin' | 'participant';
-  cookie: string;
-};
 
 type Database = {
   run: RunTable;
   log: LogTable;
   logValue: LogValueTable;
-  session: SessionTable;
 };
 
 export class Store {
@@ -90,7 +81,6 @@ export class Store {
         endedAt: null,
       })
       .execute();
-    return id;
   }
 
   async getRun(id: string) {
@@ -123,20 +113,18 @@ export class Store {
   ) {
     await this.#db.transaction().execute(async (trx) => {
       let createdAt = new Date().toISOString();
-      let dbLogs: Array<{
-        id: bigint;
-        type: string;
-        runId: string;
-        isAssigned?: boolean;
-      }> = await trx
+      let dbLogs = await trx
         .insertInto('log')
         .values(
           logs.map(({ type, runId }) => {
             return { type, runId, createdAt };
           })
         )
-        .returning(['id as id', 'type as type', 'runId as runId'])
-        .execute();
+        .returning(['id', 'type', 'runId'])
+        .execute()
+        .then((selection) =>
+          selection.map((it) => ({ ...it, isAssigned: false }))
+        );
 
       // Bulk insert returning values does not guarantee order, so we need to
       // match the log values logs to returned log ids.
@@ -274,56 +262,6 @@ export class Store {
     }
   }
 
-  async setSession({
-    id,
-    expiresAt,
-    runId,
-    cookie,
-    role,
-  }: {
-    id?: string;
-    expiresAt?: Date;
-    runId?: string;
-    role: 'admin' | 'participant';
-    cookie: JsonObject;
-  }) {
-    // Use explicit column properties to avoid using extra properties in the
-    // update set clause (e.g. createdAt could come back since it is
-    // provided in getSession).
-    let values = {
-      id: id ?? cuid(),
-      expiresAt: expiresAt?.toISOString() ?? undefined,
-      runId,
-      role,
-      cookie: JSON.stringify(cookie),
-    };
-    await this.#db
-      .insertInto('session')
-      .values(values)
-      .onConflict((conflict) => conflict.column('id').doUpdateSet(values))
-      .execute();
-  }
-
-  async getSession(id: string) {
-    let result = await this.#db
-      .selectFrom('session')
-      .where('session.id', '=', id)
-      .select(['id', 'runId', 'expiresAt', 'cookie', 'role'])
-      .executeTakeFirst();
-    if (!result) return;
-
-    return {
-      ...result,
-      expiresAt:
-        result['expiresAt'] != null ? new Date(result['expiresAt']) : undefined,
-      cookie: JSON.parse(result['cookie']) as JsonValue,
-    };
-  }
-
-  async deleteSession(id: string) {
-    await this.#db.deleteFrom('session').where('id', '=', id).execute();
-  }
-
   async migrateDatabase() {
     let migrator = new Migrator({
       db: this.#db,
@@ -334,6 +272,10 @@ export class Store {
       }),
     });
     return migrator.migrateToLatest();
+  }
+
+  async close() {
+    await this.#db.destroy();
   }
 }
 

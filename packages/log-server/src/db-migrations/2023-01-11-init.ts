@@ -1,4 +1,4 @@
-import { Kysely, sql } from 'kysely';
+import { Kysely } from 'kysely';
 
 export async function up(db: Kysely<unknown>) {
   await db.transaction().execute(async (trx) => {
@@ -48,27 +48,13 @@ export async function up(db: Kysely<unknown>) {
       .on('logValue')
       .column('logId')
       .execute();
-
-    await trx.schema
-      .createTable('session')
-      .addColumn('id', 'text', (column) => column.notNull().primaryKey())
-      .addColumn('runId', 'text')
-      // It is possible to set up the foreign key constraint in addColumn but
-      // some databases, like MySQL, need the constraint to be defined
-      // separately.
-      .addForeignKeyConstraint('sessionRunId', ['runId'], 'run', ['id'])
-      .addColumn('role', 'text', (column) => column.notNull())
-      .addCheckConstraint('roleCheck', sql`role IN ('admin', 'participant')`)
-      .addColumn('expiresAt', 'datetime')
-      .addColumn('cookie', 'json', (column) => column.notNull())
-      .execute();
   });
 }
 
 export async function down(db: Kysely<unknown>) {
   await db.transaction().execute(async (trx) => {
-    await trx.schema.dropTable('session').execute();
-    await trx.schema.dropTable('log').execute();
     await trx.schema.dropTable('run').execute();
+    await trx.schema.dropTable('log').execute();
+    await trx.schema.dropTable('logValue').execute();
   });
 }

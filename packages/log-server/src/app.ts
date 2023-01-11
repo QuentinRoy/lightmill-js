@@ -1,68 +1,279 @@
-import koa, { Context } from 'koa';
-import Router from '@koa/router';
-import session from 'koa-generic-session';
-import bodyParser from 'koa-bodyparser';
-import { z } from 'zod';
-import { randomBytes } from 'node:crypto';
+/* eslint-disable @typescript-eslint/no-namespace */
+import { Store } from './store.js';
+import session from 'cookie-session';
 import dotenv from 'dotenv';
+import { SqliteError } from 'better-sqlite3';
+import {
+  NextFunction,
+  Request,
+  RequestHandler,
+  Response,
+  Router,
+} from 'express';
+import bodyParser from 'body-parser';
+import * as api from './api.js';
 import {
   formatErrorMiddleware as formatValidationError,
   parseRequestBody,
   parseRequestQuery,
+  ValidationError,
 } from './validate.js';
-import { Store } from './store.js';
-import { SessionStoreAdapter } from './session-store-adapter.js';
-import { csvExportStream, jsonExportStream } from './export.js';
-import { arrayify } from './utils.js';
-import * as api from './api.js';
 import cuid from 'cuid';
-
-// Configure environment variables and types.
-// -----------------------------------------------------------------------------
+import { csvExportStream, jsonExportStream } from './export.js';
+import { pipeline } from 'stream/promises';
+import log from 'loglevel';
 
 dotenv.config();
 
-declare module 'koa-generic-session' {
-  interface Session {
-    // These properties are not direct session property otherwise its type
-    // might not be respected. koa-generic-session will always create a session
-    // object containing the cookie property only when the session hasn't been
-    // initialized yet.
-    logging?: {
-      role: 'admin' | 'participant';
+declare global {
+  namespace CookieSessionInterfaces {
+    interface CookieSessionObject {
+      // Sometimes, this will be an empty object, so every properties have to be
+      // optional.
+      role?: 'admin' | 'participant';
       runId?: string;
-    };
+    }
+  }
+  namespace Express {
+    interface Request {
+      store: Store;
+    }
   }
 }
 
-const env = z.object({ SECRET: z.string().optional() }).parse(process.env);
-
-// Define the application.
-// -----------------------------------------------------------------------------
-
 type CreateAppParams = {
   store: Store;
-  secret?: string;
+  secret: string;
+  adminPassword?: string;
 };
-export function createApp({
+export function createLogServer({
   store,
-  secret = env.SECRET ?? randomBytes(64).toString('hex'),
-}: CreateAppParams) {
-  const app = new koa<never, Context>();
+  secret,
+}: CreateAppParams): RequestHandler {
+  const router = Router();
 
-  const router = new Router<never, Context>();
-  router.use(bodyParser());
-  router.use(
-    session({
-      store: new SessionStoreAdapter(store),
-      cookie: {
-        path: '/',
-        httpOnly: true,
-        maxAge: 1000 * 60 * 60 * 24,
-        signed: true,
+  router.use((req, res, next) => {
+    req.store = store;
+    next();
+  });
+
+  router.use(bodyParser.json());
+
+  router.use(session({ secret }));
+
+  router.post('/sessions', (req, res) => {
+    if (req.session?.role != null) {
+      res.status(400).json({
+        status: 'error',
+        message: 'Client already has a session',
+      } satisfies api.ErrorAnswer);
+      return;
+    }
+    const { role, password } = parseRequestBody(api.PostSessionBody, req);
+    if (role === 'admin' && password !== process.env.ADMIN_PASSWORD) {
+      res.status(403).json({
+        status: 'error',
+        message: `Forbidden role: ${role}`,
+      } satisfies api.ErrorAnswer);
+    }
+    req.session = { role };
+    res.status(200).json({ status: 'ok', role } satisfies api.PutSessionAnswer);
+  });
+
+  router.get('/sessions/current', (req, res) => {
+    if (req.session?.role == null) {
+      res.status(404).json({
+        status: 'error',
+        message: 'No session found',
+      } satisfies api.ErrorAnswer);
+      return;
+    }
+    res.status(200).json({
+      status: 'ok',
+      session: {
+        role: req.session.role,
+        runId: req.session.runId,
       },
-    })
-  );
+    } satisfies api.GetSessionAnswer);
+  });
+
+  router.delete('/sessions/current', (req, res) => {
+    if (req.session?.role == null) {
+      res.status(404).json({
+        status: 'error',
+        message: 'No session found',
+      } satisfies api.ErrorAnswer);
+      return;
+    } else if (req.session.runId != null) {
+      res.status(403).json({
+        status: 'error',
+        message: 'End run first',
+      } satisfies api.ErrorAnswer);
+      return;
+    }
+    req.session = null;
+    res.status(200).json({ status: 'ok' } satisfies api.DeleteSessionAnswer);
+  });
+
+  router.post('/runs', async (req, res, next) => {
+    try {
+      if (req.session?.role == null) {
+        res.status(403).json({
+          status: 'error',
+          message: 'Session required to create a run',
+        } satisfies api.ErrorAnswer);
+        return;
+      }
+      if (req.session.runId != null) {
+        res.status(403).json({
+          status: 'error',
+          message: 'Client already has a started run, end it first',
+        } satisfies api.ErrorAnswer);
+        return;
+      }
+      const params = parseRequestBody(api.PostRunsBody, req);
+      const run = {
+        ...params,
+        id: params.id ?? cuid(),
+        createdAt: new Date(),
+      };
+      await store.addRun(run);
+      req.session.runId = run.id;
+      res
+        .status(200)
+        .json({ status: 'ok', id: run.id } satisfies api.PostRunsAnswer);
+    } catch (e) {
+      if (e instanceof SqliteError && e.code === 'SQLITE_CONSTRAINT') {
+        res.status(400).json({
+          status: 'error',
+          message:
+            'Could not add run, probably because a run with that ID already exists',
+        } satisfies api.ErrorAnswer);
+        return;
+      }
+      next(e);
+    }
+  });
+
+  router.put('/runs/:id', async (req, res, next) => {
+    let runId = req.params.id;
+    try {
+      if (req.session?.role == null || req.session.runId != runId) {
+        res.status(403).json({
+          status: 'error',
+          message: `Client does not have permission run ${runId}`,
+        } satisfies api.ErrorAnswer);
+        return;
+      }
+      const params = parseRequestBody(api.PutRunsBody, req);
+      let run = await store.getRun(runId);
+      if (run == null) {
+        res.status(404).json({
+          status: 'error',
+          message: `Run ${runId} does not exist`,
+        } satisfies api.ErrorAnswer);
+        return;
+      }
+      if (!params.ended && run.endedAt != null) {
+        res.status(400).json({
+          status: 'error',
+          message: 'Cannot restart an ended run',
+        } satisfies api.ErrorAnswer);
+        return;
+      }
+      if (!params.ended && run.endedAt == null) {
+        res.status(400).json({
+          status: 'error',
+          message: 'Run has not ended, and cannot restart an ended run anyway',
+        } satisfies api.ErrorAnswer);
+        return;
+      }
+      if (params.ended && run.endedAt != null) {
+        res.status(400).json({
+          status: 'error',
+          message: 'Run already ended',
+        } satisfies api.ErrorAnswer);
+        return;
+      }
+      await store.endRun(runId);
+      req.session.runId = undefined;
+      res.status(200).json({ status: 'ok' } satisfies api.PutRunsAnswer);
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  router.post('/logs', async (req, res, next) => {
+    try {
+      if (req.session?.runId == null) {
+        res.status(403).json({
+          status: 'error',
+          message: 'Client does not have a run',
+        } satisfies api.ErrorAnswer);
+        return;
+      }
+      let params = parseRequestBody(api.PostLogsBody, req);
+      let runId = params.runId;
+      if (runId != req.session?.runId) {
+        res.status(403).json({
+          status: 'error',
+          message: `Client does not have permission run ${runId}`,
+        } satisfies api.ErrorAnswer);
+        return;
+      }
+      let sessionRun = await store.getRun(runId);
+      if (sessionRun == null) {
+        throw new Error(`Session run not found: ${runId}`);
+      }
+      if (sessionRun.endedAt != null) {
+        res.status(403).json({
+          status: 'error',
+          message: 'Cannot add logs to an ended run',
+        } satisfies api.ErrorAnswer);
+        return;
+      }
+      let logs = 'logs' in params ? params.logs : [params.log];
+      await store.addLogs(logs.map((l) => ({ ...l, runId })));
+      res.status(200).json({ status: 'ok' } satisfies api.PostLogsAnswer);
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  router.get('/logs', async (req, res, next) => {
+    try {
+      let { format, ...filter } = parseRequestQuery(api.GetLogsParams, req);
+
+      // Only admins can access this endpoint without runId.
+      // TODO: Add an admin login endpoint.
+      if (req.session?.role !== 'admin' && filter.runId == null) {
+        res.status(403).json({
+          status: 'error',
+          message: 'Only admins can access logs from all runs',
+        } satisfies api.ErrorAnswer);
+        return;
+      } else if (
+        req.session?.role !== 'admin' &&
+        filter.runId != req.session?.runId
+      ) {
+        res.status(403).json({
+          status: 'error',
+          message: `Client does not have permission run ${filter.runId}`,
+        } satisfies api.ErrorAnswer);
+        return;
+      }
+      if (format === 'csv') {
+        res.setHeader('Content-Type', 'text/csv');
+        await pipeline(csvExportStream(store, filter), res);
+      } else {
+        res.setHeader('Content-Type', 'application/json');
+        await pipeline(jsonExportStream(store, filter), res);
+      }
+    } catch (e) {
+      next(e);
+    }
+  });
+
   router.use(
     formatValidationError((error) => {
       return {
@@ -73,201 +284,34 @@ export function createApp({
     })
   );
 
-  router.post('/sessions', async (ctx) => {
-    if (ctx.session == null) throw new Error('Session not initialized');
-    const { role } = parseRequestBody(api.PutSessionBody, ctx);
-    if (role !== 'participant') {
-      ctx.status = 403;
-      ctx.body = {
-        status: 'error',
-        message: `Forbidden role: ${role}`,
-      } satisfies api.ErrorAnswer;
-    }
-    ctx.session.logging = { role };
-    ctx.status = 200;
-    ctx.body = { status: 'ok', role } satisfies api.PutSessionAnswer;
+  router.use('*', (req, res) => {
+    res.status(404).json({
+      status: 'error',
+      message: 'Not found',
+    } satisfies api.ErrorAnswer);
   });
 
-  router.get('/sessions/current', async (ctx) => {
-    if (ctx.session?.logging == null) {
-      ctx.status = 404;
-      ctx.body = {
-        status: 'error',
-        message: 'Client does not have a session',
-      } satisfies api.ErrorAnswer;
-      return;
+  router.use(
+    (error: Error, req: Request, res: Response, next: NextFunction) => {
+      if (res.headersSent) {
+        next(error);
+      } else if (error instanceof ValidationError) {
+        res.status(400).json({
+          status: 'error',
+          message: 'Invalid request body',
+          issues: error.issues,
+        });
+      } else if (error instanceof Error) {
+        res.status(500).json({
+          status: 'error',
+          message: error.message,
+        } satisfies api.ErrorAnswer);
+      } else {
+        log.error('error', error);
+        next(error);
+      }
     }
-    ctx.status = 200;
-    ctx.body = {
-      status: 'ok',
-      session: {
-        runId: ctx.session.logging?.runId,
-        role: ctx.session.logging.role,
-      },
-    } satisfies api.GetSessionAnswer;
-  });
+  );
 
-  router.delete('/sessions/current', async (ctx) => {
-    if (ctx.session?.logging == null) {
-      ctx.status = 404;
-      ctx.body = {
-        status: 'error',
-        message: 'Client does not have a session',
-      } satisfies api.ErrorAnswer;
-      return;
-    }
-    ctx.session = null;
-    ctx.status = 200;
-    ctx.body = { status: 'ok' } satisfies api.DeleteSessionAnswer;
-  });
-
-  router.post('/runs', async (ctx) => {
-    if (ctx.session?.logging == null) {
-      ctx.status = 403;
-      ctx.body = {
-        status: 'error',
-        message: 'Client does not have a session',
-      } satisfies api.ErrorAnswer;
-      return;
-    }
-    if (ctx.session.logging.runId != null) {
-      ctx.status = 403;
-      ctx.body = {
-        status: 'error',
-        message: 'Client already has a started run, end it first',
-      } satisfies api.ErrorAnswer;
-      return;
-    }
-    let reqBody = parseRequestBody(api.PostRunsBody, ctx);
-    let run = { ...reqBody, id: reqBody.id ?? cuid(), createdAt: new Date() };
-    let runId = await store.addRun(run);
-    ctx.session.logging.runId = runId;
-    ctx.body = { status: 'ok', id: runId } satisfies api.PostRunsAnswer;
-    ctx.status = 200;
-  });
-
-  router.put('/runs/:id', async (ctx) => {
-    let runId = ctx.params.id;
-    if (
-      ctx.session?.logging?.runId == null ||
-      ctx.session.logging.runId !== runId
-    ) {
-      ctx.status = 403;
-      ctx.body = {
-        status: 'error',
-        message: `Client does not have permission run ${runId}`,
-      } satisfies api.ErrorAnswer;
-      return;
-    }
-    let params = parseRequestBody(api.PutRunsBody, ctx);
-    let run = await store.getRun(runId);
-    if (run == null) {
-      throw new Error(`Session run not found: ${runId}`);
-    }
-    if (!params.ended && run.endedAt != null) {
-      ctx.body = {
-        status: 'error',
-        message: 'Cannot restart an ended run',
-      } satisfies api.ErrorAnswer;
-      ctx.status = 400;
-      return;
-    }
-    if (!params.ended && run.endedAt == null) {
-      ctx.body = {
-        status: 'error',
-        message: 'Run has not ended, and cannot restart an ended run anyway',
-      } satisfies api.ErrorAnswer;
-      ctx.status = 400;
-      return;
-    }
-    if (params.ended && run.endedAt != null) {
-      ctx.body = {
-        status: 'error',
-        message: 'Run already ended',
-      } satisfies api.ErrorAnswer;
-      ctx.status = 400;
-      return;
-    }
-    await store.endRun(runId);
-    ctx.session.logging.runId = undefined;
-    ctx.body = { status: 'ok' } satisfies api.PutRunsAnswer;
-    ctx.status = 200;
-    return;
-  });
-
-  router.post('/logs', async (ctx) => {
-    let sessionRunId = ctx.session?.logging?.runId;
-    if (sessionRunId == null) {
-      ctx.status = 403;
-      ctx.body = {
-        status: 'error',
-        message: `Client is not associated with an ongoing run`,
-      } satisfies api.ErrorAnswer;
-      return;
-    }
-    let logs = arrayify(parseRequestBody(api.PostLogsBody, ctx));
-    let unauthorizedRunIds = logs
-      .filter((log) => log.runId !== sessionRunId)
-      .map((log) => log.runId);
-    if (unauthorizedRunIds.length > 0) {
-      ctx.status = 403;
-      ctx.body = {
-        status: 'error',
-        message: `Client does not have permission to add logs to run ${unauthorizedRunIds[0]}`,
-      } satisfies api.ErrorAnswer;
-      return;
-    }
-    let sessionRun = await store.getRun(sessionRunId);
-    if (sessionRun == null) {
-      throw new Error(`Session run not found: ${sessionRunId}`);
-    }
-    if (sessionRun.endedAt != null) {
-      ctx.status = 403;
-      ctx.body = {
-        status: 'error',
-        message: 'Cannot add logs to an ended run',
-      } satisfies api.ErrorAnswer;
-      return;
-    }
-    await store.addLogs(logs);
-    ctx.body = { status: 'ok' } satisfies api.PostLogsAnswer;
-    ctx.status = 200;
-  });
-
-  router.get('/logs', async (ctx) => {
-    let { format, ...filter } = parseRequestQuery(api.GetLogsParams, ctx);
-    // Only admins can access this endpoint without runId.
-    // TODO: Add an admin login endpoint.
-    if (ctx.session?.logging?.role !== 'admin' && filter.runId == null) {
-      ctx.status = 403;
-      ctx.body = {
-        status: 'error',
-        message: 'Only admins can access logs from all runs',
-      } satisfies api.ErrorAnswer;
-      return;
-    } else if (
-      ctx.session?.logging?.role !== 'admin' &&
-      filter.runId != ctx.session?.logging?.runId
-    ) {
-      ctx.status = 403;
-      ctx.body = {
-        status: 'error',
-        message: `Client does not have permission run ${filter.runId}`,
-      } satisfies api.ErrorAnswer;
-      return;
-    }
-    if (format === 'csv') {
-      ctx.body = csvExportStream(store, filter);
-      ctx.headers['content-type'] = 'text/csv';
-    } else {
-      ctx.body = jsonExportStream(store, filter);
-      ctx.headers['content-type'] = 'application/json';
-    }
-    ctx.status = 200;
-  });
-
-  app.keys = [secret];
-  app.use(router.routes());
-  app.use(router.allowedMethods());
-  return app;
+  return router;
 }

@@ -1,4 +1,4 @@
-import { Next, ParameterizedContext } from 'koa';
+import { NextFunction, Request, Response } from 'express';
 import { z } from 'zod';
 
 export class ValidationError extends Error {
@@ -12,9 +12,9 @@ export class ValidationError extends Error {
 
 export function parseRequestBody<T>(
   schema: z.ZodSchema<T, z.ZodTypeDef, unknown>,
-  ctx: ParameterizedContext
+  req: Request
 ): T {
-  let result = schema.safeParse(ctx.request.body);
+  let result = schema.safeParse(req.body);
   if (result.success) {
     return result.data;
   } else {
@@ -24,9 +24,9 @@ export function parseRequestBody<T>(
 
 export function parseRequestQuery<T>(
   schema: z.ZodSchema<T, z.ZodTypeDef, unknown>,
-  ctx: ParameterizedContext
+  req: Request
 ): T {
-  let result = schema.safeParse(ctx.request.query);
+  let result = schema.safeParse(req.query);
   if (result.success) {
     return result.data;
   } else {
@@ -37,17 +37,14 @@ export function parseRequestQuery<T>(
 export function formatErrorMiddleware(
   format: (error: ValidationError) => Record<string, unknown>
 ) {
-  return async (ctx: ParameterizedContext, next: Next) => {
-    try {
-      await next();
-    } catch (error) {
-      if (error instanceof ValidationError) {
-        ctx.status = 400;
-        ctx.body = format(error);
-        ctx.type = 'json';
-      } else {
-        throw error;
-      }
+  return (error: Error, req: Request, res: Response, next: NextFunction) => {
+    if (res.headersSent) {
+      return next(error);
+    }
+    if (error instanceof ValidationError) {
+      res.status(400).json(format(error)).send();
+    } else {
+      next(error);
     }
   };
 }
