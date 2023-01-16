@@ -1,45 +1,31 @@
 /* eslint-disable @typescript-eslint/no-namespace */
+import express from 'express';
+import { zodiosContext } from '@zodios/express';
 import { Store } from './store.js';
 import session from 'cookie-session';
 import dotenv from 'dotenv';
 import { SqliteError } from 'better-sqlite3';
-import {
-  NextFunction,
-  Request,
-  RequestHandler,
-  Response,
-  Router,
-} from 'express';
-import bodyParser from 'body-parser';
-import * as api from './api.js';
-import {
-  formatErrorMiddleware as formatValidationError,
-  parseRequestBody,
-  parseRequestQuery,
-  ValidationError,
-} from './validate.js';
+import { NextFunction, Request, RequestHandler, Response } from 'express';
+import { api } from './api.js';
 import cuid from 'cuid';
 import { csvExportStream, jsonExportStream } from './export.js';
 import { pipeline } from 'stream/promises';
 import log from 'loglevel';
+import z from 'zod';
 
 dotenv.config();
 
-declare global {
-  namespace CookieSessionInterfaces {
-    interface CookieSessionObject {
-      // Sometimes, this will be an empty object, so every properties have to be
-      // optional.
-      role?: 'admin' | 'participant';
-      runId?: string;
-    }
-  }
-  namespace Express {
-    interface Request {
-      store: Store;
-    }
-  }
-}
+const ctx = zodiosContext(
+  z.object({
+    session: z.union([
+      z.undefined(),
+      z.null(),
+      // Unfortunately this may happen after a session has been deleted.
+      z.object({}),
+      z.object({ role: z.string(), runId: z.string().optional() }),
+    ]),
+  })
+);
 
 type CreateAppParams = {
   store: Store;
@@ -50,14 +36,8 @@ export function createLogServer({
   store,
   secret,
 }: CreateAppParams): RequestHandler {
-  const router = Router();
-
-  router.use((req, res, next) => {
-    req.store = store;
-    next();
-  });
-
-  router.use(bodyParser.json());
+  let app = express();
+  const router = ctx.app(api, { express: app });
 
   router.use(session({ secret }));
 
@@ -66,18 +46,18 @@ export function createLogServer({
       res.status(400).json({
         status: 'error',
         message: 'Client already has a session',
-      } satisfies api.ErrorAnswer);
+      });
       return;
     }
-    const { role, password } = parseRequestBody(api.PostSessionBody, req);
+    const { role, password } = req.body;
     if (role === 'admin' && password !== process.env.ADMIN_PASSWORD) {
       res.status(403).json({
         status: 'error',
         message: `Forbidden role: ${role}`,
-      } satisfies api.ErrorAnswer);
+      });
     }
     req.session = { role };
-    res.status(200).json({ status: 'ok', role } satisfies api.PutSessionAnswer);
+    res.status(200).json({ status: 'ok', role });
   });
 
   router.get('/sessions/current', (req, res) => {
@@ -85,16 +65,14 @@ export function createLogServer({
       res.status(404).json({
         status: 'error',
         message: 'No session found',
-      } satisfies api.ErrorAnswer);
+      });
       return;
     }
     res.status(200).json({
       status: 'ok',
-      session: {
-        role: req.session.role,
-        runId: req.session.runId,
-      },
-    } satisfies api.GetSessionAnswer);
+      role: req.session.role,
+      runId: req.session.runId,
+    });
   });
 
   router.delete('/sessions/current', (req, res) => {
@@ -102,17 +80,17 @@ export function createLogServer({
       res.status(404).json({
         status: 'error',
         message: 'No session found',
-      } satisfies api.ErrorAnswer);
+      });
       return;
     } else if (req.session.runId != null) {
       res.status(403).json({
         status: 'error',
         message: 'End run first',
-      } satisfies api.ErrorAnswer);
+      });
       return;
     }
     req.session = null;
-    res.status(200).json({ status: 'ok' } satisfies api.DeleteSessionAnswer);
+    res.status(200).json({ status: 'ok' });
   });
 
   router.post('/runs', async (req, res, next) => {
@@ -121,34 +99,31 @@ export function createLogServer({
         res.status(403).json({
           status: 'error',
           message: 'Session required to create a run',
-        } satisfies api.ErrorAnswer);
+        });
         return;
       }
       if (req.session.runId != null) {
         res.status(403).json({
           status: 'error',
           message: 'Client already has a started run, end it first',
-        } satisfies api.ErrorAnswer);
+        });
         return;
       }
-      const params = parseRequestBody(api.PostRunsBody, req);
       const run = {
-        ...params,
-        id: params.id ?? cuid(),
+        ...req.body,
+        id: req.body.id ?? cuid(),
         createdAt: new Date(),
       };
       await store.addRun(run);
       req.session.runId = run.id;
-      res
-        .status(200)
-        .json({ status: 'ok', id: run.id } satisfies api.PostRunsAnswer);
+      res.status(200).json({ status: 'ok', id: run.id });
     } catch (e) {
       if (e instanceof SqliteError && e.code === 'SQLITE_CONSTRAINT') {
         res.status(400).json({
           status: 'error',
           message:
             'Could not add run, probably because a run with that ID already exists',
-        } satisfies api.ErrorAnswer);
+        });
         return;
       }
       next(e);
@@ -162,42 +137,41 @@ export function createLogServer({
         res.status(403).json({
           status: 'error',
           message: `Client does not have permission run ${runId}`,
-        } satisfies api.ErrorAnswer);
+        });
         return;
       }
-      const params = parseRequestBody(api.PutRunsBody, req);
       let run = await store.getRun(runId);
       if (run == null) {
         res.status(404).json({
           status: 'error',
           message: `Run ${runId} does not exist`,
-        } satisfies api.ErrorAnswer);
+        });
         return;
       }
-      if (!params.ended && run.endedAt != null) {
+      if (!req.body.ended && run.endedAt != null) {
         res.status(400).json({
           status: 'error',
           message: 'Cannot restart an ended run',
-        } satisfies api.ErrorAnswer);
+        });
         return;
       }
-      if (!params.ended && run.endedAt == null) {
+      if (!req.body.ended && run.endedAt == null) {
         res.status(400).json({
           status: 'error',
           message: 'Run has not ended, and cannot restart an ended run anyway',
-        } satisfies api.ErrorAnswer);
+        });
         return;
       }
-      if (params.ended && run.endedAt != null) {
+      if (req.body.ended && run.endedAt != null) {
         res.status(400).json({
           status: 'error',
           message: 'Run already ended',
-        } satisfies api.ErrorAnswer);
+        });
         return;
       }
       await store.endRun(runId);
       req.session.runId = undefined;
-      res.status(200).json({ status: 'ok' } satisfies api.PutRunsAnswer);
+      res.status(200).json({ status: 'ok' });
     } catch (e) {
       next(e);
     }
@@ -209,32 +183,30 @@ export function createLogServer({
         res.status(403).json({
           status: 'error',
           message: 'Client does not have a run',
-        } satisfies api.ErrorAnswer);
+        });
         return;
       }
-      let params = parseRequestBody(api.PostLogsBody, req);
-      let runId = params.runId;
-      if (runId != req.session?.runId) {
+      if (req.body.runId != req.session?.runId) {
         res.status(403).json({
           status: 'error',
-          message: `Client does not have permission run ${runId}`,
-        } satisfies api.ErrorAnswer);
+          message: `Client does not have permission run ${req.body.runId}`,
+        });
         return;
       }
-      let sessionRun = await store.getRun(runId);
+      let sessionRun = await store.getRun(req.body.runId);
       if (sessionRun == null) {
-        throw new Error(`Session run not found: ${runId}`);
+        throw new Error(`Session run not found: ${req.body.runId}`);
       }
       if (sessionRun.endedAt != null) {
         res.status(403).json({
           status: 'error',
           message: 'Cannot add logs to an ended run',
-        } satisfies api.ErrorAnswer);
+        });
         return;
       }
-      let logs = 'logs' in params ? params.logs : [params.log];
-      await store.addLogs(logs.map((l) => ({ ...l, runId })));
-      res.status(200).json({ status: 'ok' } satisfies api.PostLogsAnswer);
+      let logs = 'logs' in req.body ? req.body.logs : [req.body.log];
+      await store.addLogs(logs.map((l) => ({ ...l, runId: req.body.runId })));
+      res.status(200).json({ status: 'ok' });
     } catch (e) {
       next(e);
     }
@@ -242,7 +214,7 @@ export function createLogServer({
 
   router.get('/logs', async (req, res, next) => {
     try {
-      let { format, ...filter } = parseRequestQuery(api.GetLogsParams, req);
+      let { format, ...filter } = req.query;
 
       // Only admins can access this endpoint without runId.
       // TODO: Add an admin login endpoint.
@@ -250,7 +222,7 @@ export function createLogServer({
         res.status(403).json({
           status: 'error',
           message: 'Only admins can access logs from all runs',
-        } satisfies api.ErrorAnswer);
+        });
         return;
       } else if (
         req.session?.role !== 'admin' &&
@@ -259,7 +231,7 @@ export function createLogServer({
         res.status(403).json({
           status: 'error',
           message: `Client does not have permission run ${filter.runId}`,
-        } satisfies api.ErrorAnswer);
+        });
         return;
       }
       if (format === 'csv') {
@@ -274,44 +246,26 @@ export function createLogServer({
     }
   });
 
-  router.use(
-    formatValidationError((error) => {
-      return {
-        status: 'error',
-        message: 'Invalid request body',
-        issues: error.issues,
-      };
-    })
-  );
-
   router.use('*', (req, res) => {
     res.status(404).json({
       status: 'error',
       message: 'Not found',
-    } satisfies api.ErrorAnswer);
+    });
   });
 
-  router.use(
-    (error: Error, req: Request, res: Response, next: NextFunction) => {
-      if (res.headersSent) {
-        next(error);
-      } else if (error instanceof ValidationError) {
-        res.status(400).json({
-          status: 'error',
-          message: 'Invalid request body',
-          issues: error.issues,
-        });
-      } else if (error instanceof Error) {
-        res.status(500).json({
-          status: 'error',
-          message: error.message,
-        } satisfies api.ErrorAnswer);
-      } else {
-        log.error('error', error);
-        next(error);
-      }
+  app.use((error: unknown, req: Request, res: Response, next: NextFunction) => {
+    if (res.headersSent) {
+      next(error);
+    } else if (error instanceof Error) {
+      res.status(500).json({
+        status: 'error',
+        message: error.message,
+      });
+    } else {
+      log.error('error', error);
+      next(error);
     }
-  );
+  });
 
-  return router;
+  return app;
 }

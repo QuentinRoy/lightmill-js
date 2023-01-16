@@ -1,6 +1,6 @@
 import { pipeline, Readable } from 'node:stream';
 import { stringify } from 'csv';
-import { pickBy } from 'lodash-es';
+import { pickBy } from 'remeda';
 import { Store } from './store.js';
 
 const logColumns = ['type', 'experimentId', 'runId', 'createdAt'] as const;
@@ -9,7 +9,7 @@ export function csvExportStream(
   store: Store,
   filter: Parameters<Store['getLogs']>[0] &
     Parameters<Store['getLogValueNames']>[0]
-) {
+): Readable {
   return pipeline(
     async function* () {
       let valueColumns = await store.getLogValueNames(filter);
@@ -27,6 +27,8 @@ export function csvExportStream(
         baseLog[column] = undefined;
       }
       for await (let log of store.getLogs(filter)) {
+        // Note: the type of this appears to be completely incorrect, but it
+        // does not matter since it is immediately piped to stringify anyway.
         yield {
           ...baseLog,
           ...pickBy(log, (v, k) => logColumnFilter(k)),
