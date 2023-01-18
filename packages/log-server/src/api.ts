@@ -1,4 +1,13 @@
-import { makeApi } from '@zodios/core';
+import {
+  makeApi,
+  ZodiosBodyByPath,
+  ZodiosEndpointDefinitionByPath,
+  ZodiosErrorByPath,
+  ZodiosPathParamsByPath,
+  ZodiosPathsByMethod,
+  ZodiosQueryParamsByPath,
+  ZodiosResponseByPath,
+} from '@zodios/core';
 import { z } from 'zod';
 import { JsonObject } from './utils.js';
 
@@ -151,3 +160,37 @@ export const api = makeApi([
     errors: [{ status: 403, schema: ErrorResponse.strict() }],
   },
 ]);
+
+type Api = typeof api;
+
+export type Path = Api[number]['path'];
+export type Method = Api[number]['method'];
+export type PathParams<
+  M extends Method,
+  P extends ZodiosPathsByMethod<Api, M>
+> = ZodiosPathParamsByPath<Api, M, P>;
+export type QueryParams<
+  M extends Method,
+  P extends ZodiosPathsByMethod<Api, M>
+> = ZodiosQueryParamsByPath<Api, M, P>;
+export type Body<
+  M extends Method,
+  P extends ZodiosPathsByMethod<Api, M>
+> = ZodiosBodyByPath<Api, M, P>;
+export type Response<
+  M extends Method,
+  P extends ZodiosPathsByMethod<Api, M>
+> = ZodiosResponseByPath<Api, M, P>;
+export type Error<
+  M extends Method,
+  P extends ZodiosPathsByMethod<Api, M>,
+  Status extends number
+> = ZodiosErrorByPath<Api, M, P, Status>;
+export type ErrorStatus<
+  M extends Method,
+  P extends ZodiosPathsByMethod<Api, M>
+> = ZodiosEndpointDefinitionByPath<Api, M, P>[number] extends {
+  errors: Array<{ status: infer S }>;
+}
+  ? S
+  : never;
