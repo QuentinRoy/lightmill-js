@@ -42,6 +42,11 @@ overrides:
     env:
       node: true
   - files:
+      - '*@(.ts|.tsx)'
+    rules:
+      valid-jsdoc:
+        ['error', { requireReturnType: false, requireParamType: false }]
+  - files:
       - 'packages/**/bin/**/*@(.mjs|.js|.ts|.cjs)'
     env:
       node: true

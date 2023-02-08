@@ -1,23 +1,29 @@
 #!/usr/bin/env node
 
 import path from 'node:path';
-import { createWriteStream, readFileSync } from 'node:fs';
+import fs from 'node:fs/promises';
+import { readFileSync, createWriteStream } from 'node:fs';
 import * as url from 'node:url';
+import express from 'express';
 import { z } from 'zod';
 import dotenv from 'dotenv';
+import cors from 'cors';
 import loglevel from 'loglevel';
 import yargs from 'yargs';
-import { createApp } from './app.js';
-import { Store } from './index.js';
+import { Store, createLogServer } from './index.js';
 import { csvExportStream, jsonExportStream } from './export.js';
 
 // Constants and setup
 // -------------------
 
 dotenv.config();
+
 const __dirname = url.fileURLToPath(new URL('.', import.meta.url));
+
 const env = z
   .object({
+    SECRET: z.string().optional(),
+    ADMIN_PASSWORD: z.string().optional(),
     PORT: z.number().default(3000),
     DB_PATH: z.string().default('./data.sqlite'),
     LOG_LEVEL: z
@@ -25,11 +31,13 @@ const env = z
       .default('info'),
   })
   .parse(process.env);
+
 const { version } = z
   .object({ version: z.string() })
   .parse(
     JSON.parse(readFileSync(path.join(__dirname, '../package.json'), 'utf8'))
   );
+
 const dbPath = path.normalize(env.DB_PATH);
 
 loglevel.setLevel(env.LOG_LEVEL);
@@ -41,10 +49,53 @@ const log = loglevel.getLogger('main');
 type StartParameter = {
   database: string;
   port: number;
+  secret?: string;
+  adminPassword?: string;
 };
-async function start({ database, port }: StartParameter) {
-  createApp({ store: new Store(database) }).listen(port, () => {
-    log.info(`Listening on port ${port}`);
+async function start({
+  database: dbPath,
+  port,
+  secret,
+  adminPassword,
+}: StartParameter) {
+  if (secret == null) {
+    log.error(
+      'No secret set. Set the SECRET environment variable or use the --secret option.'
+    );
+    process.exit(1);
+  }
+  let doesDbExist = await fs.access(dbPath, fs.constants.F_OK).then(
+    () => true,
+    () => false
+  );
+  let store = new Store(dbPath);
+  if (!doesDbExist) {
+    let { error } = await store.migrateDatabase();
+    if (error != null) {
+      log.info('Failed to initialize database');
+      log.error(error);
+      process.exit(1);
+    }
+  }
+  let server = express()
+    .use(cors())
+    .use(createLogServer({ store, secret, adminPassword }))
+    .listen(port, () => {
+      log.info(`Listening on port ${port}`);
+    });
+  process.on('SIGTERM', () => {
+    server.close((error) => {
+      if (error != null) {
+        log.error(error);
+      }
+      store.close().catch((error) => {
+        log.error(error);
+        process.exit(1);
+      });
+      if (error != null) {
+        process.exit(1);
+      }
+    });
   });
 }
 
@@ -118,6 +169,18 @@ yargs(process.argv.slice(2))
           desc: 'Port to listen on',
           type: 'number',
           default: env.PORT,
+        })
+        .option('secret', {
+          alias: 's',
+          desc: 'Secret to use for signing client cookies',
+          type: 'string',
+          default: env.SECRET,
+        })
+        .option('admin-password', {
+          alias: 'a',
+          desc: 'Password for the admin user',
+          type: 'string',
+          default: env.ADMIN_PASSWORD,
         })
         .help()
         .alias('help', 'h')

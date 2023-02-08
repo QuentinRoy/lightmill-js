@@ -2,7 +2,6 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import * as url from 'node:url';
 import SQliteDB from 'better-sqlite3';
-import cuid from 'cuid';
 import {
   Kysely,
   FileMigrationProvider,
@@ -13,22 +12,24 @@ import {
   DeduplicateJoinsPlugin,
 } from 'kysely';
 import { JsonObject } from 'type-fest';
-import { arrayify } from './utils.js';
 import loglevel, { LogLevelDesc } from 'loglevel';
+import { arrayify } from './utils.js';
+import { groupBy } from 'remeda';
 
 const __dirname = url.fileURLToPath(new URL('.', import.meta.url));
 const migrationFolder = path.join(__dirname, 'db-migrations');
 
 type RunTable = {
-  id: string;
-  experimentId: string | null;
+  runId: string;
+  experimentId: string;
   createdAt: string;
-  endedAt: string | null;
+  status: 'running' | 'completed' | 'canceled';
 };
 type LogTable = {
-  id: Generated<bigint>;
-  type: string;
+  logId: Generated<bigint>;
+  experimentId: string;
   runId: string;
+  type: string;
   createdAt: string;
 };
 type LogValueTable = {
@@ -36,20 +37,11 @@ type LogValueTable = {
   name: string;
   value: string;
 };
-type SessionTable = {
-  id: string;
-  createdAt: string;
-  expiresAt: string | null;
-  runId?: string;
-  role: 'admin' | 'participant';
-  cookie: string;
-};
 
 type Database = {
   run: RunTable;
   log: LogTable;
   logValue: LogValueTable;
-  session: SessionTable;
 };
 
 export class Store {
@@ -73,65 +65,90 @@ export class Store {
     });
   }
 
-  async addRun({ id, experimentId }: { id?: string; experimentId?: string }) {
-    let runId = id ?? cuid();
-    await this.#db
+  async addRun({
+    runId,
+    experimentId,
+    createdAt,
+  }: {
+    runId: string;
+    experimentId: string;
+    createdAt: Date;
+  }) {
+    let result = await this.#db
       .insertInto('run')
       .values({
-        id: runId,
-        createdAt: new Date().toISOString(),
+        runId,
         experimentId,
-        endedAt: null,
+        createdAt: createdAt.toISOString(),
+        status: 'running',
       })
-      .execute();
-    return runId;
+      .returning(['runId', 'experimentId'])
+      .executeTakeFirstOrThrow();
+    return { runId: result.runId, experimentId: result.experimentId };
   }
 
-  async endRun(id: string) {
+  async getRun(experimentId: string, runId: string) {
+    let selection = await this.#db
+      .selectFrom('run')
+      .where('experimentId', '=', experimentId)
+      .where('runId', '=', runId)
+      .selectAll()
+      .executeTakeFirst();
+    if (!selection) return;
+    return {
+      ...selection,
+      createdAt:
+        selection.createdAt != null ? new Date(selection.createdAt) : null,
+    };
+  }
+
+  async setRunStatus(
+    experimentId: string,
+    runId: string,
+    status: RunTable['status']
+  ) {
     await this.#db
       .updateTable('run')
-      .set({ endedAt: new Date().toISOString() })
-      .where('id', '=', id)
+      .where('experimentId', '=', experimentId)
+      .where('runId', '=', runId)
+      .set({ status })
       .execute();
   }
 
-  // This methods is O(n^2) in the number of logs to insert, but n is expected
-  // to be relatively small.
-  async addLogs(
-    logs: Array<{ type: string; runId: string; values: JsonObject }>
+  async addRunLogs(
+    experimentId: string,
+    runId: string,
+    logs: Array<{
+      type: string;
+      values: JsonObject;
+    }>
   ) {
     await this.#db.transaction().execute(async (trx) => {
       let createdAt = new Date().toISOString();
-      let dbLogs: Array<{
-        id: bigint;
-        type: string;
-        runId: string;
-        isAssigned?: boolean;
-      }> = await trx
-        .insertInto('log')
-        .values(
-          logs.map(({ type, runId }) => {
-            return { type, runId, createdAt };
-          })
-        )
-        .returning(['id as id', 'type as type', 'runId as runId'])
-        .execute();
+      let dbLogGroups = groupBy(
+        await trx
+          .insertInto('log')
+          .values(
+            logs.map(({ type }) => {
+              return { type, runId, experimentId, createdAt };
+            })
+          )
+          .returning(['logId', 'type'])
+          .execute(),
+        (log) => log.type
+      );
 
       // Bulk insert returning values does not guarantee order, so we need to
       // match the log values logs to returned log ids.
       let dbValues = [];
       for (let log of logs) {
-        let dbLog = dbLogs.find(
-          (it) =>
-            it.type === log.type && it.runId === log.runId && !it.isAssigned
-        );
-        if (!dbLog) {
+        let dbLog = dbLogGroups[log.type].pop();
+        if (dbLog == null) {
           throw new Error(
-            `failed to find an unassigned inserted log with type "${log.type}" and runId "${log.runId}"`
+            `failed to find an unassigned inserted log with type "${log.type}"`
           );
         }
-        dbLog.isAssigned = true;
-        dbValues.push(...deconstructValues(log.values, { logId: dbLog.id }));
+        dbValues.push(...deconstructValues(log.values, { logId: dbLog.logId }));
       }
       await trx.insertInto('logValue').values(dbValues).execute();
     });
@@ -140,91 +157,48 @@ export class Store {
   async getLogValueNames(filter: LogFilter = {}) {
     let result = await this.#db
       .selectFrom('logValue')
-      .if(filter.type != null, (qb) =>
-        qb.innerJoin('log', 'log.id', 'logValue.logId').where((qb) => {
-          let types = arrayify(filter.type, true);
-          for (let type of types) {
-            qb = qb.orWhere('log.type', '=', type);
-          }
-          return qb;
-        })
-      )
-      .if(filter.runId != null, (qb) =>
-        qb.innerJoin('log', 'log.id', 'logValue.logId').where((qb) => {
-          let runIds = arrayify(filter.runId, true);
-          for (let runId of runIds) {
-            qb = qb.orWhere('log.runId', '=', runId);
-          }
-          return qb;
-        })
-      )
-      .if(filter.experimentId != null, (qb) =>
+      .if(filter.experiment != null, (qb) =>
         qb
-          .innerJoin('log', 'log.id', 'logValue.logId')
-          .innerJoin('run', 'run.id', 'log.runId')
-          .where((qb) => {
-            let experimentIds = arrayify(filter.experimentId, true);
-            for (let experimentId of experimentIds) {
-              qb = qb.orWhere('run.experimentId', '=', experimentId);
-            }
-            return qb;
-          })
+          .innerJoin('log', 'log.logId', 'logValue.logId')
+          .where('log.experimentId', 'in', arrayify(filter.experiment, true))
       )
-      .select('logValue.name as logValueName')
-      .orderBy('logValueName')
+      .if(filter.run != null, (qb) =>
+        qb
+          .innerJoin('log', 'log.logId', 'logValue.logId')
+          .where('log.runId', 'in', arrayify(filter.run, true))
+      )
+      .if(filter.type != null, (qb) =>
+        qb
+          .innerJoin('log', 'log.logId', 'logValue.logId')
+          .where('log.type', 'in', arrayify(filter.type, true))
+      )
+      .select('logValue.name')
+      .orderBy('name')
       .distinct()
       .execute();
-    return result.map((it) => it.logValueName);
+    return result.map((it) => it.name);
   }
 
-  async hasNonEmptyExperimentId() {
-    let result = await this.#db
-      .selectFrom('run')
-      .where('experimentId', 'is not', null)
-      .select('experimentId')
-      .executeTakeFirst();
-    return result != null;
-  }
-
-  async *getLogs(filter: LogFilter = {}) {
+  async *getLogs(filter: LogFilter = {}): AsyncGenerator<Log> {
     let result = await this.#db
       .selectFrom('logValue')
-      .innerJoin('log', 'log.id', 'logValue.logId')
-      .innerJoin('run', 'run.id', 'log.runId')
+      .innerJoin('log', 'log.logId', 'logValue.logId')
+      .if(filter.experiment != null, (qb) =>
+        qb.where('log.experimentId', 'in', arrayify(filter.experiment, true))
+      )
+      .if(filter.run != null, (qb) =>
+        qb.where('log.runId', 'in', arrayify(filter.run, true))
+      )
       .if(filter.type != null, (qb) =>
-        qb.where((qb) => {
-          let types = arrayify(filter.type, true);
-          for (let type of types) {
-            qb = qb.orWhere('log.type', '=', type);
-          }
-          return qb;
-        })
-      )
-      .if(filter.runId != null, (qb) =>
-        qb.where((qb) => {
-          let runIds = arrayify(filter.runId, true);
-          for (let runId of runIds) {
-            qb = qb.orWhere('log.runId', '=', runId);
-          }
-          return qb;
-        })
-      )
-      .if(filter.experimentId != null, (qb) =>
-        qb.where((qb) => {
-          let experimentIds = arrayify(filter.experimentId, true);
-          for (let experimentId of experimentIds) {
-            qb = qb.orWhere('run.experimentId', '=', experimentId);
-          }
-          return qb;
-        })
+        qb.where('log.type', 'in', arrayify(filter.type, true))
       )
       .orderBy('logValue.logId')
       .select([
-        'log.id as logId',
+        'log.experimentId as experimentId',
+        'log.runId as runId',
+        'log.logId as logId',
         'log.type as logType',
         'log.createdAt as logCreatedAt',
-        'log.runId',
-        'run.experimentId',
         'logValue.name',
         'logValue.value',
       ])
@@ -238,9 +212,9 @@ export class Store {
           yield currentLog;
         }
         currentLog = {
-          type: row.logType,
-          experimentId: row.experimentId ?? undefined,
+          experimentId: row.experimentId,
           runId: row.runId,
+          type: row.logType,
           createdAt: new Date(row.logCreatedAt),
           values: {} as JsonObject,
         };
@@ -253,83 +227,6 @@ export class Store {
     }
   }
 
-  async setSession({
-    id,
-    expiresAt,
-    runId,
-    cookie,
-    role,
-  }: {
-    id?: string;
-    expiresAt?: Date;
-    runId?: string;
-    role: 'admin' | 'participant';
-    cookie: JsonObject;
-  }) {
-    // Use explicit column properties to avoid using extra properties in the
-    // update set clause (e.g. createdAt could come back since it is
-    // provided in getSession).
-    let values = {
-      id: id ?? cuid(),
-      expiresAt: expiresAt?.toISOString() ?? undefined,
-      runId,
-      role,
-      cookie: JSON.stringify(cookie),
-    };
-    await this.#db
-      .insertInto('session')
-      .values({ createdAt: new Date().toISOString(), ...values })
-      .onConflict((conflict) => conflict.column('id').doUpdateSet(values))
-      .execute();
-  }
-
-  async getSession(id: string) {
-    let result = await this.#db
-      .selectFrom('session')
-      .where('session.id', '=', id)
-      .leftJoin('run', 'run.id', 'session.runId')
-      .select([
-        'session.id as session.id',
-        'session.createdAt as session.createdAt',
-        'session.expiresAt as session.expiresAt',
-        'session.cookie as session.cookie',
-        'session.role as session.role',
-        'run.id as run.id',
-        'run.endedAt as run.endedAt',
-        'run.createdAt as run.createdAt',
-      ])
-      .executeTakeFirst();
-    if (!result) return;
-
-    return {
-      id: result['session.id'],
-      createdAt: new Date(result['session.createdAt']),
-      expiresAt: result['session.expiresAt']
-        ? new Date(result['session.expiresAt'])
-        : null,
-      cookie: result['session.cookie']
-        ? JSON.parse(result['session.cookie'])
-        : null,
-      role: result['session.role'],
-      run:
-        result['run.id'] != null
-          ? {
-              id: result['run.id'],
-              endedAt: result['run.endedAt']
-                ? new Date(result['run.endedAt'])
-                : null,
-              createdAt: result['run.createdAt']
-                ? new Date(result['run.createdAt'])
-                : null,
-            }
-          : null,
-    };
-  }
-
-  async deleteSession(id: string) {
-    await this.#db.deleteFrom('session').where('id', '=', id).execute();
-  }
-
   async migrateDatabase() {
     let migrator = new Migrator({
       db: this.#db,
@@ -340,6 +237,10 @@ export class Store {
       }),
     });
     return migrator.migrateToLatest();
+  }
+
+  async close() {
+    await this.#db.destroy();
   }
 }
 
@@ -361,8 +262,16 @@ function deconstructValues(
   }));
 }
 
-type LogFilter = {
+export type LogFilter = {
   type?: string | string[];
-  runId?: string | string[];
-  experimentId?: string | string[];
+  run?: string | string[];
+  experiment?: string | string[];
+};
+
+export type Log = {
+  experimentId: string;
+  runId: string;
+  type: string;
+  createdAt: Date;
+  values: JsonObject;
 };

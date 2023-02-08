@@ -1,2 +1,12 @@
 export { Store } from './store.js';
-export { createApp } from './app.js';
+export { createLogServer } from './app.js';
+export type {
+  Path,
+  Method,
+  PathParams,
+  QueryParams,
+  Body,
+  Response,
+  Error,
+  ErrorStatus,
+} from './api.js';

@@ -28,6 +28,9 @@
     "@lightmill/runner": "workspace:*"
   },
   "devDependencies": {
+    "@babel/core": "^7.20.12",
+    "@babel/plugin-syntax-flow": "^7.18.6",
+    "@babel/plugin-transform-react-jsx": "^7.20.13",
     "@testing-library/dom": "^8.19.0",
     "@testing-library/jest-dom": "^5.16.5",
     "@testing-library/react": "^13.4.0",
@@ -36,9 +39,12 @@
     "@types/testing-library__jest-dom": "^5.14.5",
     "@vitejs/plugin-react": "^3.0.0",
     "cross-env": "^7.0.3",
+    "eslint": "8.29.0",
+    "eslint-config-react-app": "^7.0.1",
     "jsdom": "^20.0.3",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "type-fest": "^3.5.3",
     "typescript": "4.9.4",
     "vite": "^4.0.1",
     "vitest": "^0.25.8"
@@ -49,8 +55,7 @@
     "prepublish": "pnpm run build"
   },
   "keywords": [
-    "experiment",
-    "lightmill"
+    "experiment"
   ],
   "private": false
 }

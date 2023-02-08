@@ -1,88 +1,57 @@
-import { Readable } from 'node:stream';
-import { JsonValue } from 'type-fest';
+import { pipeline, Readable } from 'node:stream';
 import { stringify } from 'csv';
-import { pickBy } from 'lodash-es';
-import { Store } from './store.js';
+import { mapKeys, pickBy, pipe } from 'remeda';
+import { Log, Store } from './store.js';
+import { toSnakeCase } from './utils.js';
 
-const logColumns = ['type', 'experimentId', 'runId', 'createdAt'] as const;
+const logColumns: Array<keyof Log> = ['type', 'experimentId', 'runId'];
+const renamedLogColumns: Partial<Record<keyof Log, string>> = {
+  experimentId: 'experiment',
+  runId: 'run',
+};
 
 export function csvExportStream(
   store: Store,
   filter: Parameters<Store['getLogs']>[0] &
     Parameters<Store['getLogValueNames']>[0]
-) {
-  async function getInnerStream() {
-    let valueColumns = await store.getLogValueNames(filter);
-    let hasNonEmptyExperimentId = await store.hasNonEmptyExperimentId();
-    let logColumnFilter = (columnName: string) =>
-      !valueColumns.includes(columnName) &&
-      (hasNonEmptyExperimentId || columnName !== 'experimentId') &&
-      (filter?.type == null || columnName !== 'type');
-    let columns = [...logColumns.filter(logColumnFilter), ...valueColumns];
-    return csvStreamFromLogs(
-      columns,
-      store.getLogs(filter),
-      ({ values, ...log }) => ({
-        ...pickBy(log, (v, k) => logColumnFilter(k)),
-        ...values,
-      })
-    );
-  }
-  let innerStream: Readable | undefined;
-  return new Readable({
-    objectMode: true,
-    read() {
-      if (!innerStream) {
-        getInnerStream()
-          .then((stream) => {
-            innerStream = stream;
-            innerStream.on('data', (data) => this.push(data));
-            innerStream.on('error', (error) => this.emit('error', error));
-            innerStream.on('end', () => this.push(null));
-            innerStream.read();
-          })
-          .catch((error) => {
-            this.emit('error', error);
-          });
-      } else {
-        innerStream.read();
+): Readable {
+  return pipeline(
+    async function* () {
+      let valueColumns = await store.getLogValueNames(filter);
+      let logColumnFilter = (columnName: string) =>
+        !valueColumns.includes(columnName) &&
+        (filter?.type == null || columnName !== 'type') &&
+        (filter?.experiment == null || columnName !== 'experimentId') &&
+        (filter?.run == null || columnName !== 'runId') &&
+        columnName !== 'values';
+      let columns = [
+        ...logColumns
+          .filter(logColumnFilter)
+          .map((c) => renamedLogColumns[c] ?? c),
+        ...valueColumns,
+      ];
+      let baseLog: Record<string, undefined> = {};
+      // We need to set all columns to undefined to make sure they are included
+      // in the CSV even if they are empty.
+      for (let column of columns) {
+        baseLog[column] = undefined;
+      }
+      for await (let log of store.getLogs(filter)) {
+        // Note: the type of this appears to be completely incorrect, but it
+        // does not matter since it is immediately piped to stringify anyway.
+        yield toSnakeCase({
+          ...baseLog,
+          ...pipe(
+            log,
+            pickBy((v, k) => logColumnFilter(k)),
+            mapKeys((key) => renamedLogColumns[key] ?? key)
+          ),
+          ...log.values,
+        });
       }
     },
-  });
-}
-
-export function jsonExportStream(
-  store: Store,
-  filter: Parameters<Store['getLogs']>[0]
-) {
-  return jsonStreamFromLogs(store.getLogs(filter));
-}
-
-function csvStreamFromLogs<T>(
-  columns: string[],
-  logs: AsyncGenerator<T>,
-  map: (log: T) => Record<string, unknown>
-) {
-  return new Readable({
-    objectMode: true,
-    read() {
-      logs
-        .next()
-        .then(({ done, value }) => {
-          if (done) {
-            this.push(null);
-          } else {
-            this.push(map(value));
-          }
-        })
-        .catch((error) => {
-          this.emit('error', error);
-        });
-    },
-  }).pipe(
     stringify({
       header: true,
-      columns,
       cast: {
         date: (value) => value.toISOString(),
         number: (value) => value.toString(),
@@ -90,40 +59,35 @@ function csvStreamFromLogs<T>(
         bigint: (value) => value.toString(),
         boolean: (value) => (value ? 'true' : 'false'),
       },
-    })
+    }),
+    () => {
+      // Nothing to do here.
+    }
   );
 }
 
-function jsonStreamFromLogs(
-  logs: AsyncGenerator<Record<string, JsonValue | Date | undefined>>
+export function jsonExportStream(
+  store: Store,
+  filter: Parameters<Store['getLogs']>[0]
 ) {
-  let started = false;
-  return new Readable({
-    read() {
-      let willAddComma = started;
-      if (!started) {
-        this.push('[');
-        started = true;
-      }
-      logs
-        .next()
-        .then(({ done, value }) => {
-          if (done) {
-            this.push(']');
-            this.push(null);
-          } else {
-            if (willAddComma) this.push(',');
-            this.push(JSON.stringify(value, stringifyDateReplacer));
-          }
-        })
-        .catch((error) => {
-          this.emit('error', error);
-        });
-    },
-  });
+  return Readable.from(stringifyLogs(store.getLogs(filter)));
 }
 
-function stringifyDateReplacer(key: string, value: unknown) {
+async function* stringifyLogs(logs: AsyncIterable<Log>) {
+  yield '[';
+  let started = false;
+  for await (let log of logs) {
+    yield started ? ',' : '';
+    started = true;
+    yield JSON.stringify(
+      mapKeys(log, (key) => renamedLogColumns[key] ?? key),
+      stringifyDateSerializer
+    );
+  }
+  yield ']';
+}
+
+function stringifyDateSerializer(key: string, value: unknown) {
   if (value instanceof Date) {
     return value.toISOString();
   }

@@ -1,13 +1,15 @@
 import { run } from '@lightmill/runner';
 import * as React from 'react';
-import { BaseTask } from './config.js';
+import { BaseTask, RegisteredLog } from './config.js';
 
 export type TimelineStatus = 'running' | 'completed' | 'loading' | 'idle';
 
 export type TimelineState<Task extends BaseTask> =
-  | { status: 'running'; task: Task; onTaskCompleted: () => void }
   | { status: 'completed'; task: null }
-  | { status: 'loading'; task: null };
+  | { status: 'loading'; task: null }
+  | { status: 'idle'; task: null }
+  | { status: 'canceled'; task: null }
+  | { status: 'running'; task: Task; onTaskCompleted: () => void };
 
 export type Timeline<Task extends BaseTask> =
   | Iterator<Task>
@@ -16,68 +18,119 @@ export type Timeline<Task extends BaseTask> =
   | AsyncIterable<Task>;
 
 type TimelineAction<T> =
-  | { type: 'task-completed' }
+  | { type: 'logger-connecting' }
+  | { type: 'run-started' }
   | { type: 'task-started'; task: T; onTaskCompleted: () => void }
-  | { type: 'experiment-completed' };
+  | { type: 'task-completed' }
+  | { type: 'run-completed' }
+  | { type: 'run-canceled' }
+  | { type: 'logger-flushed' };
+
+export type Logger = {
+  startRun(): Promise<void>;
+  addLog(log: RegisteredLog): Promise<void>;
+  flush(): Promise<void>;
+  completeRun(): Promise<void>;
+  cancelRun?(): Promise<void>;
+};
 
 function timelineReducer<T extends BaseTask>(
   state: TimelineState<T>,
   action: TimelineAction<T>
 ): TimelineState<T> {
   switch (action.type) {
-    case 'experiment-completed':
-      return {
-        status: 'completed',
-        task: null,
-      };
-    case 'task-completed':
-      return {
-        status: 'loading',
-        task: null,
-      };
+    case 'run-started':
+    case 'logger-connecting':
+      return { status: 'loading', task: null };
     case 'task-started':
       return {
         status: 'running',
         task: action.task,
         onTaskCompleted: action.onTaskCompleted,
       };
+    case 'task-completed':
+      return { status: 'loading', task: null };
+    case 'run-completed':
+      return { status: 'loading', task: null };
+    case 'run-canceled':
+      return { status: 'canceled', task: null };
+    case 'logger-flushed':
+      return { status: 'completed', task: null };
   }
 }
 
 export default function useManagedTimeline<Task extends BaseTask>(
-  timeline: Timeline<Task>
+  timeline: Timeline<Task> | null,
+  logger: Logger | null
 ): TimelineState<Task> {
   const [state, dispatch] = React.useReducer(timelineReducer<Task>, {
-    status: 'loading',
+    status: 'idle',
     task: null,
   });
   React.useEffect(() => {
-    let canceled = false;
-    run({
-      taskIterator: timeline,
-      runTask(task) {
-        return new Promise((resolve) => {
-          dispatch({
-            type: 'task-started',
-            task,
-            onTaskCompleted: () => {
-              if (!canceled) {
+    const loggerStartRun =
+      logger == null ? null : getCachedLoggerStartRun(logger);
+    if (!timeline) return;
+    let hasEnded = false;
+    // Synchronously start the run if we can, otherwise wait for the logger to
+    // connect.
+    let startup = (f: () => Promise<void>) => {
+      if (loggerStartRun == null) return f();
+      dispatch({ type: 'logger-connecting' });
+      return loggerStartRun().then(() => {
+        if (hasEnded) return;
+        return f();
+      });
+    };
+    startup(() => {
+      dispatch({ type: 'run-started' });
+      return run({
+        taskIterator: timeline,
+        runTask(task) {
+          return new Promise((resolve) => {
+            dispatch({
+              type: 'task-started',
+              task,
+              onTaskCompleted: () => {
+                if (hasEnded) return;
                 dispatch({ type: 'task-completed' });
                 resolve();
-              }
-            },
+              },
+            });
           });
-        });
-      },
-    }).then(() => {
-      if (!canceled) {
-        dispatch({ type: 'experiment-completed' });
-      }
-    });
+        },
+      });
+    })
+      .then(() => {
+        if (hasEnded) return;
+        dispatch({ type: 'run-completed' });
+        return logger?.flush();
+      })
+      .then(() => {
+        if (hasEnded) return;
+        dispatch({ type: 'logger-flushed' });
+        hasEnded = true;
+      });
     return () => {
-      canceled = true;
+      if (!hasEnded) {
+        logger?.cancelRun?.();
+        dispatch({ type: 'run-canceled' });
+      }
+      hasEnded = true;
     };
-  }, [timeline]);
+  }, [logger, timeline]);
 
   return state;
+}
+
+const cachedLoggerStarts = new WeakMap<Logger, Promise<void>>();
+function getCachedLoggerStartRun(logger: Logger) {
+  return () => {
+    let cachedStart = cachedLoggerStarts.get(logger);
+    if (cachedStart == null) {
+      cachedStart = logger.startRun();
+      cachedLoggerStarts.set(logger, cachedStart);
+    }
+    return cachedStart;
+  };
 }
