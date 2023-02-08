@@ -34,7 +34,7 @@ export class RunLogger<InputLog extends BaseLog = AnyLog> {
 
   // If the run is started, these will be set. Otherwise, they will be null.
   #sendLogs: throttle<() => void>;
-  #isStarted = false;
+  #runStatus: 'idle' | 'running' | 'completed' | 'canceled' = 'idle';
   #endpoints: RunEndpoints | null = null;
 
   constructor({
@@ -61,21 +61,35 @@ export class RunLogger<InputLog extends BaseLog = AnyLog> {
     this.#apiRoot = apiRoot.endsWith('/') ? apiRoot : apiRoot + '/';
   }
 
+  #isStarting = false;
   async startRun() {
+    if (this.#runStatus !== 'idle') {
+      throw new Error(
+        `Can only start a run when the run is idle. Run is ${this.#runStatus}`
+      );
+    }
+    if (this.#isStarting) {
+      throw new Error('Run is already starting');
+    }
+    this.#isStarting = false;
     let body: ApiBody<'post', '/experiments/runs'> = {
       experiment: this.#experiment,
       id: this.#run,
     };
-    let { links } = (await post(`${this.#apiRoot}experiments/runs`, {
-      body,
-    })) as ApiResponse<'post', '/experiments/runs'>; // We trust the server to return the correct type.
-    this.#isStarted = true;
+    let url = `${this.#apiRoot}experiments/runs`;
+    let { links } = (await post(url, { body })) as ApiResponse<
+      'post',
+      '/experiments/runs'
+    >; // We trust the server to return the correct type.
     this.#endpoints = links;
+    this.#runStatus = 'running';
   }
 
   async log(inputLog: InputLog) {
-    if (!this.#isStarted) {
-      throw new Error('Cannot add logs to run before it is started');
+    if (this.#runStatus !== 'running') {
+      throw new Error(
+        `Can only add logs to a running run. Run is ${this.#runStatus}`
+      );
     }
     if (inputLog.type == null) {
       throw new Error(
@@ -148,8 +162,8 @@ export class RunLogger<InputLog extends BaseLog = AnyLog> {
   }
 
   async #endRun(status: 'canceled' | 'completed') {
-    if (!this.#isStarted) {
-      throw new Error('Cannot end run before it is started');
+    if (this.#runStatus !== 'running') {
+      throw new Error(`Cannot end a run that is not running. Run is ${status}`);
     }
     if (this.#endpoints == null) {
       throw new Error(
@@ -161,6 +175,7 @@ export class RunLogger<InputLog extends BaseLog = AnyLog> {
       status,
     };
     await put(this.#endpoints.run, { body });
+    this.#runStatus = status;
   }
 }
 
