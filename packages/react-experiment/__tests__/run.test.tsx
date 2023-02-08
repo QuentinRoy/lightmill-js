@@ -1,7 +1,6 @@
 import { act, render, screen } from '@testing-library/react';
 import userEventPackage from '@testing-library/user-event';
-import { RunConfig } from '../src/config.js';
-import { Run, useTask } from '../src/run.js';
+import { Run, RunConfig, useTask } from '../src/main.js';
 
 const userEvent =
   userEventPackage as unknown as typeof userEventPackage.default;
@@ -106,32 +105,33 @@ describe('run', () => {
     };
     render(<Run config={config} timeline={asyncTaskGen(taskTime)} />);
     expect(screen.getByTestId('loading')).toBeInTheDocument();
-    await act(() => {
-      vi.advanceTimersByTime(taskTime);
+    await act(async () => {
+      await vi.advanceTimersByTime(taskTime);
     });
     expect(screen.getByRole('heading')).toHaveTextContent('Type A');
     expect(screen.getByTestId('data')).toHaveTextContent('hello');
     await user.click(screen.getByRole('button'));
     expect(screen.getByTestId('loading')).toBeInTheDocument();
     await act(async () => {
-      vi.advanceTimersByTime(taskTime);
+      await vi.advanceTimersByTime(taskTime);
     });
     expect(screen.getByRole('heading')).toHaveTextContent('Type B');
     expect(screen.getByTestId('data')).toHaveTextContent('42');
     await user.click(screen.getByRole('button'));
     expect(screen.getByTestId('loading')).toBeInTheDocument();
     await act(async () => {
-      vi.advanceTimersByTime(taskTime);
+      await vi.advanceTimersByTime(taskTime);
     });
     expect(screen.getByRole('heading')).toHaveTextContent('Type A');
     expect(screen.getByTestId('data')).toHaveTextContent('world');
     await act(async () => {
-      vi.advanceTimersByTime(taskTime);
+      await vi.advanceTimersByTime(taskTime);
     });
     await user.click(screen.getByRole('button'));
     expect(screen.getByTestId('loading')).toBeInTheDocument();
     await act(async () => {
-      vi.advanceTimersByTime(taskTime);
+      await vi.advanceTimersByTime(taskTime);
+      await vi.runAllTicks();
     });
     expect(screen.getByTestId('end')).toBeInTheDocument();
     vi.runOnlyPendingTimers();
