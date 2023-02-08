@@ -1,2 +1,4 @@
-export { Run, useTask } from './run.js';
-export { RunConfig, RegisterExperiment } from './config.js';
+export { Run, RunConfig } from './run.js';
+export { useLog } from './useLog.js';
+export { useTask } from './useTask.js';
+export { RegisterExperiment } from './config.js';

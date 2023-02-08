@@ -27,9 +27,3 @@ export type RegisteredLog = RegisterExperiment extends { log: infer T }
     ? T
     : never
   : BaseLog;
-
-export type RunConfig<T extends BaseTask = RegisteredTask> = {
-  tasks: Record<T['type'], React.ReactElement>;
-  loading?: React.ReactElement;
-  completed?: React.ReactElement;
-};

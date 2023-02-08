@@ -1,96 +1,91 @@
 import * as React from 'react';
-import { RunConfig, RegisteredTask } from './config.js';
-import { RegisteredLog } from './config.js';
-import useManagedTimeline, { Timeline, TimelineState } from './timeline.js';
+import { RegisteredTask, BaseTask } from './config.js';
+import useManagedTimeline, {
+  Logger,
+  Timeline,
+  TimelineState,
+} from './timeline.js';
 
-export type Logger = {
-  addLog(log: RegisteredLog): Promise<void>;
-  flush(): Promise<void>;
-  completeRun(): Promise<void>;
-  cancelRun(): Promise<void>;
-};
-
-const timelineContext =
+export const timelineContext =
   React.createContext<TimelineState<RegisteredTask> | null>(null);
-const loggerContext = React.createContext<Logger | null>(null);
+export const loggerContext = React.createContext<Logger | null>(null);
+
+export type RunConfig<T extends BaseTask = RegisteredTask> = {
+  tasks: Record<T['type'], React.ReactElement>;
+  loading?: React.ReactElement;
+  completed?: React.ReactElement;
+};
 
 export type RunProps<T extends RegisteredTask> = {
   config: RunConfig<T>;
   timeline: Timeline<T>;
   logger?: Logger;
+  noConfirmOnUnload?: boolean;
 };
+
 export function Run<T extends RegisteredTask>({
-  timeline,
+  timeline: timelineProp,
+  logger: loggerProp,
   config: { tasks, completed, loading },
-  logger,
-}: RunProps<T>) {
-  let state = useManagedTimeline(timeline);
-  if (state.status === 'running') {
-    let taskType: T['type'] = state.task.type;
-    return (
-      <loggerContext.Provider value={logger ?? null}>
-        <timelineContext.Provider value={state}>
-          {tasks[taskType]}
-        </timelineContext.Provider>
-      </loggerContext.Provider>
-    );
+  noConfirmOnUnload = false,
+}: RunProps<T>): // Using explicit return type to prevent the function from
+// returning undefined, which could indicate a state isn't being handled.
+JSX.Element | null {
+  // Logger and timeline are not controlled. We make sure any change to them
+  // is ignored, and the previous value is used instead.
+  let timelineRef = React.useRef(timelineProp);
+  let loggerRef = React.useRef(loggerProp ?? null);
+  let timelineState = useManagedTimeline(
+    timelineRef.current,
+    loggerRef.current
+  );
+
+  useConfirmBeforeUnload(
+    !noConfirmOnUnload && timelineState.status !== 'completed'
+  );
+
+  switch (timelineState.status) {
+    case 'running':
+      return (
+        <loggerContext.Provider value={loggerRef.current}>
+          <timelineContext.Provider value={timelineState}>
+            {tasks[timelineState.task.type as T['type']]}
+          </timelineContext.Provider>
+        </loggerContext.Provider>
+      );
+
+    case 'completed':
+      return completed == null ? null : (
+        <loggerContext.Provider value={loggerRef.current}>
+          {completed}
+        </loggerContext.Provider>
+      );
+
+    // This may seem surprising to have canceled, idle, and loading in the same
+    // case, but canceled is basically the same as idle, only a run was already
+    // started and the stopped, e.g. because timeline changed.
+    case 'loading':
+    case 'idle':
+    case 'canceled':
+      return loading == null ? null : (
+        <loggerContext.Provider value={loggerRef.current}>
+          {loading}
+        </loggerContext.Provider>
+      );
   }
-  if (state.status === 'completed') {
-    return completed == null ? null : (
-      <loggerContext.Provider value={logger ?? null}>
-        {completed}
-      </loggerContext.Provider>
-    );
-  }
-  if (state.status === 'loading') {
-    return loading == null ? null : (
-      <loggerContext.Provider value={logger ?? null}>
-        {loading}
-      </loggerContext.Provider>
-    );
-  }
-  return null;
 }
 
-type UseTaskResult<Task extends RegisteredTask> = {
-  task: Task;
-  onTaskCompleted: () => void;
-};
-export function useTask<TaskType extends RegisteredTask['type']>(
-  type: TaskType
-): UseTaskResult<RegisteredTask & { type: TaskType }>;
-export function useTask(): UseTaskResult<RegisteredTask>;
-export function useTask(
-  type?: RegisteredTask['type']
-): UseTaskResult<RegisteredTask> {
-  const state = React.useContext(timelineContext);
-  if (state == null) {
-    throw new Error('No task found. Is this component rendered in a <Run />?');
-  }
-  if (state.status !== 'running') {
-    throw new Error(
-      'No task is currently running. Is this component rendered in a <Run />?'
-    );
-  }
-  if (type != null && state.task.type !== type) {
-    throw new Error(
-      `Current task is not of type ${type}. Is this component registered for this task? You may use useTask without arguments to get the current task.`
-    );
-  }
-  return React.useMemo(() => {
-    return {
-      task: state.task,
-      onTaskCompleted: state.onTaskCompleted,
-    };
-  }, [state]);
-}
-
-export function useLogger(): Logger {
-  const logger = React.useContext(loggerContext);
-  if (logger == null) {
-    throw new Error(
-      'No logger found. Is this component rendered in a <Run />, and was a logger provided as a prop to <Run />?'
-    );
-  }
-  return logger;
+function useConfirmBeforeUnload(isEnabled: boolean) {
+  React.useEffect(() => {
+    if (isEnabled) {
+      let handleBeforeUnload = (event: BeforeUnloadEvent) => {
+        event.preventDefault();
+        event.returnValue = '';
+      };
+      window.addEventListener('beforeunload', handleBeforeUnload);
+      return () => {
+        window.removeEventListener('beforeunload', handleBeforeUnload);
+      };
+    }
+  }, [isEnabled]);
 }
