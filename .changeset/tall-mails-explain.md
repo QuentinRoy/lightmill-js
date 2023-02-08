@@ -1,5 +1,5 @@
 ---
-'@lightmill/log-server': minor
+'@lightmill/log-server': major
 ---
 
-Add the put /runs/:id endpoint that can be used to end a run.
+Revamp the log server API.
