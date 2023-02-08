@@ -3,6 +3,13 @@
   "extends": "../../tsconfig.json",
   "compilerOptions": {
     "lib": ["DOM", "ES2020"],
-    "noEmit": true
+    "noEmit": true,
+    "moduleResolution": "Node16",
+    "noImplicitAny": true,
+    "strict": true,
+    "sourceMap": true,
+    "declaration": true,
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true
   }
 }
