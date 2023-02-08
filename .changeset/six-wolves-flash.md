@@ -1,5 +1,5 @@
 ---
-'@lightmill/log-client': patch
+'@lightmill/log-client': minor
 ---
 
-Creation
+Creation of a new log client package.
