@@ -68,32 +68,39 @@ export default function useManagedTimeline<Task extends BaseTask>(
     task: null,
   });
   React.useEffect(() => {
-    const loggerStartRun = getCachedLoggerStartRun(logger);
+    const loggerStartRun =
+      logger == null ? null : getCachedLoggerStartRun(logger);
     if (!timeline) return;
     let hasEnded = false;
-    dispatch({ type: 'logger-connecting' });
-    Promise.resolve()
-      .then(() => loggerStartRun())
-      .then(() => {
+    // Synchronously start the run if we can, otherwise wait for the logger to
+    // connect.
+    let startup = (f: () => Promise<void>) => {
+      if (loggerStartRun == null) return f();
+      dispatch({ type: 'logger-connecting' });
+      return loggerStartRun().then(() => {
         if (hasEnded) return;
-        dispatch({ type: 'run-started' });
-        return run({
-          taskIterator: timeline,
-          runTask(task) {
-            return new Promise((resolve) => {
-              dispatch({
-                type: 'task-started',
-                task,
-                onTaskCompleted: () => {
-                  if (hasEnded) return;
-                  dispatch({ type: 'task-completed' });
-                  resolve();
-                },
-              });
+        return f();
+      });
+    };
+    startup(() => {
+      dispatch({ type: 'run-started' });
+      return run({
+        taskIterator: timeline,
+        runTask(task) {
+          return new Promise((resolve) => {
+            dispatch({
+              type: 'task-started',
+              task,
+              onTaskCompleted: () => {
+                if (hasEnded) return;
+                dispatch({ type: 'task-completed' });
+                resolve();
+              },
             });
-          },
-        });
-      })
+          });
+        },
+      });
+    })
       .then(() => {
         if (hasEnded) return;
         dispatch({ type: 'run-completed' });
@@ -117,9 +124,8 @@ export default function useManagedTimeline<Task extends BaseTask>(
 }
 
 const cachedLoggerStarts = new WeakMap<Logger, Promise<void>>();
-function getCachedLoggerStartRun(logger: Logger | null) {
+function getCachedLoggerStartRun(logger: Logger) {
   return () => {
-    if (logger == null) return;
     let cachedStart = cachedLoggerStarts.get(logger);
     if (cachedStart == null) {
       cachedStart = logger.startRun();
