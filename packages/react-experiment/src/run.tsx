@@ -82,9 +82,9 @@ function useConfirmBeforeUnload(isEnabled: boolean) {
         event.preventDefault();
         event.returnValue = '';
       };
-      window.addEventListener('beforeunload', handleBeforeUnload);
+      globalThis.addEventListener('beforeunload', handleBeforeUnload);
       return () => {
-        window.removeEventListener('beforeunload', handleBeforeUnload);
+        globalThis.removeEventListener('beforeunload', handleBeforeUnload);
       };
     }
   }, [isEnabled]);
