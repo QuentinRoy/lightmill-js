@@ -3,9 +3,6 @@
 import path from 'node:path';
 import { createWriteStream, readFileSync } from 'node:fs';
 import * as url from 'node:url';
-import { z } from 'zod';
-import dotenv from 'dotenv';
-import loglevel from 'loglevel';
 import yargs from 'yargs';
 import { createApp } from './app.js';
 import { Store } from './index.js';
