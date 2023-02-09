@@ -130,7 +130,7 @@ describe('RunLogger', () => {
     });
     await logger.startRun();
     clearRequests();
-    let p = logger.log({
+    let p = logger.addLog({
       type: 'mock-log',
       val: 1,
       date: new Date('2021-06-03T02:00:00.000Z'),
@@ -160,17 +160,17 @@ describe('RunLogger', () => {
     await logger.startRun();
     clearRequests();
     let p = Promise.all([
-      logger.log({
+      logger.addLog({
         type: 'mock-log',
         val: 1,
         date: new Date('2021-06-03T02:00:00.000Z'),
       }),
-      logger.log({
+      logger.addLog({
         type: 'mock-log',
         val: 2,
         date: new Date('2021-06-03T02:00:00.000Z'),
       }),
-      logger.log({
+      logger.addLog({
         type: 'mock-log',
         val: 3,
         date: new Date('2021-06-03T02:00:00.000Z'),
@@ -208,17 +208,17 @@ describe('RunLogger', () => {
     });
     await logger.startRun();
     clearRequests();
-    logger.log({
+    logger.addLog({
       type: 'mock-log',
       val: 1,
       date: new Date('2021-06-03T02:00:00.000Z'),
     });
-    logger.log({
+    logger.addLog({
       type: 'mock-log',
       val: 2,
       date: new Date('2021-06-03T02:00:00.000Z'),
     });
-    logger.log({
+    logger.addLog({
       type: 'mock-log',
       val: 3,
       date: new Date('2021-06-03T02:00:00.000Z'),
