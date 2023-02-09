@@ -22,7 +22,7 @@ type RunEndpoints = {
   logs: string;
 };
 
-export class RunLogger<InputLog extends BaseLog = AnyLog> {
+export class LogClient<InputLog extends BaseLog = AnyLog> {
   #logQueue: Array<InputLog & { date: NonNullable<InputLog['date']> }> = [];
   #resolveLogQueue: (() => void) | null = null;
   #rejectLogQueue: ((error: unknown) => void) | null = null;

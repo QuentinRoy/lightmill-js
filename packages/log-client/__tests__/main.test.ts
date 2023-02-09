@@ -1,4 +1,4 @@
-import { RunLogger } from '../src/main.js';
+import { LogClient } from '../src/main.js';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { afterAll, afterEach, beforeAll } from 'vitest';
 import type { Response as ApiResponse } from '@lightmill/log-server';
@@ -94,7 +94,7 @@ afterEach(() => {
 
 describe('RunLogger', () => {
   it('should send a start request', async () => {
-    const logger = new RunLogger({
+    const logger = new LogClient({
       apiRoot: 'https://server.test/api',
     });
     await logger.startRun();
@@ -108,7 +108,7 @@ describe('RunLogger', () => {
   });
 
   it('should send a start request with parameters', async () => {
-    const logger = new RunLogger({
+    const logger = new LogClient({
       apiRoot: 'https://server.test/api',
       run: 'test-run',
       experiment: 'test-experiment',
@@ -125,7 +125,7 @@ describe('RunLogger', () => {
   });
 
   it('should send one log', async () => {
-    const logger = new RunLogger({
+    const logger = new LogClient({
       apiRoot: 'https://server.test/api',
     });
     await logger.startRun();
@@ -154,7 +154,7 @@ describe('RunLogger', () => {
   });
 
   it('should send batch multiple logs', async () => {
-    const logger = new RunLogger({
+    const logger = new LogClient({
       apiRoot: 'https://server.test/api',
     });
     await logger.startRun();
@@ -203,7 +203,7 @@ describe('RunLogger', () => {
   });
 
   it('should flush', async () => {
-    const logger = new RunLogger({
+    const logger = new LogClient({
       apiRoot: 'https://server.test/api',
     });
     await logger.startRun();
@@ -250,7 +250,7 @@ describe('RunLogger', () => {
   });
 
   it('should complete', async () => {
-    const logger = new RunLogger({
+    const logger = new LogClient({
       apiRoot: 'https://server.test/api',
     });
     await logger.startRun();
@@ -266,7 +266,7 @@ describe('RunLogger', () => {
   });
 
   it('should cancel', async () => {
-    const logger = new RunLogger({
+    const logger = new LogClient({
       apiRoot: 'https://server.test/api',
     });
     await logger.startRun();
