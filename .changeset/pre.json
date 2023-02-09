@@ -6,17 +6,24 @@
     "@lightmill/runner": "3.0.0-alpha.5",
     "@lightmill/static-design": "3.0.0-alpha.5",
     "@lightmill/react-experiment": "0.0.0",
-    "@lightmill/log-server": "0.0.0"
+    "@lightmill/log-server": "0.0.0",
+    "@lightmill/log-client": "0.0.0"
   },
   "changesets": [
+    "angry-gifts-explode",
     "eighty-seas-itch",
     "four-hornets-know",
+    "itchy-apricots-perform",
     "itchy-worms-matter",
+    "large-cats-build",
     "modern-chairs-act",
+    "moody-parrots-agree",
     "pink-news-prove",
     "quick-falcons-play",
     "red-cameras-peel",
+    "six-wolves-flash",
     "stupid-peaches-brush",
+    "tall-mails-explain",
     "tame-tools-battle",
     "three-moose-smile",
     "yellow-lobsters-crash"

@@ -1,5 +1,15 @@
 # @lightmill/react-experiment
 
+## 3.0.0-alpha.13
+
+### Major Changes
+
+- b483585: Rename Experiment to Run to be coherent with log-server's terminology
+
+### Minor Changes
+
+- 0185591: Add logger support
+
 ## 3.0.0-alpha.11
 
 ### Patch Changes
