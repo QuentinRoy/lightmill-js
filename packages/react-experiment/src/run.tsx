@@ -23,14 +23,14 @@ export type RunProps<T extends RegisteredTask> = {
   noConfirmOnUnload?: boolean;
 };
 
+// This component uses explicit return type to prevent the function from
+// returning undefined, which could indicate a state isn't being handled.
 export function Run<T extends RegisteredTask>({
   timeline: timelineProp,
   logger: loggerProp,
   config: { tasks, completed, loading },
   noConfirmOnUnload = false,
-}: RunProps<T>): // Using explicit return type to prevent the function from
-// returning undefined, which could indicate a state isn't being handled.
-JSX.Element | null {
+}: RunProps<T>): JSX.Element | null {
   // Logger and timeline are not controlled. We make sure any change to them
   // is ignored, and the previous value is used instead.
   let timelineRef = React.useRef(timelineProp);
