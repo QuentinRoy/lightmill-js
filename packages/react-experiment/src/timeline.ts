@@ -49,7 +49,6 @@ function timelineReducer<T extends BaseTask>(
         onTaskCompleted: action.onTaskCompleted,
       };
     case 'task-completed':
-      return { status: 'loading', task: null };
     case 'run-completed':
       return { status: 'loading', task: null };
     case 'run-canceled':
@@ -68,49 +67,37 @@ export default function useManagedTimeline<Task extends BaseTask>(
     task: null,
   });
   React.useEffect(() => {
-    const loggerStartRun =
-      logger == null ? null : getCachedLoggerStartRun(logger);
-    if (!timeline) return;
     let hasEnded = false;
-    // Synchronously start the run if we can, otherwise wait for the logger to
-    // connect.
-    let startup = (f: () => Promise<void>) => {
-      if (loggerStartRun == null) return f();
-      dispatch({ type: 'logger-connecting' });
-      return loggerStartRun().then(() => {
-        if (hasEnded) return;
-        return f();
-      });
-    };
-    startup(() => {
-      dispatch({ type: 'run-started' });
-      return run({
+    async function doRun() {
+      if (!timeline) return;
+      if (logger != null) {
+        dispatch({ type: 'logger-connecting' });
+        await getCachedLoggerStartRun(logger);
+      }
+      // Every time we await, we need to check if the timeline has ended during
+      // the await.
+      if (hasEnded) return;
+      await run({
         taskIterator: timeline,
         runTask(task) {
           return new Promise((resolve) => {
-            dispatch({
-              type: 'task-started',
-              task,
-              onTaskCompleted: () => {
-                if (hasEnded) return;
-                dispatch({ type: 'task-completed' });
-                resolve();
-              },
-            });
+            let onTaskCompleted = () => {
+              if (hasEnded) return;
+              dispatch({ type: 'task-completed' });
+              resolve();
+            };
+            dispatch({ type: 'task-started', task, onTaskCompleted });
           });
         },
       });
-    })
-      .then(() => {
-        if (hasEnded) return;
-        dispatch({ type: 'run-completed' });
-        return logger?.flush();
-      })
-      .then(() => {
-        if (hasEnded) return;
-        dispatch({ type: 'logger-flushed' });
-        hasEnded = true;
-      });
+      if (hasEnded) return;
+      dispatch({ type: 'run-completed' });
+      await logger?.flush();
+      if (hasEnded) return;
+      dispatch({ type: 'logger-flushed' });
+      hasEnded = true;
+    }
+    doRun();
     return () => {
       if (!hasEnded) {
         logger?.cancelRun?.();
