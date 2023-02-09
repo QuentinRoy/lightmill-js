@@ -92,7 +92,7 @@ export class LogClient<InputLog extends BaseLog = AnyLog> {
     this.#runStatus = 'running';
   }
 
-  async log(inputLog: InputLog) {
+  async addLog(inputLog: InputLog) {
     if (this.#runStatus !== 'running') {
       throw new Error(
         `Can only add logs to a running run. Run is ${this.#runStatus}`
