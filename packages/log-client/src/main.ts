@@ -48,10 +48,17 @@ export class LogClient<InputLog extends BaseLog = AnyLog> {
     run?: string;
     apiRoot: string;
     requestThrottle?: number;
-  } & (InputLog extends Record<string, JsonValue | Date>
-    ? { serializeLog?: LogSerializer<InputLog> }
+  } & (Exclude<InputLog, AnyLog> extends never
+    ? // We use `Exclude` above to check if any possible `InputLog` is a subset of
+      // `AnyLog`. `InputLog extends AnyLog` would pass even if any but not all
+      // possible values of `InputLog` is a subset of `AnyLog`.
+      // See https://github.com/QuentinRoy/lightmill-js/issues/138.
+      { serializeLog?: LogSerializer<InputLog> }
     : { serializeLog: LogSerializer<InputLog> })) {
-    this.#serializeLog = serializeLog ?? defaultSerialize;
+    // If serializeLog is not provided, we know that InputLog is a subset of
+    // AnyLog, so we can use the default serializer.
+    this.#serializeLog = (serializeLog ??
+      defaultSerialize) as LogSerializer<InputLog>;
     this.#sendLogs = throttle(requestThrottle, this.#doSendLogs.bind(this), {
       noTrailing: false,
       noLeading: true,
