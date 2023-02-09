@@ -1,5 +1,11 @@
 # @lightmill/log-client
 
+## 3.0.0-alpha.14
+
+### Patch Changes
+
+- a0dd9be: Fix main export name: RunLogger -> LogClient
+
 ## 3.0.0-alpha.13
 
 ### Minor Changes
