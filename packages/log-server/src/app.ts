@@ -43,6 +43,13 @@ export function createLogServer({
   store,
   secret,
 }: CreateAppParams): RequestHandler {
+  if (secret == null) {
+    throw new Error('Cannot create log server: secret parameter is required');
+  }
+  if (store == null) {
+    throw new Error('Cannot create log server: store parameter is required');
+  }
+
   let app = express();
   const router = ctx.app(api, { express: app });
 
