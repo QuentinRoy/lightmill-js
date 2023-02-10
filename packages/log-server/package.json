@@ -20,7 +20,7 @@
     "log-server": "./dist/cli.js"
   },
   "scripts": {
-    "build": "tsc -b tsconfig.build.json",
+    "build": "tsc -b tsconfig.build.json --clean && tsc -b tsconfig.build.json",
     "prepublish": "pnpm run build",
     "cli": "tsx ./src/cli.ts",
     "cli-watch": "tsx --watch ./src/cli.ts"
