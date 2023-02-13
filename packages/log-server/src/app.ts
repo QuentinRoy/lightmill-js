@@ -38,10 +38,14 @@ type CreateAppParams = {
   store: Store;
   secret: string;
   adminPassword?: string;
+  allowCrossOrigin?: boolean;
+  secureCookies?: boolean;
 };
 export function createLogServer({
   store,
   secret,
+  allowCrossOrigin = true,
+  secureCookies = allowCrossOrigin,
 }: CreateAppParams): RequestHandler {
   if (secret == null) {
     throw new Error('Cannot create log server: secret parameter is required');
@@ -53,7 +57,14 @@ export function createLogServer({
   let app = express();
   const router = ctx.app(api, { express: app });
 
-  router.use(session({ secret }));
+  router.use(
+    session({
+      secret,
+      sameSite: allowCrossOrigin ? 'none' : 'strict',
+      secure: secureCookies,
+      httpOnly: true,
+    })
+  );
 
   router.post('/sessions', (req, res) => {
     if (req.session?.role != null) {
