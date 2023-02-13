@@ -51,7 +51,7 @@ build/
 !.vscode/tasks.json
 !.vscode/launch.json
 !.vscode/extensions.json
-!.vscode/project.code-workspace
+!.vscode/*.code-workspace
 
 ### Vim ###
 *.sw[a-p]
