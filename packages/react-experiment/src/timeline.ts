@@ -72,7 +72,7 @@ export default function useManagedTimeline<Task extends BaseTask>(
       if (!timeline) return;
       if (logger != null) {
         dispatch({ type: 'logger-connecting' });
-        await getCachedLoggerStartRun(logger);
+        await cachedLoggerStartRun(logger);
       }
       // Every time we await, we need to check if the timeline has ended during
       // the await.
@@ -100,7 +100,10 @@ export default function useManagedTimeline<Task extends BaseTask>(
     doRun();
     return () => {
       if (!hasEnded) {
-        logger?.cancelRun?.();
+        // Note: it might be tempting to call `logger.cancelRun()` here, but
+        // that's not a good idea. The run might be resuming in the future.
+        // This is especially true in development, where the Run component
+        // is often unmounted and remounted.
         dispatch({ type: 'run-canceled' });
       }
       hasEnded = true;
@@ -111,13 +114,11 @@ export default function useManagedTimeline<Task extends BaseTask>(
 }
 
 const cachedLoggerStarts = new WeakMap<Logger, Promise<void>>();
-function getCachedLoggerStartRun(logger: Logger) {
-  return () => {
-    let cachedStart = cachedLoggerStarts.get(logger);
-    if (cachedStart == null) {
-      cachedStart = logger.startRun();
-      cachedLoggerStarts.set(logger, cachedStart);
-    }
-    return cachedStart;
-  };
+function cachedLoggerStartRun(logger: Logger) {
+  let cachedStart = cachedLoggerStarts.get(logger);
+  if (cachedStart == null) {
+    cachedStart = logger.startRun();
+    cachedLoggerStarts.set(logger, cachedStart);
+  }
+  return cachedStart;
 }
