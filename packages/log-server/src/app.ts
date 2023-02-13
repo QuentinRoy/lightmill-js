@@ -3,7 +3,6 @@ import express from 'express';
 import { zodiosContext } from '@zodios/express';
 import { LogFilter, Store } from './store.js';
 import session from 'cookie-session';
-import dotenv from 'dotenv';
 import { SqliteError } from 'better-sqlite3';
 import { NextFunction, Request, RequestHandler, Response } from 'express';
 import { api } from './api.js';
@@ -12,8 +11,6 @@ import { pipeline } from 'stream/promises';
 import log from 'loglevel';
 import z from 'zod';
 import cuid from 'cuid';
-
-dotenv.config();
 
 const ctx = zodiosContext(
   z.object({
@@ -44,6 +41,7 @@ type CreateAppParams = {
 export function createLogServer({
   store,
   secret,
+  adminPassword,
   allowCrossOrigin = true,
   secureCookies = allowCrossOrigin,
 }: CreateAppParams): RequestHandler {
@@ -75,7 +73,7 @@ export function createLogServer({
       return;
     }
     const { role, password } = req.body;
-    if (role === 'admin' && password !== process.env.ADMIN_PASSWORD) {
+    if (role === 'admin' && password !== adminPassword) {
       res.status(403).json({
         status: 'error',
         message: `Forbidden role: ${role}`,
