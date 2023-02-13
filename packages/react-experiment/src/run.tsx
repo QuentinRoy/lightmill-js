@@ -1,14 +1,7 @@
 import * as React from 'react';
-import { RegisteredTask, BaseTask } from './config.js';
-import useManagedTimeline, {
-  Logger,
-  Timeline,
-  TimelineState,
-} from './timeline.js';
-
-export const timelineContext =
-  React.createContext<TimelineState<RegisteredTask> | null>(null);
-export const loggerContext = React.createContext<Logger | null>(null);
+import { RegisteredTask, BaseTask, RegisteredLog } from './config.js';
+import { loggerContext, timelineContext } from './contexts.js';
+import useManagedTimeline, { Logger, Timeline } from './timeline.js';
 
 export type RunConfig<T extends BaseTask = RegisteredTask> = {
   tasks: Record<T['type'], React.ReactElement>;
@@ -20,7 +13,8 @@ export type RunProps<T extends RegisteredTask> = {
   config: RunConfig<T>;
   timeline: Timeline<T>;
   logger?: Logger;
-  noConfirmOnUnload?: boolean;
+  confirmBeforeUnload?: boolean;
+  cancelRunOnUnload?: boolean;
 };
 
 // This component uses explicit return type to prevent the function from
@@ -29,7 +23,8 @@ export function Run<T extends RegisteredTask>({
   timeline: timelineProp,
   logger: loggerProp,
   config: { tasks, completed, loading },
-  noConfirmOnUnload = false,
+  confirmBeforeUnload = true,
+  cancelRunOnUnload = true,
 }: RunProps<T>): JSX.Element | null {
   // Logger and timeline are not controlled. We make sure any change to them
   // is ignored, and the previous value is used instead.
@@ -39,15 +34,55 @@ export function Run<T extends RegisteredTask>({
     timelineRef.current,
     loggerRef.current
   );
+  let [loggerState, setLoggerState] = React.useState<{
+    status: 'error' | 'ok';
+    error?: string;
+  }>({ status: 'ok' });
+
+  let addLog = React.useMemo(() => {
+    if (loggerRef.current == null) return null;
+    let logger = loggerRef.current;
+    return (log: RegisteredLog) => {
+      logger.addLog(log).catch((error) => {
+        if (error instanceof Error) {
+          setLoggerState({ error: error.message, status: 'error' });
+        } else if (typeof error === 'string') {
+          setLoggerState({ error, status: 'error' });
+        } else {
+          setLoggerState({ status: 'error' });
+        }
+      });
+    };
+  }, []);
 
   useConfirmBeforeUnload(
-    !noConfirmOnUnload && timelineState.status !== 'completed'
+    confirmBeforeUnload && timelineState.status !== 'completed'
   );
+
+  // When the page is closed, one may want to mark the run as canceled.
+  React.useEffect(() => {
+    if (!cancelRunOnUnload) return;
+    let unloadHandler = () => {
+      loggerRef.current?.cancelRun?.();
+    };
+    globalThis.addEventListener('unload', unloadHandler);
+    return () => {
+      globalThis.removeEventListener('unload', unloadHandler);
+    };
+  }, [cancelRunOnUnload]);
+
+  if (loggerState.status === 'error') {
+    if (loggerState.error == null) {
+      throw new Error('Could not add log to logger.');
+    } else {
+      throw new Error('Could not add log to logger: ' + loggerState.error);
+    }
+  }
 
   switch (timelineState.status) {
     case 'running':
       return (
-        <loggerContext.Provider value={loggerRef.current}>
+        <loggerContext.Provider value={addLog}>
           <timelineContext.Provider value={timelineState}>
             {tasks[timelineState.task.type as T['type']]}
           </timelineContext.Provider>
@@ -56,7 +91,7 @@ export function Run<T extends RegisteredTask>({
 
     case 'completed':
       return completed == null ? null : (
-        <loggerContext.Provider value={loggerRef.current}>
+        <loggerContext.Provider value={addLog}>
           {completed}
         </loggerContext.Provider>
       );
@@ -68,7 +103,7 @@ export function Run<T extends RegisteredTask>({
     case 'idle':
     case 'canceled':
       return loading == null ? null : (
-        <loggerContext.Provider value={loggerRef.current}>
+        <loggerContext.Provider value={addLog}>
           {loading}
         </loggerContext.Provider>
       );
