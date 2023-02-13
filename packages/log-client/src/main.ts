@@ -188,7 +188,10 @@ export class LogClient<InputLog extends BaseLog = AnyLog> {
     let body: ApiBody<'put', '/experiments/:experiment/runs/:run'> = {
       status,
     };
-    await put(this.#endpoints.run, { body, credentials: 'include' });
+    await put(`${this.#apiRoot}${this.#endpoints.run}`, {
+      body,
+      credentials: 'include',
+    });
     this.#runStatus = status;
   }
 }
