@@ -2,4 +2,4 @@
 '@lightmill/log-server': minor
 ---
 
-Add the allowCrossOrigin parameter.
+Add the allowCrossOrigin and secureCookies parameters.
