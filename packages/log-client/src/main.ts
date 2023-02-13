@@ -33,7 +33,7 @@ export class LogClient<InputLog extends BaseLog = AnyLog> {
   #apiRoot: string;
 
   // If the run is started, these will be set. Otherwise, they will be null.
-  #sendLogs: throttle<() => void>;
+  #postLogs: throttle<() => void>;
   #runStatus: 'idle' | 'running' | 'completed' | 'canceled' = 'idle';
   #endpoints: RunEndpoints | null = null;
 
@@ -59,13 +59,17 @@ export class LogClient<InputLog extends BaseLog = AnyLog> {
     // AnyLog, so we can use the default serializer.
     this.#serializeLog = (serializeLog ??
       defaultSerialize) as LogSerializer<InputLog>;
-    this.#sendLogs = throttle(requestThrottle, this.#doSendLogs.bind(this), {
-      noTrailing: false,
-      noLeading: true,
-    });
+    this.#postLogs = throttle(
+      requestThrottle,
+      this.#unthrottledPostLogs.bind(this),
+      {
+        noTrailing: false,
+        noLeading: true,
+      }
+    );
     this.#experiment = experiment;
     this.#run = run;
-    this.#apiRoot = apiRoot.endsWith('/') ? apiRoot : apiRoot + '/';
+    this.#apiRoot = apiRoot.endsWith('/') ? apiRoot.slice(0, -1) : apiRoot;
   }
 
   #isStarting = false;
@@ -83,11 +87,11 @@ export class LogClient<InputLog extends BaseLog = AnyLog> {
       experiment: this.#experiment,
       id: this.#run,
     };
-    let url = `${this.#apiRoot}experiments/runs`;
-    let { links } = (await post(url, { body })) as ApiResponse<
-      'post',
-      '/experiments/runs'
-    >; // We trust the server to return the correct type.
+    let url = `${this.#apiRoot}/experiments/runs`;
+    let { links } = (await post(url, {
+      body,
+      credentials: 'include',
+    })) as ApiResponse<'post', '/experiments/runs'>; // We trust the server to return the correct type.
     this.#endpoints = links;
     this.#runStatus = 'running';
   }
@@ -112,11 +116,11 @@ export class LogClient<InputLog extends BaseLog = AnyLog> {
       });
       promise = this.#logQueuePromise;
     }
-    this.#sendLogs();
+    this.#postLogs();
     await promise;
   }
 
-  async #doSendLogs() {
+  async #unthrottledPostLogs() {
     if (this.#rejectLogQueue == null || this.#resolveLogQueue == null) {
       throw new Error('Sending logs without a promise');
     }
@@ -146,7 +150,10 @@ export class LogClient<InputLog extends BaseLog = AnyLog> {
       logs,
     };
     try {
-      await post(this.#endpoints.logs, { body });
+      await post(`${this.#apiRoot}${this.#endpoints.logs}`, {
+        body,
+        credentials: 'include',
+      });
       resolve();
     } catch (error) {
       reject(error);
@@ -155,8 +162,8 @@ export class LogClient<InputLog extends BaseLog = AnyLog> {
 
   async flush() {
     if (this.#logQueue.length > 1) {
-      this.#sendLogs.cancel({ upcomingOnly: true });
-      await this.#doSendLogs();
+      this.#postLogs.cancel({ upcomingOnly: true });
+      await this.#unthrottledPostLogs();
     }
   }
 
@@ -181,7 +188,10 @@ export class LogClient<InputLog extends BaseLog = AnyLog> {
     let body: ApiBody<'put', '/experiments/:experiment/runs/:run'> = {
       status,
     };
-    await put(this.#endpoints.run, { body });
+    await put(`${this.#apiRoot}${this.#endpoints.run}`, {
+      body,
+      credentials: 'include',
+    });
     this.#runStatus = status;
   }
 }

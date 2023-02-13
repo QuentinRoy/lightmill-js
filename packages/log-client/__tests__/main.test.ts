@@ -28,8 +28,8 @@ const server = setupServer(
           run: 'run-id',
           experiment: 'experiment-id',
           links: {
-            logs: 'https://server.test/api/experiments/experiment-id/runs/run-id/logs',
-            run: 'https://server.test/api/experiments/experiment-id/runs/run-id',
+            logs: '/experiments/experiment-id/runs/run-id/logs',
+            run: '/experiments/experiment-id/runs/run-id',
           },
         } satisfies ApiResponse<'post', '/experiments/runs'>)
       );
