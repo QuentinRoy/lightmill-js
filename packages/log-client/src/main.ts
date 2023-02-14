@@ -3,7 +3,6 @@ import type {
   Response as ApiResponse,
 } from '@lightmill/log-server';
 import { throttle } from 'throttle-debounce';
-import { mapValues } from 'remeda';
 import type { JsonValue } from 'type-fest';
 
 interface BaseLog {
@@ -11,7 +10,7 @@ interface BaseLog {
   date?: Date;
 }
 
-type AnyLog = Record<string, JsonValue | Date> & BaseLog;
+type AnyLog = Record<string, JsonValue | Date | undefined> & BaseLog;
 
 type LogSerializer<InputLog extends BaseLog> = (
   i: InputLog & { date: NonNullable<InputLog['date']> }
@@ -196,15 +195,20 @@ export class LogClient<InputLog extends BaseLog = AnyLog> {
   }
 }
 
-function defaultSerialize(
-  obj: Record<string | number | symbol, JsonValue | Date> & { type: string }
-) {
-  return mapValues(obj, (value: JsonValue | Date) => {
+function defaultSerialize(obj: AnyLog) {
+  let result: Record<string | number | symbol, JsonValue> & { type: string } = {
+    type: obj.type,
+  };
+  // I am not using for ... of to avoid the need for the regenerator
+  // runtime in older browsers.
+  Object.entries(obj).forEach(([key, value]) => {
     if (value instanceof Date) {
-      return value.toISOString();
+      result[key] = value.toISOString();
+    } else if (value !== undefined) {
+      result[key] = value;
     }
-    return value;
-  }) as Record<string | number | symbol, JsonValue> & { type: string };
+  });
+  return result;
 }
 
 type JsonFetchUrl = string | URL;
