@@ -31,7 +31,7 @@ const ctx = zodiosContext(
   })
 );
 
-type CreateAppParams = {
+type CreateLogServerOptions = {
   store: Store;
   secret: string;
   adminPassword?: string;
@@ -44,7 +44,7 @@ export function createLogServer({
   adminPassword,
   allowCrossOrigin = true,
   secureCookies = allowCrossOrigin,
-}: CreateAppParams): RequestHandler {
+}: CreateLogServerOptions): RequestHandler {
   if (secret == null) {
     throw new Error('Cannot create log server: secret parameter is required');
   }
@@ -73,7 +73,11 @@ export function createLogServer({
       return;
     }
     const { role, password } = req.body;
-    if (role === 'admin' && password !== adminPassword) {
+    if (
+      role === 'admin' &&
+      adminPassword != null &&
+      password !== adminPassword
+    ) {
       res.status(403).json({
         status: 'error',
         message: `Forbidden role: ${role}`,
