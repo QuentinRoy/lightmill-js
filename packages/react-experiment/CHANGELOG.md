@@ -1,5 +1,11 @@
 # @lightmill/react-experiment
 
+## 3.0.0-alpha.15
+
+### Major Changes
+
+- f2a2a74: Change API: fix run being canceled on unmount, rename useLog to useLogger, remove noConfirmOnUnload Run prop, add confirmBeforeUnload and cancelRunOnUnload Run props
+
 ## 3.0.0-alpha.13
 
 ### Major Changes

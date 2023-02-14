@@ -1,5 +1,17 @@
 # @lightmill/log-server
 
+## 3.0.0-alpha.15
+
+### Minor Changes
+
+- f8328fb: Add the allowCrossOrigin and secureCookies parameters.
+
+### Patch Changes
+
+- fcc80ac: Fix adminPassword parameter not being used to login as admin (the env variable was used instead)
+- 28ca982: Prevents admin login if no admin password was provided
+- fdbab0f: Improve error messages when using createLogServer without the required arguments.
+
 ## 3.0.0-alpha.13
 
 ### Major Changes
