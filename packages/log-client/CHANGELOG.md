@@ -1,5 +1,25 @@
 # @lightmill/log-client
 
+## 3.0.0-alpha.15
+
+### Major Changes
+
+- 64594f3: Rename the log method to addLog to match react-experiment's Logger type.
+
+### Minor Changes
+
+- f5fc857: Ignore undefined log props
+
+### Patch Changes
+
+- c9b3ef1: Fix post log url and request authentications (include credentials in requests)
+- 8e9fa76: Prevent RunClient to be created without knowing how to serialize all the type of logs it accepts.
+- Updated dependencies [fcc80ac]
+- Updated dependencies [f8328fb]
+- Updated dependencies [28ca982]
+- Updated dependencies [fdbab0f]
+  - @lightmill/log-server@3.0.0-alpha.15
+
 ## 3.0.0-alpha.14
 
 ### Patch Changes
