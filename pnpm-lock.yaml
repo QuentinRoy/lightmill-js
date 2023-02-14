@@ -50,14 +50,12 @@ importers:
       cross-env: ^7.0.3
       cross-fetch: ^3.1.5
       msw: ^1.0.0
-      remeda: ^1.4.0
       throttle-debounce: ^5.0.0
       type-fest: ^3.5.3
       typescript: 4.9.4
       vitest: ^0.27.2
     dependencies:
       '@lightmill/log-server': link:../log-server
-      remeda: 1.6.0
       throttle-debounce: 5.0.0
     devDependencies:
       '@types/throttle-debounce': 5.0.0

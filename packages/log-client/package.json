@@ -22,7 +22,6 @@
   },
   "dependencies": {
     "@lightmill/log-server": "workspace:*",
-    "remeda": "^1.4.0",
     "throttle-debounce": "^5.0.0"
   },
   "scripts": {
