@@ -20,6 +20,7 @@ const Role = z.enum(['admin', 'participant']);
 const LogParameter = z.object({
   type: z.string(),
   values: JsonObject,
+  date: z.string().datetime(),
 });
 
 export const api = makeApi([
@@ -125,16 +126,8 @@ export const api = makeApi([
     parameters: [
       {
         schema: z.union([
-          z
-            .object({
-              log: LogParameter.strict(),
-            })
-            .strict(),
-          z
-            .object({
-              logs: z.array(LogParameter.strict()),
-            })
-            .strict(),
+          z.object({ log: LogParameter.strict() }).strict(),
+          z.object({ logs: z.array(LogParameter.strict()) }).strict(),
         ]),
         name: 'body',
         type: 'Body',

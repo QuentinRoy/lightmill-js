@@ -31,6 +31,7 @@ type LogTable = {
   runId: string;
   type: string;
   createdAt: string;
+  clientDate?: string;
 };
 type LogValueTable = {
   logId: bigint;
@@ -120,6 +121,7 @@ export class Store {
     runId: string,
     logs: Array<{
       type: string;
+      date: Date;
       values: JsonObject;
     }>
   ) {
@@ -129,8 +131,14 @@ export class Store {
         await trx
           .insertInto('log')
           .values(
-            logs.map(({ type }) => {
-              return { type, runId, experimentId, createdAt };
+            logs.map(({ type, date }) => {
+              return {
+                type,
+                runId,
+                experimentId,
+                createdAt,
+                clientDate: date.toISOString(),
+              };
             })
           )
           .returning(['logId', 'type'])
@@ -157,17 +165,17 @@ export class Store {
   async getLogValueNames(filter: LogFilter = {}) {
     let result = await this.#db
       .selectFrom('logValue')
-      .if(filter.experiment != null, (qb) =>
+      .$if(filter.experiment != null, (qb) =>
         qb
           .innerJoin('log', 'log.logId', 'logValue.logId')
           .where('log.experimentId', 'in', arrayify(filter.experiment, true))
       )
-      .if(filter.run != null, (qb) =>
+      .$if(filter.run != null, (qb) =>
         qb
           .innerJoin('log', 'log.logId', 'logValue.logId')
           .where('log.runId', 'in', arrayify(filter.run, true))
       )
-      .if(filter.type != null, (qb) =>
+      .$if(filter.type != null, (qb) =>
         qb
           .innerJoin('log', 'log.logId', 'logValue.logId')
           .where('log.type', 'in', arrayify(filter.type, true))
@@ -183,21 +191,27 @@ export class Store {
     let result = await this.#db
       .selectFrom('logValue')
       .innerJoin('log', 'log.logId', 'logValue.logId')
-      .if(filter.experiment != null, (qb) =>
+      .$if(filter.experiment != null, (qb) =>
         qb.where('log.experimentId', 'in', arrayify(filter.experiment, true))
       )
-      .if(filter.run != null, (qb) =>
+      .$if(filter.run != null, (qb) =>
         qb.where('log.runId', 'in', arrayify(filter.run, true))
       )
-      .if(filter.type != null, (qb) =>
+      .$if(filter.type != null, (qb) =>
         qb.where('log.type', 'in', arrayify(filter.type, true))
       )
-      .orderBy('logValue.logId')
+      .orderBy('log.experimentId')
+      .orderBy('log.runId')
+      .orderBy('log.type')
+      .orderBy('log.clientDate')
+      .orderBy('log.createdAt')
+      .orderBy('log.logId')
       .select([
         'log.experimentId as experimentId',
         'log.runId as runId',
         'log.logId as logId',
         'log.type as logType',
+        'log.clientDate as logClientDate',
         'log.createdAt as logCreatedAt',
         'logValue.name',
         'logValue.value',
@@ -216,6 +230,9 @@ export class Store {
           runId: row.runId,
           type: row.logType,
           createdAt: new Date(row.logCreatedAt),
+          clientDate: row.logClientDate
+            ? new Date(row.logClientDate)
+            : undefined,
           values: {} as JsonObject,
         };
         currentLogId = row.logId;
@@ -273,5 +290,6 @@ export type Log = {
   runId: string;
   type: string;
   createdAt: Date;
+  clientDate?: Date;
   values: JsonObject;
 };
