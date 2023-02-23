@@ -84,7 +84,7 @@ export function createLogServer({
       });
     }
     req.session = { role, runs: [] };
-    res.status(200).json({ status: 'ok', role, runs: [] });
+    res.status(201).json({ status: 'ok', role, runs: [] });
   });
 
   router.get('/sessions/current', (req, res) => {
@@ -139,7 +139,7 @@ export function createLogServer({
       };
       await store.addRun(run);
       req.session.runs.push({ runId, experimentId });
-      res.status(200).json({
+      res.status(201).json({
         status: 'ok',
         run: runId,
         experiment: experimentId,
@@ -234,8 +234,12 @@ export function createLogServer({
           return;
         }
         let logs = 'logs' in req.body ? req.body.logs : [req.body.log];
-        await store.addRunLogs(experimentId, runId, logs);
-        res.status(200).json({ status: 'ok' });
+        await store.addRunLogs(
+          experimentId,
+          runId,
+          logs.map((l) => ({ ...l, date: new Date(l.date) }))
+        );
+        res.status(201).json({ status: 'ok' });
       } catch (e) {
         next(e);
       }

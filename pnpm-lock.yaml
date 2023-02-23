@@ -110,7 +110,7 @@ importers:
       express: 4.18.2
       kysely: 0.23.4
       loglevel: 1.8.1
-      remeda: 1.6.0
+      remeda: 1.6.1
       yargs: 17.6.2
       zod: 3.20.2
     devDependencies:
@@ -6508,8 +6508,8 @@ packages:
       jsesc: 0.5.0
     dev: true
 
-  /remeda/1.6.0:
-    resolution: {integrity: sha512-2NBGJZrwWeqAY+Tzo66FyBYyW0CmMFh0tCg97T8G76krXmI45j/EK1oy+5WYrl2j7oPbgRkN6loGIiliiquvxg==}
+  /remeda/1.6.1:
+    resolution: {integrity: sha512-ywn4Tv2cPBj6hk0TEYMHusWVXu72yJNCaWUdMK7kc7x/PjQPBSvtMbmBWP4PQH791kpl3rPBe3ZVkJyPj3c+0g==}
     dev: false
 
   /require-directory/2.1.1:

@@ -14,7 +14,7 @@ type AnyLog = Record<string, JsonValue | Date | undefined> & BaseLog;
 
 type LogSerializer<InputLog extends BaseLog> = (
   i: InputLog & { date: NonNullable<InputLog['date']> }
-) => Record<string, JsonValue> & { type: string };
+) => Record<string, JsonValue> & { type: string; date: string };
 
 type RunEndpoints = {
   run: string;
@@ -141,13 +141,11 @@ export class LogClient<InputLog extends BaseLog = AnyLog> {
       return;
     }
     let logs = logQueue.map((log) => {
-      let { type, ...values } = this.#serializeLog(log);
-      return { type, values };
+      let { type, date, ...values } = this.#serializeLog(log);
+      return { type, date, values };
     });
-
-    let body: ApiBody<'post', '/experiments/:experiment/runs/:run/logs'> = {
-      logs,
-    };
+    type Body = ApiBody<'post', '/experiments/:experiment/runs/:run/logs'>;
+    let body: Body = { logs };
     try {
       await post(`${this.#apiRoot}${this.#endpoints.logs}`, {
         body,

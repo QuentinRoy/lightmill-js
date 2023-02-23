@@ -4,10 +4,16 @@ import { mapKeys, pickBy, pipe } from 'remeda';
 import { Log, Store } from './store.js';
 import { toSnakeCase } from './utils.js';
 
-const logColumns: Array<keyof Log> = ['type', 'experimentId', 'runId'];
+const logColumns: Array<keyof Log> = [
+  'type',
+  'experimentId',
+  'runId',
+  'clientDate',
+];
 const renamedLogColumns: Partial<Record<keyof Log, string>> = {
   experimentId: 'experiment',
   runId: 'run',
+  clientDate: 'date',
 };
 
 export function csvExportStream(

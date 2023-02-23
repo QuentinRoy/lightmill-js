@@ -145,7 +145,8 @@ describe('RunLogger', () => {
           logs: [
             {
               type: 'mock-log',
-              values: { val: 1, date: '2021-06-03T02:00:00.000Z' },
+              date: '2021-06-03T02:00:00.000Z',
+              values: { val: 1 },
             },
           ],
         },
@@ -186,15 +187,18 @@ describe('RunLogger', () => {
           logs: [
             {
               type: 'mock-log',
-              values: { val: 1, date: '2021-06-03T02:00:00.000Z' },
+              date: '2021-06-03T02:00:00.000Z',
+              values: { val: 1 },
             },
             {
               type: 'mock-log',
-              values: { val: 2, date: '2021-06-03T02:00:00.000Z' },
+              date: '2021-06-03T02:00:00.000Z',
+              values: { val: 2 },
             },
             {
               type: 'mock-log',
-              values: { val: 3, date: '2021-06-03T02:00:00.000Z' },
+              date: '2021-06-03T02:00:00.000Z',
+              values: { val: 3 },
             },
           ],
         },
@@ -233,15 +237,18 @@ describe('RunLogger', () => {
           logs: [
             {
               type: 'mock-log',
-              values: { val: 1, date: '2021-06-03T02:00:00.000Z' },
+              date: '2021-06-03T02:00:00.000Z',
+              values: { val: 1 },
             },
             {
               type: 'mock-log',
-              values: { val: 2, date: '2021-06-03T02:00:00.000Z' },
+              date: '2021-06-03T02:00:00.000Z',
+              values: { val: 2 },
             },
             {
               type: 'mock-log',
-              values: { val: 3, date: '2021-06-03T02:00:00.000Z' },
+              date: '2021-06-03T02:00:00.000Z',
+              values: { val: 3 },
             },
           ],
         },
