@@ -1,5 +1,17 @@
 # @lightmill/log-client
 
+## 3.0.0-alpha.16
+
+### Major Changes
+
+- d082fc5: Fix log export sorting. Log server's log push now requires a date property. Log client's log now also requires a date property.
+
+### Patch Changes
+
+- Updated dependencies [e06205c]
+- Updated dependencies [d082fc5]
+  - @lightmill/log-server@3.0.0-alpha.16
+
 ## 3.0.0-alpha.15
 
 ### Major Changes

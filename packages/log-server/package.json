@@ -1,6 +1,6 @@
 {
   "name": "@lightmill/log-server",
-  "version": "3.0.0-alpha.15",
+  "version": "3.0.0-alpha.16",
   "description": "Server, and middleware to receive, store and export lightmill logs",
   "author": "Quentin Roy <contact@quentinroy.fr>",
   "license": "MIT",
