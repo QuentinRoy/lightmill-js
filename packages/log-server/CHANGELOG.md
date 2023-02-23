@@ -1,5 +1,12 @@
 # @lightmill/log-server
 
+## 3.0.0-alpha.16
+
+### Major Changes
+
+- e06205c: Use accept header instead of querystring argument to specify expected log export format (csv/json).
+- d082fc5: Fix log export sorting. Log server's log push now requires a date property. Log client's log now also requires a date property.
+
 ## 3.0.0-alpha.15
 
 ### Minor Changes
