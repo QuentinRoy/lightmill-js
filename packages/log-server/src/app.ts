@@ -255,7 +255,20 @@ export function createLogServer({
         });
         return;
       }
-      let { format, type } = req.query;
+      let { type } = req.query;
+      let format = 'json';
+      let acceptHeader = req.header('Accept');
+      if (acceptHeader != null) {
+        for (let accept of acceptHeader.split(',')) {
+          if (accept.includes('csv')) {
+            format = 'csv';
+            break;
+          } else if (accept.includes('json')) {
+            format = 'json';
+            break;
+          }
+        }
+      }
       let { experiment } = req.params ?? {};
       let filter: LogFilter = {
         experiment: experiment == null ? undefined : String(experiment),

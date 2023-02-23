@@ -145,11 +145,6 @@ export const api = makeApi([
         type: 'Query',
         schema: z.union([z.string(), z.array(z.string())]).optional(),
       },
-      {
-        name: 'format',
-        type: 'Query',
-        schema: z.union([z.literal('csv'), z.literal('json')]).default('json'),
-      },
     ],
     response: z.union([z.array(JsonObject), z.string()]),
     errors: [{ status: 403, schema: ErrorResponse.strict() }],
