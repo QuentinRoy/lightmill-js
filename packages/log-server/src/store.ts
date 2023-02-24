@@ -14,7 +14,7 @@ import {
 import { JsonObject } from 'type-fest';
 import loglevel, { LogLevelDesc } from 'loglevel';
 import { arrayify } from './utils.js';
-import { groupBy } from 'remeda';
+import { pipe, sortBy } from 'remeda';
 
 const __dirname = url.fileURLToPath(new URL('.', import.meta.url));
 const migrationFolder = path.join(__dirname, 'db-migrations');
@@ -32,6 +32,9 @@ type LogTable = {
   type: string;
   createdAt: string;
   clientDate?: string;
+  // batchOrder records the order in which the logs were sent by the client
+  // in a single request. This is used to sort logs with the same clientDate.
+  batchOrder?: number;
 };
 type LogValueTable = {
   logId: bigint;
@@ -127,34 +130,33 @@ export class Store {
   ) {
     await this.#db.transaction().execute(async (trx) => {
       let createdAt = new Date().toISOString();
-      let dbLogGroups = groupBy(
+      let dbLogs = pipe(
         await trx
           .insertInto('log')
           .values(
-            logs.map(({ type, date }) => {
+            logs.map(({ type, date }, i) => {
               return {
                 type,
                 runId,
                 experimentId,
                 createdAt,
                 clientDate: date.toISOString(),
+                batchOrder: i,
               };
             })
           )
-          .returning(['logId', 'type'])
+          .returning(['logId', 'batchOrder'])
           .execute(),
-        (log) => log.type
+        sortBy((log) => log.batchOrder ?? 0)
       );
 
       // Bulk insert returning values does not guarantee order, so we need to
       // match the log values logs to returned log ids.
       let dbValues = [];
       for (let log of logs) {
-        let dbLog = dbLogGroups[log.type].pop();
+        let dbLog = dbLogs.shift();
         if (dbLog == null) {
-          throw new Error(
-            `failed to find an unassigned inserted log with type "${log.type}"`
-          );
+          throw new Error(`could not insert log values: log was not inserted`);
         }
         dbValues.push(...deconstructValues(log.values, { logId: dbLog.logId }));
       }
@@ -205,7 +207,7 @@ export class Store {
       .orderBy('log.type')
       .orderBy('log.clientDate')
       .orderBy('log.createdAt')
-      .orderBy('log.logId')
+      .orderBy('log.batchOrder')
       .select([
         'log.experimentId as experimentId',
         'log.runId as runId',
