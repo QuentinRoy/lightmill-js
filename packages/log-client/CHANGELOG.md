@@ -1,5 +1,12 @@
 # @lightmill/log-client
 
+## 3.0.0-alpha.17
+
+### Patch Changes
+
+- Updated dependencies [dcf8977]
+  - @lightmill/log-server@3.0.0-alpha.17
+
 ## 3.0.0-alpha.16
 
 ### Major Changes

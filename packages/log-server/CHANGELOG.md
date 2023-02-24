@@ -1,5 +1,11 @@
 # @lightmill/log-server
 
+## 3.0.0-alpha.17
+
+### Major Changes
+
+- dcf8977: Fix bach log's date and ordering. Requires db migration.
+
 ## 3.0.0-alpha.16
 
 ### Major Changes
