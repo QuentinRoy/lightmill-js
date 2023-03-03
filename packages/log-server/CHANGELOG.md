@@ -1,5 +1,11 @@
 # @lightmill/log-server
 
+## 3.0.0-alpha.18
+
+### Major Changes
+
+- e389d54: Stop adding a created_at column to the export
+
 ## 3.0.0-alpha.17
 
 ### Major Changes
