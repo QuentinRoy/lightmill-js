@@ -15,6 +15,7 @@ const renamedLogColumns: Partial<Record<keyof Log, string>> = {
   runId: 'run',
   clientDate: 'date',
 };
+const ignoredLogValues: Array<keyof Log> = ['createdAt', 'values'];
 
 export function csvExportStream(
   store: Store,
@@ -24,12 +25,12 @@ export function csvExportStream(
   return pipeline(
     async function* () {
       let valueColumns = await store.getLogValueNames(filter);
-      let logColumnFilter = (columnName: string) =>
+      let logColumnFilter = (columnName: keyof Log) =>
         !valueColumns.includes(columnName) &&
         (filter?.type == null || columnName !== 'type') &&
         (filter?.experiment == null || columnName !== 'experimentId') &&
         (filter?.run == null || columnName !== 'runId') &&
-        columnName !== 'values';
+        !ignoredLogValues.includes(columnName);
       let columns = [
         ...logColumns
           .filter(logColumnFilter)
