@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import * as url from 'node:url';
-import SQliteDB from 'better-sqlite3';
+import SQliteDB, { SqliteError } from 'better-sqlite3';
 import {
   Kysely,
   FileMigrationProvider,
@@ -78,17 +78,30 @@ export class Store {
     experimentId: string;
     createdAt: Date;
   }) {
-    let result = await this.#db
-      .insertInto('run')
-      .values({
-        runId,
-        experimentId,
-        createdAt: createdAt.toISOString(),
-        status: 'running',
-      })
-      .returning(['runId', 'experimentId'])
-      .executeTakeFirstOrThrow();
-    return { runId: result.runId, experimentId: result.experimentId };
+    try {
+      let result = await this.#db
+        .insertInto('run')
+        .values({
+          runId,
+          experimentId,
+          createdAt: createdAt.toISOString(),
+          status: 'running',
+        })
+        .returning(['runId', 'experimentId'])
+        .executeTakeFirstOrThrow();
+      return { runId: result.runId, experimentId: result.experimentId };
+    } catch (e) {
+      if (
+        e instanceof SqliteError &&
+        e.code === 'SQLITE_CONSTRAINT_PRIMARYKEY'
+      ) {
+        throw new StoreError(
+          `run "${runId}" already exists for experiment "${experimentId}".`,
+          'RUN_EXISTS'
+        );
+      }
+      throw e;
+    }
   }
 
   async getRun(experimentId: string, runId: string) {
@@ -295,3 +308,15 @@ export type Log = {
   clientDate?: Date;
   values: JsonObject;
 };
+
+type StoreErrorCode = 'RUN_EXISTS';
+export class StoreError extends Error {
+  code: StoreErrorCode;
+  cause?: Error;
+  constructor(message: string, code: StoreErrorCode, cause?: Error) {
+    super(message);
+    this.name = 'StoreError';
+    this.code = code;
+    this.cause = cause;
+  }
+}
