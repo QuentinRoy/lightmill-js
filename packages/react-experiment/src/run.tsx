@@ -7,6 +7,7 @@ export type RunConfig<T extends BaseTask = RegisteredTask> = {
   tasks: Record<T['type'], React.ReactElement>;
   loading?: React.ReactElement;
   completed?: React.ReactElement;
+  crashed?: React.ReactElement;
 };
 
 export type RunProps<T extends RegisteredTask> = {
@@ -22,7 +23,7 @@ export type RunProps<T extends RegisteredTask> = {
 export function Run<T extends RegisteredTask>({
   timeline: timelineProp,
   logger: loggerProp,
-  config: { tasks, completed, loading },
+  config: { tasks, completed, loading, crashed },
   confirmBeforeUnload = true,
   cancelRunOnUnload = true,
 }: RunProps<T>): JSX.Element | null {
@@ -106,6 +107,13 @@ export function Run<T extends RegisteredTask>({
         <loggerContext.Provider value={addLog}>
           {loading}
         </loggerContext.Provider>
+      );
+    case 'crashed':
+      if (crashed == null) throw timelineState.error;
+      return (
+        <timelineContext.Provider value={timelineState}>
+          {crashed}
+        </timelineContext.Provider>
       );
   }
 }
