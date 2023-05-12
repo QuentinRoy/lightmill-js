@@ -1,5 +1,11 @@
 # @lightmill/log-server
 
+## 3.0.0-beta.19
+
+### Patch Changes
+
+- e3c47af: fix crashes when trying to create a run that already exists
+
 ## 3.0.0-alpha.18
 
 ### Major Changes

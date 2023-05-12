@@ -1,5 +1,12 @@
 # @lightmill/log-client
 
+## 3.0.0-beta.19
+
+### Patch Changes
+
+- Updated dependencies [e3c47af]
+  - @lightmill/log-server@3.0.0-beta.19
+
 ## 3.0.0-alpha.18
 
 ### Patch Changes
