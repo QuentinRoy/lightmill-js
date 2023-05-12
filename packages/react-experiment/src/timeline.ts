@@ -9,7 +9,8 @@ export type TimelineState<Task extends BaseTask> =
   | { status: 'loading'; task: null }
   | { status: 'idle'; task: null }
   | { status: 'canceled'; task: null }
-  | { status: 'running'; task: Task; onTaskCompleted: () => void };
+  | { status: 'running'; task: Task; onTaskCompleted: () => void }
+  | { status: 'crashed'; task: null; error: Error };
 
 export type Timeline<Task extends BaseTask> =
   | Iterator<Task>
@@ -24,7 +25,8 @@ type TimelineAction<T> =
   | { type: 'task-completed' }
   | { type: 'run-completed' }
   | { type: 'run-canceled' }
-  | { type: 'logger-flushed' };
+  | { type: 'logger-flushed' }
+  | { type: 'logger-error'; error: Error };
 
 export type Logger = {
   startRun(): Promise<void>;
@@ -55,6 +57,8 @@ function timelineReducer<T extends BaseTask>(
       return { status: 'canceled', task: null };
     case 'logger-flushed':
       return { status: 'completed', task: null };
+    case 'logger-error':
+      return { status: 'crashed', task: null, error: action.error };
   }
 }
 
@@ -72,7 +76,11 @@ export default function useManagedTimeline<Task extends BaseTask>(
       if (!timeline) return;
       if (logger != null) {
         dispatch({ type: 'logger-connecting' });
-        await cachedLoggerStartRun(logger);
+        await cachedLoggerStartRun(logger).catch((error) => {
+          if (hasEnded) return;
+          dispatch({ type: 'logger-error', error });
+          hasEnded = true;
+        });
       }
       // Every time we await, we need to check if the timeline has ended during
       // the await.
@@ -113,6 +121,10 @@ export default function useManagedTimeline<Task extends BaseTask>(
   return state;
 }
 
+// It is important to cache the start of the logger because we don't want to
+// start the same run multiple times, which would be refused by the log server.
+// This is especially important in development, where the Run component is
+// often unmounted and remounted.
 const cachedLoggerStarts = new WeakMap<Logger, Promise<void>>();
 function cachedLoggerStartRun(logger: Logger) {
   let cachedStart = cachedLoggerStarts.get(logger);
