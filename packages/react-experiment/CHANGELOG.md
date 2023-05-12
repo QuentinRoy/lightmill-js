@@ -1,5 +1,11 @@
 # @lightmill/react-experiment
 
+## 3.0.0-beta.19
+
+### Minor Changes
+
+- 6753790: manage logger errors, add Run's error property, and add useError hook
+
 ## 3.0.0-alpha.15
 
 ### Major Changes
