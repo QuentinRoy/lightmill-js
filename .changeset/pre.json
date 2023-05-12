@@ -1,13 +1,13 @@
 {
   "mode": "pre",
-  "tag": "alpha",
+  "tag": "beta",
   "initialVersions": {
-    "@lightmill/convert-touchstone": "3.0.0-alpha.6",
-    "@lightmill/runner": "3.0.0-alpha.5",
-    "@lightmill/static-design": "3.0.0-alpha.5",
-    "@lightmill/react-experiment": "0.0.0",
-    "@lightmill/log-server": "0.0.0",
-    "@lightmill/log-client": "0.0.0"
+    "@lightmill/convert-touchstone": "3.0.0-alpha.8",
+    "@lightmill/log-client": "3.0.0-alpha.18",
+    "@lightmill/log-server": "3.0.0-alpha.18",
+    "@lightmill/react-experiment": "3.0.0-alpha.15",
+    "@lightmill/runner": "3.0.0-alpha.10",
+    "@lightmill/static-design": "3.0.0-alpha.6"
   },
   "changesets": [
     "angry-gifts-explode",
