@@ -1,9 +1,8 @@
 /* eslint-disable @typescript-eslint/no-namespace */
 import express from 'express';
 import { zodiosContext } from '@zodios/express';
-import { LogFilter, Store } from './store.js';
+import { LogFilter, Store, StoreError } from './store.js';
 import session from 'cookie-session';
-import { SqliteError } from 'better-sqlite3';
 import { NextFunction, Request, RequestHandler, Response } from 'express';
 import { api } from './api.js';
 import { csvExportStream, jsonExportStream } from './export.js';
@@ -149,11 +148,10 @@ export function createLogServer({
         },
       });
     } catch (e) {
-      if (e instanceof SqliteError && e.code === 'SQLITE_CONSTRAINT') {
+      if (e instanceof StoreError && e.code === 'RUN_EXISTS') {
         res.status(400).json({
           status: 'error',
-          message:
-            'Could not add run, probably because a run with that ID already exists for this experiment',
+          message: e.message,
         });
         return;
       }
