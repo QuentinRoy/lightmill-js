@@ -16,6 +16,7 @@ export type RunProps<T extends RegisteredTask> = {
   logger?: Logger;
   confirmBeforeUnload?: boolean;
   cancelRunOnUnload?: boolean;
+  completeRunOnCompletion?: boolean;
 };
 
 // This component uses explicit return type to prevent the function from
@@ -26,6 +27,7 @@ export function Run<T extends RegisteredTask>({
   config: { tasks, completed, loading, crashed },
   confirmBeforeUnload = true,
   cancelRunOnUnload = true,
+  completeRunOnCompletion = true,
 }: RunProps<T>): JSX.Element | null {
   // Logger and timeline are not controlled. We make sure any change to them
   // is ignored, and the previous value is used instead.
@@ -33,7 +35,8 @@ export function Run<T extends RegisteredTask>({
   let loggerRef = React.useRef(loggerProp ?? null);
   let timelineState = useManagedTimeline(
     timelineRef.current,
-    loggerRef.current
+    loggerRef.current,
+    { cancelRunOnUnload, completeRunOnCompletion }
   );
   let [loggerState, setLoggerState] = React.useState<{
     status: 'error' | 'ok';
@@ -59,18 +62,6 @@ export function Run<T extends RegisteredTask>({
   useConfirmBeforeUnload(
     confirmBeforeUnload && timelineState.status !== 'completed'
   );
-
-  // When the page is closed, one may want to mark the run as canceled.
-  React.useEffect(() => {
-    if (!cancelRunOnUnload) return;
-    let unloadHandler = () => {
-      loggerRef.current?.cancelRun?.();
-    };
-    globalThis.addEventListener('unload', unloadHandler);
-    return () => {
-      globalThis.removeEventListener('unload', unloadHandler);
-    };
-  }, [cancelRunOnUnload]);
 
   if (loggerState.status === 'error') {
     if (loggerState.error == null) {

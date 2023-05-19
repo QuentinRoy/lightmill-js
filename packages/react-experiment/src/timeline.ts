@@ -23,9 +23,9 @@ type TimelineAction<T> =
   | { type: 'run-started' }
   | { type: 'task-started'; task: T; onTaskCompleted: () => void }
   | { type: 'task-completed' }
-  | { type: 'run-completed' }
+  | { type: 'all-tasks-completed' }
   | { type: 'run-canceled' }
-  | { type: 'logger-flushed' }
+  | { type: 'run-completed' }
   | { type: 'logger-error'; error: Error };
 
 export type Logger = {
@@ -51,11 +51,11 @@ function timelineReducer<T extends BaseTask>(
         onTaskCompleted: action.onTaskCompleted,
       };
     case 'task-completed':
-    case 'run-completed':
+    case 'all-tasks-completed':
       return { status: 'loading', task: null };
     case 'run-canceled':
       return { status: 'canceled', task: null };
-    case 'logger-flushed':
+    case 'run-completed':
       return { status: 'completed', task: null };
     case 'logger-error':
       return { status: 'crashed', task: null, error: action.error };
@@ -64,12 +64,29 @@ function timelineReducer<T extends BaseTask>(
 
 export default function useManagedTimeline<Task extends BaseTask>(
   timeline: Timeline<Task> | null,
-  logger: Logger | null
+  logger: Logger | null,
+  {
+    cancelRunOnUnload,
+    completeRunOnCompletion,
+  }: { cancelRunOnUnload: boolean; completeRunOnCompletion: boolean }
 ): TimelineState<Task> {
   const [state, dispatch] = React.useReducer(timelineReducer<Task>, {
     status: 'idle',
     task: null,
   });
+
+  // When the page is closed, one may want to mark the run as canceled.
+  React.useEffect(() => {
+    if (!cancelRunOnUnload) return;
+    let unloadHandler = () => {
+      logger?.cancelRun?.();
+    };
+    globalThis.addEventListener('unload', unloadHandler);
+    return () => {
+      globalThis.removeEventListener('unload', unloadHandler);
+    };
+  }, [cancelRunOnUnload, logger]);
+
   React.useEffect(() => {
     let hasEnded = false;
     async function doRun() {
@@ -99,10 +116,11 @@ export default function useManagedTimeline<Task extends BaseTask>(
         },
       });
       if (hasEnded) return;
-      dispatch({ type: 'run-completed' });
+      dispatch({ type: 'all-tasks-completed' });
       await logger?.flush();
+      await logger?.completeRun();
       if (hasEnded) return;
-      dispatch({ type: 'logger-flushed' });
+      dispatch({ type: 'run-completed' });
       hasEnded = true;
     }
     doRun();
