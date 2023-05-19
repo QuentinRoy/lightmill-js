@@ -52,7 +52,7 @@ describe('run', () => {
       },
       completed: <div data-testid="end" />,
     };
-    render(<Run config={config} timeline={tasks} />);
+    render(<Run elements={config} timeline={tasks} />);
     expect(screen.getByRole('heading')).toHaveTextContent('Type A');
     expect(screen.getByTestId('data')).toHaveTextContent('hello');
     await user.click(screen.getByRole('button'));
@@ -73,7 +73,7 @@ describe('run', () => {
         B: <Task type="B" dataProp="b" />,
       },
     };
-    let { container } = render(<Run config={config} timeline={tasks} />);
+    let { container } = render(<Run elements={config} timeline={tasks} />);
 
     expect(screen.getByRole('heading')).toHaveTextContent('Type A');
     expect(screen.getByTestId('data')).toHaveTextContent('hello');
@@ -103,7 +103,7 @@ describe('run', () => {
       loading: <div data-testid="loading" />,
       completed: <div data-testid="end" />,
     };
-    render(<Run config={config} timeline={asyncTaskGen(taskTime)} />);
+    render(<Run elements={config} timeline={asyncTaskGen(taskTime)} />);
     expect(screen.getByTestId('loading')).toBeInTheDocument();
     await act(async () => {
       await vi.advanceTimersByTime(taskTime);
