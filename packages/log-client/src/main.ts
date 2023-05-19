@@ -158,8 +158,8 @@ export class LogClient<InputLog extends BaseLog = AnyLog> {
   }
 
   async flush() {
-    if (this.#logQueue.length > 1) {
-      this.#postLogs.cancel({ upcomingOnly: true });
+    if (this.#logQueue.length > 0) {
+      this.#postLogs.cancel();
       await this.#unthrottledPostLogs();
     }
   }
@@ -181,6 +181,7 @@ export class LogClient<InputLog extends BaseLog = AnyLog> {
         'Internal RunLogger error: endpoints are null but run is started'
       );
     }
+    this.#runStatus = status;
     await this.flush();
     let body: ApiBody<'put', '/experiments/:experiment/runs/:run'> = {
       status,
@@ -189,7 +190,6 @@ export class LogClient<InputLog extends BaseLog = AnyLog> {
       body,
       credentials: 'include',
     });
-    this.#runStatus = status;
   }
 }
 
