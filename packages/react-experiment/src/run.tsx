@@ -3,7 +3,7 @@ import { RegisteredTask, BaseTask, RegisteredLog } from './config.js';
 import { loggerContext, timelineContext } from './contexts.js';
 import useManagedTimeline, { Logger, Timeline } from './timeline.js';
 
-export type RunConfig<T extends BaseTask = RegisteredTask> = {
+export type RunElements<T extends BaseTask = RegisteredTask> = {
   tasks: Record<T['type'], React.ReactElement>;
   loading?: React.ReactElement;
   completed?: React.ReactElement;
@@ -11,7 +11,7 @@ export type RunConfig<T extends BaseTask = RegisteredTask> = {
 };
 
 export type RunProps<T extends RegisteredTask> = {
-  config: RunConfig<T>;
+  elements: RunElements<T>;
   timeline: Timeline<T>;
   logger?: Logger;
   confirmBeforeUnload?: boolean;
@@ -23,7 +23,7 @@ export type RunProps<T extends RegisteredTask> = {
 export function Run<T extends RegisteredTask>({
   timeline: timelineProp,
   logger: loggerProp,
-  config: { tasks, completed, loading, crashed },
+  elements: { tasks, completed, loading, crashed },
   confirmBeforeUnload = true,
   cancelRunOnUnload = true,
 }: RunProps<T>): JSX.Element | null {
