@@ -1,5 +1,11 @@
 # @lightmill/log-client
 
+## 3.0.0-beta.21
+
+### Patch Changes
+
+- 06505dd: fix flushing being ignored when log queue only contains one log
+
 ## 3.0.0-beta.19
 
 ### Patch Changes

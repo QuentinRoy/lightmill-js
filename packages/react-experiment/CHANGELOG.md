@@ -1,5 +1,11 @@
 # @lightmill/react-experiment
 
+## 3.0.0-beta.21
+
+### Major Changes
+
+- b3aec3a: Do not flush before completing a run, and do not require loggers to define a flush method.
+
 ## 3.0.0-beta.20
 
 ### Major Changes
