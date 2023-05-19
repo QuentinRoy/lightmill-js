@@ -31,7 +31,6 @@ type TimelineAction<T> =
 export type Logger = {
   startRun(): Promise<void>;
   addLog(log: RegisteredLog): Promise<void>;
-  flush(): Promise<void>;
   completeRun(): Promise<void>;
   cancelRun?(): Promise<void>;
 };
@@ -117,7 +116,6 @@ export default function useManagedTimeline<Task extends BaseTask>(
       });
       if (hasEnded) return;
       dispatch({ type: 'all-tasks-completed' });
-      await logger?.flush();
       await logger?.completeRun();
       if (hasEnded) return;
       dispatch({ type: 'run-completed' });
