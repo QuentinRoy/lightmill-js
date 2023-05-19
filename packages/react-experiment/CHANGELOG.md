@@ -1,5 +1,15 @@
 # @lightmill/react-experiment
 
+## 3.0.0-beta.20
+
+### Major Changes
+
+- e3774ba: Rename Run's config prop to elements, and RunConfig type to RunElements
+
+### Patch Changes
+
+- 858914e: Fix logger's run not being marked as completed under run completion.
+
 ## 3.0.0-beta.19
 
 ### Minor Changes
