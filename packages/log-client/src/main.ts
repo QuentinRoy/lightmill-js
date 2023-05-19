@@ -30,10 +30,9 @@ export class LogClient<InputLog extends BaseLog = AnyLog> {
   #run?: string;
   #experiment?: string;
   #apiRoot: string;
-
-  // If the run is started, these will be set. Otherwise, they will be null.
   #postLogs: throttle<() => void>;
   #runStatus: 'idle' | 'running' | 'completed' | 'canceled' = 'idle';
+  // If the run is started, these will be set. Otherwise, they will be null.
   #endpoints: RunEndpoints | null = null;
 
   constructor({
