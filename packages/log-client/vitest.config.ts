@@ -10,6 +10,5 @@ export default defineConfig({
     root: resolve(dirname),
     globals: true,
     include: ['**/__tests__/*.test.ts'],
-    setupFiles: './__tests__/setup.ts',
   },
 });
