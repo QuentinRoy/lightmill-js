@@ -11,7 +11,7 @@ type DesignConfig<Task, TimelineId extends string> = {
 
 export default class StaticDesign<
   Task extends BaseTask,
-  TimelineId extends string = string
+  TimelineId extends string = string,
 > {
   #config;
 
@@ -25,9 +25,9 @@ export default class StaticDesign<
         .map((timeline) => timeline.id)
         .filter((timelineId) =>
           startedTimelines.every(
-            (startedTimelineId) => startedTimelineId !== timelineId
-          )
-        )
+            (startedTimelineId) => startedTimelineId !== timelineId,
+          ),
+        ),
     );
   }
 

@@ -87,11 +87,11 @@ type DefinedMapperOptions<T> = {
 export default function convertTouchstone<T extends BaseTask>(
   touchStoneXML: string | { pipe: (arg0: sax.SAXStream) => void },
   opts: DefinedMapperOptions<FacultativeId<T>> &
-    Required<Pick<DefinedMapperOptions<FacultativeId<T>>, 'trial'>>
+    Required<Pick<DefinedMapperOptions<FacultativeId<T>>, 'trial'>>,
 ): Promise<DesignConfig<T>>;
 export default function convertTouchstone(
   touchStoneXML: string | { pipe: (arg0: sax.SAXStream) => void },
-  opts?: MapperOptions<FacultativeId<UndefinedTask>>
+  opts?: MapperOptions<FacultativeId<UndefinedTask>>,
 ): Promise<DesignConfig<UndefinedTask>>;
 export default function convertTouchstone(
   touchStoneXML: string | { pipe: (arg0: sax.SAXStream) => void },
@@ -101,7 +101,7 @@ export default function convertTouchstone(
     preRun = undefined,
     postRun = undefined,
     trial = createDefaultTrialMapper(),
-  }: MapperOptions<FacultativeId<UndefinedTask>> = {}
+  }: MapperOptions<FacultativeId<UndefinedTask>> = {},
 ): Promise<DesignConfig<UndefinedTask>> {
   return new Promise((resolve, reject) => {
     const saxParser =
@@ -191,7 +191,7 @@ export default function convertTouchstone(
         let { tasks, ...runBase } = currentRun;
         let { timelines, ...experimentBase } = experiment;
         currentRun.tasks.push(
-          ...getPreBlockTasks({ ...currentBlock }, runBase, experimentBase)
+          ...getPreBlockTasks({ ...currentBlock }, runBase, experimentBase),
         );
       },
       practice(practiceNode: sax.Tag) {
@@ -227,7 +227,7 @@ export default function convertTouchstone(
         let { tasks, ...runBase } = currentRun;
         let { timelines, ...experimentBase } = experiment;
         currentRun.tasks.push(
-          ...getTrialTasks(trial, { ...currentBlock }, runBase, experimentBase)
+          ...getTrialTasks(trial, { ...currentBlock }, runBase, experimentBase),
         );
       },
     };
@@ -288,7 +288,7 @@ export default function convertTouchstone(
         let { timelines, ...experimentBase } = experiment;
         let { tasks, ...runBase } = currentRun;
         currentRun.tasks.push(
-          ...getPostBlockTasks(currentBlock, runBase, experimentBase)
+          ...getPostBlockTasks(currentBlock, runBase, experimentBase),
         );
         currentBlock = null;
       },
@@ -350,7 +350,7 @@ export default function convertTouchstone(
 
 function parseValues<K extends string, P extends (value: string) => unknown>(
   valuesString: string,
-  valueParsers?: Record<K, P>
+  valueParsers?: Record<K, P>,
 ): Record<string, string | ReturnType<P>> {
   let values: Record<string, string | ReturnType<P>> = {};
   for (let value of valuesString.split(',')) {
@@ -392,15 +392,15 @@ class IdManager {
 
 function createTaskGetter<FArgs extends MapperArgs, T extends BaseTask>(
   mapper: DefinedMapper<FArgs, FacultativeId<T>> | undefined,
-  getId: (type: string, requestedId?: string) => string
+  getId: (type: string, requestedId?: string) => string,
 ): (...args: FArgs) => Array<T>;
 function createTaskGetter<FArgs extends MapperArgs, T extends BaseTask>(
   mapper: Mapper<FArgs, FacultativeId<T>> | undefined,
-  getId: (type: string, requestedId?: string) => string
+  getId: (type: string, requestedId?: string) => string,
 ): (...args: FArgs) => Array<BaseTask>;
 function createTaskGetter<FArgs extends MapperArgs, T extends BaseTask>(
   mapper: Mapper<FArgs, FacultativeId<T>> | undefined,
-  getId: (type: string, requestedId?: string) => string
+  getId: (type: string, requestedId?: string) => string,
 ): (...args: FArgs) => Array<BaseTask> {
   if (mapper == null) {
     return () => [];

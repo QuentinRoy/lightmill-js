@@ -37,7 +37,7 @@ export type Logger = {
 
 function timelineReducer<T extends BaseTask>(
   state: TimelineState<T>,
-  action: TimelineAction<T>
+  action: TimelineAction<T>,
 ): TimelineState<T> {
   switch (action.type) {
     case 'run-started':
@@ -67,7 +67,7 @@ export default function useManagedTimeline<Task extends BaseTask>(
   {
     cancelRunOnUnload,
     completeRunOnCompletion,
-  }: { cancelRunOnUnload: boolean; completeRunOnCompletion: boolean }
+  }: { cancelRunOnUnload: boolean; completeRunOnCompletion: boolean },
 ): TimelineState<Task> {
   const [state, dispatch] = React.useReducer(timelineReducer<Task>, {
     status: 'idle',

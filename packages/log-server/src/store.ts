@@ -52,7 +52,7 @@ export class Store {
   #db: Kysely<Database>;
   constructor(
     db: string,
-    { logLevel = loglevel.getLevel() }: { logLevel?: LogLevelDesc } = {}
+    { logLevel = loglevel.getLevel() }: { logLevel?: LogLevelDesc } = {},
   ) {
     const log = loglevel.getLogger('store');
     log.setLevel(logLevel);
@@ -97,7 +97,7 @@ export class Store {
       ) {
         throw new StoreError(
           `run "${runId}" already exists for experiment "${experimentId}".`,
-          'RUN_EXISTS'
+          'RUN_EXISTS',
         );
       }
       throw e;
@@ -122,7 +122,7 @@ export class Store {
   async setRunStatus(
     experimentId: string,
     runId: string,
-    status: RunTable['status']
+    status: RunTable['status'],
   ) {
     await this.#db
       .updateTable('run')
@@ -139,7 +139,7 @@ export class Store {
       type: string;
       date: Date;
       values: JsonObject;
-    }>
+    }>,
   ) {
     await this.#db.transaction().execute(async (trx) => {
       let createdAt = new Date().toISOString();
@@ -156,11 +156,11 @@ export class Store {
                 clientDate: date.toISOString(),
                 batchOrder: i,
               };
-            })
+            }),
           )
           .returning(['logId', 'batchOrder'])
           .execute(),
-        sortBy((log) => log.batchOrder ?? 0)
+        sortBy((log) => log.batchOrder ?? 0),
       );
 
       // Bulk insert returning values does not guarantee order, so we need to
@@ -183,17 +183,17 @@ export class Store {
       .$if(filter.experiment != null, (qb) =>
         qb
           .innerJoin('log', 'log.logId', 'logValue.logId')
-          .where('log.experimentId', 'in', arrayify(filter.experiment, true))
+          .where('log.experimentId', 'in', arrayify(filter.experiment, true)),
       )
       .$if(filter.run != null, (qb) =>
         qb
           .innerJoin('log', 'log.logId', 'logValue.logId')
-          .where('log.runId', 'in', arrayify(filter.run, true))
+          .where('log.runId', 'in', arrayify(filter.run, true)),
       )
       .$if(filter.type != null, (qb) =>
         qb
           .innerJoin('log', 'log.logId', 'logValue.logId')
-          .where('log.type', 'in', arrayify(filter.type, true))
+          .where('log.type', 'in', arrayify(filter.type, true)),
       )
       .select('logValue.name')
       .orderBy('name')
@@ -207,13 +207,13 @@ export class Store {
       .selectFrom('logValue')
       .innerJoin('log', 'log.logId', 'logValue.logId')
       .$if(filter.experiment != null, (qb) =>
-        qb.where('log.experimentId', 'in', arrayify(filter.experiment, true))
+        qb.where('log.experimentId', 'in', arrayify(filter.experiment, true)),
       )
       .$if(filter.run != null, (qb) =>
-        qb.where('log.runId', 'in', arrayify(filter.run, true))
+        qb.where('log.runId', 'in', arrayify(filter.run, true)),
       )
       .$if(filter.type != null, (qb) =>
-        qb.where('log.type', 'in', arrayify(filter.type, true))
+        qb.where('log.type', 'in', arrayify(filter.type, true)),
       )
       .orderBy('log.experimentId')
       .orderBy('log.runId')
@@ -277,15 +277,15 @@ export class Store {
 }
 
 function deconstructValues(
-  data: JsonObject
+  data: JsonObject,
 ): Array<{ name: string; value: string }>;
 function deconstructValues<P extends Record<string, unknown>>(
   data: JsonObject,
-  patch: P
+  patch: P,
 ): Array<P & { name: string; value: string }>;
 function deconstructValues(
   data: JsonObject,
-  patch?: Record<string, unknown>
+  patch?: Record<string, unknown>,
 ): Array<JsonObject & { name: string; value: string }> {
   return Object.entries(data).map(([name, value]) => ({
     ...patch,

@@ -13,7 +13,7 @@ interface BaseLog {
 type AnyLog = Record<string, JsonValue | Date | undefined> & BaseLog;
 
 type LogSerializer<InputLog extends BaseLog> = (
-  i: InputLog & { date: NonNullable<InputLog['date']> }
+  i: InputLog & { date: NonNullable<InputLog['date']> },
 ) => Record<string, JsonValue> & { type: string; date: string };
 
 type RunEndpoints = {
@@ -63,7 +63,7 @@ export class LogClient<InputLog extends BaseLog = AnyLog> {
       {
         noTrailing: false,
         noLeading: true,
-      }
+      },
     );
     this.#experiment = experiment;
     this.#run = run;
@@ -74,7 +74,7 @@ export class LogClient<InputLog extends BaseLog = AnyLog> {
   async startRun() {
     if (this.#runStatus !== 'idle') {
       throw new Error(
-        `Can only start a run when the run is idle. Run is ${this.#runStatus}`
+        `Can only start a run when the run is idle. Run is ${this.#runStatus}`,
       );
     }
     if (this.#isStarting) {
@@ -97,12 +97,12 @@ export class LogClient<InputLog extends BaseLog = AnyLog> {
   async addLog(inputLog: InputLog) {
     if (this.#runStatus !== 'running') {
       throw new Error(
-        `Can only add logs to a running run. Run is ${this.#runStatus}`
+        `Can only add logs to a running run. Run is ${this.#runStatus}`,
       );
     }
     if (inputLog.type == null) {
       throw new Error(
-        'Trying to add a logs without type. Logs must have a type'
+        'Trying to add a logs without type. Logs must have a type',
       );
     }
     this.#logQueue.push({ date: new Date(), ...inputLog });
@@ -134,8 +134,8 @@ export class LogClient<InputLog extends BaseLog = AnyLog> {
     if (this.#endpoints == null) {
       reject(
         new Error(
-          'Internal RunLogger error: endpoints are null but run is started'
-        )
+          'Internal RunLogger error: endpoints are null but run is started',
+        ),
       );
       return;
     }
@@ -177,7 +177,7 @@ export class LogClient<InputLog extends BaseLog = AnyLog> {
     }
     if (this.#endpoints == null) {
       throw new Error(
-        'Internal RunLogger error: endpoints are null but run is started'
+        'Internal RunLogger error: endpoints are null but run is started',
       );
     }
     this.#runStatus = status;
@@ -219,7 +219,7 @@ type JsonFetchOptions = Omit<
 function makeJsonFetchMethod(method: string) {
   return async function fetchMethod(
     url: JsonFetchUrl,
-    options: JsonFetchOptions
+    options: JsonFetchOptions,
   ) {
     let response = await fetch(url, {
       ...options,

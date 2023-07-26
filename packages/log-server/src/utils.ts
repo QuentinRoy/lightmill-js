@@ -6,7 +6,7 @@ import { z } from 'zod';
 export function arrayify<T>(value: T | T[], isEmptyWithUndefined?: false): T[];
 export function arrayify<T>(
   value: T | T[] | undefined,
-  isEmptyWithUndefined: true
+  isEmptyWithUndefined: true,
 ): T[];
 export function arrayify<T>(value: T | T[], isEmptyWithUndefined = false): T[] {
   if (value === undefined && isEmptyWithUndefined) return [];
@@ -25,7 +25,7 @@ export type JsonValue =
   | { [key: string]: JsonValue }
   | JsonValue[];
 export const JsonValue: z.ZodType<JsonValue> = z.lazy(() =>
-  z.union([JsonPrimitive, z.array(JsonValue), z.record(JsonValue)])
+  z.union([JsonPrimitive, z.array(JsonValue), z.record(JsonValue)]),
 );
 export const JsonObject = z.record(JsonValue);
 export type JsonObject = z.infer<typeof JsonObject>;
@@ -33,10 +33,10 @@ export const JsonArray = z.array(JsonValue);
 export type JsonArray = z.infer<typeof JsonArray>;
 
 export function toSnakeCase<
-  R extends Record<string | number | symbol, unknown>
+  R extends Record<string | number | symbol, unknown>,
 >(input: R) {
   return mapKeys(input, (key) =>
-    typeof key === 'string' ? snakeCase(key) : key
+    typeof key === 'string' ? snakeCase(key) : key,
   ) as unknown as {
     [K in keyof R as SnakeCase<K>]: R[K];
   };

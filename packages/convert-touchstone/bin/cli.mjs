@@ -11,7 +11,7 @@ const { inputFile, ...options } = command(
     yargs_.positional('input-file', {
       describe: 'An xml file as exported by the touchstone design platform',
     });
-  }
+  },
 )
   .option('trials', {
     alias: 't',

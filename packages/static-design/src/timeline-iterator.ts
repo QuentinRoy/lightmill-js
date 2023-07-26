@@ -19,14 +19,14 @@ export default class TimelineIterator<Task extends BaseTask>
     {
       resumeAfter = undefined,
       resumeWith = undefined,
-    }: TimelineIteratorOptions<Task> = {}
+    }: TimelineIteratorOptions<Task> = {},
   ) {
     let startIndex = 0;
     if (resumeAfter != null) {
       const lastTaskIndex = tasks.findIndex((s) => s.id === resumeAfter);
       if (lastTaskIndex < 0) {
         throw new Error(
-          `Cannot resume after task "${resumeAfter}": the task could not be found`
+          `Cannot resume after task "${resumeAfter}": the task could not be found`,
         );
       }
       startIndex = lastTaskIndex + 1;

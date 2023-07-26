@@ -20,7 +20,7 @@ const ignoredLogValues: Array<keyof Log> = ['createdAt', 'values'];
 export function csvExportStream(
   store: Store,
   filter: Parameters<Store['getLogs']>[0] &
-    Parameters<Store['getLogValueNames']>[0]
+    Parameters<Store['getLogValueNames']>[0],
 ): Readable {
   return pipeline(
     async function* () {
@@ -51,7 +51,7 @@ export function csvExportStream(
           ...pipe(
             log,
             pickBy((v, k) => logColumnFilter(k)),
-            mapKeys((key) => renamedLogColumns[key] ?? key)
+            mapKeys((key) => renamedLogColumns[key] ?? key),
           ),
           ...log.values,
         });
@@ -69,13 +69,13 @@ export function csvExportStream(
     }),
     () => {
       // Nothing to do here.
-    }
+    },
   );
 }
 
 export function jsonExportStream(
   store: Store,
-  filter: Parameters<Store['getLogs']>[0]
+  filter: Parameters<Store['getLogs']>[0],
 ) {
   return Readable.from(stringifyLogs(store.getLogs(filter)));
 }
@@ -88,7 +88,7 @@ async function* stringifyLogs(logs: AsyncIterable<Log>) {
     started = true;
     yield JSON.stringify(
       mapKeys(log, (key) => renamedLogColumns[key] ?? key),
-      stringifyDateSerializer
+      stringifyDateSerializer,
     );
   }
   yield ']';

@@ -38,7 +38,7 @@ describe('run', () => {
 
   it('calls runTask for each tasks, then taskCallback', async () => {
     await expect(run({ taskIterator: genTasks(), runTask })).resolves.toBe(
-      undefined
+      undefined,
     );
     expect(runTask.mock.calls).toEqual([
       [{ id: 'task1', callIndex: 0 }],
@@ -52,7 +52,7 @@ describe('run', () => {
       if (task.id === 'task2') throw new Error('mock error');
     });
     await expect(
-      run({ runTask: throwingRunTask, taskIterator: genTasks() })
+      run({ runTask: throwingRunTask, taskIterator: genTasks() }),
     ).rejects.toThrow('mock error');
     expect(throwingRunTask.mock.calls).toEqual([
       [{ id: 'task1', callIndex: 0 }],
@@ -69,7 +69,7 @@ describe('run', () => {
       throw new Error('mock error');
     });
     await expect(
-      run({ runTask, taskIterator: throwingGenTasks() })
+      run({ runTask, taskIterator: throwingGenTasks() }),
     ).rejects.toThrow('mock error');
     expect(runTask.mock.calls).toEqual([[{ id: 'task1' }], [{ id: 'task2' }]]);
   });

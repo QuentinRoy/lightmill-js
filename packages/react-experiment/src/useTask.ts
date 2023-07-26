@@ -7,11 +7,11 @@ type UseTaskResult<Task extends RegisteredTask> = {
   onTaskCompleted: () => void;
 };
 export function useTask<TaskType extends RegisteredTask['type']>(
-  type: TaskType
+  type: TaskType,
 ): UseTaskResult<RegisteredTask & { type: TaskType }>;
 export function useTask(): UseTaskResult<RegisteredTask>;
 export function useTask(
-  type?: RegisteredTask['type']
+  type?: RegisteredTask['type'],
 ): UseTaskResult<RegisteredTask> {
   const state = React.useContext(timelineContext);
   if (state == null) {
@@ -19,12 +19,12 @@ export function useTask(
   }
   if (state.status !== 'running') {
     throw new Error(
-      'No task is currently running. Is this component rendered in a <Run />?'
+      'No task is currently running. Is this component rendered in a <Run />?',
     );
   }
   if (type != null && state.task.type !== type) {
     throw new Error(
-      `Current task is not of type ${type}. Is this component registered for this task? You may use useTask without arguments to get the current task.`
+      `Current task is not of type ${type}. Is this component registered for this task? You may use useTask without arguments to get the current task.`,
     );
   }
   return React.useMemo(() => {

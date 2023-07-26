@@ -15,7 +15,7 @@ describe('run', () => {
   let Task: (props: { type: string; dataProp: string }) => JSX.Element;
   let tasks: Task[];
   let asyncTaskGen: (
-    taskLoadingTime: number
+    taskLoadingTime: number,
   ) => AsyncGenerator<Task, void, unknown>;
 
   beforeEach(() => {

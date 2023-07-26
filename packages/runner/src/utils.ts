@@ -6,7 +6,7 @@ function pFrom<T>(v: T | PromiseLike<T>): Promise<T> {
 // Make a function asynchronous by creating a promise from its value
 // (the function calls remain synchronous though).
 function makeAsync<Args extends unknown[], R>(
-  f: (...args: Args) => R | PromiseLike<R>
+  f: (...args: Args) => R | PromiseLike<R>,
 ): (...args: Args) => Promise<R> {
   return (...args: Args) => pFrom(f(...args));
 }
@@ -25,32 +25,32 @@ function isPromiseLike(p: unknown): p is PromiseLike<unknown> {
 export function asyncForEach<Item>(
   iterator: Iterator<Item> | AsyncIterator<Item>,
   callback: (value: Item, index: number) => PromiseLike<unknown>,
-  forceAsync?: boolean
+  forceAsync?: boolean,
 ): Promise<void>;
 export function asyncForEach<Item>(
   iterator: Iterator<Item>,
   callback: (value: Item, index: number) => unknown,
-  forceAsync?: false
+  forceAsync?: false,
 ): void;
 export function asyncForEach<Item>(
   iterator: Iterator<Item>,
   callback: (value: Item, index: number) => unknown,
-  forceAsync: true
+  forceAsync: true,
 ): Promise<void>;
 export function asyncForEach<Item>(
   iterator: AsyncIterator<Item>,
   callback: (value: Item, index: number) => unknown,
-  forceAsync?: boolean
+  forceAsync?: boolean,
 ): Promise<void>;
 export function asyncForEach<Item>(
   iterator: Iterator<Item> | AsyncIterator<Item>,
   callback: (value: Item, index: number) => unknown | PromiseLike<unknown>,
-  forceAsync?: boolean
+  forceAsync?: boolean,
 ): Promise<void> | void;
 export function asyncForEach<Item>(
   iterator: Iterator<Item> | AsyncIterator<Item>,
   callback: (value: Item, index: number) => unknown | PromiseLike<unknown>,
-  forceAsync = false
+  forceAsync = false,
 ): Promise<void> | void {
   callback = forceAsync ? makeAsync(callback) : callback;
   function fetchNext(index: number): PromiseLike<void> | void {
@@ -63,7 +63,7 @@ export function asyncForEach<Item>(
   }
   function onNext(
     result: IteratorResult<Item>,
-    index: number
+    index: number,
   ): PromiseLike<void> | void {
     if (result.done) {
       return;

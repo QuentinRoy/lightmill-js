@@ -35,7 +35,7 @@ const env = z
 const { version } = z
   .object({ version: z.string() })
   .parse(
-    JSON.parse(readFileSync(path.join(__dirname, '../package.json'), 'utf8'))
+    JSON.parse(readFileSync(path.join(__dirname, '../package.json'), 'utf8')),
   );
 
 const dbPath = path.normalize(env.DB_PATH);
@@ -60,13 +60,13 @@ async function start({
 }: StartParameter) {
   if (secret == null) {
     log.error(
-      'No secret set. Set the SECRET environment variable or use the --secret option.'
+      'No secret set. Set the SECRET environment variable or use the --secret option.',
     );
     process.exit(1);
   }
   let doesDbExist = await fs.access(dbPath, fs.constants.F_OK).then(
     () => true,
-    () => false
+    () => false,
   );
   let store = new Store(dbPath);
   if (!doesDbExist) {
@@ -186,7 +186,7 @@ yargs(process.argv.slice(2))
         .alias('help', 'h')
         .strict();
     },
-    (argv) => start(argv).catch(handleError)
+    (argv) => start(argv).catch(handleError),
   )
   .command(
     'migrate',
@@ -203,7 +203,7 @@ yargs(process.argv.slice(2))
         .strict()
         .help()
         .alias('help', 'h'),
-    (argv) => migrateDatabase(argv).catch(handleError)
+    (argv) => migrateDatabase(argv).catch(handleError),
   )
   .command(
     'export',
@@ -240,7 +240,7 @@ yargs(process.argv.slice(2))
         .help()
         .alias('help', 'h');
     },
-    (argv) => exportLogs(argv).catch(handleError)
+    (argv) => exportLogs(argv).catch(handleError),
   )
   .demandCommand(1)
   .scriptName('log-server')

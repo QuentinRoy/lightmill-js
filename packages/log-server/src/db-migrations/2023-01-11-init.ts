@@ -14,7 +14,7 @@ export async function up(db: Kysely<unknown>) {
       .addColumn('status', 'text', (column) => column.notNull())
       .addCheckConstraint(
         'statusCheck',
-        sql`status IN ('running', 'completed', 'canceled')`
+        sql`status IN ('running', 'completed', 'canceled')`,
       )
       .execute();
 
@@ -33,7 +33,7 @@ export async function up(db: Kysely<unknown>) {
         'run',
         ['experimentId', 'runId'],
         // This is the default behaviour, but it is good to be explicit.
-        (constraint) => constraint.onDelete('restrict')
+        (constraint) => constraint.onDelete('restrict'),
       )
       .addColumn('createdAt', 'datetime', (column) => column.notNull())
       .execute();
@@ -58,7 +58,7 @@ export async function up(db: Kysely<unknown>) {
         ['logId'],
         'log',
         ['logId'],
-        (constraint) => constraint.onDelete('restrict')
+        (constraint) => constraint.onDelete('restrict'),
       )
       .addColumn('name', 'text', (column) => column.notNull())
       .addPrimaryKeyConstraint('primaryKey', ['logId', 'name'])

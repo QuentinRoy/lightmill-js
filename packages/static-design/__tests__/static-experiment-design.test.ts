@@ -45,7 +45,7 @@ afterEach(() => {
 describe('StaticExperimentDesign#getAvailableTimelines', () => {
   it('returns the list of un-started available timelines from the list of started timelines', async () => {
     await expect(
-      design.getAvailableTimelines(['mock-timeline-2', 'mock-timeline-3'])
+      design.getAvailableTimelines(['mock-timeline-2', 'mock-timeline-3']),
     ).resolves.toEqual(['mock-timeline-1', 'mock-timeline-4']);
   });
   it('returns an empty list if there is no available timelines', async () => {
@@ -55,7 +55,7 @@ describe('StaticExperimentDesign#getAvailableTimelines', () => {
         'mock-timeline-3',
         'mock-timeline-1',
         'mock-timeline-4',
-      ])
+      ]),
     ).resolves.toEqual([]);
   });
 });
@@ -66,7 +66,7 @@ describe('StaticExperimentDesign#startTimeline', () => {
       design.startTimeline('mock-timeline-3', {
         resumeAfter: '3-1',
         resumeWith: { id: 'resumeWith' },
-      })
+      }),
     ).resolves.toEqual({ id: 'mock-iterator-mock-timeline-3' });
     await expect(TimelineIterator.mock.calls).toEqual([
       [

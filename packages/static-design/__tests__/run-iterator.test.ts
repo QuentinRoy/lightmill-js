@@ -67,7 +67,7 @@ describe('RunIterator#next', () => {
     expect(() => {
       new TimelineIterator(designConfig, { resumeAfter: 'some-unknown-id' });
     }).toThrow(
-      'Cannot resume after task "some-unknown-id": the task could not be found'
+      'Cannot resume after task "some-unknown-id": the task could not be found',
     );
   });
 

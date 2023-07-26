@@ -14,9 +14,9 @@ const server = setupServer(
         ctx.json({ status: 'ok' } satisfies ApiResponse<
           'post',
           '/experiments/:experiment/runs/:run/logs'
-        >)
+        >),
       );
-    }
+    },
   ),
   rest.post(
     'https://server.test/api/experiments/runs',
@@ -31,9 +31,9 @@ const server = setupServer(
             logs: '/experiments/experiment-id/runs/run-id/logs',
             run: '/experiments/experiment-id/runs/run-id',
           },
-        } satisfies ApiResponse<'post', '/experiments/runs'>)
+        } satisfies ApiResponse<'post', '/experiments/runs'>),
       );
-    }
+    },
   ),
   rest.put(
     'https://server.test/api/experiments/experiment-id/runs/run-id',
@@ -43,10 +43,10 @@ const server = setupServer(
         ctx.json({ status: 'ok' } satisfies ApiResponse<
           'put',
           '/experiments/:experiment/runs/:run'
-        >)
+        >),
       );
-    }
-  )
+    },
+  ),
 );
 
 let requests: Array<{ url: string; method: string }> = [];

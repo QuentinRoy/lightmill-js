@@ -22,12 +22,12 @@ const ctx = zodiosContext(
             z.object({
               runId: z.string(),
               experimentId: z.string(),
-            })
+            }),
           ),
         })
         .strict(),
     ]),
-  })
+  }),
 );
 
 type CreateLogServerOptions = {
@@ -60,7 +60,7 @@ export function createLogServer({
       sameSite: allowCrossOrigin ? 'none' : 'strict',
       secure: secureCookies,
       httpOnly: true,
-    })
+    }),
   );
 
   router.post('/sessions', (req, res) => {
@@ -166,7 +166,7 @@ export function createLogServer({
     try {
       if (
         req.session?.runs?.find(
-          (r) => r.runId === runId && r.experimentId === experimentId
+          (r) => r.runId === runId && r.experimentId === experimentId,
         ) == null
       ) {
         res.status(403).json({
@@ -192,7 +192,7 @@ export function createLogServer({
       }
       await store.setRunStatus(experimentId, runId, req.body.status);
       req.session.runs = req.session.runs.filter(
-        (r) => r.runId !== runId && r.experimentId !== experimentId
+        (r) => r.runId !== runId && r.experimentId !== experimentId,
       );
       res.status(200).json({ status: 'ok' });
     } catch (e) {
@@ -209,7 +209,7 @@ export function createLogServer({
       try {
         if (
           req.session?.runs?.find(
-            (r) => r.runId === runId && r.experimentId === experimentId
+            (r) => r.runId === runId && r.experimentId === experimentId,
           ) == null
         ) {
           res.status(403).json({
@@ -235,13 +235,13 @@ export function createLogServer({
         await store.addRunLogs(
           experimentId,
           runId,
-          logs.map((l) => ({ ...l, date: new Date(l.date) }))
+          logs.map((l) => ({ ...l, date: new Date(l.date) })),
         );
         res.status(201).json({ status: 'ok' });
       } catch (e) {
         next(e);
       }
-    }
+    },
   );
 
   router.get('/experiments/:experiment/runs/logs', async (req, res, next) => {

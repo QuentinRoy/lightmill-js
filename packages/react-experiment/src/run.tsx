@@ -36,7 +36,7 @@ export function Run<T extends RegisteredTask>({
   let timelineState = useManagedTimeline(
     timelineRef.current,
     loggerRef.current,
-    { cancelRunOnUnload, completeRunOnCompletion }
+    { cancelRunOnUnload, completeRunOnCompletion },
   );
   let [loggerState, setLoggerState] = React.useState<{
     status: 'error' | 'ok';
@@ -60,7 +60,7 @@ export function Run<T extends RegisteredTask>({
   }, []);
 
   useConfirmBeforeUnload(
-    confirmBeforeUnload && timelineState.status !== 'completed'
+    confirmBeforeUnload && timelineState.status !== 'completed',
   );
 
   if (loggerState.status === 'error') {

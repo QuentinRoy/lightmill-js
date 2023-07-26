@@ -91,7 +91,7 @@ describeEachSyncs(`asyncForEach with %s iterator`, (syncArg) => {
     });
     const end = vi.fn();
     let forEachProm = (asyncForEach(gen(), callback) as Promise<void>).then(
-      () => end()
+      () => end(),
     );
     expect(end.mock.calls).toEqual([]);
     await wait(5);
@@ -127,11 +127,11 @@ describeEachSyncs(`asyncForEach with %s iterator`, (syncArg) => {
     });
     if (sync === 'sync') {
       expect(() => asyncForEach(gen(), callback)).toThrow(
-        'mock-callback-error'
+        'mock-callback-error',
       );
     } else {
       await expect(asyncForEach(gen(), callback)).rejects.toThrow(
-        'mock-callback-error'
+        'mock-callback-error',
       );
     }
     expect(callback.mock.calls).toEqual([
@@ -145,10 +145,10 @@ describeEachSyncs(`asyncForEach with %s iterator`, (syncArg) => {
     const callback = vi.fn((v) =>
       wait(0).then(() => {
         if (v === 'b') throw new Error('mock-callback-error');
-      })
+      }),
     );
     await expect(asyncForEach(gen(), callback)).rejects.toThrow(
-      'mock-callback-error'
+      'mock-callback-error',
     );
     expect(callback.mock.calls).toEqual([
       ['a', 0],
@@ -161,11 +161,11 @@ describeEachSyncs(`asyncForEach with %s iterator`, (syncArg) => {
     const callback = vi.fn();
     if (sync === 'sync') {
       expect(() => asyncForEach(gen(), callback)).toThrow(
-        'mock-generator-error'
+        'mock-generator-error',
       );
     } else {
       await expect(asyncForEach(gen(), callback)).rejects.toThrow(
-        'mock-generator-error'
+        'mock-generator-error',
       );
     }
     expect(callback.mock.calls).toEqual([

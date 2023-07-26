@@ -53,7 +53,7 @@ export const api = makeApi([
     path: '/sessions/current',
     response: OkResponse.extend({
       runs: z.array(
-        z.object({ id: z.string(), experiment: z.string() }).strict()
+        z.object({ id: z.string(), experiment: z.string() }).strict(),
       ),
       role: Role,
     }).strict(),
@@ -157,28 +157,28 @@ export type Path = Api[number]['path'];
 export type Method = Api[number]['method'];
 export type PathParams<
   M extends Method,
-  P extends ZodiosPathsByMethod<Api, M>
+  P extends ZodiosPathsByMethod<Api, M>,
 > = ZodiosPathParamsByPath<Api, M, P>;
 export type QueryParams<
   M extends Method,
-  P extends ZodiosPathsByMethod<Api, M>
+  P extends ZodiosPathsByMethod<Api, M>,
 > = ZodiosQueryParamsByPath<Api, M, P>;
 export type Body<
   M extends Method,
-  P extends ZodiosPathsByMethod<Api, M>
+  P extends ZodiosPathsByMethod<Api, M>,
 > = ZodiosBodyByPath<Api, M, P>;
 export type Response<
   M extends Method,
-  P extends ZodiosPathsByMethod<Api, M>
+  P extends ZodiosPathsByMethod<Api, M>,
 > = ZodiosResponseByPath<Api, M, P>;
 export type Error<
   M extends Method,
   P extends ZodiosPathsByMethod<Api, M>,
-  Status extends number
+  Status extends number,
 > = ZodiosErrorByPath<Api, M, P, Status>;
 export type ErrorStatus<
   M extends Method,
-  P extends ZodiosPathsByMethod<Api, M>
+  P extends ZodiosPathsByMethod<Api, M>,
 > = ZodiosEndpointDefinitionByPath<Api, M, P>[number] extends {
   errors: Array<{ status: infer S }>;
 }

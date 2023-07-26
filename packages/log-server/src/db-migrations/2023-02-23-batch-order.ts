@@ -1,7 +1,7 @@
 import { Kysely } from 'kysely';
 
 export async function up(
-  db: Kysely<{ log: { clientDate: Date; createdAt?: Date } }>
+  db: Kysely<{ log: { clientDate: Date; createdAt?: Date } }>,
 ) {
   await db.transaction().execute(async (trx) => {
     await trx.schema

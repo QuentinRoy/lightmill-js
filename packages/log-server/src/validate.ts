@@ -12,7 +12,7 @@ export class ValidationError extends Error {
 
 export function parseRequestBody<T>(
   schema: z.ZodSchema<T, z.ZodTypeDef, unknown>,
-  req: Request
+  req: Request,
 ): T {
   let result = schema.safeParse(req.body);
   if (result.success) {
@@ -24,7 +24,7 @@ export function parseRequestBody<T>(
 
 export function parseRequestQuery<T>(
   schema: z.ZodSchema<T, z.ZodTypeDef, unknown>,
-  req: Request
+  req: Request,
 ): T {
   let result = schema.safeParse(req.query);
   if (result.success) {
@@ -35,7 +35,7 @@ export function parseRequestQuery<T>(
 }
 
 export function formatErrorMiddleware(
-  format: (error: ValidationError) => Record<string, unknown>
+  format: (error: ValidationError) => Record<string, unknown>,
 ) {
   return (error: Error, req: Request, res: Response, next: NextFunction) => {
     if (res.headersSent) {

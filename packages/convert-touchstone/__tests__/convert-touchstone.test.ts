@@ -10,7 +10,7 @@ const dirname = url.fileURLToPath(new URL('.', import.meta.url));
 const fixturePath = path.join(
   dirname,
   '__fixtures__',
-  'convert-touchstone.test.xml'
+  'convert-touchstone.test.xml',
 );
 
 describe('convert', () => {
@@ -37,7 +37,7 @@ describe('convert', () => {
         postRun: 'mock-post-run',
         preBlock: 'mock-pre-block',
         postBlock: 'mock-post-block',
-      })
+      }),
     ).resolves.toMatchSnapshot();
   });
 
@@ -73,7 +73,7 @@ describe('convert', () => {
       data: 'data',
     }));
     await expect(
-      convert(fixture, { preRun, postRun, preBlock, postBlock, trial })
+      convert(fixture, { preRun, postRun, preBlock, postBlock, trial }),
     ).resolves.toMatchSnapshot('convert');
     expect(trial).toMatchSnapshot('trial');
     expect(preRun).toMatchSnapshot('preRun');
@@ -90,7 +90,7 @@ describe('convert', () => {
         postRun: 'mock-post-run',
         preBlock: 'mock-pre-block',
         postBlock: 'mock-post-block',
-      })
+      }),
     ).resolves.toMatchSnapshot();
   });
 
@@ -102,7 +102,7 @@ describe('convert', () => {
         postRun: [{ type: 'post-run-1' }, { type: 'post-run-2' }],
         preBlock: [{ type: 'pre-block-1' }, { type: 'pre-block-2' }],
         postBlock: [{ type: 'post-block-1' }, { type: 'post-block-2' }],
-      })
+      }),
     ).resolves.toMatchSnapshot();
   });
 
@@ -114,13 +114,13 @@ describe('convert', () => {
         postRun: ['post-run-1', 'post-run-2'],
         preBlock: ['pre-block-1', 'pre-block-2'],
         postBlock: ['post-block-1', 'post-block-2'],
-      })
+      }),
     ).resolves.toMatchSnapshot();
   });
 
   it('fails if it is provided with an empty string', async () => {
     await expect(() => convert('')).rejects.toThrowErrorMatchingInlineSnapshot(
-      '"No experiment tag found"'
+      '"No experiment tag found"',
     );
   });
 
@@ -134,7 +134,7 @@ describe('convert', () => {
     });
 
     await expect(() =>
-      convert(noOpReadable)
+      convert(noOpReadable),
     ).rejects.toThrowErrorMatchingInlineSnapshot('"No experiment tag found"');
   });
 });
