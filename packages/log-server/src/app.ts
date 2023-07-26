@@ -9,7 +9,7 @@ import { csvExportStream, jsonExportStream } from './export.js';
 import { pipeline } from 'stream/promises';
 import log from 'loglevel';
 import z from 'zod';
-import cuid from 'cuid';
+import { createId } from '@paralleldrive/cuid2';
 
 const ctx = zodiosContext(
   z.object({
@@ -128,7 +128,7 @@ export function createLogServer({
         });
         return;
       }
-      let runId = req.body?.id ?? cuid();
+      let runId = req.body?.id ?? createId();
       let experimentId = req.body?.experiment ?? 'default';
       const run = {
         ...req.body,
