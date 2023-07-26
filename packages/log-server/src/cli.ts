@@ -10,7 +10,7 @@ import dotenv from 'dotenv';
 import cors from 'cors';
 import loglevel from 'loglevel';
 import yargs from 'yargs';
-import { Store, createLogServer } from './index.js';
+import { SQLiteStore, createLogServer } from './index.js';
 import { csvExportStream, jsonExportStream } from './export.js';
 
 // Constants and setup
@@ -68,7 +68,7 @@ async function start({
     () => true,
     () => false,
   );
-  let store = new Store(dbPath);
+  let store = new SQLiteStore(dbPath);
   if (!doesDbExist) {
     let { error } = await store.migrateDatabase();
     if (error != null) {
@@ -114,7 +114,7 @@ async function exportLogs({
   output = undefined,
 }: ExportLogsParameter) {
   let filter = { type: logType, experimentId };
-  let store = new Store(database);
+  let store = new SQLiteStore(database);
   let stream =
     format === 'csv'
       ? csvExportStream(store, filter)
@@ -130,7 +130,7 @@ type MigrateDatabaseParameter = {
   database: string;
 };
 async function migrateDatabase({ database }: MigrateDatabaseParameter) {
-  let store = new Store(database);
+  let store = new SQLiteStore(database);
   let { error, results } = await store.migrateDatabase();
   results?.forEach((it) => {
     if (it.status === 'Success') {
