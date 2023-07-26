@@ -1,6 +1,6 @@
 import { act, render, screen } from '@testing-library/react';
 import userEventPackage from '@testing-library/user-event';
-import { Run, RunConfig, useTask } from '../src/main.js';
+import { Run, RunElements, useTask } from '../src/main.js';
 
 const userEvent =
   userEventPackage as unknown as typeof userEventPackage.default;
@@ -45,7 +45,7 @@ describe('run', () => {
 
   it('renders tasks in accordance with the timeline', async () => {
     const user = userEvent.setup();
-    let config: RunConfig<Task> = {
+    let config: RunElements<Task> = {
       tasks: {
         A: <Task type="A" dataProp="a" />,
         B: <Task type="B" dataProp="b" />,
@@ -67,7 +67,7 @@ describe('run', () => {
 
   it('renders nothing when the experiment is done if no completed element is provided', async () => {
     const user = userEvent.setup();
-    let config: RunConfig<Task> = {
+    let config: RunElements<Task> = {
       tasks: {
         A: <Task type="A" dataProp="a" />,
         B: <Task type="B" dataProp="b" />,
@@ -95,7 +95,7 @@ describe('run', () => {
         vi.advanceTimersToNextTimer();
       },
     });
-    let config: RunConfig<Task> = {
+    let config: RunElements<Task> = {
       tasks: {
         A: <Task type="A" dataProp="a" />,
         B: <Task type="B" dataProp="b" />,

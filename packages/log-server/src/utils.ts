@@ -22,8 +22,11 @@ export const JsonPrimitive = z.union([
 export type JsonPrimitive = z.infer<typeof JsonPrimitive>;
 export type JsonValue =
   | JsonPrimitive
-  | { [key: string]: JsonValue }
-  | JsonValue[];
+  | ({ [Key in string]: JsonValue } & {
+      [Key in string]?: JsonValue | undefined;
+    })
+  | JsonValue[]
+  | readonly JsonValue[];
 export const JsonValue: z.ZodType<JsonValue> = z.lazy(() =>
   z.union([JsonPrimitive, z.array(JsonValue), z.record(JsonValue)]),
 );
