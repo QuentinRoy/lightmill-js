@@ -121,7 +121,7 @@ export function createLogServer({
       if (req.session?.role == null) {
         req.session = { role: 'participant', runs: [] };
       }
-      if (req.session.runId != null) {
+      if (req.session.runs.length > 0) {
         res.status(403).json({
           status: 'error',
           message: 'Client already has a started run, end it first',
@@ -131,7 +131,6 @@ export function createLogServer({
       let runId = req.body?.id ?? createId();
       let experimentId = req.body?.experiment ?? 'default';
       const run = {
-        ...req.body,
         experimentId,
         runId,
         createdAt: new Date(),
