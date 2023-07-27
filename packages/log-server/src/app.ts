@@ -87,7 +87,7 @@ export function createLogServer({
   });
 
   router.get('/sessions/current', (req, res) => {
-    if (req.session?.role == null) {
+    if (!req.session?.isPopulated) {
       res.status(404).json({
         status: 'error',
         message: 'No session found',
