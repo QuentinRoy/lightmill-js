@@ -176,6 +176,9 @@ export function createLogServer({
       }
       let run = await store.getRun(experimentId, runId);
       if (run == null) {
+        // This will cause an internal server error. It should not happen
+        // in normal use, except if the participant's session is corrupted,
+        // or the database is corrupted, or removed.
         throw new Error(`Session run not found: ${runId}`);
       }
 
@@ -183,6 +186,8 @@ export function createLogServer({
       // { "status": "completed" | "canceled" }, so there is nothing more to
       // check here, zodios does it for us already.
       if (run.status != 'running') {
+        // This should not happen in normal use since the client should lose
+        // access to the run once it is ended.
         res.status(400).json({
           status: 'error',
           message: 'Run already ended',
