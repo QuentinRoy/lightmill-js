@@ -260,7 +260,6 @@ export function createLogServer({
         });
         return;
       }
-      let { type } = req.query;
       let format = 'json';
       let acceptHeader = req.header('Accept');
       if (acceptHeader != null) {
@@ -274,10 +273,9 @@ export function createLogServer({
           }
         }
       }
-      let { experiment } = req.params ?? {};
       let filter: LogFilter = {
-        experiment: experiment == null ? undefined : String(experiment),
-        type: type,
+        experiment: String(req.params.experiment),
+        type: req.query.type,
       };
       if (format === 'csv') {
         res.setHeader('Content-Type', 'text/csv');

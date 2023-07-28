@@ -31,7 +31,9 @@ function MockStore(): MockStore {
     setRunStatus: vi.fn((...args) => Promise.resolve()),
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     addRunLogs: vi.fn((...args) => Promise.resolve()),
-    getLogValueNames: vi.fn(() => Promise.resolve(['mock-col1', 'mock-col2'])),
+    getLogValueNames: vi.fn(() =>
+      Promise.resolve(['mock-col1', 'mock-col2', 'mock-col3']),
+    ),
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     getLogs: vi.fn(async function* (): AsyncGenerator<Log> {
       yield {
@@ -372,26 +374,27 @@ describe('/experiments/runs', () => {
 describe('/experiments/runs/logs', () => {
   let store: MockStore;
   let api: request.SuperTest<request.Test>;
-  beforeEach(async () => {
-    vi.useFakeTimers({ toFake: ['Date'] });
-    vi.setSystemTime(1234567890);
-    store = MockStore();
-    let app = createLogServer({
-      store,
-      secret: 'secret',
-      secureCookies: false,
-    });
-    api = request.agent(app);
-    await api.post('/sessions').send({ role: 'participant' });
-    await api
-      .post('/experiments/runs')
-      .send({ experiment: 'test-exp', id: 'test-run' });
-  });
-  afterEach(() => {
-    vi.useRealTimers();
-  });
 
   describe('post /experiments/:experiment/runs/:run/logs', () => {
+    beforeEach(async () => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(1234567890);
+      store = MockStore();
+      let app = createLogServer({
+        store,
+        secret: 'secret',
+        secureCookies: false,
+      });
+      api = request.agent(app);
+      await api.post('/sessions').send({ role: 'participant' });
+      await api
+        .post('/experiments/runs')
+        .send({ experiment: 'test-exp', id: 'test-run' });
+    });
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
     type PostLogsBody = Body<'post', '/experiments/:experiment/runs/:run/logs'>;
 
     it('should refuse to add logs if the client does not have access to the run', async () => {
@@ -464,6 +467,162 @@ describe('/experiments/runs/logs', () => {
           date: date2,
         },
       ]);
+    });
+  });
+
+  describe('get /experiments/:experiment/runs/logs', () => {
+    beforeEach(async () => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(1234567890);
+      store = MockStore();
+      let app = createLogServer({
+        store,
+        secret: 'secret',
+        secureCookies: false,
+      });
+      api = request.agent(app);
+      await api.post('/sessions').send({ role: 'admin' });
+    });
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('should refuse to fetch logs if the client is not logged as an admin', async () => {
+      await api.delete('/sessions/current').expect(200);
+      await api.post('/sessions').send({ role: 'participant' }).expect(201);
+      await api.get('/experiments/exp/runs/logs').expect(403, {
+        status: 'error',
+        message: 'Access restricted.',
+      });
+      expect(store.getLogs).not.toHaveBeenCalled();
+    });
+    it('should return logs as json by default', async () => {
+      let result = await api.get('/experiments/exp/runs/logs').expect(200);
+      expect(store.getLogs).toHaveBeenCalledWith({ experiment: 'exp' });
+      expect(result.body).toMatchInlineSnapshot(`
+        [
+          {
+            "createdAt": "1970-01-15T06:56:07.890Z",
+            "date": "1970-01-01T00:00:00.000Z",
+            "experiment": "getLogs:experimentId-1",
+            "run": "getLogs:runId-1",
+            "type": "getLogs:type-1",
+            "values": {
+              "mock-col1": "log1-mock-value1",
+              "mock-col2": "log1-mock-value2",
+            },
+          },
+          {
+            "createdAt": "1970-01-15T06:56:07.890Z",
+            "date": "1970-01-01T00:00:00.000Z",
+            "experiment": "getLogs:experimentId-2",
+            "run": "getLogs:runId-2",
+            "type": "getLogs:type-2",
+            "values": {
+              "mock-col1": "log2-mock-value1",
+              "mock-col2": "log2-mock-value2",
+              "mock-col3": "log2-mock-value3",
+            },
+          },
+        ]
+      `);
+    });
+    it('should return logs as json if json is the first supported format in the Accept header', async () => {
+      let result = await api
+        .get('/experiments/exp/runs/logs')
+        .set(
+          'Accept',
+          'application/xml,application/json,text/csv,application/pdf',
+        )
+        .expect(200);
+      expect(store.getLogs).toHaveBeenCalledWith({ experiment: 'exp' });
+      expect(result.body).toMatchInlineSnapshot(`
+        [
+          {
+            "createdAt": "1970-01-15T06:56:07.890Z",
+            "date": "1970-01-01T00:00:00.000Z",
+            "experiment": "getLogs:experimentId-1",
+            "run": "getLogs:runId-1",
+            "type": "getLogs:type-1",
+            "values": {
+              "mock-col1": "log1-mock-value1",
+              "mock-col2": "log1-mock-value2",
+            },
+          },
+          {
+            "createdAt": "1970-01-15T06:56:07.890Z",
+            "date": "1970-01-01T00:00:00.000Z",
+            "experiment": "getLogs:experimentId-2",
+            "run": "getLogs:runId-2",
+            "type": "getLogs:type-2",
+            "values": {
+              "mock-col1": "log2-mock-value1",
+              "mock-col2": "log2-mock-value2",
+              "mock-col3": "log2-mock-value3",
+            },
+          },
+        ]
+      `);
+    });
+    it('should return logs as csv if csv is the first supported format in the Accept header', async () => {
+      let result = await api
+        .get('/experiments/exp/runs/logs')
+        .set(
+          'Accept',
+          'application/pdf,text/csv,application/json,application/xml',
+        )
+        .expect(200);
+      expect(store.getLogs).toHaveBeenCalledWith({ experiment: 'exp' });
+      expect(result.text).toMatchInlineSnapshot(`
+        "type,run,date,mock_col1,mock_col2,mock_col3
+        getLogs:type-1,getLogs:runId-1,1970-01-01T00:00:00.000Z,log1-mock-value1,log1-mock-value2,
+        getLogs:type-2,getLogs:runId-2,1970-01-01T00:00:00.000Z,log2-mock-value1,log2-mock-value2,log2-mock-value3
+        "
+      `);
+    });
+    it('should return logs as json if the Accept header is not supported', async () => {
+      let result = await api
+        .get('/experiments/exp/runs/logs')
+        .set('Accept', 'application/xml')
+        .expect(200);
+      expect(store.getLogs).toHaveBeenCalledWith({ experiment: 'exp' });
+      expect(result.body).toMatchInlineSnapshot(`
+        [
+          {
+            "createdAt": "1970-01-15T06:56:07.890Z",
+            "date": "1970-01-01T00:00:00.000Z",
+            "experiment": "getLogs:experimentId-1",
+            "run": "getLogs:runId-1",
+            "type": "getLogs:type-1",
+            "values": {
+              "mock-col1": "log1-mock-value1",
+              "mock-col2": "log1-mock-value2",
+            },
+          },
+          {
+            "createdAt": "1970-01-15T06:56:07.890Z",
+            "date": "1970-01-01T00:00:00.000Z",
+            "experiment": "getLogs:experimentId-2",
+            "run": "getLogs:runId-2",
+            "type": "getLogs:type-2",
+            "values": {
+              "mock-col1": "log2-mock-value1",
+              "mock-col2": "log2-mock-value2",
+              "mock-col3": "log2-mock-value3",
+            },
+          },
+        ]
+      `);
+    });
+    it('should be able to filter logs by type using the type query parameter', async () => {
+      await api
+        .get('/experiments/exp/runs/logs')
+        .query({ type: 'log-type' })
+        .expect(200);
+      expect(store.getLogs).toHaveBeenCalledWith({
+        experiment: 'exp',
+        type: 'log-type',
+      });
     });
   });
 });
