@@ -1,4 +1,4 @@
-export { Store } from './store.js';
+export { Store, SQLiteStore } from './store.js';
 export { createLogServer } from './app.js';
 export type {
   Path,

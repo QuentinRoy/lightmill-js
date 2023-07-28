@@ -1,4 +1,10 @@
-import { act, render, screen } from '@testing-library/react';
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react';
 import userEventPackage from '@testing-library/user-event';
 import { Run, RunElements, useTask } from '../src/main.js';
 
@@ -90,11 +96,6 @@ describe('run', () => {
   it('renders loading if getting to the next step is asynchronous', async () => {
     vi.useFakeTimers();
     const taskTime = 150;
-    const user = userEvent.setup({
-      advanceTimers: () => {
-        vi.advanceTimersToNextTimer();
-      },
-    });
     let config: RunElements<Task> = {
       tasks: {
         A: <Task type="A" dataProp="a" />,
@@ -105,29 +106,27 @@ describe('run', () => {
     };
     render(<Run elements={config} timeline={asyncTaskGen(taskTime)} />);
     expect(screen.getByTestId('loading')).toBeInTheDocument();
-    await act(async () => {
-      await vi.advanceTimersByTime(taskTime);
-    });
+    await act(() => vi.advanceTimersByTime(taskTime));
     expect(screen.getByRole('heading')).toHaveTextContent('Type A');
     expect(screen.getByTestId('data')).toHaveTextContent('hello');
-    await user.click(screen.getByRole('button'));
+    expect(screen.getByRole('button')).toBeInTheDocument();
+    // Use fireEvent instead of userEvent because userEvent doesn't work with
+    // fake timers.
+    fireEvent.click(screen.getByRole('button'));
+    await act(() => vi.runAllTicks());
     expect(screen.getByTestId('loading')).toBeInTheDocument();
-    await act(async () => {
-      await vi.advanceTimersByTime(taskTime);
-    });
+    await act(() => vi.advanceTimersByTime(taskTime));
     expect(screen.getByRole('heading')).toHaveTextContent('Type B');
     expect(screen.getByTestId('data')).toHaveTextContent('42');
-    await user.click(screen.getByRole('button'));
+    fireEvent.click(screen.getByRole('button'));
+    await act(() => vi.runAllTicks());
     expect(screen.getByTestId('loading')).toBeInTheDocument();
-    await act(async () => {
-      await vi.advanceTimersByTime(taskTime);
-    });
+    await act(() => vi.advanceTimersByTime(taskTime));
     expect(screen.getByRole('heading')).toHaveTextContent('Type A');
     expect(screen.getByTestId('data')).toHaveTextContent('world');
-    await act(async () => {
-      await vi.advanceTimersByTime(taskTime);
-    });
-    await user.click(screen.getByRole('button'));
+    await act(() => vi.advanceTimersByTime(taskTime));
+    fireEvent.click(screen.getByRole('button'));
+    await act(() => vi.runAllTicks());
     expect(screen.getByTestId('loading')).toBeInTheDocument();
     await act(async () => {
       await vi.advanceTimersByTime(taskTime);

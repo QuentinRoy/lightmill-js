@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import * as url from 'node:url';
-import SQliteDB, { SqliteError } from 'better-sqlite3';
+import SQLiteDB, { SqliteError } from 'better-sqlite3';
 import {
   Kysely,
   FileMigrationProvider,
@@ -18,6 +18,8 @@ import { pipe, sortBy } from 'remeda';
 
 const __dirname = url.fileURLToPath(new URL('.', import.meta.url));
 const migrationFolder = path.join(__dirname, 'db-migrations');
+
+export type Store = Omit<SQLiteStore, 'migrateDatabase' | 'close'>;
 
 type RunTable = {
   runId: string;
@@ -48,7 +50,7 @@ type Database = {
   logValue: LogValueTable;
 };
 
-export class Store {
+export class SQLiteStore {
   #db: Kysely<Database>;
   constructor(
     db: string,
@@ -57,7 +59,7 @@ export class Store {
     const log = loglevel.getLogger('store');
     log.setLevel(logLevel);
     this.#db = new Kysely({
-      dialect: new SqliteDialect({ database: new SQliteDB(db) }),
+      dialect: new SqliteDialect({ database: new SQLiteDB(db) }),
       log: (event) => {
         if (event.level === 'query') {
           log.debug(event.query.sql, event.query.parameters);

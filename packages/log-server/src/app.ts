@@ -9,7 +9,7 @@ import { csvExportStream, jsonExportStream } from './export.js';
 import { pipeline } from 'stream/promises';
 import log from 'loglevel';
 import z from 'zod';
-import cuid from 'cuid';
+import { createId } from '@paralleldrive/cuid2';
 
 const ctx = zodiosContext(
   z.object({
@@ -87,7 +87,7 @@ export function createLogServer({
   });
 
   router.get('/sessions/current', (req, res) => {
-    if (req.session?.role == null) {
+    if (!req.session?.isPopulated) {
       res.status(404).json({
         status: 'error',
         message: 'No session found',
@@ -121,17 +121,16 @@ export function createLogServer({
       if (req.session?.role == null) {
         req.session = { role: 'participant', runs: [] };
       }
-      if (req.session.runId != null) {
+      if (req.session.runs.length > 0) {
         res.status(403).json({
           status: 'error',
           message: 'Client already has a started run, end it first',
         });
         return;
       }
-      let runId = req.body?.id ?? cuid();
+      let runId = req.body?.id ?? createId();
       let experimentId = req.body?.experiment ?? 'default';
       const run = {
-        ...req.body,
         experimentId,
         runId,
         createdAt: new Date(),
@@ -177,6 +176,9 @@ export function createLogServer({
       }
       let run = await store.getRun(experimentId, runId);
       if (run == null) {
+        // This will cause an internal server error. It should not happen
+        // in normal use, except if the participant's session is corrupted,
+        // or the database is corrupted, or removed.
         throw new Error(`Session run not found: ${runId}`);
       }
 
@@ -184,6 +186,8 @@ export function createLogServer({
       // { "status": "completed" | "canceled" }, so there is nothing more to
       // check here, zodios does it for us already.
       if (run.status != 'running') {
+        // This should not happen in normal use since the client should lose
+        // access to the run once it is ended.
         res.status(400).json({
           status: 'error',
           message: 'Run already ended',
@@ -214,17 +218,20 @@ export function createLogServer({
         ) {
           res.status(403).json({
             status: 'error',
-            message: `Client does not have permission to post logs for run "${runId}" of experiment "${experimentId}"`,
+            message: `Client does not have permission to add logs to run "${runId}" of experiment "${experimentId}"`,
           });
           return;
         }
         let sessionRun = await store.getRun(experimentId, runId);
         if (sessionRun == null) {
-          // This should not happen in normal use, except if the database is
-          // corrupted, or removed.
+          // This will cause an internal server error. It should not happen
+          // in normal use, except if the participant's session is corrupted,
+          // or the database is corrupted, or removed.
           throw new Error(`Session run not found: ${runId}`);
         }
         if (sessionRun.status != 'running') {
+          // This should not happen either because a client should lose
+          // access to the run once it is ended.
           res.status(403).json({
             status: 'error',
             message: 'Cannot add logs to an ended run',
@@ -253,7 +260,6 @@ export function createLogServer({
         });
         return;
       }
-      let { type } = req.query;
       let format = 'json';
       let acceptHeader = req.header('Accept');
       if (acceptHeader != null) {
@@ -267,10 +273,9 @@ export function createLogServer({
           }
         }
       }
-      let { experiment } = req.params ?? {};
       let filter: LogFilter = {
-        experiment: experiment == null ? undefined : String(experiment),
-        type: type,
+        experiment: String(req.params.experiment),
+        type: req.query.type,
       };
       if (format === 'csv') {
         res.setHeader('Content-Type', 'text/csv');
