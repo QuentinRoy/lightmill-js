@@ -2,6 +2,7 @@ import request from 'supertest';
 import { afterEach, describe, beforeEach, it, vi, expect, Mock } from 'vitest';
 import { Log, Store, StoreError } from '../src/store.js';
 import { createLogServer } from '../src/app.js';
+import { Body } from '../src/api.js';
 
 type MockStore = {
   [K in keyof Store]: Store[K] extends (...args: infer A) => infer R
@@ -271,6 +272,7 @@ describe('/experiments/runs', () => {
           message: 'Client already has a started run, end it first',
           status: 'error',
         });
+      expect(store.addRun).toHaveBeenCalledTimes(1);
     });
 
     it('should refuse to create a run if the run id already exists', async () => {
@@ -296,6 +298,7 @@ describe('/experiments/runs', () => {
           status: 'error',
           message: `Client does not have permission to update run "not-my-run" of experiment "exp"`,
         });
+      expect(store.setRunStatus).not.toHaveBeenCalled();
     });
     it('should return an error if the client does not have access to this particular run', async () => {
       await api
@@ -309,6 +312,7 @@ describe('/experiments/runs', () => {
           status: 'error',
           message: `Client does not have permission to update run "not-my-run" of experiment "exp"`,
         });
+      expect(store.setRunStatus).not.toHaveBeenCalled();
     });
     it('should complete a running run if argument is "completed"', async () => {
       await api
@@ -361,6 +365,105 @@ describe('/experiments/runs', () => {
           status: 'error',
           message: `Client does not have permission to update run "my-run" of experiment "exp"`,
         });
+    });
+  });
+});
+
+describe('/experiments/runs/logs', () => {
+  let store: MockStore;
+  let api: request.SuperTest<request.Test>;
+  beforeEach(async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(1234567890);
+    store = MockStore();
+    let app = createLogServer({
+      store,
+      secret: 'secret',
+      secureCookies: false,
+    });
+    api = request.agent(app);
+    await api.post('/sessions').send({ role: 'participant' });
+    await api
+      .post('/experiments/runs')
+      .send({ experiment: 'test-exp', id: 'test-run' });
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  describe('post /experiments/:experiment/runs/:run/logs', () => {
+    type PostLogsBody = Body<'post', '/experiments/:experiment/runs/:run/logs'>;
+
+    it('should refuse to add logs if the client does not have access to the run', async () => {
+      await api
+        .post('/experiments/test-exp/runs/not-my-run/logs')
+        .send({
+          log: {
+            type: 'test-log',
+            values: { p1: 'v1', p2: 'v2' },
+            date: new Date(0).toISOString(),
+          },
+        } satisfies PostLogsBody)
+        .expect(403, {
+          status: 'error',
+          message:
+            'Client does not have permission to add logs to run "not-my-run" of experiment "test-exp"',
+        });
+      expect(store.addRunLogs).not.toHaveBeenCalled();
+    });
+
+    it('should add a single log to the run', async () => {
+      let date = new Date(1234567890);
+      await api
+        .post('/experiments/test-exp/runs/test-run/logs')
+        .send({
+          log: {
+            type: 'test-log',
+            values: { p1: 'v1', p2: 'v2' },
+            date: date.toISOString(),
+          },
+        } satisfies PostLogsBody)
+        .expect(201, { status: 'ok' });
+      expect(store.addRunLogs).toHaveBeenCalledWith('test-exp', 'test-run', [
+        {
+          type: 'test-log',
+          values: { p1: 'v1', p2: 'v2' },
+          date,
+        },
+      ]);
+    });
+    it('should add multiple logs to the run at once', async () => {
+      let date1 = new Date(100);
+      let date2 = new Date(200);
+      await api
+        .post('/experiments/test-exp/runs/test-run/logs')
+        .send({
+          logs: [
+            {
+              type: 'test-log',
+              values: { p1: 'v1', p2: 'v2' },
+              date: date1.toISOString(),
+            },
+            {
+              type: 'test-log',
+              values: { p3: 'v3', p4: 'v4' },
+              date: date2.toISOString(),
+            },
+          ],
+        } satisfies PostLogsBody)
+        .expect(201, { status: 'ok' });
+      expect(store.addRunLogs).toHaveBeenCalledWith('test-exp', 'test-run', [
+        {
+          type: 'test-log',
+          values: { p1: 'v1', p2: 'v2' },
+          date: date1,
+        },
+        {
+          type: 'test-log',
+          values: { p3: 'v3', p4: 'v4' },
+          date: date2,
+        },
+      ]);
     });
   });
 });

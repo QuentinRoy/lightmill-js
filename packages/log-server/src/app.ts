@@ -218,17 +218,20 @@ export function createLogServer({
         ) {
           res.status(403).json({
             status: 'error',
-            message: `Client does not have permission to post logs for run "${runId}" of experiment "${experimentId}"`,
+            message: `Client does not have permission to add logs to run "${runId}" of experiment "${experimentId}"`,
           });
           return;
         }
         let sessionRun = await store.getRun(experimentId, runId);
         if (sessionRun == null) {
-          // This should not happen in normal use, except if the database is
-          // corrupted, or removed.
+          // This will cause an internal server error. It should not happen
+          // in normal use, except if the participant's session is corrupted,
+          // or the database is corrupted, or removed.
           throw new Error(`Session run not found: ${runId}`);
         }
         if (sessionRun.status != 'running') {
+          // This should not happen either because a client should lose
+          // access to the run once it is ended.
           res.status(403).json({
             status: 'error',
             message: 'Cannot add logs to an ended run',
