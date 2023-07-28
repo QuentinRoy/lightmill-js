@@ -91,3 +91,37 @@ describe('SQLiteStore#addRun', () => {
     ).resolves.toEqual({ runId: 'run-id', experimentId: 'experiment2' });
   });
 });
+
+describe('SQLiteStore#getRun', () => {
+  let store: SQLiteStore;
+  beforeEach(async () => {
+    store = new SQLiteStore(':memory:');
+    await store.migrateDatabase();
+    await store.addRun({
+      runId: 'run1',
+      experimentId: 'experiment',
+      createdAt: new Date(1234),
+    });
+    await store.addRun({
+      runId: 'run2',
+      experimentId: 'experiment',
+      createdAt: new Date(4321),
+    });
+  });
+  afterEach(async () => {
+    await store.close();
+  });
+  it('should return the run if it exists', async () => {
+    await expect(store.getRun('experiment', 'run1')).resolves.toEqual({
+      runId: 'run1',
+      experimentId: 'experiment',
+      createdAt: new Date(1234),
+      status: 'running',
+    });
+  });
+  it('should return undefined if the run does not exist', async () => {
+    await expect(
+      store.getRun('experiment', 'unknown-run'),
+    ).resolves.toBeUndefined();
+  });
+});

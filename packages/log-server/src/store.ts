@@ -113,7 +113,7 @@ export class SQLiteStore {
       .where('runId', '=', runId)
       .selectAll()
       .executeTakeFirst();
-    if (!selection) return;
+    if (selection == null) return;
     return {
       ...selection,
       createdAt:
