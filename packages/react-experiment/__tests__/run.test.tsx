@@ -1,10 +1,4 @@
-import {
-  act,
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-} from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import userEventPackage from '@testing-library/user-event';
 import { Run, RunElements, useTask } from '../src/main.js';
 
