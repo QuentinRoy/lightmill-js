@@ -369,3 +369,408 @@ describe('SQLiteStore#getLogValueNames', () => {
     ).resolves.toEqual([]);
   });
 });
+
+describe('SQLiteStore#getLogs', () => {
+  let store: SQLiteStore;
+  beforeEach(async () => {
+    store = new SQLiteStore(':memory:');
+    await store.migrateDatabase();
+    await store.addRun({
+      runId: 'run1',
+      experimentId: 'experiment1',
+      createdAt: new Date(101),
+    });
+    await store.addRun({
+      runId: 'run2',
+      experimentId: 'experiment1',
+      createdAt: new Date(102),
+    });
+    await store.addRun({
+      runId: 'run1',
+      experimentId: 'experiment2',
+      createdAt: new Date(103),
+    });
+    await store.addLogs('experiment1', 'run1', [
+      {
+        date: new Date(4),
+        createdAt: new Date(104),
+        type: 'log1',
+        values: { message: 'hello', recipient: 'Anna' },
+      },
+      {
+        date: new Date(5),
+        createdAt: new Date(105),
+        type: 'log1',
+        values: { message: 'bonjour', recipient: 'Jo' },
+      },
+    ]);
+    await store.addLogs('experiment1', 'run2', [
+      {
+        date: new Date(6),
+        createdAt: new Date(106),
+        type: 'log2',
+        values: { x: 12, foo: false },
+      },
+      {
+        date: new Date(7),
+        createdAt: new Date(107),
+        type: 'log1',
+        values: { message: 'hola', bar: null },
+      },
+    ]);
+    await store.addLogs('experiment2', 'run1', [
+      {
+        date: new Date(8),
+        createdAt: new Date(108),
+        type: 'log2',
+        values: { x: 25, y: 0, foo: true },
+      },
+    ]);
+  });
+  afterEach(async () => {
+    await store.close();
+  });
+
+  it('should return the names of all log values in alphabetical order', async () => {
+    await expect(fromAsync(store.getLogs())).resolves.toMatchInlineSnapshot(`
+      [
+        {
+          "clientDate": 1970-01-01T00:00:00.004Z,
+          "createdAt": 1970-01-01T00:00:00.104Z,
+          "experimentId": "experiment1",
+          "runId": "run1",
+          "type": "log1",
+          "values": {
+            "message": "hello",
+            "recipient": "Anna",
+          },
+        },
+        {
+          "clientDate": 1970-01-01T00:00:00.005Z,
+          "createdAt": 1970-01-01T00:00:00.105Z,
+          "experimentId": "experiment1",
+          "runId": "run1",
+          "type": "log1",
+          "values": {
+            "message": "bonjour",
+            "recipient": "Jo",
+          },
+        },
+        {
+          "clientDate": 1970-01-01T00:00:00.006Z,
+          "createdAt": 1970-01-01T00:00:00.106Z,
+          "experimentId": "experiment1",
+          "runId": "run2",
+          "type": "log2",
+          "values": {
+            "foo": false,
+            "x": 12,
+          },
+        },
+        {
+          "clientDate": 1970-01-01T00:00:00.007Z,
+          "createdAt": 1970-01-01T00:00:00.107Z,
+          "experimentId": "experiment1",
+          "runId": "run2",
+          "type": "log1",
+          "values": {
+            "bar": null,
+            "message": "hola",
+          },
+        },
+        {
+          "clientDate": 1970-01-01T00:00:00.008Z,
+          "createdAt": 1970-01-01T00:00:00.108Z,
+          "experimentId": "experiment2",
+          "runId": "run1",
+          "type": "log2",
+          "values": {
+            "foo": true,
+            "x": 25,
+            "y": 0,
+          },
+        },
+      ]
+    `);
+  });
+  it('should be able to filter logs of a particular type', async () => {
+    await expect(fromAsync(store.getLogs({ type: 'log1' }))).resolves
+      .toMatchInlineSnapshot(`
+      [
+        {
+          "clientDate": 1970-01-01T00:00:00.004Z,
+          "createdAt": 1970-01-01T00:00:00.104Z,
+          "experimentId": "experiment1",
+          "runId": "run1",
+          "type": "log1",
+          "values": {
+            "message": "hello",
+            "recipient": "Anna",
+          },
+        },
+        {
+          "clientDate": 1970-01-01T00:00:00.005Z,
+          "createdAt": 1970-01-01T00:00:00.105Z,
+          "experimentId": "experiment1",
+          "runId": "run1",
+          "type": "log1",
+          "values": {
+            "message": "bonjour",
+            "recipient": "Jo",
+          },
+        },
+        {
+          "clientDate": 1970-01-01T00:00:00.007Z,
+          "createdAt": 1970-01-01T00:00:00.107Z,
+          "experimentId": "experiment1",
+          "runId": "run2",
+          "type": "log1",
+          "values": {
+            "bar": null,
+            "message": "hola",
+          },
+        },
+      ]
+    `);
+    await expect(fromAsync(store.getLogs({ type: 'log2' }))).resolves
+      .toMatchInlineSnapshot(`
+      [
+        {
+          "clientDate": 1970-01-01T00:00:00.006Z,
+          "createdAt": 1970-01-01T00:00:00.106Z,
+          "experimentId": "experiment1",
+          "runId": "run2",
+          "type": "log2",
+          "values": {
+            "foo": false,
+            "x": 12,
+          },
+        },
+        {
+          "clientDate": 1970-01-01T00:00:00.008Z,
+          "createdAt": 1970-01-01T00:00:00.108Z,
+          "experimentId": "experiment2",
+          "runId": "run1",
+          "type": "log2",
+          "values": {
+            "foo": true,
+            "x": 25,
+            "y": 0,
+          },
+        },
+      ]
+    `);
+  });
+  it('should be able to filter logs from a particular experiment', async () => {
+    await expect(fromAsync(store.getLogs({ experiment: 'experiment1' })))
+      .resolves.toMatchInlineSnapshot(`
+      [
+        {
+          "clientDate": 1970-01-01T00:00:00.004Z,
+          "createdAt": 1970-01-01T00:00:00.104Z,
+          "experimentId": "experiment1",
+          "runId": "run1",
+          "type": "log1",
+          "values": {
+            "message": "hello",
+            "recipient": "Anna",
+          },
+        },
+        {
+          "clientDate": 1970-01-01T00:00:00.005Z,
+          "createdAt": 1970-01-01T00:00:00.105Z,
+          "experimentId": "experiment1",
+          "runId": "run1",
+          "type": "log1",
+          "values": {
+            "message": "bonjour",
+            "recipient": "Jo",
+          },
+        },
+        {
+          "clientDate": 1970-01-01T00:00:00.006Z,
+          "createdAt": 1970-01-01T00:00:00.106Z,
+          "experimentId": "experiment1",
+          "runId": "run2",
+          "type": "log2",
+          "values": {
+            "foo": false,
+            "x": 12,
+          },
+        },
+        {
+          "clientDate": 1970-01-01T00:00:00.007Z,
+          "createdAt": 1970-01-01T00:00:00.107Z,
+          "experimentId": "experiment1",
+          "runId": "run2",
+          "type": "log1",
+          "values": {
+            "bar": null,
+            "message": "hola",
+          },
+        },
+      ]
+    `);
+    await expect(
+      fromAsync(store.getLogs({ experiment: 'experiment2' })),
+    ).resolves.toMatchInlineSnapshot(`
+      [
+        {
+          "clientDate": 1970-01-01T00:00:00.008Z,
+          "createdAt": 1970-01-01T00:00:00.108Z,
+          "experimentId": "experiment2",
+          "runId": "run1",
+          "type": "log2",
+          "values": {
+            "foo": true,
+            "x": 25,
+            "y": 0,
+          },
+        },
+      ]
+    `);
+  });
+  it('should be able to filter logs from a particular run', async () => {
+    await expect(fromAsync(store.getLogs({ run: 'run1' }))).resolves
+      .toMatchInlineSnapshot(`
+      [
+        {
+          "clientDate": 1970-01-01T00:00:00.004Z,
+          "createdAt": 1970-01-01T00:00:00.104Z,
+          "experimentId": "experiment1",
+          "runId": "run1",
+          "type": "log1",
+          "values": {
+            "message": "hello",
+            "recipient": "Anna",
+          },
+        },
+        {
+          "clientDate": 1970-01-01T00:00:00.005Z,
+          "createdAt": 1970-01-01T00:00:00.105Z,
+          "experimentId": "experiment1",
+          "runId": "run1",
+          "type": "log1",
+          "values": {
+            "message": "bonjour",
+            "recipient": "Jo",
+          },
+        },
+        {
+          "clientDate": 1970-01-01T00:00:00.008Z,
+          "createdAt": 1970-01-01T00:00:00.108Z,
+          "experimentId": "experiment2",
+          "runId": "run1",
+          "type": "log2",
+          "values": {
+            "foo": true,
+            "x": 25,
+            "y": 0,
+          },
+        },
+      ]
+    `);
+    await expect(fromAsync(store.getLogs({ run: 'run2' }))).resolves
+      .toMatchInlineSnapshot(`
+      [
+        {
+          "clientDate": 1970-01-01T00:00:00.006Z,
+          "createdAt": 1970-01-01T00:00:00.106Z,
+          "experimentId": "experiment1",
+          "runId": "run2",
+          "type": "log2",
+          "values": {
+            "foo": false,
+            "x": 12,
+          },
+        },
+        {
+          "clientDate": 1970-01-01T00:00:00.007Z,
+          "createdAt": 1970-01-01T00:00:00.107Z,
+          "experimentId": "experiment1",
+          "runId": "run2",
+          "type": "log1",
+          "values": {
+            "bar": null,
+            "message": "hola",
+          },
+        },
+      ]
+    `);
+  });
+  it('should be able to filter logs by run, experiment, and type all at once', async () => {
+    await expect(
+      fromAsync(store.getLogs({ experiment: 'experiment1', type: 'log2' })),
+    ).resolves.toMatchInlineSnapshot(`
+      [
+        {
+          "clientDate": 1970-01-01T00:00:00.006Z,
+          "createdAt": 1970-01-01T00:00:00.106Z,
+          "experimentId": "experiment1",
+          "runId": "run2",
+          "type": "log2",
+          "values": {
+            "foo": false,
+            "x": 12,
+          },
+        },
+      ]
+    `);
+    await expect(
+      fromAsync(
+        store.getLogs({
+          experiment: 'experiment1',
+          type: 'log1',
+          run: 'run1',
+        }),
+      ),
+    ).resolves.toMatchInlineSnapshot(`
+      [
+        {
+          "clientDate": 1970-01-01T00:00:00.004Z,
+          "createdAt": 1970-01-01T00:00:00.104Z,
+          "experimentId": "experiment1",
+          "runId": "run1",
+          "type": "log1",
+          "values": {
+            "message": "hello",
+            "recipient": "Anna",
+          },
+        },
+        {
+          "clientDate": 1970-01-01T00:00:00.005Z,
+          "createdAt": 1970-01-01T00:00:00.105Z,
+          "experimentId": "experiment1",
+          "runId": "run1",
+          "type": "log1",
+          "values": {
+            "message": "bonjour",
+            "recipient": "Jo",
+          },
+        },
+      ]
+    `);
+  });
+  it('should resolve with an empty array if no log matches the filter', async () => {
+    await expect(
+      fromAsync(store.getLogs({ experiment: 'experiment2', type: 'log1' })),
+    ).resolves.toEqual([]);
+    await expect(
+      fromAsync(store.getLogs({ experiment: 'do not exist' })),
+    ).resolves.toEqual([]);
+    await expect(
+      fromAsync(store.getLogs({ run: 'do not exist' })),
+    ).resolves.toEqual([]);
+    await expect(
+      fromAsync(store.getLogs({ type: 'do not exist' })),
+    ).resolves.toEqual([]);
+  });
+});
+
+async function fromAsync<T>(iterable: AsyncIterable<T>) {
+  let values: T[] = [];
+  for await (let value of iterable) {
+    values.push(value);
+  }
+  return values;
+}
