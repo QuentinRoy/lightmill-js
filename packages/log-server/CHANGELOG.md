@@ -1,5 +1,18 @@
 # @lightmill/log-server
 
+## 3.0.0-beta.22
+
+### Major Changes
+
+- 4ba84e4: Rename Store#addRunLogs to Store#addLogs.
+- 4ba84e4: Stop sorting logs per type with SQLiteStore#getLogs. Creation date is more relevant. Also update the corresponding database index.
+- 97ea257: Store has been renamed to SQLiteStore. The store type has been untied from the SQLiteStore class.
+- 4ba84e4: Store#addLogs now requires a createdAt property for each log
+
+### Patch Changes
+
+- 97ea257: fix clients being able to create two runs
+
 ## 3.0.0-beta.19
 
 ### Patch Changes
