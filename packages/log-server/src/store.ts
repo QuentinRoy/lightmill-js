@@ -113,7 +113,7 @@ export class SQLiteStore {
       .where('runId', '=', runId)
       .selectAll()
       .executeTakeFirst();
-    if (!selection) return;
+    if (selection == null) return;
     return {
       ...selection,
       createdAt:
@@ -134,27 +134,27 @@ export class SQLiteStore {
       .execute();
   }
 
-  async addRunLogs(
+  async addLogs(
     experimentId: string,
     runId: string,
     logs: Array<{
       type: string;
       date: Date;
+      createdAt: Date;
       values: JsonObject;
     }>,
   ) {
     await this.#db.transaction().execute(async (trx) => {
-      let createdAt = new Date().toISOString();
       let dbLogs = pipe(
         await trx
           .insertInto('log')
           .values(
-            logs.map(({ type, date }, i) => {
+            logs.map(({ type, date, createdAt }, i) => {
               return {
                 type,
                 runId,
                 experimentId,
-                createdAt,
+                createdAt: createdAt.toISOString(),
                 clientDate: date.toISOString(),
                 batchOrder: i,
               };
@@ -219,7 +219,6 @@ export class SQLiteStore {
       )
       .orderBy('log.experimentId')
       .orderBy('log.runId')
-      .orderBy('log.type')
       .orderBy('log.clientDate')
       .orderBy('log.createdAt')
       .orderBy('log.batchOrder')
