@@ -140,21 +140,21 @@ export class SQLiteStore {
     logs: Array<{
       type: string;
       date: Date;
+      createdAt: Date;
       values: JsonObject;
     }>,
   ) {
     await this.#db.transaction().execute(async (trx) => {
-      let createdAt = new Date().toISOString();
       let dbLogs = pipe(
         await trx
           .insertInto('log')
           .values(
-            logs.map(({ type, date }, i) => {
+            logs.map(({ type, date, createdAt }, i) => {
               return {
                 type,
                 runId,
                 experimentId,
-                createdAt,
+                createdAt: createdAt.toISOString(),
                 clientDate: date.toISOString(),
                 batchOrder: i,
               };

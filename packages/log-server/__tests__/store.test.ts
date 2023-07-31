@@ -150,11 +150,13 @@ describe('SQLiteStore#addLogs', () => {
       store.addLogs('experiment', 'run1', [
         {
           date: new Date(1234),
+          createdAt: new Date(10234),
           type: 'log',
           values: { message: 'hello', bar: null },
         },
         {
           date: new Date(1235),
+          createdAt: new Date(10235),
           type: 'log',
           values: { message: 'bonjour', recipient: 'Jo' },
         },
@@ -164,11 +166,13 @@ describe('SQLiteStore#addLogs', () => {
       store.addLogs('experiment', 'run2', [
         {
           date: new Date(1234),
+          createdAt: new Date(10234),
           type: 'other-log',
           values: { x: 12, foo: false },
         },
         {
           date: new Date(1235),
+          createdAt: new Date(10235),
           type: 'log',
           values: { message: 'hola' },
         },
@@ -201,11 +205,13 @@ describe('SQLiteStore#getLogValueNames', () => {
       store.addLogs('experiment', 'run1', [
         {
           date: new Date(1234),
+          createdAt: new Date(10234),
           type: 'log',
           values: { message: 'hello', bar: null },
         },
         {
           date: new Date(1235),
+          createdAt: new Date(10235),
           type: 'log',
           values: { message: 'bonjour', recipient: 'Jo' },
         },
@@ -215,11 +221,13 @@ describe('SQLiteStore#getLogValueNames', () => {
       store.addLogs('experiment', 'run2', [
         {
           date: new Date(1237),
+          createdAt: new Date(10237),
           type: 'other-log',
           values: { x: 12, foo: false },
         },
         {
           date: new Date(1236),
+          createdAt: new Date(10236),
           type: 'log',
           values: { message: 'hola' },
         },
@@ -251,11 +259,13 @@ describe('SQLiteStore#getLogValueNames', () => {
     await store.addLogs('experiment1', 'run1', [
       {
         date: new Date(1234),
+        createdAt: new Date(10234),
         type: 'log1',
         values: { message: 'hello', recipient: 'Anna' },
       },
       {
         date: new Date(1236),
+        createdAt: new Date(10236),
         type: 'log1',
         values: { message: 'bonjour', recipient: 'Jo' },
       },
@@ -263,11 +273,13 @@ describe('SQLiteStore#getLogValueNames', () => {
     await store.addLogs('experiment1', 'run2', [
       {
         date: new Date(1235),
+        createdAt: new Date(10235),
         type: 'log2',
         values: { x: 12, foo: false },
       },
       {
         date: new Date(1237),
+        createdAt: new Date(10237),
         type: 'log1',
         values: { message: 'hola', bar: null },
       },
@@ -275,6 +287,7 @@ describe('SQLiteStore#getLogValueNames', () => {
     await store.addLogs('experiment2', 'run1', [
       {
         date: new Date(1240),
+        createdAt: new Date(10240),
         type: 'log2',
         values: { x: 25, y: 0, foo: true },
       },

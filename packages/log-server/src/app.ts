@@ -242,7 +242,11 @@ export function createLogServer({
         await store.addLogs(
           experimentId,
           runId,
-          logs.map((l) => ({ ...l, date: new Date(l.date) })),
+          logs.map((l) => ({
+            ...l,
+            date: new Date(l.date),
+            createdAt: new Date(),
+          })),
         );
         res.status(201).json({ status: 'ok' });
       } catch (e) {

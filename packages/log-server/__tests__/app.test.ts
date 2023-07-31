@@ -378,7 +378,7 @@ describe('/experiments/runs/logs', () => {
   describe('post /experiments/:experiment/runs/:run/logs', () => {
     beforeEach(async () => {
       vi.useFakeTimers({ toFake: ['Date'] });
-      vi.setSystemTime(1234567890);
+      vi.setSystemTime(100100);
       store = MockStore();
       let app = createLogServer({
         store,
@@ -432,6 +432,7 @@ describe('/experiments/runs/logs', () => {
           type: 'test-log',
           values: { p1: 'v1', p2: 'v2' },
           date,
+          createdAt: vi.getMockedSystemTime(),
         },
       ]);
     });
@@ -460,11 +461,13 @@ describe('/experiments/runs/logs', () => {
           type: 'test-log',
           values: { p1: 'v1', p2: 'v2' },
           date: date1,
+          createdAt: vi.getMockedSystemTime(),
         },
         {
           type: 'test-log',
           values: { p3: 'v3', p4: 'v4' },
           date: date2,
+          createdAt: vi.getMockedSystemTime(),
         },
       ]);
     });
