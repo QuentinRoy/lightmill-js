@@ -219,7 +219,6 @@ export class SQLiteStore {
       )
       .orderBy('log.experimentId')
       .orderBy('log.runId')
-      .orderBy('log.type')
       .orderBy('log.clientDate')
       .orderBy('log.createdAt')
       .orderBy('log.batchOrder')
