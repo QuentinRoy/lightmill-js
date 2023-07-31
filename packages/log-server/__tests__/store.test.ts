@@ -611,9 +611,8 @@ describe('SQLiteStore#getLogs', () => {
         },
       ]
     `);
-    await expect(
-      fromAsync(store.getLogs({ experiment: 'experiment2' })),
-    ).resolves.toMatchInlineSnapshot(`
+    await expect(fromAsync(store.getLogs({ experiment: 'experiment2' })))
+      .resolves.toMatchInlineSnapshot(`
       [
         {
           "clientDate": 1970-01-01T00:00:00.008Z,
