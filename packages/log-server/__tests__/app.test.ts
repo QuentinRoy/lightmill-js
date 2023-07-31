@@ -30,7 +30,7 @@ function MockStore(): MockStore {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     setRunStatus: vi.fn((...args) => Promise.resolve()),
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    addRunLogs: vi.fn((...args) => Promise.resolve()),
+    addLogs: vi.fn((...args) => Promise.resolve()),
     getLogValueNames: vi.fn(() =>
       Promise.resolve(['mock-col1', 'mock-col2', 'mock-col3']),
     ),
@@ -412,7 +412,7 @@ describe('/experiments/runs/logs', () => {
           message:
             'Client does not have permission to add logs to run "not-my-run" of experiment "test-exp"',
         });
-      expect(store.addRunLogs).not.toHaveBeenCalled();
+      expect(store.addLogs).not.toHaveBeenCalled();
     });
 
     it('should add a single log to the run', async () => {
@@ -427,7 +427,7 @@ describe('/experiments/runs/logs', () => {
           },
         } satisfies PostLogsBody)
         .expect(201, { status: 'ok' });
-      expect(store.addRunLogs).toHaveBeenCalledWith('test-exp', 'test-run', [
+      expect(store.addLogs).toHaveBeenCalledWith('test-exp', 'test-run', [
         {
           type: 'test-log',
           values: { p1: 'v1', p2: 'v2' },
@@ -455,7 +455,7 @@ describe('/experiments/runs/logs', () => {
           ],
         } satisfies PostLogsBody)
         .expect(201, { status: 'ok' });
-      expect(store.addRunLogs).toHaveBeenCalledWith('test-exp', 'test-run', [
+      expect(store.addLogs).toHaveBeenCalledWith('test-exp', 'test-run', [
         {
           type: 'test-log',
           values: { p1: 'v1', p2: 'v2' },

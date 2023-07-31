@@ -239,7 +239,7 @@ export function createLogServer({
           return;
         }
         let logs = 'logs' in req.body ? req.body.logs : [req.body.log];
-        await store.addRunLogs(
+        await store.addLogs(
           experimentId,
           runId,
           logs.map((l) => ({ ...l, date: new Date(l.date) })),

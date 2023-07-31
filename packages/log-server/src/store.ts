@@ -134,7 +134,7 @@ export class SQLiteStore {
       .execute();
   }
 
-  async addRunLogs(
+  async addLogs(
     experimentId: string,
     runId: string,
     logs: Array<{
