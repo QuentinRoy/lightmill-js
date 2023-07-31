@@ -176,3 +176,183 @@ describe('SQLiteStore#addLogs', () => {
     ).resolves.toBeUndefined();
   });
 });
+
+describe('SQLiteStore#getLogValueNames', () => {
+  let store: SQLiteStore;
+  beforeEach(async () => {
+    store = new SQLiteStore(':memory:');
+    await store.migrateDatabase();
+    await store.addRun({
+      runId: 'run1',
+      experimentId: 'experiment',
+      createdAt: new Date(1234),
+    });
+    await store.addRun({
+      runId: 'run2',
+      experimentId: 'experiment',
+      createdAt: new Date(4321),
+    });
+  });
+  afterEach(async () => {
+    await store.close();
+  });
+  it('should add logs without error', async () => {
+    await expect(
+      store.addLogs('experiment', 'run1', [
+        {
+          date: new Date(1234),
+          type: 'log',
+          values: { message: 'hello', bar: null },
+        },
+        {
+          date: new Date(1235),
+          type: 'log',
+          values: { message: 'bonjour', recipient: 'Jo' },
+        },
+      ]),
+    ).resolves.toBeUndefined();
+    await expect(
+      store.addLogs('experiment', 'run2', [
+        {
+          date: new Date(1237),
+          type: 'other-log',
+          values: { x: 12, foo: false },
+        },
+        {
+          date: new Date(1236),
+          type: 'log',
+          values: { message: 'hola' },
+        },
+      ]),
+    ).resolves.toBeUndefined();
+  });
+});
+
+describe('SQLiteStore#getLogValueNames', () => {
+  let store: SQLiteStore;
+  beforeEach(async () => {
+    store = new SQLiteStore(':memory:');
+    await store.migrateDatabase();
+    await store.addRun({
+      runId: 'run1',
+      experimentId: 'experiment1',
+      createdAt: new Date(1234),
+    });
+    await store.addRun({
+      runId: 'run2',
+      experimentId: 'experiment1',
+      createdAt: new Date(4321),
+    });
+    await store.addRun({
+      runId: 'run1',
+      experimentId: 'experiment2',
+      createdAt: new Date(1234),
+    });
+    await store.addLogs('experiment1', 'run1', [
+      {
+        date: new Date(1234),
+        type: 'log1',
+        values: { message: 'hello', recipient: 'Anna' },
+      },
+      {
+        date: new Date(1236),
+        type: 'log1',
+        values: { message: 'bonjour', recipient: 'Jo' },
+      },
+    ]);
+    await store.addLogs('experiment1', 'run2', [
+      {
+        date: new Date(1235),
+        type: 'log2',
+        values: { x: 12, foo: false },
+      },
+      {
+        date: new Date(1237),
+        type: 'log1',
+        values: { message: 'hola', bar: null },
+      },
+    ]);
+    await store.addLogs('experiment2', 'run1', [
+      {
+        date: new Date(1240),
+        type: 'log2',
+        values: { x: 25, y: 0, foo: true },
+      },
+    ]);
+  });
+  afterEach(async () => {
+    await store.close();
+  });
+
+  it('should return the names of all log values in alphabetical order', async () => {
+    await expect(store.getLogValueNames()).resolves.toEqual([
+      'bar',
+      'foo',
+      'message',
+      'recipient',
+      'x',
+      'y',
+    ]);
+  });
+  it('should be able to filter logs of a particular type', async () => {
+    await expect(store.getLogValueNames({ type: 'log1' })).resolves.toEqual([
+      'bar',
+      'message',
+      'recipient',
+    ]);
+    await expect(store.getLogValueNames({ type: 'log2' })).resolves.toEqual([
+      'foo',
+      'x',
+      'y',
+    ]);
+  });
+  it('should be able to filter logs from a particular experiment', async () => {
+    await expect(
+      store.getLogValueNames({ experiment: 'experiment1' }),
+    ).resolves.toEqual(['bar', 'foo', 'message', 'recipient', 'x']);
+    await expect(
+      store.getLogValueNames({ experiment: 'experiment2' }),
+    ).resolves.toEqual(['foo', 'x', 'y']);
+  });
+  it('should be able to filter logs from a particular run', async () => {
+    await expect(store.getLogValueNames({ run: 'run1' })).resolves.toEqual([
+      'foo',
+      'message',
+      'recipient',
+      'x',
+      'y',
+    ]);
+    await expect(store.getLogValueNames({ run: 'run2' })).resolves.toEqual([
+      'bar',
+      'foo',
+      'message',
+      'x',
+    ]);
+  });
+  it('should be able to filter logs by run, experiment, and type all at once', async () => {
+    await expect(
+      store.getLogValueNames({ experiment: 'experiment1', type: 'log2' }),
+    ).resolves.toEqual(['foo', 'x']);
+    await expect(
+      store.getLogValueNames({
+        experiment: 'experiment1',
+        type: 'log1',
+        run: 'run1',
+      }),
+    ).resolves.toEqual(['message', 'recipient']);
+  });
+  it('should resolve with an empty array if no log matches the filter', async () => {
+    await expect(
+      store.getLogValueNames({ experiment: 'experiment2', type: 'log1' }),
+    ).resolves.toEqual([]);
+    await expect(
+      store.getLogValueNames({ experiment: 'do not exist' }),
+    ).resolves.toEqual([]);
+    await expect(
+      store.getLogValueNames({ run: 'do not exist' }),
+    ).resolves.toEqual([]);
+    await expect(
+      store.getLogValueNames({ type: 'do not exist' }),
+    ).resolves.toEqual([]);
+  });
+});
