@@ -145,37 +145,32 @@ export class SQLiteStore {
     }>,
   ) {
     await this.#db.transaction().execute(async (trx) => {
+      let logDbEntries = logs.map(({ type, date, createdAt }, batchOrder) => {
+        return {
+          type,
+          runId,
+          experimentId,
+          createdAt: createdAt.toISOString(),
+          clientDate: date.toISOString(),
+          batchOrder,
+        };
+      });
       let dbLogs = pipe(
         await trx
           .insertInto('log')
-          .values(
-            logs.map(({ type, date, createdAt }, i) => {
-              return {
-                type,
-                runId,
-                experimentId,
-                createdAt: createdAt.toISOString(),
-                clientDate: date.toISOString(),
-                batchOrder: i,
-              };
-            }),
-          )
+          .values(logDbEntries)
           .returning(['logId', 'batchOrder'])
           .execute(),
+        // Sort by batchOrder to ensure that the log values are properly
+        // associated with the logs.
         sortBy((log) => log.batchOrder ?? 0),
       );
 
-      // Bulk insert returning values does not guarantee order, so we need to
-      // match the log values logs to returned log ids.
-      let dbValues = [];
-      for (let log of logs) {
-        let dbLog = dbLogs.shift();
-        if (dbLog == null) {
-          throw new Error(`could not insert log values: log was not inserted`);
-        }
-        dbValues.push(...deconstructValues(log.values, { logId: dbLog.logId }));
-      }
-      await trx.insertInto('logValue').values(dbValues).execute();
+      let logValueDbEntries = logs.flatMap((log, batchOrder) => {
+        let logId = dbLogs[batchOrder].logId;
+        return deconstructValues(log.values, { logId });
+      });
+      await trx.insertInto('logValue').values(logValueDbEntries).execute();
     });
   }
 
