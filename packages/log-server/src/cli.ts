@@ -10,7 +10,7 @@ import dotenv from 'dotenv';
 import cors from 'cors';
 import loglevel from 'loglevel';
 import yargs from 'yargs';
-import { SQLiteStore, createLogServer } from './index.js';
+import { SQLiteStore, LogServer } from './index.js';
 import { csvExportStream, jsonExportStream } from './export.js';
 
 // Constants and setup
@@ -79,7 +79,7 @@ async function start({
   }
   let server = express()
     .use(cors())
-    .use(createLogServer({ store, secret, adminPassword }))
+    .use(LogServer({ store, secret, adminPassword }))
     .listen(port, () => {
       log.info(`Listening on port ${port}`);
     });
