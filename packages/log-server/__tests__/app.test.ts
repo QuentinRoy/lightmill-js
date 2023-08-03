@@ -1,7 +1,7 @@
 import request from 'supertest';
 import { afterEach, describe, beforeEach, it, vi, expect, Mock } from 'vitest';
 import { Log, Store, StoreError } from '../src/store.js';
-import { createLogServer } from '../src/app.js';
+import { LogServer } from '../src/app.js';
 import { Body } from '../src/api.js';
 
 type MockStore = {
@@ -70,7 +70,7 @@ afterEach(() => {
 describe('/sessions', () => {
   let api: request.SuperTest<request.Test>;
   beforeEach(() => {
-    let app = createLogServer({
+    let app = LogServer({
       store: MockStore(),
       secret: 'secret',
       secureCookies: false,
@@ -100,7 +100,7 @@ describe('/sessions', () => {
     });
 
     it('should accept the creation of an admin role if the provided password is correct', async () => {
-      let app = createLogServer({
+      let app = LogServer({
         store: MockStore(),
         secret: 'secret',
         adminPassword: 'admin password',
@@ -117,7 +117,7 @@ describe('/sessions', () => {
     });
 
     it('should refuse the creation of an admin role if the provided password is incorrect', async () => {
-      let app = createLogServer({
+      let app = LogServer({
         store: MockStore(),
         secret: 'secret',
         adminPassword: 'admin password',
@@ -174,7 +174,7 @@ describe('/experiments/runs', () => {
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(1234567890);
     store = MockStore();
-    let app = createLogServer({
+    let app = LogServer({
       store,
       secret: 'secret',
       secureCookies: false,
@@ -380,7 +380,7 @@ describe('/experiments/runs/logs', () => {
       vi.useFakeTimers({ toFake: ['Date'] });
       vi.setSystemTime(100100);
       store = MockStore();
-      let app = createLogServer({
+      let app = LogServer({
         store,
         secret: 'secret',
         secureCookies: false,
@@ -478,7 +478,7 @@ describe('/experiments/runs/logs', () => {
       vi.useFakeTimers({ toFake: ['Date'] });
       vi.setSystemTime(1234567890);
       store = MockStore();
-      let app = createLogServer({
+      let app = LogServer({
         store,
         secret: 'secret',
         secureCookies: false,

@@ -37,7 +37,7 @@ type CreateLogServerOptions = {
   allowCrossOrigin?: boolean;
   secureCookies?: boolean;
 };
-export function createLogServer({
+export function LogServer({
   store,
   secret,
   adminPassword,

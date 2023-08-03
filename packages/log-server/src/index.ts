@@ -1,5 +1,5 @@
 export { Store, SQLiteStore } from './store.js';
-export { createLogServer } from './app.js';
+export { LogServer } from './app.js';
 export type {
   Path,
   Method,
