@@ -1,13 +1,23 @@
 import { LogClient } from '../src/main.js';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { afterAll, afterEach, beforeAll } from 'vitest';
-import type { Response as ApiResponse } from '@lightmill/log-server';
+import type { Response as ApiResponse, Path } from '@lightmill/log-server';
 import { setupServer } from 'msw/node';
 import { rest } from 'msw';
 
+// This does not work well because it does not prevent string from containing
+// a slash, so some incorrect paths are allowed,
+// e.g. /experiments/experiment-id/runs/run-id/no-correct.
+type TemplatizedPath<P> = P extends `${infer Start}/:${string}/${infer End}`
+  ? `${Start}/${string}/${TemplatizedPath<End>}`
+  : P extends `${infer Start}/:${string}`
+  ? `${Start}/${string}`
+  : P;
+type ServerPath = `https://server.test/api${TemplatizedPath<Path>}`;
+
 const server = setupServer(
   rest.post(
-    'https://server.test/api/experiments/experiment-id/runs/run-id/logs',
+    'https://server.test/api/experiments/experiment-id/runs/run-id/logs' satisfies ServerPath,
     (req, res, ctx) => {
       return res(
         ctx.status(200),
@@ -19,7 +29,7 @@ const server = setupServer(
     },
   ),
   rest.post(
-    'https://server.test/api/experiments/runs',
+    'https://server.test/api/runs' satisfies ServerPath,
     async (req, res, ctx) => {
       return res(
         ctx.status(200),
@@ -31,12 +41,12 @@ const server = setupServer(
             logs: '/experiments/experiment-id/runs/run-id/logs',
             run: '/experiments/experiment-id/runs/run-id',
           },
-        } satisfies ApiResponse<'post', '/experiments/runs'>),
+        } satisfies ApiResponse<'post', '/runs'>),
       );
     },
   ),
   rest.put(
-    'https://server.test/api/experiments/experiment-id/runs/run-id',
+    'https://server.test/api/experiments/experiment-id/runs/run-id' satisfies ServerPath,
     (req, res, ctx) => {
       return res(
         ctx.status(200),
@@ -100,7 +110,7 @@ describe('RunLogger', () => {
     await logger.startRun();
     expect(await waitForRequestJsonBodies()).toEqual([
       {
-        url: 'https://server.test/api/experiments/runs',
+        url: 'https://server.test/api/runs',
         method: 'POST',
         body: {},
       },
@@ -117,7 +127,7 @@ describe('RunLogger', () => {
 
     expect(await waitForRequestJsonBodies()).toEqual([
       {
-        url: 'https://server.test/api/experiments/runs',
+        url: 'https://server.test/api/runs',
         method: 'POST',
         body: { id: 'test-run', experiment: 'test-experiment' },
       },

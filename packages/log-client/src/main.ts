@@ -81,15 +81,15 @@ export class LogClient<InputLog extends BaseLog = AnyLog> {
       throw new Error('Run is already starting');
     }
     this.#isStarting = false;
-    let body: ApiBody<'post', '/experiments/runs'> = {
+    let body: ApiBody<'post', '/runs'> = {
       experiment: this.#experiment,
       id: this.#run,
     };
-    let url = `${this.#apiRoot}/experiments/runs`;
+    let url = `${this.#apiRoot}/runs`;
     let { links } = (await post(url, {
       body,
       credentials: 'include',
-    })) as ApiResponse<'post', '/experiments/runs'>; // We trust the server to return the correct type.
+    })) as ApiResponse<'post', '/runs'>; // We trust the server to return the correct type.
     this.#endpoints = links;
     this.#runStatus = 'running';
   }

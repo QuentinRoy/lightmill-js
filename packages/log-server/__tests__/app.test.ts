@@ -67,7 +67,7 @@ afterEach(() => {
   vi.resetAllMocks();
 });
 
-describe('/sessions', () => {
+describe('sessions', () => {
   let api: request.SuperTest<request.Test>;
   beforeEach(() => {
     let app = LogServer({
@@ -167,7 +167,7 @@ describe('/sessions', () => {
   });
 });
 
-describe('/experiments/runs', () => {
+describe('runs', () => {
   let store: MockStore;
   let api: request.SuperTest<request.Test>;
   beforeEach(async () => {
@@ -186,10 +186,10 @@ describe('/experiments/runs', () => {
     vi.useRealTimers();
   });
 
-  describe('post /experiments/runs', () => {
+  describe('post /runs', () => {
     it('should create a run', async () => {
       await api
-        .post('/experiments/runs')
+        .post('/runs')
         .send({ experiment: 'exp-id', id: 'run-id' })
         .expect(201, {
           experiment: 'exp-id',
@@ -209,7 +209,7 @@ describe('/experiments/runs', () => {
 
     it('should use the default experiment if the experiment is not named', async () => {
       await api
-        .post('/experiments/runs')
+        .post('/runs')
         .send({ id: 'run' })
         .expect(201, {
           status: 'ok',
@@ -229,7 +229,7 @@ describe('/experiments/runs', () => {
 
     it('should generate a unique run id if the run id is not provided', async () => {
       let resp = await api
-        .post('/experiments/runs')
+        .post('/runs')
         .send({ experiment: 'exp' })
         .expect(201);
       let runId = resp.body.run;
@@ -252,7 +252,7 @@ describe('/experiments/runs', () => {
 
     it('should add the run to the session', async () => {
       await api
-        .post('/experiments/runs')
+        .post('/runs')
         .send({ experiment: 'exp-id', id: 'run-id' })
         .expect(201);
       await api.get('/sessions/current').expect(200, {
@@ -264,11 +264,11 @@ describe('/experiments/runs', () => {
 
     it('should refuse to create a run if the participant already has one running', async () => {
       await api
-        .post('/experiments/runs')
+        .post('/runs')
         .send({ experiment: 'exp-id', id: 'run1' })
         .expect(201);
       await api
-        .post('/experiments/runs')
+        .post('/runs')
         .send({ experiment: 'exp-id', id: 'run2' })
         .expect(403, {
           message: 'Client already has a started run, end it first',
@@ -282,7 +282,7 @@ describe('/experiments/runs', () => {
         throw new StoreError(`run "${runId}" already exists`, 'RUN_EXISTS');
       });
       await api
-        .post('/experiments/runs')
+        .post('/runs')
         .send({ experiment: 'exp-id', id: 'run-id' })
         .expect(400, {
           status: 'error',
@@ -304,7 +304,7 @@ describe('/experiments/runs', () => {
     });
     it('should return an error if the client does not have access to this particular run', async () => {
       await api
-        .post('/experiments/runs')
+        .post('/runs')
         .send({ experiment: 'exp-id', id: 'my-run' })
         .expect(201);
       await api
@@ -318,7 +318,7 @@ describe('/experiments/runs', () => {
     });
     it('should complete a running run if argument is "completed"', async () => {
       await api
-        .post('/experiments/runs')
+        .post('/runs')
         .send({ experiment: 'exp-id', id: 'my-run' })
         .expect(201);
       await api
@@ -333,7 +333,7 @@ describe('/experiments/runs', () => {
     });
     it('should cancel a running run if argument is "canceled"', async () => {
       await api
-        .post('/experiments/runs')
+        .post('/runs')
         .send({ experiment: 'exp-id', id: 'my-run' })
         .expect(201);
       await api
@@ -348,7 +348,7 @@ describe('/experiments/runs', () => {
     });
     it('should revoke client access to the run', async () => {
       await api
-        .post('/experiments/runs')
+        .post('/runs')
         .send({ experiment: 'exp', id: 'my-run' })
         .expect(201);
       await api
@@ -371,7 +371,7 @@ describe('/experiments/runs', () => {
   });
 });
 
-describe('/experiments/runs/logs', () => {
+describe('logs', () => {
   let store: MockStore;
   let api: request.SuperTest<request.Test>;
 
@@ -387,9 +387,7 @@ describe('/experiments/runs/logs', () => {
       });
       api = request.agent(app);
       await api.post('/sessions').send({ role: 'participant' });
-      await api
-        .post('/experiments/runs')
-        .send({ experiment: 'test-exp', id: 'test-run' });
+      await api.post('/runs').send({ experiment: 'test-exp', id: 'test-run' });
     });
     afterEach(() => {
       vi.useRealTimers();
@@ -473,7 +471,7 @@ describe('/experiments/runs/logs', () => {
     });
   });
 
-  describe('get /experiments/:experiment/runs/logs', () => {
+  describe('get /experiments/:experiment/logs', () => {
     beforeEach(async () => {
       vi.useFakeTimers({ toFake: ['Date'] });
       vi.setSystemTime(1234567890);
@@ -493,14 +491,14 @@ describe('/experiments/runs/logs', () => {
     it('should refuse to fetch logs if the client is not logged as an admin', async () => {
       await api.delete('/sessions/current').expect(200);
       await api.post('/sessions').send({ role: 'participant' }).expect(201);
-      await api.get('/experiments/exp/runs/logs').expect(403, {
+      await api.get('/experiments/exp/logs').expect(403, {
         status: 'error',
         message: 'Access restricted.',
       });
       expect(store.getLogs).not.toHaveBeenCalled();
     });
     it('should return logs as json by default', async () => {
-      let result = await api.get('/experiments/exp/runs/logs').expect(200);
+      let result = await api.get('/experiments/exp/logs').expect(200);
       expect(store.getLogs).toHaveBeenCalledWith({ experiment: 'exp' });
       expect(result.body).toMatchInlineSnapshot(`
         [
@@ -532,7 +530,7 @@ describe('/experiments/runs/logs', () => {
     });
     it('should return logs as json if json is the first supported format in the Accept header', async () => {
       let result = await api
-        .get('/experiments/exp/runs/logs')
+        .get('/experiments/exp/logs')
         .set(
           'Accept',
           'application/xml,application/json,text/csv,application/pdf',
@@ -569,7 +567,7 @@ describe('/experiments/runs/logs', () => {
     });
     it('should return logs as csv if csv is the first supported format in the Accept header', async () => {
       let result = await api
-        .get('/experiments/exp/runs/logs')
+        .get('/experiments/exp/logs')
         .set(
           'Accept',
           'application/pdf,text/csv,application/json,application/xml',
@@ -585,7 +583,7 @@ describe('/experiments/runs/logs', () => {
     });
     it('should return logs as json if the Accept header is not supported', async () => {
       let result = await api
-        .get('/experiments/exp/runs/logs')
+        .get('/experiments/exp/logs')
         .set('Accept', 'application/xml')
         .expect(200);
       expect(store.getLogs).toHaveBeenCalledWith({ experiment: 'exp' });
@@ -619,7 +617,7 @@ describe('/experiments/runs/logs', () => {
     });
     it('should be able to filter logs by type using the type query parameter', async () => {
       await api
-        .get('/experiments/exp/runs/logs')
+        .get('/experiments/exp/logs')
         .query({ type: 'log-type' })
         .expect(200);
       expect(store.getLogs).toHaveBeenCalledWith({
