@@ -116,7 +116,7 @@ export function LogServer({
     res.status(200).json({ status: 'ok' });
   });
 
-  router.post('/experiments/runs', async (req, res, next) => {
+  router.post('/runs', async (req, res, next) => {
     try {
       if (req.session?.role == null) {
         req.session = { role: 'participant', runs: [] };
@@ -255,7 +255,7 @@ export function LogServer({
     },
   );
 
-  router.get('/experiments/:experiment/runs/logs', async (req, res, next) => {
+  router.get('/experiments/:experiment/logs', async (req, res, next) => {
     try {
       if (req.session?.role !== 'admin') {
         res.status(403).json({

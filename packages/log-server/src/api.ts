@@ -70,7 +70,7 @@ export const api = makeApi([
   },
   {
     method: 'post',
-    path: '/experiments/runs',
+    path: '/runs',
     parameters: [
       {
         schema: z
@@ -138,7 +138,7 @@ export const api = makeApi([
   },
   {
     method: 'get',
-    path: '/experiments/:experiment/runs/logs',
+    path: '/experiments/:experiment/logs',
     parameters: [
       {
         name: 'type',
