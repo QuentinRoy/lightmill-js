@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
+
 import request from 'supertest';
 import { afterEach, describe, beforeEach, it, vi, expect, Mock } from 'vitest';
 import { Log, Store, StoreError } from '../src/store.js';
@@ -12,36 +14,34 @@ type MockStore = {
 
 function MockStore(): MockStore {
   return {
-    addRun: vi.fn(
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      async (...args) => {
-        return { runId: 'addRun:runId', experimentId: 'addRun:experimentId' };
-      },
-    ),
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    addRun: vi.fn(async (...args) => {
+      return { runId: 'addRun:runId', experimentId: 'addRun:experimentId' };
+    }),
+    resumeRun: vi.fn(async (...args) => {
+      return {
+        runId: 'resumeRun:runId',
+        experimentId: 'resumeRun:experimentId',
+      };
+    }),
     getRun: vi.fn(async (...args) => {
       return {
         runId: 'getRun:runId',
         experimentId: 'getRun:experimentId',
         createdAt: vi.getMockedSystemTime(),
-        status: 'running' as const,
-      };
+        status: 'running',
+      } as const;
     }),
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     setRunStatus: vi.fn((...args) => Promise.resolve()),
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     addLogs: vi.fn((...args) => Promise.resolve()),
     getLogValueNames: vi.fn(() =>
       Promise.resolve(['mock-col1', 'mock-col2', 'mock-col3']),
     ),
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     getLogSummary: vi.fn((...args) =>
       Promise.resolve([
         { type: 'summary:type-1', count: 11, lastNumber: 12, pending: 13 },
         { type: 'summary:type-2', count: 21, lastNumber: 22, pending: 23 },
       ]),
     ),
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     getLogs: vi.fn(async function* (): AsyncGenerator<Log> {
       yield {
         experimentId: 'getLogs:experimentId-1',

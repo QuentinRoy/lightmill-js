@@ -19,10 +19,7 @@ const ctx = zodiosContext(
         .object({
           role: z.union([z.literal('admin'), z.literal('participant')]),
           runs: z.array(
-            z.object({
-              runId: z.string(),
-              experimentId: z.string(),
-            }),
+            z.object({ runId: z.string(), experimentId: z.string() }),
           ),
         })
         .strict(),
@@ -65,10 +62,9 @@ export function LogServer({
 
   router.post('/sessions', (req, res) => {
     if (req.session?.role != null) {
-      res.status(400).json({
-        status: 'error',
-        message: 'Client already has a session',
-      });
+      res
+        .status(400)
+        .json({ status: 'error', message: 'Client already has a session' });
       return;
     }
     const { role, password } = req.body;
@@ -77,10 +73,9 @@ export function LogServer({
       adminPassword != null &&
       password !== adminPassword
     ) {
-      res.status(403).json({
-        status: 'error',
-        message: `Forbidden role: ${role}`,
-      });
+      res
+        .status(403)
+        .json({ status: 'error', message: `Forbidden role: ${role}` });
     }
     req.session = { role, runs: [] };
     res.status(201).json({ status: 'ok', role, runs: [] });
@@ -88,10 +83,7 @@ export function LogServer({
 
   router.get('/sessions/current', (req, res) => {
     if (!req.session?.isPopulated) {
-      res.status(404).json({
-        status: 'error',
-        message: 'No session found',
-      });
+      res.status(404).json({ status: 'error', message: 'No session found' });
       return;
     }
     res.status(200).json({
@@ -106,10 +98,7 @@ export function LogServer({
 
   router.delete('/sessions/current', (req, res) => {
     if (req.session?.role == null) {
-      res.status(404).json({
-        status: 'error',
-        message: 'No session found',
-      });
+      res.status(404).json({ status: 'error', message: 'No session found' });
       return;
     }
     req.session = null;
@@ -130,11 +119,7 @@ export function LogServer({
       }
       let runId = req.body?.id ?? createId();
       let experimentId = req.body?.experiment ?? 'default';
-      const run = {
-        experimentId,
-        runId,
-        createdAt: new Date(),
-      };
+      const run = { experimentId, runId, createdAt: new Date() };
       await store.addRun(run);
       req.session.runs.push({ runId, experimentId });
       res.status(201).json({
@@ -148,10 +133,7 @@ export function LogServer({
       });
     } catch (e) {
       if (e instanceof StoreError && e.code === 'RUN_EXISTS') {
-        res.status(400).json({
-          status: 'error',
-          message: e.message,
-        });
+        res.status(400).json({ status: 'error', message: e.message });
         return;
       }
       next(e);
@@ -228,10 +210,7 @@ export function LogServer({
       if (run.status != 'running') {
         // This should not happen in normal use since the client should lose
         // access to the run once it is ended.
-        res.status(400).json({
-          status: 'error',
-          message: 'Run already ended',
-        });
+        res.status(400).json({ status: 'error', message: 'Run already ended' });
         return;
       }
       await store.setRunStatus(experimentId, runId, req.body.status);
@@ -290,10 +269,9 @@ export function LogServer({
   router.get('/experiments/:experiment/logs', async (req, res, next) => {
     try {
       if (req.session?.role !== 'admin') {
-        res.status(403).json({
-          status: 'error',
-          message: 'Access restricted.',
-        });
+        res
+          .status(403)
+          .json({ status: 'error', message: 'Access restricted.' });
         return;
       }
       let format = 'json';
@@ -326,20 +304,14 @@ export function LogServer({
   });
 
   router.use('*', (req, res) => {
-    res.status(404).json({
-      status: 'error',
-      message: 'Not found',
-    });
+    res.status(404).json({ status: 'error', message: 'Not found' });
   });
 
   app.use((error: unknown, req: Request, res: Response, next: NextFunction) => {
     if (res.headersSent) {
       next(error);
     } else if (error instanceof Error) {
-      res.status(500).json({
-        status: 'error',
-        message: error.message,
-      });
+      res.status(500).json({ status: 'error', message: error.message });
     } else {
       log.error('error', error);
       next(error);
