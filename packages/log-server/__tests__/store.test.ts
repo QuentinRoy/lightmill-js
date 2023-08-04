@@ -188,61 +188,6 @@ describe('SQLiteStore#getLogValueNames', () => {
     await store.migrateDatabase();
     await store.addRun({
       runId: 'run1',
-      experimentId: 'experiment',
-      createdAt: new Date(1234),
-    });
-    await store.addRun({
-      runId: 'run2',
-      experimentId: 'experiment',
-      createdAt: new Date(4321),
-    });
-  });
-  afterEach(async () => {
-    await store.close();
-  });
-  it('should add logs without error', async () => {
-    await expect(
-      store.addLogs('experiment', 'run1', [
-        {
-          date: new Date(1234),
-          createdAt: new Date(10234),
-          type: 'log',
-          values: { message: 'hello', bar: null },
-        },
-        {
-          date: new Date(1235),
-          createdAt: new Date(10235),
-          type: 'log',
-          values: { message: 'bonjour', recipient: 'Jo' },
-        },
-      ]),
-    ).resolves.toBeUndefined();
-    await expect(
-      store.addLogs('experiment', 'run2', [
-        {
-          date: new Date(1237),
-          createdAt: new Date(10237),
-          type: 'other-log',
-          values: { x: 12, foo: false },
-        },
-        {
-          date: new Date(1236),
-          createdAt: new Date(10236),
-          type: 'log',
-          values: { message: 'hola' },
-        },
-      ]),
-    ).resolves.toBeUndefined();
-  });
-});
-
-describe('SQLiteStore#getLogValueNames', () => {
-  let store: SQLiteStore;
-  beforeEach(async () => {
-    store = new SQLiteStore(':memory:');
-    await store.migrateDatabase();
-    await store.addRun({
-      runId: 'run1',
       experimentId: 'experiment1',
       createdAt: new Date(1234),
     });
