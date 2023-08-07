@@ -61,11 +61,33 @@ importers:
         specifier: ^0.34.1
         version: 0.34.1(jsdom@22.1.0)
 
+  packages/log-api:
+    dependencies:
+      '@zodios/core':
+        specifier: ^10.9.2
+        version: 10.9.2(axios@1.4.0)(zod@3.21.4)
+      zod:
+        specifier: ^3.21.4
+        version: 3.21.4
+    devDependencies:
+      type-fest:
+        specifier: ^4.1.0
+        version: 4.1.0
+      typescript:
+        specifier: 5.1.6
+        version: 5.1.6
+      vite:
+        specifier: ^4.4.8
+        version: 4.4.8(@types/node@18.17.2)
+      vitest:
+        specifier: ^0.34.1
+        version: 0.34.1(jsdom@22.1.0)
+
   packages/log-client:
     dependencies:
-      '@lightmill/log-server':
+      '@lightmill/log-api':
         specifier: workspace:*
-        version: link:../log-server
+        version: link:../log-api
       throttle-debounce:
         specifier: ^5.0.0
         version: 5.0.0
@@ -91,6 +113,9 @@ importers:
 
   packages/log-server:
     dependencies:
+      '@lightmill/log-api':
+        specifier: workspace:*
+        version: link:../log-api
       '@paralleldrive/cuid2':
         specifier: ^2.2.1
         version: 2.2.1
@@ -2346,7 +2371,7 @@ packages:
       '@jest/schemas': 29.6.0
       '@types/istanbul-lib-coverage': 2.0.4
       '@types/istanbul-reports': 3.0.1
-      '@types/node': 20.4.7
+      '@types/node': 18.17.2
       '@types/yargs': 17.0.24
       chalk: 4.1.2
     dev: true
@@ -2766,7 +2791,7 @@ packages:
   /@types/set-cookie-parser@2.4.3:
     resolution: {integrity: sha512-7QhnH7bi+6KAhBB+Auejz1uV9DHiopZqu7LfR/5gZZTkejJV5nYeZZpgfFoE0N8aDsXuiYpfKyfyMatCwQhyTQ==}
     dependencies:
-      '@types/node': 20.4.7
+      '@types/node': 18.17.2
     dev: true
 
   /@types/stack-utils@2.0.1:
@@ -3572,7 +3597,7 @@ packages:
     engines: {node: '>= 0.8', npm: 1.2.8000 || >= 1.4.16}
     dependencies:
       bytes: 3.1.2
-      content-type: 1.0.4
+      content-type: 1.0.5
       debug: 2.6.9
       depd: 2.0.0
       destroy: 1.2.0
@@ -3757,7 +3782,7 @@ packages:
       path-case: 3.0.4
       sentence-case: 3.0.4
       snake-case: 3.0.4
-      tslib: 2.4.1
+      tslib: 2.6.1
     dev: false
 
   /chardet@0.7.0:
@@ -3874,11 +3899,6 @@ packages:
     engines: {node: '>= 0.6'}
     dependencies:
       safe-buffer: 5.2.1
-    dev: false
-
-  /content-type@1.0.4:
-    resolution: {integrity: sha512-hIP3EEPs8tB9AT1L+NUqtwOAps4mk2Zob89MWXMHjHWg9milF/j4osnnQLXBCBFBk/tvIG/tUc9mOUJiPBhPXA==}
-    engines: {node: '>= 0.6'}
     dev: false
 
   /content-type@1.0.5:
@@ -4927,7 +4947,7 @@ packages:
       array-flatten: 1.1.1
       body-parser: 1.20.1
       content-disposition: 0.5.4
-      content-type: 1.0.4
+      content-type: 1.0.5
       cookie: 0.5.0
       cookie-signature: 1.0.6
       debug: 2.6.9
@@ -5713,7 +5733,7 @@ packages:
     engines: {node: ^14.15.0 || ^16.10.0 || >=18.0.0}
     dependencies:
       '@jest/types': 29.3.1
-      '@types/node': 20.4.7
+      '@types/node': 18.17.2
       chalk: 4.1.2
       ci-info: 3.7.1
       graceful-fs: 4.2.10
@@ -7482,7 +7502,6 @@ packages:
 
   /tslib@2.6.1:
     resolution: {integrity: sha512-t0hLfiEKfMUoqhG+U1oid7Pva4bbDPHYfJNiB7BiIjRkj1pyC++4N3huJfqY6aRH6VTB0rvtzQwjM4K6qpfOig==}
-    dev: true
 
   /tsscmp@1.0.6:
     resolution: {integrity: sha512-LxhtAkPDTkVCMQjt2h6eBVY28KCjikZqZfMcC15YBeNjkgUpdCfBu5HoiOTDu86v6smE8yOjyEktJ8hlbANHQA==}
@@ -7737,7 +7756,7 @@ packages:
     engines: {node: '>= 0.8'}
     dev: false
 
-  /vite-node@0.34.1(@types/node@20.4.7):
+  /vite-node@0.34.1(@types/node@18.17.2):
     resolution: {integrity: sha512-odAZAL9xFMuAg8aWd7nSPT+hU8u2r9gU3LRm9QKjxBEF2rRdWpMuqkrkjvyVQEdNFiBctqr2Gg4uJYizm5Le6w==}
     engines: {node: '>=v14.18.0'}
     hasBin: true
@@ -7747,7 +7766,7 @@ packages:
       mlly: 1.4.0
       pathe: 1.1.1
       picocolors: 1.0.0
-      vite: 4.4.8(@types/node@20.4.7)
+      vite: 4.4.8(@types/node@18.17.2)
     transitivePeerDependencies:
       - '@types/node'
       - less
@@ -7795,42 +7814,6 @@ packages:
       fsevents: 2.3.2
     dev: true
 
-  /vite@4.4.8(@types/node@20.4.7):
-    resolution: {integrity: sha512-LONawOUUjxQridNWGQlNizfKH89qPigK36XhMI7COMGztz8KNY0JHim7/xDd71CZwGT4HtSRgI7Hy+RlhG0Gvg==}
-    engines: {node: ^14.18.0 || >=16.0.0}
-    hasBin: true
-    peerDependencies:
-      '@types/node': '>= 14'
-      less: '*'
-      lightningcss: ^1.21.0
-      sass: '*'
-      stylus: '*'
-      sugarss: '*'
-      terser: ^5.4.0
-    peerDependenciesMeta:
-      '@types/node':
-        optional: true
-      less:
-        optional: true
-      lightningcss:
-        optional: true
-      sass:
-        optional: true
-      stylus:
-        optional: true
-      sugarss:
-        optional: true
-      terser:
-        optional: true
-    dependencies:
-      '@types/node': 20.4.7
-      esbuild: 0.18.17
-      postcss: 8.4.27
-      rollup: 3.27.2
-    optionalDependencies:
-      fsevents: 2.3.2
-    dev: true
-
   /vitest@0.34.1(jsdom@22.1.0):
     resolution: {integrity: sha512-G1PzuBEq9A75XSU88yO5G4vPT20UovbC/2osB2KEuV/FisSIIsw7m5y2xMdB7RsAGHAfg2lPmp2qKr3KWliVlQ==}
     engines: {node: '>=v14.18.0'}
@@ -7864,7 +7847,7 @@ packages:
     dependencies:
       '@types/chai': 4.3.5
       '@types/chai-subset': 1.3.3
-      '@types/node': 20.4.7
+      '@types/node': 18.17.2
       '@vitest/expect': 0.34.1
       '@vitest/runner': 0.34.1
       '@vitest/snapshot': 0.34.1
@@ -7884,8 +7867,8 @@ packages:
       strip-literal: 1.3.0
       tinybench: 2.5.0
       tinypool: 0.7.0
-      vite: 4.4.8(@types/node@20.4.7)
-      vite-node: 0.34.1(@types/node@20.4.7)
+      vite: 4.4.8(@types/node@18.17.2)
+      vite-node: 0.34.1(@types/node@18.17.2)
       why-is-node-running: 2.2.2
     transitivePeerDependencies:
       - less

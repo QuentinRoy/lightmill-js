@@ -20,7 +20,7 @@
     "vitest": "^0.34.1"
   },
   "dependencies": {
-    "@lightmill/log-server": "workspace:*",
+    "@lightmill/log-api": "workspace:*",
     "throttle-debounce": "^5.0.0"
   },
   "scripts": {

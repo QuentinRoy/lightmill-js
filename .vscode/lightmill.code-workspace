@@ -21,6 +21,10 @@
 		"path": "../packages/static-design"
 	},
 	{
+		"name": "packages/log-api",
+		"path": "../packages/log-api"
+	},
+	{
 		"name": "packages/log-server",
 		"path": "../packages/log-server"
 	},

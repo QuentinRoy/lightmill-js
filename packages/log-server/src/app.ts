@@ -4,7 +4,7 @@ import { zodiosContext } from '@zodios/express';
 import { LogFilter, Store, StoreError } from './store.js';
 import session from 'cookie-session';
 import { NextFunction, Request, RequestHandler, Response } from 'express';
-import { api } from './api.js';
+import { api } from '@lightmill/log-api';
 import { csvExportStream, jsonExportStream } from './export.js';
 import { pipeline } from 'stream/promises';
 import log from 'loglevel';

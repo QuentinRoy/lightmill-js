@@ -1,7 +1,7 @@
 import type {
   Body as ApiBody,
   Response as ApiResponse,
-} from '@lightmill/log-server';
+} from '@lightmill/log-api';
 import { throttle } from 'throttle-debounce';
 import type { JsonValue } from 'type-fest';
 

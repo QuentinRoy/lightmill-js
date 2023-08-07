@@ -44,6 +44,7 @@
     "vitest": "^0.34.1"
   },
   "dependencies": {
+    "@lightmill/log-api": "workspace:*",
     "@paralleldrive/cuid2": "^2.2.1",
     "@zodios/core": "^10.9.2",
     "@zodios/express": "^10.6.1",
