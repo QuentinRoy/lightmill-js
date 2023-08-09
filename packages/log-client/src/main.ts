@@ -13,8 +13,14 @@ interface BaseLog {
 type AnyLog = Record<string, JsonValue | Date | undefined> & BaseLog;
 
 type LogSerializer<InputLog extends BaseLog> = (
-  i: InputLog & { date: NonNullable<InputLog['date']> },
-) => Record<string, JsonValue> & { type: string; date: string };
+  i: OutputLog<InputLog>['values'],
+) => Record<string, JsonValue>;
+
+type OutputLog<InputLog extends BaseLog> = {
+  number: number;
+  type: NonNullable<InputLog['type']>;
+  values: Omit<InputLog, 'type'> & { date: NonNullable<InputLog['date']> };
+};
 
 type RunEndpoints = {
   run: string;
@@ -22,7 +28,7 @@ type RunEndpoints = {
 };
 
 export class LogClient<InputLog extends BaseLog = AnyLog> {
-  #logQueue: Array<InputLog & { date: NonNullable<InputLog['date']> }> = [];
+  #logQueue: Array<OutputLog<InputLog>> = [];
   #resolveLogQueue: (() => void) | null = null;
   #rejectLogQueue: ((error: unknown) => void) | null = null;
   #serializeLog: LogSerializer<InputLog>;
@@ -34,6 +40,7 @@ export class LogClient<InputLog extends BaseLog = AnyLog> {
   #runStatus: 'idle' | 'running' | 'completed' | 'canceled' = 'idle';
   // If the run is started, these will be set. Otherwise, they will be null.
   #endpoints: RunEndpoints | null = null;
+  #logCount = 0;
 
   constructor({
     experiment,
@@ -94,18 +101,23 @@ export class LogClient<InputLog extends BaseLog = AnyLog> {
     this.#runStatus = 'running';
   }
 
-  async addLog(inputLog: InputLog) {
+  async addLog({ type, ...values }: InputLog) {
     if (this.#runStatus !== 'running') {
       throw new Error(
         `Can only add logs to a running run. Run is ${this.#runStatus}`,
       );
     }
-    if (inputLog.type == null) {
+    if (type == null) {
       throw new Error(
         'Trying to add a logs without type. Logs must have a type',
       );
     }
-    this.#logQueue.push({ date: new Date(), ...inputLog });
+    this.#logCount += 1;
+    this.#logQueue.push({
+      number: this.#logCount,
+      type,
+      values: { date: new Date(), ...values },
+    });
     let promise = this.#logQueuePromise;
     if (promise == null) {
       this.#logQueuePromise = new Promise((resolve, reject) => {
@@ -140,8 +152,11 @@ export class LogClient<InputLog extends BaseLog = AnyLog> {
       return;
     }
     let logs = logQueue.map((log) => {
-      let { type, date, ...values } = this.#serializeLog(log);
-      return { type, date, values };
+      return {
+        type: log.type,
+        number: log.number,
+        values: this.#serializeLog(log.values),
+      };
     });
     type Body = ApiBody<'post', '/experiments/:experiment/runs/:run/logs'>;
     let body: Body = { logs };
@@ -194,10 +209,8 @@ export class LogClient<InputLog extends BaseLog = AnyLog> {
   }
 }
 
-function defaultSerialize(obj: AnyLog) {
-  let result: Record<string | number | symbol, JsonValue> & { type: string } = {
-    type: obj.type,
-  };
+function defaultSerialize(obj: OutputLog<AnyLog>['values']) {
+  let result: Record<string | number | symbol, JsonValue> = {};
   // I am not using for ... of to avoid the need for the regenerator
   // runtime in older browsers.
   Object.entries(obj).forEach(([key, value]) => {

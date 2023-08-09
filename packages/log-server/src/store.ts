@@ -13,8 +13,8 @@ import {
 } from 'kysely';
 import { JsonObject } from 'type-fest';
 import loglevel, { LogLevelDesc } from 'loglevel';
+import { sortBy } from 'remeda';
 import { arrayify } from './utils.js';
-import { pipe, sortBy } from 'remeda';
 
 const __dirname = url.fileURLToPath(new URL('.', import.meta.url));
 const migrationFolder = path.join(__dirname, 'db-migrations');
@@ -22,24 +22,21 @@ const migrationFolder = path.join(__dirname, 'db-migrations');
 export type Store = Omit<SQLiteStore, 'migrateDatabase' | 'close'>;
 
 type RunTable = {
+  runDbId: Generated<bigint>;
   runId: string;
   experimentId: string;
-  createdAt: string;
   status: 'running' | 'completed' | 'canceled';
+  createdAt: string;
 };
 type LogTable = {
-  logId: Generated<bigint>;
-  experimentId: string;
-  runId: string;
+  logDbId: Generated<bigint>;
+  runDbId: bigint;
+  number: number;
   type: string;
   createdAt: string;
-  clientDate?: string;
-  // batchOrder records the order in which the logs were sent by the client
-  // in a single request. This is used to sort logs with the same clientDate.
-  batchOrder?: number;
 };
 type LogValueTable = {
-  logId: bigint;
+  logDbId: bigint;
   name: string;
   value: string;
 };
@@ -74,11 +71,9 @@ export class SQLiteStore {
   async addRun({
     runId,
     experimentId,
-    createdAt,
   }: {
     runId: string;
     experimentId: string;
-    createdAt: Date;
   }) {
     try {
       let result = await this.#db
@@ -86,8 +81,8 @@ export class SQLiteStore {
         .values({
           runId,
           experimentId,
-          createdAt: createdAt.toISOString(),
           status: 'running',
+          createdAt: new Date().toISOString(),
         })
         .returning(['runId', 'experimentId'])
         .executeTakeFirstOrThrow();
@@ -107,18 +102,12 @@ export class SQLiteStore {
   }
 
   async getRun(experimentId: string, runId: string) {
-    let selection = await this.#db
+    return this.#db
       .selectFrom('run')
       .where('experimentId', '=', experimentId)
       .where('runId', '=', runId)
-      .selectAll()
+      .select(['runId', 'experimentId', 'status'])
       .executeTakeFirst();
-    if (selection == null) return;
-    return {
-      ...selection,
-      createdAt:
-        selection.createdAt != null ? new Date(selection.createdAt) : null,
-    };
   }
 
   async setRunStatus(
@@ -139,38 +128,48 @@ export class SQLiteStore {
     runId: string,
     logs: Array<{
       type: string;
-      date: Date;
-      createdAt: Date;
+      number: number;
       values: JsonObject;
     }>,
   ) {
     await this.#db.transaction().execute(async (trx) => {
-      let logDbEntries = logs.map(({ type, date, createdAt }, batchOrder) => {
-        return {
-          type,
-          runId,
-          experimentId,
-          createdAt: createdAt.toISOString(),
-          clientDate: date.toISOString(),
-          batchOrder,
-        };
-      });
-      let dbLogs = pipe(
-        await trx
-          .insertInto('log')
-          .values(logDbEntries)
-          .returning(['logId', 'batchOrder'])
-          .execute(),
-        // Sort by batchOrder to ensure that the log values are properly
-        // associated with the logs.
-        sortBy((log) => log.batchOrder ?? 0),
-      );
+      let runQuery = await trx
+        .selectFrom('run')
+        .where('experimentId', '=', experimentId)
+        .where('runId', '=', runId)
+        .select('runDbId')
+        .executeTakeFirst();
+      if (runQuery == null) {
+        throw new Error(
+          `run "${runId}" of experiment "${experimentId}" not found`,
+        );
+      }
+      let { runDbId } = runQuery;
+      let sortedLogs = sortBy(logs, (log) => log.number);
+      let createdAt = new Date().toISOString();
+      let dbLogs = await trx
+        .insertInto('log')
+        .values(
+          sortedLogs.map(({ type, number }) => {
+            return { type, number, runDbId, createdAt };
+          }),
+        )
+        .returning(['logDbId', 'number'])
+        .execute();
 
-      let logValueDbEntries = logs.flatMap((log, batchOrder) => {
-        let logId = dbLogs[batchOrder].logId;
-        return deconstructValues(log.values, { logId });
-      });
-      await trx.insertInto('logValue').values(logValueDbEntries).execute();
+      // Sort by number to ensure that the log values are properly
+      // associated with the logs because that cannot be done in an insert
+      // query, and the order of the returning values is not guaranteed.
+      let logValues = sortBy(dbLogs, (dbLog) => dbLog.number).flatMap(
+        (dbLog, i) => {
+          let logDbId = dbLog.logDbId;
+          let values = sortedLogs[i].values;
+          return deconstructValues(values, { logDbId });
+        },
+      );
+      if (logValues.length > 0) {
+        await trx.insertInto('logValue').values(logValues).execute();
+      }
     });
   }
 
@@ -179,17 +178,19 @@ export class SQLiteStore {
       .selectFrom('logValue')
       .$if(filter.experiment != null, (qb) =>
         qb
-          .innerJoin('log', 'log.logId', 'logValue.logId')
-          .where('log.experimentId', 'in', arrayify(filter.experiment, true)),
+          .innerJoin('log', 'log.logDbId', 'logValue.logDbId')
+          .innerJoin('run', 'run.runDbId', 'log.runDbId')
+          .where('run.experimentId', 'in', arrayify(filter.experiment, true)),
       )
       .$if(filter.run != null, (qb) =>
         qb
-          .innerJoin('log', 'log.logId', 'logValue.logId')
-          .where('log.runId', 'in', arrayify(filter.run, true)),
+          .innerJoin('log', 'log.logDbId', 'logValue.logDbId')
+          .innerJoin('run', 'run.runDbId', 'log.runDbId')
+          .where('run.runId', 'in', arrayify(filter.run, true)),
       )
       .$if(filter.type != null, (qb) =>
         qb
-          .innerJoin('log', 'log.logId', 'logValue.logId')
+          .innerJoin('log', 'log.logDbId', 'logValue.logDbId')
           .where('log.type', 'in', arrayify(filter.type, true)),
       )
       .select('logValue.name')
@@ -202,31 +203,29 @@ export class SQLiteStore {
   async *getLogs(filter: LogFilter = {}): AsyncGenerator<Log> {
     let result = await this.#db
       .selectFrom('logValue')
-      .innerJoin('log', 'log.logId', 'logValue.logId')
+      .innerJoin('log', 'log.logDbId', 'logValue.logDbId')
+      .innerJoin('run', 'run.runDbId', 'log.runDbId')
       .$if(filter.experiment != null, (qb) =>
-        qb.where('log.experimentId', 'in', arrayify(filter.experiment, true)),
+        qb.where('run.experimentId', 'in', arrayify(filter.experiment, true)),
       )
       .$if(filter.run != null, (qb) =>
-        qb.where('log.runId', 'in', arrayify(filter.run, true)),
+        qb.where('run.runId', 'in', arrayify(filter.run, true)),
       )
       .$if(filter.type != null, (qb) =>
         qb.where('log.type', 'in', arrayify(filter.type, true)),
       )
-      .orderBy('log.experimentId')
-      .orderBy('log.runId')
-      .orderBy('log.clientDate')
-      .orderBy('log.createdAt')
-      .orderBy('log.batchOrder')
       .select([
-        'log.experimentId as experimentId',
-        'log.runId as runId',
-        'log.logId as logId',
+        'run.experimentId as experimentId',
+        'run.runId as runId',
+        'log.logDbId as logId',
         'log.type as logType',
-        'log.clientDate as logClientDate',
-        'log.createdAt as logCreatedAt',
+        'log.number as logNumber',
         'logValue.name',
         'logValue.value',
       ])
+      .orderBy('experimentId')
+      .orderBy('runId')
+      .orderBy('logNumber')
       .execute();
 
     let currentLog = null;
@@ -240,10 +239,7 @@ export class SQLiteStore {
           experimentId: row.experimentId,
           runId: row.runId,
           type: row.logType,
-          createdAt: new Date(row.logCreatedAt),
-          clientDate: row.logClientDate
-            ? new Date(row.logClientDate)
-            : undefined,
+          number: row.logNumber,
           values: {} as JsonObject,
         };
         currentLogId = row.logId;
@@ -299,9 +295,8 @@ export type LogFilter = {
 export type Log = {
   experimentId: string;
   runId: string;
+  number: number;
   type: string;
-  createdAt: Date;
-  clientDate?: Date;
   values: JsonObject;
 };
 
