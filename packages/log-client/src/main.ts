@@ -182,7 +182,7 @@ export class LogClient<InputLog extends BaseLog = AnyLog> {
     }
     this.#runStatus = status;
     await this.flush();
-    let body: ApiBody<'put', '/experiments/:experiment/runs/:run'> = {
+    let body: ApiBody<'patch', '/experiments/:experiment/runs/:run'> = {
       status,
     };
     await put(`${this.#apiRoot}${this.#endpoints.run}`, {
