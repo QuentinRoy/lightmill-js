@@ -4,6 +4,7 @@ import type {
 } from '@lightmill/log-api';
 import { throttle } from 'throttle-debounce';
 import type { JsonValue } from 'type-fest';
+import { post, patch } from './utils.js';
 
 interface BaseLog {
   type: string;
@@ -158,8 +159,11 @@ export class LogClient<InputLog extends BaseLog = AnyLog> {
         values: this.#serializeLog(log.values),
       };
     });
-    type Body = ApiBody<'post', '/experiments/:experiment/runs/:run/logs'>;
-    let body: Body = { logs };
+    type PostLogBody = ApiBody<
+      'post',
+      '/experiments/:experiment/runs/:run/logs'
+    >;
+    let body: PostLogBody = { logs };
     try {
       await post(`${this.#apiRoot}${this.#endpoints.logs}`, {
         body,
@@ -222,38 +226,3 @@ function defaultSerialize(obj: OutputLog<AnyLog>['values']) {
   });
   return result;
 }
-
-type JsonFetchUrl = string | URL;
-type JsonFetchOptions = Omit<
-  NonNullable<Parameters<typeof fetch>[1]>,
-  'body' | 'method'
-> & {
-  body: JsonValue;
-};
-
-function makeJsonFetchMethod(method: string) {
-  return async function fetchMethod(
-    url: JsonFetchUrl,
-    options: JsonFetchOptions,
-  ) {
-    let response = await fetch(url, {
-      ...options,
-      method,
-      body: JSON.stringify(options.body),
-      headers: {
-        ...options.headers,
-        Accept: 'application/json',
-        'Content-Type': 'application/json',
-      },
-    });
-    let json = await response.json();
-    if (response.ok) {
-      return json as unknown;
-    } else {
-      throw new Error(json.message ?? 'Unknown error');
-    }
-  };
-}
-
-const post = makeJsonFetchMethod('POST');
-const patch = makeJsonFetchMethod('PATCH');
