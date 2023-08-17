@@ -135,9 +135,7 @@ describe('RunLogger', () => {
   });
 
   it('should send one log', async () => {
-    const logger = new LogClient({
-      apiRoot: 'https://server.test/api',
-    });
+    const logger = new LogClient({ apiRoot: 'https://server.test/api' });
     await logger.startRun();
     clearRequests();
     let p = logger.addLog({
@@ -155,8 +153,8 @@ describe('RunLogger', () => {
           logs: [
             {
               type: 'mock-log',
-              date: '2021-06-03T02:00:00.000Z',
-              values: { val: 1 },
+              values: { val: 1, date: '2021-06-03T02:00:00.000Z' },
+              number: 1,
             },
           ],
         },
@@ -197,18 +195,18 @@ describe('RunLogger', () => {
           logs: [
             {
               type: 'mock-log',
-              date: '2021-06-03T02:00:00.000Z',
-              values: { val: 1 },
+              number: 1,
+              values: { val: 1, date: '2021-06-03T02:00:00.000Z' },
             },
             {
               type: 'mock-log',
-              date: '2021-06-03T02:00:00.000Z',
-              values: { val: 2 },
+              number: 2,
+              values: { val: 2, date: '2021-06-03T02:00:00.000Z' },
             },
             {
               type: 'mock-log',
-              date: '2021-06-03T02:00:00.000Z',
-              values: { val: 3 },
+              number: 3,
+              values: { val: 3, date: '2021-06-03T02:00:00.000Z' },
             },
           ],
         },
@@ -230,14 +228,14 @@ describe('RunLogger', () => {
     logger.addLog({
       type: 'mock-log',
       val: 2,
-      date: new Date('2021-06-03T02:00:00.000Z'),
+      date: new Date('2021-06-03T03:00:00.000Z'),
     });
     logger.addLog({
       type: 'mock-log',
       val: 3,
-      date: new Date('2021-06-03T02:00:00.000Z'),
+      date: new Date('2021-06-03T04:00:00.000Z'),
     });
-    // No timer this time, flush should send the request immediately.f
+    // No timer this time, flush should send the request immediately.
     await logger.flush();
     expect(await waitForRequestJsonBodies()).toEqual([
       {
@@ -247,18 +245,18 @@ describe('RunLogger', () => {
           logs: [
             {
               type: 'mock-log',
-              date: '2021-06-03T02:00:00.000Z',
-              values: { val: 1 },
+              number: 1,
+              values: { val: 1, date: '2021-06-03T02:00:00.000Z' },
             },
             {
               type: 'mock-log',
-              date: '2021-06-03T02:00:00.000Z',
-              values: { val: 2 },
+              number: 2,
+              values: { val: 2, date: '2021-06-03T03:00:00.000Z' },
             },
             {
               type: 'mock-log',
-              date: '2021-06-03T02:00:00.000Z',
-              values: { val: 3 },
+              number: 3,
+              values: { val: 3, date: '2021-06-03T04:00:00.000Z' },
             },
           ],
         },
