@@ -149,6 +149,7 @@ export class LogClient<InputLog extends BaseLog = AnyLog> {
       await post(`${this.#apiRoot}${this.#endpoints.logs}`, {
         body,
         credentials: 'include',
+        keepalive: true,
       });
       resolve();
     } catch (error) {
@@ -188,6 +189,7 @@ export class LogClient<InputLog extends BaseLog = AnyLog> {
     await patch(`${this.#apiRoot}${this.#endpoints.run}`, {
       body,
       credentials: 'include',
+      keepalive: true,
     });
   }
 }
