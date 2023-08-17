@@ -102,7 +102,7 @@ afterEach(() => {
   clearRequests();
 });
 
-describe('RunLogger', () => {
+describe('RunLogger#startRun', () => {
   it('should send a start request', async () => {
     const logger = new LogClient({
       apiRoot: 'https://server.test/api',
@@ -133,11 +133,18 @@ describe('RunLogger', () => {
       },
     ]);
   });
+});
 
-  it('should send one log', async () => {
-    const logger = new LogClient({ apiRoot: 'https://server.test/api' });
+describe('RunLogger#addLog', () => {
+  let logger: LogClient;
+
+  beforeEach(async () => {
+    logger = new LogClient({ apiRoot: 'https://server.test/api' });
     await logger.startRun();
     clearRequests();
+  });
+
+  it('should send one log', async () => {
     let p = logger.addLog({
       type: 'mock-log',
       val: 1,
@@ -162,12 +169,7 @@ describe('RunLogger', () => {
     ]);
   });
 
-  it('should send batch multiple logs', async () => {
-    const logger = new LogClient({
-      apiRoot: 'https://server.test/api',
-    });
-    await logger.startRun();
-    clearRequests();
+  it('should batch send multiple logs', async () => {
     let p = Promise.all([
       logger.addLog({
         type: 'mock-log',
@@ -214,6 +216,61 @@ describe('RunLogger', () => {
     ]);
   });
 
+  it('should add a default date to logs sent alone', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime('2019-06-03T02:00:00.000Z');
+    let p = logger.addLog({ type: 'mock-log', val: 1 });
+    vi.runAllTimers();
+    await p;
+    expect(await waitForRequestJsonBodies()).toEqual([
+      {
+        url: 'https://server.test/api/experiments/experiment-id/runs/run-id/logs',
+        method: 'POST',
+        body: {
+          logs: [
+            {
+              type: 'mock-log',
+              values: { val: 1, date: '2019-06-03T02:00:00.000Z' },
+              number: 1,
+            },
+          ],
+        },
+      },
+    ]);
+  });
+
+  it('should add a default date to logs sent in a batch', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime('2019-06-03T02:00:00.000Z');
+    let p = logger.addLog({ type: 'mock-log', val: 1 });
+    vi.setSystemTime('2019-06-03T02:00:00.100Z');
+    p = logger.addLog({ type: 'mock-log', val: 2 });
+    vi.runAllTimers();
+    await p;
+    expect(await waitForRequestJsonBodies()).toEqual([
+      {
+        url: 'https://server.test/api/experiments/experiment-id/runs/run-id/logs',
+        method: 'POST',
+        body: {
+          logs: [
+            {
+              type: 'mock-log',
+              values: { val: 1, date: '2019-06-03T02:00:00.000Z' },
+              number: 1,
+            },
+            {
+              type: 'mock-log',
+              values: { val: 2, date: '2019-06-03T02:00:00.100Z' },
+              number: 2,
+            },
+          ],
+        },
+      },
+    ]);
+  });
+});
+
+describe('RunLogger#flush', () => {
   it('should flush', async () => {
     const logger = new LogClient({
       apiRoot: 'https://server.test/api',
@@ -263,7 +320,9 @@ describe('RunLogger', () => {
       },
     ]);
   });
+});
 
+describe('RunLogger#completeRun', () => {
   it('should complete', async () => {
     const logger = new LogClient({
       apiRoot: 'https://server.test/api',
@@ -279,7 +338,9 @@ describe('RunLogger', () => {
       },
     ]);
   });
+});
 
+describe('RunLogger#cancelRun', () => {
   it('should cancel', async () => {
     const logger = new LogClient({
       apiRoot: 'https://server.test/api',
