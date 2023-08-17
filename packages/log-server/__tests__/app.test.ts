@@ -291,10 +291,10 @@ describe('runs', () => {
     });
   });
 
-  describe('put /experiments/:experiment/runs/:run', () => {
+  describe('patch /experiments/:experiment/runs/:run', () => {
     it('should return an error if the client does not have access to any run', async () => {
       await api
-        .put('/experiments/exp/runs/not-my-run')
+        .patch('/experiments/exp/runs/not-my-run')
         .send({ status: 'completed' })
         .expect(403, {
           status: 'error',
@@ -308,7 +308,7 @@ describe('runs', () => {
         .send({ experiment: 'exp-id', id: 'my-run' })
         .expect(201);
       await api
-        .put('/experiments/exp/runs/not-my-run')
+        .patch('/experiments/exp/runs/not-my-run')
         .send({ status: 'completed' })
         .expect(403, {
           status: 'error',
@@ -322,7 +322,7 @@ describe('runs', () => {
         .send({ experiment: 'exp-id', id: 'my-run' })
         .expect(201);
       await api
-        .put('/experiments/exp-id/runs/my-run')
+        .patch('/experiments/exp-id/runs/my-run')
         .send({ status: 'completed' })
         .expect(200, { status: 'ok' });
       expect(store.setRunStatus).toHaveBeenCalledWith(
@@ -337,7 +337,7 @@ describe('runs', () => {
         .send({ experiment: 'exp-id', id: 'my-run' })
         .expect(201);
       await api
-        .put('/experiments/exp-id/runs/my-run')
+        .patch('/experiments/exp-id/runs/my-run')
         .send({ status: 'canceled' })
         .expect(200, { status: 'ok' });
       expect(store.setRunStatus).toHaveBeenCalledWith(
@@ -352,7 +352,7 @@ describe('runs', () => {
         .send({ experiment: 'exp', id: 'my-run' })
         .expect(201);
       await api
-        .put('/experiments/exp/runs/my-run')
+        .patch('/experiments/exp/runs/my-run')
         .send({ status: 'completed' })
         .expect(200);
       await api.get('/sessions/current').expect(200, {
@@ -361,7 +361,7 @@ describe('runs', () => {
         status: 'ok',
       });
       await api
-        .put('/experiments/exp/runs/my-run')
+        .patch('/experiments/exp/runs/my-run')
         .send({ status: 'canceled' })
         .expect(403, {
           status: 'error',

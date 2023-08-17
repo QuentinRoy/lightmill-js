@@ -100,7 +100,7 @@ export const api = makeApi([
     ],
   },
   {
-    method: 'put',
+    method: 'patch',
     path: '/experiments/:experiment/runs/:run',
     response: OkResponse.strict(),
     errors: [

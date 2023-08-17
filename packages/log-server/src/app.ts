@@ -158,7 +158,7 @@ export function LogServer({
     }
   });
 
-  router.put('/experiments/:experiment/runs/:run', async (req, res, next) => {
+  router.patch('/experiments/:experiment/runs/:run', async (req, res, next) => {
     let { experiment: experimentId, run: runId } = req.params;
     experimentId = String(experimentId);
     runId = String(runId);
