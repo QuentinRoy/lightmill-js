@@ -34,14 +34,12 @@ function MockStore(): MockStore {
     getLogValueNames: vi.fn(() =>
       Promise.resolve(['mock-col1', 'mock-col2', 'mock-col3']),
     ),
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     getLogs: vi.fn(async function* (): AsyncGenerator<Log> {
       yield {
         experimentId: 'getLogs:experimentId-1',
         runId: 'getLogs:runId-1',
         type: 'getLogs:type-1',
-        createdAt: vi.getMockedSystemTime()!,
-        clientDate: new Date(0),
+        number: 1,
         values: {
           'mock-col1': 'log1-mock-value1',
           'mock-col2': 'log1-mock-value2',
@@ -51,8 +49,7 @@ function MockStore(): MockStore {
         experimentId: 'getLogs:experimentId-2',
         runId: 'getLogs:runId-2',
         type: 'getLogs:type-2',
-        createdAt: vi.getMockedSystemTime()!,
-        clientDate: new Date(0),
+        number: 2,
         values: {
           'mock-col1': 'log2-mock-value1',
           'mock-col2': 'log2-mock-value2',
@@ -402,7 +399,7 @@ describe('logs', () => {
           log: {
             type: 'test-log',
             values: { p1: 'v1', p2: 'v2' },
-            date: new Date(0).toISOString(),
+            number: 1,
           },
         } satisfies PostLogsBody)
         .expect(403, {
@@ -414,14 +411,13 @@ describe('logs', () => {
     });
 
     it('should add a single log to the run', async () => {
-      let date = new Date(1234567890);
       await api
         .post('/experiments/test-exp/runs/test-run/logs')
         .send({
           log: {
             type: 'test-log',
             values: { p1: 'v1', p2: 'v2' },
-            date: date.toISOString(),
+            number: 1,
           },
         } satisfies PostLogsBody)
         .expect(201, { status: 'ok' });
@@ -429,44 +425,23 @@ describe('logs', () => {
         {
           type: 'test-log',
           values: { p1: 'v1', p2: 'v2' },
-          date,
-          createdAt: vi.getMockedSystemTime(),
+          number: 1,
         },
       ]);
     });
     it('should add multiple logs to the run at once', async () => {
-      let date1 = new Date(100);
-      let date2 = new Date(200);
       await api
         .post('/experiments/test-exp/runs/test-run/logs')
         .send({
           logs: [
-            {
-              type: 'test-log',
-              values: { p1: 'v1', p2: 'v2' },
-              date: date1.toISOString(),
-            },
-            {
-              type: 'test-log',
-              values: { p3: 'v3', p4: 'v4' },
-              date: date2.toISOString(),
-            },
+            { type: 'test-log', values: { p1: 'v1', p2: 'v2' }, number: 1 },
+            { type: 'test-log', values: { p3: 'v3', p4: 'v4' }, number: 2 },
           ],
         } satisfies PostLogsBody)
         .expect(201, { status: 'ok' });
       expect(store.addLogs).toHaveBeenCalledWith('test-exp', 'test-run', [
-        {
-          type: 'test-log',
-          values: { p1: 'v1', p2: 'v2' },
-          date: date1,
-          createdAt: vi.getMockedSystemTime(),
-        },
-        {
-          type: 'test-log',
-          values: { p3: 'v3', p4: 'v4' },
-          date: date2,
-          createdAt: vi.getMockedSystemTime(),
-        },
+        { type: 'test-log', values: { p1: 'v1', p2: 'v2' }, number: 1 },
+        { type: 'test-log', values: { p3: 'v3', p4: 'v4' }, number: 2 },
       ]);
     });
   });
@@ -503,9 +478,8 @@ describe('logs', () => {
       expect(result.body).toMatchInlineSnapshot(`
         [
           {
-            "createdAt": "1970-01-15T06:56:07.890Z",
-            "date": "1970-01-01T00:00:00.000Z",
             "experiment": "getLogs:experimentId-1",
+            "number": 1,
             "run": "getLogs:runId-1",
             "type": "getLogs:type-1",
             "values": {
@@ -514,9 +488,8 @@ describe('logs', () => {
             },
           },
           {
-            "createdAt": "1970-01-15T06:56:07.890Z",
-            "date": "1970-01-01T00:00:00.000Z",
             "experiment": "getLogs:experimentId-2",
+            "number": 2,
             "run": "getLogs:runId-2",
             "type": "getLogs:type-2",
             "values": {
@@ -540,9 +513,8 @@ describe('logs', () => {
       expect(result.body).toMatchInlineSnapshot(`
         [
           {
-            "createdAt": "1970-01-15T06:56:07.890Z",
-            "date": "1970-01-01T00:00:00.000Z",
             "experiment": "getLogs:experimentId-1",
+            "number": 1,
             "run": "getLogs:runId-1",
             "type": "getLogs:type-1",
             "values": {
@@ -551,9 +523,8 @@ describe('logs', () => {
             },
           },
           {
-            "createdAt": "1970-01-15T06:56:07.890Z",
-            "date": "1970-01-01T00:00:00.000Z",
             "experiment": "getLogs:experimentId-2",
+            "number": 2,
             "run": "getLogs:runId-2",
             "type": "getLogs:type-2",
             "values": {
@@ -575,9 +546,9 @@ describe('logs', () => {
         .expect(200);
       expect(store.getLogs).toHaveBeenCalledWith({ experiment: 'exp' });
       expect(result.text).toMatchInlineSnapshot(`
-        "type,run,date,mock_col1,mock_col2,mock_col3
-        getLogs:type-1,getLogs:runId-1,1970-01-01T00:00:00.000Z,log1-mock-value1,log1-mock-value2,
-        getLogs:type-2,getLogs:runId-2,1970-01-01T00:00:00.000Z,log2-mock-value1,log2-mock-value2,log2-mock-value3
+        "type,run,mock_col1,mock_col2,mock_col3,number
+        getLogs:type-1,getLogs:runId-1,log1-mock-value1,log1-mock-value2,,1
+        getLogs:type-2,getLogs:runId-2,log2-mock-value1,log2-mock-value2,log2-mock-value3,2
         "
       `);
     });
@@ -590,9 +561,8 @@ describe('logs', () => {
       expect(result.body).toMatchInlineSnapshot(`
         [
           {
-            "createdAt": "1970-01-15T06:56:07.890Z",
-            "date": "1970-01-01T00:00:00.000Z",
             "experiment": "getLogs:experimentId-1",
+            "number": 1,
             "run": "getLogs:runId-1",
             "type": "getLogs:type-1",
             "values": {
@@ -601,9 +571,8 @@ describe('logs', () => {
             },
           },
           {
-            "createdAt": "1970-01-15T06:56:07.890Z",
-            "date": "1970-01-01T00:00:00.000Z",
             "experiment": "getLogs:experimentId-2",
+            "number": 2,
             "run": "getLogs:runId-2",
             "type": "getLogs:type-2",
             "values": {
