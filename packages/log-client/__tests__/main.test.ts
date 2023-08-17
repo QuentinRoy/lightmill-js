@@ -1,7 +1,7 @@
 import { LogClient } from '../src/main.js';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { afterAll, afterEach, beforeAll } from 'vitest';
-import type { Response as ApiResponse, Path } from '@lightmill/log-server';
+import type { Response as ApiResponse, Path } from '@lightmill/log-api';
 import { setupServer } from 'msw/node';
 import { rest } from 'msw';
 

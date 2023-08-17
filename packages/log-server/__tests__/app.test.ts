@@ -2,7 +2,7 @@ import request from 'supertest';
 import { afterEach, describe, beforeEach, it, vi, expect, Mock } from 'vitest';
 import { Log, Store, StoreError } from '../src/store.js';
 import { LogServer } from '../src/app.js';
-import { Body } from '../src/api.js';
+import type { Body } from '@lightmill/log-api';
 
 type MockStore = {
   [K in keyof Store]: Store[K] extends (...args: infer A) => infer R
