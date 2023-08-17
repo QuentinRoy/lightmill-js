@@ -268,6 +268,29 @@ describe('RunLogger#addLog', () => {
       },
     ]);
   });
+
+  it('should send logs with no provided values', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime('2019-06-03T02:00:00.000Z');
+    let p = logger.addLog({ type: 'mock-log' });
+    vi.runAllTimers();
+    await p;
+    expect(await waitForRequestJsonBodies()).toEqual([
+      {
+        url: 'https://server.test/api/experiments/experiment-id/runs/run-id/logs',
+        method: 'POST',
+        body: {
+          logs: [
+            {
+              type: 'mock-log',
+              values: { date: '2019-06-03T02:00:00.000Z' },
+              number: 1,
+            },
+          ],
+        },
+      },
+    ]);
+  });
 });
 
 describe('RunLogger#flush', () => {
