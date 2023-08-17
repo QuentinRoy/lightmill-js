@@ -185,7 +185,7 @@ export class LogClient<InputLog extends BaseLog = AnyLog> {
     let body: ApiBody<'patch', '/experiments/:experiment/runs/:run'> = {
       status,
     };
-    await put(`${this.#apiRoot}${this.#endpoints.run}`, {
+    await patch(`${this.#apiRoot}${this.#endpoints.run}`, {
       body,
       credentials: 'include',
     });
@@ -241,4 +241,4 @@ function makeJsonFetchMethod(method: string) {
 }
 
 const post = makeJsonFetchMethod('POST');
-const put = makeJsonFetchMethod('PUT');
+const patch = makeJsonFetchMethod('PATCH');

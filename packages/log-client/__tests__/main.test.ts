@@ -275,7 +275,7 @@ describe('RunLogger', () => {
     await logger.completeRun();
     expect(await waitForRequestJsonBodies()).toEqual([
       {
-        method: 'PUT',
+        method: 'PATCH',
         url: 'https://server.test/api/experiments/experiment-id/runs/run-id',
         body: { status: 'completed' },
       },
