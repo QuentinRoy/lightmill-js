@@ -17,7 +17,7 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsc -b tsconfig.build.json --clean && tsc -b tsconfig.build.json",
+    "build": "tsc -b tsconfig.build.json",
     "prepublish": "pnpm run build"
   },
   "devDependencies": {
