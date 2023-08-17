@@ -45,13 +45,13 @@ const server = setupServer(
       );
     },
   ),
-  rest.put(
+  rest.patch(
     'https://server.test/api/experiments/experiment-id/runs/run-id' satisfies ServerPath,
     (req, res, ctx) => {
       return res(
         ctx.status(200),
         ctx.json({ status: 'ok' } satisfies ApiResponse<
-          'put',
+          'patch',
           '/experiments/:experiment/runs/:run'
         >),
       );
@@ -291,7 +291,7 @@ describe('RunLogger', () => {
     await logger.cancelRun();
     expect(await waitForRequestJsonBodies()).toEqual([
       {
-        method: 'PUT',
+        method: 'PATCH',
         url: 'https://server.test/api/experiments/experiment-id/runs/run-id',
         body: { status: 'canceled' },
       },
