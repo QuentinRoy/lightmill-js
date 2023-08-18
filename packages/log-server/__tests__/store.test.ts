@@ -39,48 +39,27 @@ describe('SQLiteStore#addRun', () => {
   });
   it('should add runs with different ids without error', async () => {
     await expect(
-      store.addRun({
-        runId: 'run1',
-        experimentId: 'experiment1',
-      }),
+      store.addRun({ runId: 'run1', experimentId: 'experiment1' }),
     ).resolves.toEqual({ runId: 'run1', experimentId: 'experiment1' });
     await expect(
-      store.addRun({
-        runId: 'run2',
-        experimentId: 'experiment1',
-      }),
+      store.addRun({ runId: 'run2', experimentId: 'experiment1' }),
     ).resolves.toEqual({ runId: 'run2', experimentId: 'experiment1' });
     await expect(
-      store.addRun({
-        runId: 'run3',
-        experimentId: 'experiment2',
-      }),
+      store.addRun({ runId: 'run3', experimentId: 'experiment2' }),
     ).resolves.toEqual({ runId: 'run3', experimentId: 'experiment2' });
   });
   it('should refuse to add a run if a run with the same id already exists for the experiment', async () => {
-    await store.addRun({
-      runId: 'run1',
-      experimentId: 'experiment1',
-    });
+    await store.addRun({ runId: 'run1', experimentId: 'experiment1' });
     await expect(
-      store.addRun({
-        runId: 'run1',
-        experimentId: 'experiment1',
-      }),
+      store.addRun({ runId: 'run1', experimentId: 'experiment1' }),
     ).rejects.toThrow();
   });
   it('should add a run if a run with the same id already exists but for a different experiment', async () => {
     await expect(
-      store.addRun({
-        runId: 'run-id',
-        experimentId: 'experiment1',
-      }),
+      store.addRun({ runId: 'run-id', experimentId: 'experiment1' }),
     ).resolves.toEqual({ runId: 'run-id', experimentId: 'experiment1' });
     await expect(
-      store.addRun({
-        runId: 'run-id',
-        experimentId: 'experiment2',
-      }),
+      store.addRun({ runId: 'run-id', experimentId: 'experiment2' }),
     ).resolves.toEqual({ runId: 'run-id', experimentId: 'experiment2' });
   });
 });
@@ -90,14 +69,8 @@ describe('SQLiteStore#getRun', () => {
   beforeEach(async () => {
     store = new SQLiteStore(':memory:');
     await store.migrateDatabase();
-    await store.addRun({
-      runId: 'run1',
-      experimentId: 'experiment',
-    });
-    await store.addRun({
-      runId: 'run2',
-      experimentId: 'experiment',
-    });
+    await store.addRun({ runId: 'run1', experimentId: 'experiment' });
+    await store.addRun({ runId: 'run2', experimentId: 'experiment' });
   });
   afterEach(async () => {
     await store.close();
@@ -121,21 +94,16 @@ describe('SQLiteStore#addLogs', () => {
   beforeEach(async () => {
     store = new SQLiteStore(':memory:');
     await store.migrateDatabase();
-    await store.addRun({
-      runId: 'run1',
-      experimentId: 'experiment',
-    });
-    await store.addRun({
-      runId: 'run2',
-      experimentId: 'experiment',
-    });
+    await store.addRun({ runId: 'run1', experimentId: 'experiment1' });
+    await store.addRun({ runId: 'run1', experimentId: 'experiment2' });
+    await store.addRun({ runId: 'run2', experimentId: 'experiment1' });
   });
   afterEach(async () => {
     await store.close();
   });
   it('should add non empty logs without error', async () => {
     await expect(
-      store.addLogs('experiment', 'run1', [
+      store.addLogs('experiment1', 'run1', [
         {
           type: 'log',
           number: 1,
@@ -149,7 +117,7 @@ describe('SQLiteStore#addLogs', () => {
       ]),
     ).resolves.toBeUndefined();
     await expect(
-      store.addLogs('experiment', 'run2', [
+      store.addLogs('experiment1', 'run2', [
         {
           number: 3,
           type: 'other-log',
@@ -165,36 +133,114 @@ describe('SQLiteStore#addLogs', () => {
   });
   it('should add empty logs without error', async () => {
     await expect(
-      store.addLogs('experiment', 'run1', [
+      store.addLogs('experiment1', 'run1', [
         { type: 'log', number: 1, values: {} },
         { type: 'log', number: 2, values: {} },
       ]),
     ).resolves.toBeUndefined();
     await expect(
-      store.addLogs('experiment', 'run2', [
+      store.addLogs('experiment1', 'run2', [
         { number: 3, type: 'other-log', values: {} },
         { number: 4, type: 'log', values: {} },
       ]),
     ).resolves.toBeUndefined();
   });
-  it('should refuse to add two logs with the same number for the same run', async () => {
+  it('should refuse to add two logs with the same number for the same run when added in two different requests', async () => {
     await expect(
-      store.addLogs('experiment', 'run1', [
-        { type: 'log', number: 1, values: {} },
-        { type: 'log', number: 2, values: {} },
+      store.addLogs('experiment1', 'run1', [
+        { type: 'log', number: 1, values: { x: 1 } },
+        { type: 'log', number: 2, values: { x: 2 } },
+        { type: 'log', number: 3, values: { x: 2 } },
       ]),
     ).resolves.toBeUndefined();
     await expect(
-      store.addLogs('experiment', 'run1', [
-        { type: 'log', number: 2, values: {} },
+      store.addLogs('experiment1', 'run1', [
+        { type: 'log', number: 2, values: { x: 3 } },
       ]),
     ).rejects.toThrow();
     await expect(
-      store.addLogs('experiment', 'run1', [
-        { type: 'log1', number: 3, values: {} },
-        { type: 'log2', number: 3, values: {} },
+      store.addLogs('experiment1', 'run1', [
+        { type: 'log', number: 3, values: { x: 3 } },
+        { type: 'log', number: 4, values: { x: 3 } },
       ]),
     ).rejects.toThrow();
+  });
+  it('should refuse to add two logs with the same number for the same run when added in the same requests', async () => {
+    await expect(
+      store.addLogs('experiment1', 'run1', [
+        { type: 'log2', number: 1, values: { x: 3 } },
+        { type: 'log1', number: 3, values: { x: 1 } },
+        { type: 'log2', number: 4, values: { x: 3 } },
+        { type: 'log2', number: 3, values: { x: 3 } },
+      ]),
+    ).rejects.toThrow();
+    await expect(
+      store.addLogs('experiment1', 'run1', [
+        { type: 'log1', number: 2, values: { x: 1 } },
+        { type: 'log2', number: 2, values: { x: 3 } },
+      ]),
+    ).rejects.toThrow();
+  });
+  it('should be fine with logs with the same number as long as they are in different runs', async () => {
+    await expect(
+      store.addLogs('experiment1', 'run1', [
+        { type: 'log', number: 1, values: { x: 1 } },
+        { type: 'log', number: 2, values: { x: 2 } },
+      ]),
+    ).resolves.toBeUndefined();
+    await expect(
+      store.addLogs('experiment1', 'run2', [
+        { type: 'log', number: 2, values: { x: 3 } },
+        { type: 'log', number: 1, values: { x: 1 } },
+      ]),
+    ).resolves.toBeUndefined();
+    await expect(
+      store.addLogs('experiment2', 'run1', [
+        { type: 'log', number: 2, values: { x: 3 } },
+        { type: 'log', number: 1, values: { x: 1 } },
+      ]),
+    ).resolves.toBeUndefined();
+  });
+  it('should store non consecutive logs without error', async () => {
+    await expect(
+      store.addLogs('experiment1', 'run1', [
+        { type: 'log', number: 1, values: { x: 0 } },
+        { type: 'log', number: 3, values: { x: 1 } },
+      ]),
+    ).resolves.toBeUndefined();
+    await expect(
+      store.addLogs('experiment1', 'run1', [
+        { type: 'log', number: 5, values: { x: 2 } },
+        { type: 'log', number: 6, values: { x: 3 } },
+      ]),
+    ).resolves.toBeUndefined();
+  });
+  it('should fill in missing logs without error', async () => {
+    await expect(
+      store.addLogs('experiment1', 'run1', [
+        { type: 'log1', number: 2, values: { x: 0 } },
+        { type: 'log1', number: 5, values: { x: 1 } },
+        { type: 'log1', number: 9, values: { x: 2 } },
+      ]),
+    ).resolves.toBeUndefined();
+    await expect(
+      store.addLogs('experiment1', 'run1', [
+        { type: 'log4', number: 7, values: { x: 3 } },
+        { type: 'log5', number: 3, values: { x: 4 } },
+      ]),
+    ).resolves.toBeUndefined();
+    await expect(
+      store.addLogs('experiment1', 'run1', [
+        { type: 'log4', number: 1, values: { x: 3 } },
+        { type: 'log4', number: 8, values: { x: 3 } },
+      ]),
+    ).resolves.toBeUndefined();
+    await expect(
+      store.addLogs('experiment1', 'run1', [
+        { type: 'log4', number: 10, values: { x: 3 } },
+        { type: 'log4', number: 6, values: { x: 3 } },
+      ]),
+    ).resolves.toBeUndefined();
   });
 });
 
@@ -324,42 +370,18 @@ describe('SQLiteStore#getLogs', () => {
     await store.addRun({ runId: 'run2', experimentId: 'experiment1' });
     await store.addRun({ runId: 'run1', experimentId: 'experiment2' });
     await store.addLogs('experiment1', 'run1', [
-      {
-        type: 'log1',
-        number: 1,
-        values: { message: 'hello', recipient: 'Anna' },
-      },
-      {
-        type: 'log1',
-        number: 5,
-        values: { message: 'bonjour', recipient: 'Jo' },
-      },
+      { type: 'log1', number: 1, values: { msg: 'hello', recipient: 'Anna' } },
+      { type: 'log1', number: 2, values: { msg: 'bonjour', recipient: 'Jo' } },
     ]);
     await store.addLogs('experiment1', 'run2', [
-      {
-        type: 'log1',
-        number: 4,
-        values: { message: 'hola', bar: null },
-      },
-      {
-        type: 'log2',
-        number: 3,
-        values: { x: 12, foo: false },
-      },
+      { type: 'log1', number: 1, values: { message: 'hola', bar: null } },
+      { type: 'log2', number: 2, values: { x: 12, foo: false } },
     ]);
     await store.addLogs('experiment2', 'run1', [
-      {
-        type: 'log2',
-        number: 6,
-        values: { x: 25, y: 0, foo: true },
-      },
+      { type: 'log2', number: 1, values: { x: 25, y: 0, foo: true } },
     ]);
     await store.addLogs('experiment1', 'run1', [
-      {
-        type: 'log3',
-        number: 2,
-        values: { x: 25, y: 0, foo: true },
-      },
+      { type: 'log3', number: 3, values: { x: 25, y: 0, foo: true } },
     ]);
   });
   afterEach(async () => {
@@ -375,13 +397,23 @@ describe('SQLiteStore#getLogs', () => {
           "runId": "run1",
           "type": "log1",
           "values": {
-            "message": "hello",
+            "msg": "hello",
             "recipient": "Anna",
           },
         },
         {
           "experimentId": "experiment1",
           "number": 2,
+          "runId": "run1",
+          "type": "log1",
+          "values": {
+            "msg": "bonjour",
+            "recipient": "Jo",
+          },
+        },
+        {
+          "experimentId": "experiment1",
+          "number": 3,
           "runId": "run1",
           "type": "log3",
           "values": {
@@ -392,27 +424,7 @@ describe('SQLiteStore#getLogs', () => {
         },
         {
           "experimentId": "experiment1",
-          "number": 5,
-          "runId": "run1",
-          "type": "log1",
-          "values": {
-            "message": "bonjour",
-            "recipient": "Jo",
-          },
-        },
-        {
-          "experimentId": "experiment1",
-          "number": 3,
-          "runId": "run2",
-          "type": "log2",
-          "values": {
-            "foo": false,
-            "x": 12,
-          },
-        },
-        {
-          "experimentId": "experiment1",
-          "number": 4,
+          "number": 1,
           "runId": "run2",
           "type": "log1",
           "values": {
@@ -421,14 +433,140 @@ describe('SQLiteStore#getLogs', () => {
           },
         },
         {
+          "experimentId": "experiment1",
+          "number": 2,
+          "runId": "run2",
+          "type": "log2",
+          "values": {
+            "foo": false,
+            "x": 12,
+          },
+        },
+        {
           "experimentId": "experiment2",
-          "number": 6,
+          "number": 1,
           "runId": "run1",
           "type": "log2",
           "values": {
             "foo": true,
             "x": 25,
             "y": 0,
+          },
+        },
+      ]
+    `);
+  });
+  it('should ignore missing logs', async () => {
+    await store.addLogs('experiment2', 'run1', [
+      { type: 'log1', number: 11, values: { msg: 'hello', recipient: 'Anna' } },
+      { type: 'log1', number: 33, values: { msg: 'bonjour', recipient: 'Jo' } },
+    ]);
+    await store.addLogs('experiment2', 'run1', [
+      { type: 'log1', number: 22, values: { msg: 'hello', recipient: 'Anna' } },
+      { type: 'log1', number: 44, values: { msg: 'bonjour', recipient: 'Jo' } },
+    ]);
+    await expect(fromAsync(store.getLogs())).resolves.toMatchInlineSnapshot(`
+      [
+        {
+          "experimentId": "experiment1",
+          "number": 1,
+          "runId": "run1",
+          "type": "log1",
+          "values": {
+            "msg": "hello",
+            "recipient": "Anna",
+          },
+        },
+        {
+          "experimentId": "experiment1",
+          "number": 2,
+          "runId": "run1",
+          "type": "log1",
+          "values": {
+            "msg": "bonjour",
+            "recipient": "Jo",
+          },
+        },
+        {
+          "experimentId": "experiment1",
+          "number": 3,
+          "runId": "run1",
+          "type": "log3",
+          "values": {
+            "foo": true,
+            "x": 25,
+            "y": 0,
+          },
+        },
+        {
+          "experimentId": "experiment1",
+          "number": 1,
+          "runId": "run2",
+          "type": "log1",
+          "values": {
+            "bar": null,
+            "message": "hola",
+          },
+        },
+        {
+          "experimentId": "experiment1",
+          "number": 2,
+          "runId": "run2",
+          "type": "log2",
+          "values": {
+            "foo": false,
+            "x": 12,
+          },
+        },
+        {
+          "experimentId": "experiment2",
+          "number": 1,
+          "runId": "run1",
+          "type": "log2",
+          "values": {
+            "foo": true,
+            "x": 25,
+            "y": 0,
+          },
+        },
+        {
+          "experimentId": "experiment2",
+          "number": 11,
+          "runId": "run1",
+          "type": "log1",
+          "values": {
+            "msg": "hello",
+            "recipient": "Anna",
+          },
+        },
+        {
+          "experimentId": "experiment2",
+          "number": 22,
+          "runId": "run1",
+          "type": "log1",
+          "values": {
+            "msg": "hello",
+            "recipient": "Anna",
+          },
+        },
+        {
+          "experimentId": "experiment2",
+          "number": 33,
+          "runId": "run1",
+          "type": "log1",
+          "values": {
+            "msg": "bonjour",
+            "recipient": "Jo",
+          },
+        },
+        {
+          "experimentId": "experiment2",
+          "number": 44,
+          "runId": "run1",
+          "type": "log1",
+          "values": {
+            "msg": "bonjour",
+            "recipient": "Jo",
           },
         },
       ]
@@ -444,23 +582,23 @@ describe('SQLiteStore#getLogs', () => {
           "runId": "run1",
           "type": "log1",
           "values": {
-            "message": "hello",
+            "msg": "hello",
             "recipient": "Anna",
           },
         },
         {
           "experimentId": "experiment1",
-          "number": 5,
+          "number": 2,
           "runId": "run1",
           "type": "log1",
           "values": {
-            "message": "bonjour",
+            "msg": "bonjour",
             "recipient": "Jo",
           },
         },
         {
           "experimentId": "experiment1",
-          "number": 4,
+          "number": 1,
           "runId": "run2",
           "type": "log1",
           "values": {
@@ -475,7 +613,7 @@ describe('SQLiteStore#getLogs', () => {
       [
         {
           "experimentId": "experiment1",
-          "number": 3,
+          "number": 2,
           "runId": "run2",
           "type": "log2",
           "values": {
@@ -485,7 +623,7 @@ describe('SQLiteStore#getLogs', () => {
         },
         {
           "experimentId": "experiment2",
-          "number": 6,
+          "number": 1,
           "runId": "run1",
           "type": "log2",
           "values": {
@@ -507,13 +645,23 @@ describe('SQLiteStore#getLogs', () => {
           "runId": "run1",
           "type": "log1",
           "values": {
-            "message": "hello",
+            "msg": "hello",
             "recipient": "Anna",
           },
         },
         {
           "experimentId": "experiment1",
           "number": 2,
+          "runId": "run1",
+          "type": "log1",
+          "values": {
+            "msg": "bonjour",
+            "recipient": "Jo",
+          },
+        },
+        {
+          "experimentId": "experiment1",
+          "number": 3,
           "runId": "run1",
           "type": "log3",
           "values": {
@@ -524,32 +672,22 @@ describe('SQLiteStore#getLogs', () => {
         },
         {
           "experimentId": "experiment1",
-          "number": 5,
-          "runId": "run1",
-          "type": "log1",
-          "values": {
-            "message": "bonjour",
-            "recipient": "Jo",
-          },
-        },
-        {
-          "experimentId": "experiment1",
-          "number": 3,
-          "runId": "run2",
-          "type": "log2",
-          "values": {
-            "foo": false,
-            "x": 12,
-          },
-        },
-        {
-          "experimentId": "experiment1",
-          "number": 4,
+          "number": 1,
           "runId": "run2",
           "type": "log1",
           "values": {
             "bar": null,
             "message": "hola",
+          },
+        },
+        {
+          "experimentId": "experiment1",
+          "number": 2,
+          "runId": "run2",
+          "type": "log2",
+          "values": {
+            "foo": false,
+            "x": 12,
           },
         },
       ]
@@ -559,7 +697,7 @@ describe('SQLiteStore#getLogs', () => {
       [
         {
           "experimentId": "experiment2",
-          "number": 6,
+          "number": 1,
           "runId": "run1",
           "type": "log2",
           "values": {
@@ -581,13 +719,23 @@ describe('SQLiteStore#getLogs', () => {
           "runId": "run1",
           "type": "log1",
           "values": {
-            "message": "hello",
+            "msg": "hello",
             "recipient": "Anna",
           },
         },
         {
           "experimentId": "experiment1",
           "number": 2,
+          "runId": "run1",
+          "type": "log1",
+          "values": {
+            "msg": "bonjour",
+            "recipient": "Jo",
+          },
+        },
+        {
+          "experimentId": "experiment1",
+          "number": 3,
           "runId": "run1",
           "type": "log3",
           "values": {
@@ -597,18 +745,8 @@ describe('SQLiteStore#getLogs', () => {
           },
         },
         {
-          "experimentId": "experiment1",
-          "number": 5,
-          "runId": "run1",
-          "type": "log1",
-          "values": {
-            "message": "bonjour",
-            "recipient": "Jo",
-          },
-        },
-        {
           "experimentId": "experiment2",
-          "number": 6,
+          "number": 1,
           "runId": "run1",
           "type": "log2",
           "values": {
@@ -624,22 +762,22 @@ describe('SQLiteStore#getLogs', () => {
       [
         {
           "experimentId": "experiment1",
-          "number": 3,
-          "runId": "run2",
-          "type": "log2",
-          "values": {
-            "foo": false,
-            "x": 12,
-          },
-        },
-        {
-          "experimentId": "experiment1",
-          "number": 4,
+          "number": 1,
           "runId": "run2",
           "type": "log1",
           "values": {
             "bar": null,
             "message": "hola",
+          },
+        },
+        {
+          "experimentId": "experiment1",
+          "number": 2,
+          "runId": "run2",
+          "type": "log2",
+          "values": {
+            "foo": false,
+            "x": 12,
           },
         },
       ]
@@ -652,7 +790,7 @@ describe('SQLiteStore#getLogs', () => {
       [
         {
           "experimentId": "experiment1",
-          "number": 3,
+          "number": 2,
           "runId": "run2",
           "type": "log2",
           "values": {
@@ -664,11 +802,7 @@ describe('SQLiteStore#getLogs', () => {
     `);
     await expect(
       fromAsync(
-        store.getLogs({
-          experiment: 'experiment1',
-          type: 'log1',
-          run: 'run1',
-        }),
+        store.getLogs({ experiment: 'experiment1', type: 'log1', run: 'run1' }),
       ),
     ).resolves.toMatchInlineSnapshot(`
       [
@@ -678,17 +812,17 @@ describe('SQLiteStore#getLogs', () => {
           "runId": "run1",
           "type": "log1",
           "values": {
-            "message": "hello",
+            "msg": "hello",
             "recipient": "Anna",
           },
         },
         {
           "experimentId": "experiment1",
-          "number": 5,
+          "number": 2,
           "runId": "run1",
           "type": "log1",
           "values": {
-            "message": "bonjour",
+            "msg": "bonjour",
             "recipient": "Jo",
           },
         },

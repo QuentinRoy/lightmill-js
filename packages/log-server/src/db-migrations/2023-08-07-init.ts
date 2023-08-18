@@ -1,4 +1,4 @@
-import { Kysely } from 'kysely';
+import { Kysely, sql } from 'kysely';
 
 export async function up(db: Kysely<unknown>) {
   await db.transaction().execute(async (trx) => {
@@ -16,7 +16,7 @@ export async function up(db: Kysely<unknown>) {
       .createTable('log')
       .addColumn('logDbId', 'integer', (column) => column.primaryKey())
       .addColumn('runDbId', 'integer', (column) => column.notNull())
-      .addColumn('type', 'text', (column) => column.notNull())
+      .addColumn('type', 'text')
       .addColumn('number', 'integer', (column) => column.notNull())
       .addColumn('createdAt', 'datetime')
       .addForeignKeyConstraint('ForeignLogRunDbId', ['runDbId'], 'run', [
@@ -24,6 +24,17 @@ export async function up(db: Kysely<unknown>) {
       ])
       .addUniqueConstraint('UniqueLogNumberPerRun', ['runDbId', 'number'])
       .execute();
+    // Prevents updates of log rows whose current type column is not null.
+    await sql`
+      CREATE TRIGGER PreventLogTypeUpdate
+      BEFORE UPDATE ON log
+      FOR EACH ROW
+      WHEN OLD.type IS NOT NULL
+      BEGIN
+        SELECT RAISE(ABORT, 'Cannot update existing log');
+      END;
+    `.execute(trx);
+
     await trx.schema
       .createTable('logValue')
       .addColumn('logDbId', 'integer', (column) => column.notNull())
