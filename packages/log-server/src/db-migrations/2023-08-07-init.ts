@@ -9,7 +9,9 @@ export async function up(db: Kysely<unknown>) {
       .addColumn('runId', 'text', (column) => column.notNull())
       .addColumn('status', 'text', (column) => column.notNull())
       .addColumn('createdAt', 'datetime')
+      .addUniqueConstraint('UniqueRunPerExperiment', ['experimentId', 'runId'])
       .execute();
+
     await trx.schema
       .createTable('log')
       .addColumn('logDbId', 'integer', (column) => column.primaryKey())

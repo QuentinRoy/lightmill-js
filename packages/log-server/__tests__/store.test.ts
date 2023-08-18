@@ -57,7 +57,7 @@ describe('SQLiteStore#addRun', () => {
       }),
     ).resolves.toEqual({ runId: 'run3', experimentId: 'experiment2' });
   });
-  it.skip('should refuse to add a run if a run with the same id already exists for the experiment', async () => {
+  it('should refuse to add a run if a run with the same id already exists for the experiment', async () => {
     await store.addRun({
       runId: 'run1',
       experimentId: 'experiment1',
