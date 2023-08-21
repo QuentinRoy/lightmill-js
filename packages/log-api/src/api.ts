@@ -19,8 +19,9 @@ const ErrorResponse = z.object({
 const Role = z.enum(['admin', 'participant']);
 const LogParameter = z.object({
   type: z.string(),
+  // Required because requests can arrive out of order.
+  number: z.number(),
   values: JsonObject,
-  date: z.string().datetime(),
 });
 
 export const api = makeApi([

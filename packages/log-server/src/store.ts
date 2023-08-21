@@ -10,11 +10,12 @@ import {
   SqliteDialect,
   CamelCasePlugin,
   DeduplicateJoinsPlugin,
+  InsertObject,
 } from 'kysely';
 import { JsonObject } from 'type-fest';
 import loglevel, { LogLevelDesc } from 'loglevel';
+import { groupBy, maxBy, minBy } from 'remeda';
 import { arrayify } from './utils.js';
-import { pipe, sortBy } from 'remeda';
 
 const __dirname = url.fileURLToPath(new URL('.', import.meta.url));
 const migrationFolder = path.join(__dirname, 'db-migrations');
@@ -22,24 +23,23 @@ const migrationFolder = path.join(__dirname, 'db-migrations');
 export type Store = Omit<SQLiteStore, 'migrateDatabase' | 'close'>;
 
 type RunTable = {
+  runDbId: Generated<number>;
   runId: string;
   experimentId: string;
-  createdAt: string;
   status: 'running' | 'completed' | 'canceled';
+  createdAt?: string;
 };
 type LogTable = {
-  logId: Generated<bigint>;
-  experimentId: string;
-  runId: string;
-  type: string;
-  createdAt: string;
-  clientDate?: string;
-  // batchOrder records the order in which the logs were sent by the client
-  // in a single request. This is used to sort logs with the same clientDate.
-  batchOrder?: number;
+  logDbId: Generated<number>;
+  runDbId: number;
+  number: number;
+  createdAt?: string;
+  // Logs with no type are used to fill in missing log numbers.
+  type?: string;
 };
+
 type LogValueTable = {
-  logId: bigint;
+  logDbId: number;
   name: string;
   value: string;
 };
@@ -74,11 +74,9 @@ export class SQLiteStore {
   async addRun({
     runId,
     experimentId,
-    createdAt,
   }: {
     runId: string;
     experimentId: string;
-    createdAt: Date;
   }) {
     try {
       let result = await this.#db
@@ -86,8 +84,8 @@ export class SQLiteStore {
         .values({
           runId,
           experimentId,
-          createdAt: createdAt.toISOString(),
           status: 'running',
+          createdAt: new Date().toISOString(),
         })
         .returning(['runId', 'experimentId'])
         .executeTakeFirstOrThrow();
@@ -107,18 +105,12 @@ export class SQLiteStore {
   }
 
   async getRun(experimentId: string, runId: string) {
-    let selection = await this.#db
+    return this.#db
       .selectFrom('run')
       .where('experimentId', '=', experimentId)
       .where('runId', '=', runId)
-      .selectAll()
+      .select(['runId', 'experimentId', 'status'])
       .executeTakeFirst();
-    if (selection == null) return;
-    return {
-      ...selection,
-      createdAt:
-        selection.createdAt != null ? new Date(selection.createdAt) : null,
-    };
   }
 
   async setRunStatus(
@@ -139,38 +131,87 @@ export class SQLiteStore {
     runId: string,
     logs: Array<{
       type: string;
-      date: Date;
-      createdAt: Date;
+      number: number;
       values: JsonObject;
     }>,
   ) {
+    if (logs.length === 0) return;
     await this.#db.transaction().execute(async (trx) => {
-      let logDbEntries = logs.map(({ type, date, createdAt }, batchOrder) => {
-        return {
-          type,
-          runId,
-          experimentId,
-          createdAt: createdAt.toISOString(),
-          clientDate: date.toISOString(),
-          batchOrder,
-        };
-      });
-      let dbLogs = pipe(
-        await trx
-          .insertInto('log')
-          .values(logDbEntries)
-          .returning(['logId', 'batchOrder'])
-          .execute(),
-        // Sort by batchOrder to ensure that the log values are properly
-        // associated with the logs.
-        sortBy((log) => log.batchOrder ?? 0),
-      );
+      let infoQuery = await trx
+        .selectFrom('run')
+        .where('experimentId', '=', experimentId)
+        .where('runId', '=', runId)
+        .leftJoin('log', 'log.runDbId', 'run.runDbId')
+        .groupBy('run.runDbId')
+        .select(({ fn }) => [
+          'run.runDbId as runDbId',
+          fn.max('log.number').as('currentLogNumber'),
+        ])
+        .executeTakeFirst();
+      if (infoQuery?.runDbId == null) {
+        throw new Error(
+          `run "${runId}" of experiment "${experimentId}" not found`,
+        );
+      }
+      let indexedNewLogs = groupBy(logs, (log) => log.number);
+      let { runDbId } = infoQuery;
+      let currentLogNumber = infoQuery.currentLogNumber ?? 0;
+      let futureLogNumber = maxBy(logs, (log) => log.number)?.number ?? 0;
+      let firstNewLogNumber = minBy(logs, (log) => log.number)?.number ?? 0;
+      let createdAt = new Date().toISOString();
 
-      let logValueDbEntries = logs.flatMap((log, batchOrder) => {
-        let logId = dbLogs[batchOrder].logId;
-        return deconstructValues(log.values, { logId });
-      });
-      await trx.insertInto('logValue').values(logValueDbEntries).execute();
+      // Start by updating existing logs.
+      let logRows = new Array<InsertObject<Database, 'log'>>();
+      // Add new logs and fill in missing logs.
+      for (let nb = firstNewLogNumber; nb <= futureLogNumber; nb++) {
+        let logs = indexedNewLogs[nb] ?? [];
+        if (logs.length > 0) {
+          // It is forbidden for two logs to have the same number, but if that
+          // happens, the database should be the one to complain.
+          logRows.push(
+            ...logs.map(({ type, number }) => ({
+              runDbId,
+              type,
+              number,
+              createdAt,
+            })),
+          );
+        } else if (nb > currentLogNumber) {
+          // If the log number is greater than the current log number, then
+          // there is a missing log. We need to add it to the database.
+          logRows.push({ runDbId, number: nb });
+        }
+        // Otherwise do nothing because the log (or missing log) should already
+        // be in the database.
+      }
+      let dbLogs = await trx
+        .insertInto('log')
+        .values(logRows)
+        .onConflict((oc) =>
+          // This update is safe because it should fail if the log type is not
+          // null, which would mean that the log already exists.
+          oc.columns(['runDbId', 'number']).doUpdateSet((eb) => ({
+            type: eb.ref('excluded.type'),
+            createdAt: eb.ref('excluded.createdAt'),
+          })),
+        )
+        .returning(['logDbId', 'number', 'type'])
+        .execute();
+
+      // Sort by number to ensure that the log values are properly
+      // associated with the logs because that cannot be done in an insert
+      // query, and the order of the returning values is not guaranteed.
+      let logValues = dbLogs
+        .filter((l) => l.type != null)
+        .flatMap((dbLog) => {
+          // We know there is only one log with this number because of the
+          // loop above.
+          let values = indexedNewLogs[dbLog.number][0].values;
+          return deconstructValues(values, { logDbId: dbLog.logDbId });
+        });
+      if (logValues.length > 0) {
+        await trx.insertInto('logValue').values(logValues).execute();
+      }
     });
   }
 
@@ -179,17 +220,19 @@ export class SQLiteStore {
       .selectFrom('logValue')
       .$if(filter.experiment != null, (qb) =>
         qb
-          .innerJoin('log', 'log.logId', 'logValue.logId')
-          .where('log.experimentId', 'in', arrayify(filter.experiment, true)),
+          .innerJoin('log', 'log.logDbId', 'logValue.logDbId')
+          .innerJoin('run', 'run.runDbId', 'log.runDbId')
+          .where('run.experimentId', 'in', arrayify(filter.experiment, true)),
       )
       .$if(filter.run != null, (qb) =>
         qb
-          .innerJoin('log', 'log.logId', 'logValue.logId')
-          .where('log.runId', 'in', arrayify(filter.run, true)),
+          .innerJoin('log', 'log.logDbId', 'logValue.logDbId')
+          .innerJoin('run', 'run.runDbId', 'log.runDbId')
+          .where('run.runId', 'in', arrayify(filter.run, true)),
       )
       .$if(filter.type != null, (qb) =>
         qb
-          .innerJoin('log', 'log.logId', 'logValue.logId')
+          .innerJoin('log', 'log.logDbId', 'logValue.logDbId')
           .where('log.type', 'in', arrayify(filter.type, true)),
       )
       .select('logValue.name')
@@ -200,56 +243,59 @@ export class SQLiteStore {
   }
 
   async *getLogs(filter: LogFilter = {}): AsyncGenerator<Log> {
+    // It would probably be better not to read everything at once because
+    // this could be a lot of data. However until this becomes a problem, this
+    // is good enough.
     let result = await this.#db
       .selectFrom('logValue')
-      .innerJoin('log', 'log.logId', 'logValue.logId')
+      .innerJoin('log', 'log.logDbId', 'logValue.logDbId')
+      .innerJoin('run', 'run.runDbId', 'log.runDbId')
       .$if(filter.experiment != null, (qb) =>
-        qb.where('log.experimentId', 'in', arrayify(filter.experiment, true)),
+        qb.where('run.experimentId', 'in', arrayify(filter.experiment, true)),
       )
       .$if(filter.run != null, (qb) =>
-        qb.where('log.runId', 'in', arrayify(filter.run, true)),
+        qb.where('run.runId', 'in', arrayify(filter.run, true)),
       )
       .$if(filter.type != null, (qb) =>
         qb.where('log.type', 'in', arrayify(filter.type, true)),
       )
-      .orderBy('log.experimentId')
-      .orderBy('log.runId')
-      .orderBy('log.clientDate')
-      .orderBy('log.createdAt')
-      .orderBy('log.batchOrder')
+      .where('log.type', 'is not', null)
       .select([
-        'log.experimentId as experimentId',
-        'log.runId as runId',
-        'log.logId as logId',
+        'run.experimentId as experimentId',
+        'run.runId as runId',
+        'log.logDbId as logDbId',
         'log.type as logType',
-        'log.clientDate as logClientDate',
-        'log.createdAt as logCreatedAt',
+        'log.number as logNumber',
         'logValue.name',
         'logValue.value',
       ])
+      .orderBy('experimentId')
+      .orderBy('runId')
+      .orderBy('logNumber')
       .execute();
 
     let currentLog = null;
     let currentLogId = null;
     for (let row of result) {
-      if (currentLog == null || row.logId !== currentLogId) {
+      if (currentLog == null || row.logDbId !== currentLogId) {
         if (currentLog != null) {
           yield currentLog;
+        }
+        if (row.logType == null) {
+          throw new Error('SQL query returned a log with no type');
         }
         currentLog = {
           experimentId: row.experimentId,
           runId: row.runId,
           type: row.logType,
-          createdAt: new Date(row.logCreatedAt),
-          clientDate: row.logClientDate
-            ? new Date(row.logClientDate)
-            : undefined,
+          number: row.logNumber,
           values: {} as JsonObject,
         };
-        currentLogId = row.logId;
+        currentLogId = row.logDbId;
       }
       currentLog.values[row.name] = JSON.parse(row.value);
     }
+    // Let us not forget the last one!
     if (currentLog != null) {
       yield currentLog;
     }
@@ -299,9 +345,8 @@ export type LogFilter = {
 export type Log = {
   experimentId: string;
   runId: string;
+  number: number;
   type: string;
-  createdAt: Date;
-  clientDate?: Date;
   values: JsonObject;
 };
 
