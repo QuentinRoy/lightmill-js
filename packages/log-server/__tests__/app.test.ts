@@ -34,6 +34,14 @@ function MockStore(): MockStore {
     getLogValueNames: vi.fn(() =>
       Promise.resolve(['mock-col1', 'mock-col2', 'mock-col3']),
     ),
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    getLogSummary: vi.fn((...args) =>
+      Promise.resolve([
+        { type: 'summary:type-1', count: 11, lastNumber: 12, pending: 13 },
+        { type: 'summary:type-2', count: 21, lastNumber: 22, pending: 23 },
+      ]),
+    ),
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     getLogs: vi.fn(async function* (): AsyncGenerator<Log> {
       yield {
         experimentId: 'getLogs:experimentId-1',
@@ -285,6 +293,39 @@ describe('runs', () => {
           status: 'error',
           message: 'run "run-id" already exists',
         });
+    });
+  });
+
+  describe('get /experiments/:experiment/runs/:run', () => {
+    it('should return an error if the client does not have access to the run', async () => {
+      await api.get('/experiments/exp/runs/not-my-run').expect(403, {
+        status: 'error',
+        message: `Client does not have permission to access run "not-my-run" of experiment "exp"`,
+      });
+      expect(store.getRun).not.toHaveBeenCalled();
+    });
+    it('should return some run information otherwise', async () => {
+      await api
+        .post('/runs')
+        .send({ experiment: 'exp-id', id: 'my-run' })
+        .expect(201);
+      await api.get('/experiments/exp-id/runs/my-run').expect(200, {
+        status: 'ok',
+        run: {
+          id: 'getRun:runId',
+          experiment: 'getRun:experimentId',
+          status: 'running',
+          logs: [
+            { type: 'summary:type-1', count: 11, lastNumber: 12, pending: 13 },
+            { type: 'summary:type-2', count: 21, lastNumber: 22, pending: 23 },
+          ],
+        },
+      });
+      expect(store.getRun).toHaveBeenCalledWith('exp-id', 'my-run');
+      expect(store.getLogSummary).toHaveBeenCalledWith({
+        experiment: 'exp-id',
+        run: 'my-run',
+      });
     });
   });
 

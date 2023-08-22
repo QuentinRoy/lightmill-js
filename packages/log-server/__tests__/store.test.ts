@@ -244,6 +244,112 @@ describe('SQLiteStore#addLogs', () => {
   });
 });
 
+describe('SQLiteStore#getLogSummary', () => {
+  let store: SQLiteStore;
+  beforeEach(async () => {
+    store = new SQLiteStore(':memory:');
+    await store.migrateDatabase();
+    await store.addRun({
+      runId: 'run1',
+      experimentId: 'experiment1',
+    });
+    await store.addRun({
+      runId: 'run2',
+      experimentId: 'experiment1',
+    });
+    await store.addRun({
+      runId: 'run1',
+      experimentId: 'experiment2',
+    });
+    await store.addLogs('experiment1', 'run1', [
+      { number: 2, type: 'log1', values: { x: 10 } },
+      { number: 3, type: 'log1', values: { x: 11 } },
+    ]);
+    await store.addLogs('experiment1', 'run1', [
+      { number: 8, type: 'log1', values: { x: 20 } },
+      { number: 5, type: 'log1', values: { x: 21 } },
+    ]);
+    await store.addLogs('experiment1', 'run1', [
+      { number: 1, type: 'log2', values: { x: 30 } },
+    ]);
+    await store.addLogs('experiment1', 'run2', [
+      { number: 1, type: 'log2', values: { x: 40 } },
+      { number: 3, type: 'log1', values: { x: 41 } },
+    ]);
+    await store.addLogs('experiment2', 'run1', [
+      { number: 3, type: 'log3', values: { x: 51 } },
+      { number: 2, type: 'log2', values: { x: 50 } },
+      { number: 5, type: 'log3', values: { x: 52 } },
+    ]);
+  });
+  afterEach(async () => {
+    await store.close();
+  });
+  it('should be able to return a summary for a particular run', async () => {
+    await expect(
+      store.getLogSummary({ experiment: 'experiment1', run: 'run1' }),
+    ).resolves.toEqual([
+      { type: 'log1', count: 2, pending: 2, lastNumber: 3 },
+      { type: 'log2', count: 1, pending: 0, lastNumber: 1 },
+    ]);
+    await expect(
+      store.getLogSummary({ experiment: 'experiment1', run: 'run2' }),
+    ).resolves.toEqual([
+      { type: 'log1', count: 0, pending: 1, lastNumber: null },
+      { type: 'log2', count: 1, pending: 0, lastNumber: 1 },
+    ]);
+    await expect(
+      store.getLogSummary({ experiment: 'experiment2', run: 'run1' }),
+    ).resolves.toEqual([
+      { type: 'log2', count: 0, pending: 1, lastNumber: null },
+      { type: 'log3', count: 0, pending: 2, lastNumber: null },
+    ]);
+  });
+  it('should be able to filter logs by type', async () => {
+    await expect(
+      store.getLogSummary({
+        experiment: 'experiment1',
+        run: 'run1',
+        type: 'log2',
+      }),
+    ).resolves.toEqual([{ type: 'log2', count: 1, pending: 0, lastNumber: 1 }]);
+    await expect(
+      store.getLogSummary({
+        experiment: 'experiment1',
+        run: 'run2',
+        type: ['log1', 'log2'],
+      }),
+    ).resolves.toEqual([
+      { type: 'log1', count: 0, pending: 1, lastNumber: null },
+      { type: 'log2', count: 1, pending: 0, lastNumber: 1 },
+    ]);
+    await expect(
+      store.getLogSummary({
+        experiment: 'experiment2',
+        run: 'run1',
+        type: ['log1', 'log2'],
+      }),
+    ).resolves.toEqual([
+      { type: 'log2', count: 0, pending: 1, lastNumber: null },
+    ]);
+  });
+  it('should resolve with an empty array if no log matches the filter', async () => {
+    await expect(
+      store.getLogSummary({ experiment: 'experiment1', run: 'do not exist' }),
+    ).resolves.toEqual([]);
+    await expect(
+      store.getLogSummary({ experiment: 'do not exist', run: 'run1' }),
+    ).resolves.toEqual([]);
+    await expect(
+      store.getLogSummary({
+        experiment: 'experiment1',
+        run: 'run1',
+        type: 'do not exist',
+      }),
+    ).resolves.toEqual([]);
+  });
+});
+
 describe('SQLiteStore#getLogValueNames', () => {
   let store: SQLiteStore;
   beforeEach(async () => {

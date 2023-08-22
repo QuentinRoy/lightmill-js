@@ -101,6 +101,27 @@ export const api = makeApi([
     ],
   },
   {
+    method: 'get',
+    path: '/experiments/:experiment/runs/:run',
+    response: OkResponse.extend({
+      run: z
+        .object({
+          id: z.string(),
+          experiment: z.string(),
+          status: z.union([
+            z.literal('completed'),
+            z.literal('canceled'),
+            z.literal('running'),
+          ]),
+          logs: z.array(
+            z.object({ type: z.string(), count: z.number() }).strict(),
+          ),
+        })
+        .strict(),
+    }).strict(),
+    errors: [{ status: 403, schema: ErrorResponse.strict() }],
+  },
+  {
     method: 'patch',
     path: '/experiments/:experiment/runs/:run',
     response: OkResponse.strict(),

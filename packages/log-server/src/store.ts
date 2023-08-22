@@ -242,6 +242,79 @@ export class SQLiteStore {
     return result.map((it) => it.name);
   }
 
+  async getLogSummary(
+    // It does not make sense to get the summary of multiple experiments or
+    // runs, so we do not allow it.
+    filter: Omit<LogFilter, 'experiment' | 'run'> & {
+      experiment: string;
+      run: string;
+    },
+  ): Promise<
+    Array<{ type: string; count: number; pending: number; lastNumber: number }>
+  > {
+    let result = await this.#db
+      .selectFrom('log')
+      .innerJoin('run', 'run.runDbId', 'log.runDbId')
+      .where('run.experimentId', '=', filter.experiment)
+      .where('run.runId', '=', filter.run)
+      .$if(filter.type != null, (qb) =>
+        qb.where('log.type', 'in', arrayify(filter.type, true)),
+      )
+      .where('log.type', 'is not', null)
+      .leftJoin(
+        (eb) =>
+          eb
+            .selectFrom('log')
+            .where('type', 'is', null)
+            .select((eb) => ['runDbId', eb.fn.min('number').as('first')])
+            .groupBy('runDbId')
+            .as('missing'),
+        (join) => join.onRef('log.runDbId', '=', 'missing.runDbId'),
+      )
+      .select((eb) => [
+        'log.type',
+        eb.fn
+          .countAll()
+          .filterWhere(
+            eb.or([
+              eb('missing.first', 'is', null),
+              eb('log.number', '<', eb.ref('missing.first')),
+            ]),
+          )
+          .as('count'),
+        // In theory any logs from a run with no missing logs should not
+        // be counted because missing.first will be null so the filter will
+        // be unknown, so the log will not be included.
+        eb.fn
+          .countAll()
+          .filterWhere('log.number', '>', eb.ref('missing.first'))
+          .as('pending'),
+        eb.fn
+          .max('log.number')
+          .filterWhere(
+            eb.or([
+              eb('missing.first', 'is', null),
+              eb('log.number', '<', eb.ref('missing.first')),
+            ]),
+          )
+          .as('lastNumber'),
+      ])
+      .groupBy('log.type')
+      .orderBy('log.type')
+      .execute();
+    return result.map(({ pending, count, lastNumber, type }) => {
+      if (type == null) {
+        throw new Error('SQL query returned a row with no type');
+      }
+      return {
+        type,
+        pending: Number(pending),
+        count: Number(count),
+        lastNumber,
+      };
+    });
+  }
+
   async *getLogs(filter: LogFilter = {}): AsyncGenerator<Log> {
     // It would probably be better not to read everything at once because
     // this could be a lot of data. However until this becomes a problem, this

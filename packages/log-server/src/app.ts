@@ -158,6 +158,46 @@ export function LogServer({
     }
   });
 
+  router.get('/experiments/:experiment/runs/:run', async (req, res, next) => {
+    try {
+      let { experiment: experimentId, run: runId } = req.params;
+      experimentId = String(experimentId);
+      runId = String(runId);
+      if (
+        req.session?.runs?.find(
+          (r) => r.runId === runId && r.experimentId === experimentId,
+        ) == null
+      ) {
+        res.status(403).json({
+          status: 'error',
+          message: `Client does not have permission to access run "${runId}" of experiment "${experimentId}"`,
+        });
+        return;
+      }
+      let [run, logCounts] = await Promise.all([
+        store.getRun(experimentId, runId),
+        store.getLogSummary({ experiment: experimentId, run: runId }),
+      ]);
+      if (run == null) {
+        // This will cause an internal server error. It should not happen
+        // in normal use, except if the participant's session is corrupted,
+        // or the database is corrupted, or removed.
+        throw new Error(`Session run not found: ${runId}`);
+      }
+      res.status(200).json({
+        status: 'ok',
+        run: {
+          status: run.status,
+          id: run.runId,
+          experiment: run.experimentId,
+          logs: logCounts,
+        },
+      });
+    } catch (e) {
+      next(e);
+    }
+  });
+
   router.patch('/experiments/:experiment/runs/:run', async (req, res, next) => {
     let { experiment: experimentId, run: runId } = req.params;
     experimentId = String(experimentId);
