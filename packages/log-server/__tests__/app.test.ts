@@ -330,7 +330,7 @@ describe('runs', () => {
   });
 
   describe('patch /experiments/:experiment/runs/:run', () => {
-    it('should return an error if the client does not have access to any run', async () => {
+    it('should return an error if the client tries to change the status of the run but does not have access to any run', async () => {
       await api
         .patch('/experiments/exp/runs/not-my-run')
         .send({ status: 'completed' })
@@ -338,9 +338,10 @@ describe('runs', () => {
           status: 'error',
           message: `Client does not have permission to update run "not-my-run" of experiment "exp"`,
         });
+      expect(store.resumeRun).not.toHaveBeenCalled();
       expect(store.setRunStatus).not.toHaveBeenCalled();
     });
-    it('should return an error if the client does not have access to this particular run', async () => {
+    it('should return an error if the client tries to change the status of the run but does not have access to this particular run', async () => {
       await api
         .post('/runs')
         .send({ experiment: 'exp-id', id: 'my-run' })
@@ -352,6 +353,33 @@ describe('runs', () => {
           status: 'error',
           message: `Client does not have permission to update run "not-my-run" of experiment "exp"`,
         });
+      expect(store.setRunStatus).not.toHaveBeenCalled();
+      expect(store.resumeRun).not.toHaveBeenCalled();
+    });
+    it('should return an error if the client tries to resume a run but does not have access to any run', async () => {
+      await api
+        .patch('/experiments/exp/runs/not-my-run')
+        .send({ resumeFrom: 10 })
+        .expect(403, {
+          status: 'error',
+          message: `Client does not have permission to update run "not-my-run" of experiment "exp"`,
+        });
+      expect(store.resumeRun).not.toHaveBeenCalled();
+      expect(store.setRunStatus).not.toHaveBeenCalled();
+    });
+    it('should return an error if the client tries to resume a run but does not have access to this particular run', async () => {
+      await api
+        .post('/runs')
+        .send({ experiment: 'exp-id', id: 'my-run' })
+        .expect(201);
+      await api
+        .patch('/experiments/exp/runs/not-my-run')
+        .send({ resumeFrom: 10 })
+        .expect(403, {
+          status: 'error',
+          message: `Client does not have permission to update run "not-my-run" of experiment "exp"`,
+        });
+      expect(store.resumeRun).not.toHaveBeenCalled();
       expect(store.setRunStatus).not.toHaveBeenCalled();
     });
     it('should complete a running run if argument is "completed"', async () => {
@@ -368,6 +396,7 @@ describe('runs', () => {
         'my-run',
         'completed',
       );
+      expect(store.resumeRun).not.toHaveBeenCalled();
     });
     it('should cancel a running run if argument is "canceled"', async () => {
       await api
@@ -383,8 +412,32 @@ describe('runs', () => {
         'my-run',
         'canceled',
       );
+      expect(store.resumeRun).not.toHaveBeenCalled();
     });
-    it('should revoke client access to the run', async () => {
+    it('should refuse to change the status of a canceled run', async () => {
+      store.getRun.mockImplementation(async () => {
+        return {
+          runId: 'getRun:runId',
+          experimentId: 'getRun:experimentId',
+          status: 'completed',
+        } as const;
+      });
+      await api
+        .post('/runs')
+        .send({ experiment: 'exp-id', id: 'my-run' })
+        .expect(201);
+      await api
+        .patch('/experiments/exp-id/runs/my-run')
+        .send({ status: 'canceled' })
+        .expect(400, { status: 'error', message: 'Run has already ended' });
+      await api
+        .patch('/experiments/exp-id/runs/my-run')
+        .send({ status: 'completed' })
+        .expect(400, { status: 'error', message: 'Run has already ended' });
+      expect(store.setRunStatus).not.toHaveBeenCalled();
+      expect(store.resumeRun).not.toHaveBeenCalled();
+    });
+    it('should not revoke client access to the run even if the run has been completed', async () => {
       await api
         .post('/runs')
         .send({ experiment: 'exp', id: 'my-run' })
@@ -395,16 +448,68 @@ describe('runs', () => {
         .expect(200);
       await api.get('/sessions/current').expect(200, {
         role: 'participant',
-        runs: [],
+        runs: [{ id: 'my-run', experiment: 'exp' }],
         status: 'ok',
+      });
+    });
+    it('should resume a running run if request body contains "resumeFrom"', async () => {
+      await api
+        .post('/runs')
+        .send({ experiment: 'exp-id', id: 'my-run' })
+        .expect(201);
+      await api
+        .patch('/experiments/exp-id/runs/my-run')
+        .send({ resumeFrom: 15 })
+        .expect(200, { status: 'ok' });
+      expect(store.setRunStatus).not.toHaveBeenCalled();
+      expect(store.resumeRun).toHaveBeenCalledWith({
+        experimentId: 'exp-id',
+        runId: 'my-run',
+        resumeFrom: 15,
+      });
+    });
+    it('should resume a canceled run if request body contains "resumeFrom"', async () => {
+      await api
+        .post('/runs')
+        .send({ experiment: 'exp', id: 'my-run' })
+        .expect(201);
+      store.getRun.mockImplementation(async () => {
+        return {
+          runId: 'getRun:runId',
+          experimentId: 'getRun:experimentId',
+          status: 'canceled',
+        } as const;
       });
       await api
         .patch('/experiments/exp/runs/my-run')
-        .send({ status: 'canceled' })
-        .expect(403, {
+        .send({ resumeFrom: 15 })
+        .expect(200, { status: 'ok' });
+      expect(store.resumeRun).toHaveBeenCalledWith({
+        experimentId: 'exp',
+        runId: 'my-run',
+        resumeFrom: 15,
+      });
+    });
+    it('should refuse to resume a completed run', async () => {
+      await api
+        .post('/runs')
+        .send({ experiment: 'exp', id: 'my-run' })
+        .expect(201);
+      store.getRun.mockImplementation(async () => {
+        return {
+          runId: 'getRun:runId',
+          experimentId: 'getRun:experimentId',
+          status: 'completed',
+        } as const;
+      });
+      await api
+        .patch('/experiments/exp/runs/my-run')
+        .send({ resumeFrom: 15 })
+        .expect(400, {
           status: 'error',
-          message: `Client does not have permission to update run "my-run" of experiment "exp"`,
+          message: `Run has already been completed`,
         });
+      expect(store.resumeRun).not.toHaveBeenCalled();
     });
   });
 });

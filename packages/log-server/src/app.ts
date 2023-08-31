@@ -204,19 +204,29 @@ export function LogServer({
         throw new Error(`Session run not found: ${runId}`);
       }
 
-      // At the moment, the only supported put operation is
-      // { "status": "completed" | "canceled" }, so there is nothing more to
-      // check here, zodios does it for us already.
+      if ('resumeFrom' in req.body) {
+        if (run.status === 'completed') {
+          res
+            .status(400)
+            .json({ status: 'error', message: 'Run has already been completed' });
+          return;
+        }
+        await store.resumeRun({
+          experimentId,
+          runId,
+          resumeFrom: req.body.resumeFrom,
+        });
+        res.status(200).json({ status: 'ok' });
+        return;
+      }
+
       if (run.status != 'running') {
         // This should not happen in normal use since the client should lose
         // access to the run once it is ended.
-        res.status(400).json({ status: 'error', message: 'Run already ended' });
+        res.status(400).json({ status: 'error', message: 'Run has already ended' });
         return;
       }
       await store.setRunStatus(experimentId, runId, req.body.status);
-      req.session.runs = req.session.runs.filter(
-        (r) => r.runId !== runId && r.experimentId !== experimentId,
-      );
       res.status(200).json({ status: 'ok' });
     } catch (e) {
       next(e);
