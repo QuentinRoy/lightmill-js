@@ -12,19 +12,22 @@ type JsonFetchOptions<AllowBody extends boolean = true> = Omit<
 function makeJsonFetchMethod(
   method: string,
   opt: { noBody: true },
-): (url: JsonFetchUrl, options: JsonFetchOptions<false>) => Promise<unknown>;
+): (url: JsonFetchUrl, options?: JsonFetchOptions<false>) => Promise<unknown>;
 function makeJsonFetchMethod(
   method: string,
   opt?: { noBody: false },
-): (url: JsonFetchUrl, options: JsonFetchOptions) => Promise<unknown>;
+): (url: JsonFetchUrl, options?: JsonFetchOptions) => Promise<unknown>;
 function makeJsonFetchMethod(method: string, { noBody = false } = {}) {
   return async function fetchMethod(
     url: JsonFetchUrl,
-    options: JsonFetchOptions,
+    options?: JsonFetchOptions,
   ) {
-    let body = noBody ? undefined : JSON.stringify(options.body);
+    let body =
+      noBody || options?.body == null
+        ? undefined
+        : JSON.stringify(options.body);
     let headers: JsonFetchOptions['headers'] = {
-      ...options.headers,
+      ...options?.headers,
       Accept: 'application/json',
     };
     if (body != null) {

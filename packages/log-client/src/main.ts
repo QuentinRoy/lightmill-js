@@ -4,7 +4,7 @@ import type {
 } from '@lightmill/log-api';
 import { throttle } from 'throttle-debounce';
 import type { JsonValue } from 'type-fest';
-import { post, patch } from './utils.js';
+import { post, patch, del } from './utils.js';
 
 interface BaseLog {
   type: string;
@@ -189,6 +189,11 @@ export class LogClient<InputLog extends BaseLog = AnyLog> {
 
   async cancelRun() {
     await this.#endRun('canceled');
+  }
+
+  async logout() {
+    await this.flush();
+    await del(`${this.#apiRoot}/sessions/current`);
   }
 
   async #endRun(status: 'canceled' | 'completed') {

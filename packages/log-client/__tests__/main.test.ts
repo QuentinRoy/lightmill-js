@@ -16,6 +16,18 @@ type TemplatizedPath<P> = P extends `${infer Start}/:${string}/${infer End}`
 type ServerPath = `https://server.test/api${TemplatizedPath<Path>}`;
 
 const server = setupServer(
+  rest.delete(
+    'https://server.test/api/sessions/current' satisfies ServerPath,
+    (req, res, ctx) => {
+      return res(
+        ctx.status(200),
+        ctx.json({ status: 'ok' } satisfies ApiResponse<
+          'delete',
+          '/sessions/current'
+        >),
+      );
+    },
+  ),
   rest.post(
     'https://server.test/api/experiments/experiment-id/runs/run-id/logs' satisfies ServerPath,
     (req, res, ctx) => {
@@ -65,7 +77,7 @@ let requestBodies: Array<Promise<string>> = [];
 async function waitForRequestJsonBodies() {
   let bodies = await Promise.all(requestBodies);
   return bodies
-    .map((body) => JSON.parse(body))
+    .map((body) => (body === '' ? null : JSON.parse(body)))
     .map((body, i) => ({
       body,
       ...requests[i],
@@ -376,6 +388,24 @@ describe('RunLogger#cancelRun', () => {
         method: 'PATCH',
         url: 'https://server.test/api/experiments/experiment-id/runs/run-id',
         body: { status: 'canceled' },
+      },
+    ]);
+  });
+});
+
+describe('RunLogger#logout', () => {
+  it('should close the session', async () => {
+    const logger = new LogClient({
+      apiRoot: 'https://server.test/api',
+    });
+    await logger.startRun();
+    clearRequests();
+    await logger.logout();
+    expect(await waitForRequestJsonBodies()).toEqual([
+      {
+        method: 'DELETE',
+        url: 'https://server.test/api/sessions/current',
+        body: null,
       },
     ]);
   });
