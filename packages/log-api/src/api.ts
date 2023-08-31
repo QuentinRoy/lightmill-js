@@ -132,11 +132,14 @@ export const api = makeApi([
     ],
     parameters: [
       {
-        schema: z
-          .object({
-            status: z.union([z.literal('completed'), z.literal('canceled')]),
-          })
-          .strict(),
+        schema: z.union([
+          z
+            .object({
+              status: z.union([z.literal('completed'), z.literal('canceled')]),
+            })
+            .strict(),
+          z.object({ resumeFrom: z.number() }).strict(),
+        ]),
         name: 'body',
         type: 'Body',
       },
