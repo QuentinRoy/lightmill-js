@@ -206,9 +206,10 @@ export function LogServer({
 
       if ('resumeFrom' in req.body) {
         if (run.status === 'completed') {
-          res
-            .status(400)
-            .json({ status: 'error', message: 'Run has already been completed' });
+          res.status(400).json({
+            status: 'error',
+            message: 'Run has already been completed',
+          });
           return;
         }
         await store.resumeRun({
@@ -223,7 +224,9 @@ export function LogServer({
       if (run.status != 'running') {
         // This should not happen in normal use since the client should lose
         // access to the run once it is ended.
-        res.status(400).json({ status: 'error', message: 'Run has already ended' });
+        res
+          .status(400)
+          .json({ status: 'error', message: 'Run has already ended' });
         return;
       }
       await store.setRunStatus(experimentId, runId, req.body.status);
