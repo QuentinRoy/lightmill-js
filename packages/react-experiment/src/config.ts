@@ -13,15 +13,14 @@ export type BaseTask = {
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type AnyTask = BaseTask & { [key: string]: any };
+export type AnyTask = BaseTask & { [key: PropertyKey]: any };
 export type RegisteredTask = RegisterExperiment extends { task: infer T }
   ? T extends BaseTask
     ? T
     : never
   : AnyTask;
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type AnyLog = BaseLog & { [key: string]: any };
+export type AnyLog = BaseLog & { [key: PropertyKey]: unknown };
 export type RegisteredLog = RegisterExperiment extends { log: infer T }
   ? T extends BaseLog
     ? T

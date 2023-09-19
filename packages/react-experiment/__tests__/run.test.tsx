@@ -130,4 +130,36 @@ describe('run', () => {
     vi.runOnlyPendingTimers();
     vi.useRealTimers();
   });
+
+  it("fetch the timeline from init if it isn't specified as a prop", async () => {
+    vi.useFakeTimers();
+    const initTime = 150;
+    let config: RunElements<Task> = {
+      tasks: {
+        A: <Task type="A" dataProp="a" />,
+        B: <Task type="B" dataProp="b" />,
+      },
+      loading: <div data-testid="loading" />,
+      completed: <div data-testid="end" />,
+    };
+    let init = async () => {
+      await wait(initTime);
+      return { timeline: tasks };
+    };
+    render(<Run elements={config} init={init} />);
+    expect(screen.getByTestId('loading')).toBeInTheDocument();
+    await act(() => vi.advanceTimersByTime(initTime));
+    expect(screen.getByRole('heading')).toHaveTextContent('Type A');
+    expect(screen.getByTestId('data')).toHaveTextContent('hello');
+    // Use fireEvent instead of userEvent because userEvent doesn't work with
+    // fake timers.
+    fireEvent.click(screen.getByRole('button'));
+    expect(screen.getByRole('heading')).toHaveTextContent('Type B');
+    expect(screen.getByTestId('data')).toHaveTextContent('42');
+    fireEvent.click(screen.getByRole('button'));
+    expect(screen.getByRole('heading')).toHaveTextContent('Type A');
+    expect(screen.getByTestId('data')).toHaveTextContent('world');
+    fireEvent.click(screen.getByRole('button'));
+    expect(screen.getByTestId('end')).toBeInTheDocument();
+  });
 });
