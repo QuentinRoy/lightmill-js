@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import * as url from 'node:url';
-import SQLiteDB, { SqliteError } from 'better-sqlite3';
+import SQLiteDB from 'better-sqlite3';
 import {
   Kysely,
   FileMigrationProvider,
@@ -11,6 +11,7 @@ import {
   DeduplicateJoinsPlugin,
   InsertObject,
   GeneratedAlways,
+  ColumnType,
 } from 'kysely';
 import { JsonObject } from 'type-fest';
 import loglevel, { LogLevelDesc } from 'loglevel';
@@ -22,39 +23,40 @@ const migrationFolder = path.join(__dirname, 'db-migrations');
 
 export type Store = Omit<SQLiteStore, 'migrateDatabase' | 'close'>;
 
+// We use ColumnType to prevent the column from being updated.
 type RunTable = {
-  runId: string;
-  experimentId: string;
+  runId: ColumnType<string, string, never>;
+  experimentId: ColumnType<string, string, never>;
   status: 'running' | 'completed' | 'canceled';
 };
 type LogSequenceTable = {
-  id: GeneratedAlways<number>;
-  experimentId: string;
-  runId: string;
-  number: number;
-  start: number;
+  sequenceId: GeneratedAlways<number>;
+  experimentId: ColumnType<string, string, never>;
+  runId: ColumnType<string, string, never>;
+  sequenceNumber: ColumnType<number, number, never>;
+  start: ColumnType<number, number, never>;
 };
 type logTable = {
-  id: GeneratedAlways<number>;
-  logSequenceId: number;
-  number: number;
+  logId: GeneratedAlways<number>;
+  sequenceId: ColumnType<number, number, never>;
+  logNumber: ColumnType<number, number, never>;
   // Logs with no types are used to fill in missing log numbers.
   type?: string;
 };
 type RunLogView = {
-  id: GeneratedAlways<number>;
-  experimentId: string;
-  runId: string;
-  logSequenceId: number;
-  logNumber: number;
-  sequenceNumber: number;
+  logId: ColumnType<number, never, never>;
+  experimentId: ColumnType<string, never, never>;
+  runId: ColumnType<string, never, never>;
+  sequenceId: ColumnType<number, never, never>;
+  logNumber: ColumnType<number, never, never>;
+  sequenceNumber: ColumnType<number, never, never>;
   // Logs with no types are used to fill in missing log numbers.
-  type?: string;
+  type?: ColumnType<string, never, never>;
 };
 type LogValueTable = {
-  logId: number;
-  name: string;
-  value: string;
+  logId: ColumnType<number, number, never>;
+  name: ColumnType<string, string, never>;
+  value: ColumnType<string, string, never>;
 };
 type Database = {
   run: RunTable;
@@ -94,29 +96,30 @@ export class SQLiteStore {
     experimentId: string;
   }) {
     return this.#db.transaction().execute(async (trx) => {
-      try {
-        let result = await trx
-          .insertInto('run')
-          .values({ runId, experimentId, status: 'running' })
-          .returning(['runId', 'experimentId'])
-          .executeTakeFirstOrThrow();
-        await trx
-          .insertInto('logSequence')
-          .values({ ...result, number: 1, start: 1 })
-          .execute();
-        return result;
-      } catch (e) {
-        if (
-          e instanceof SqliteError &&
-          e.code === 'SQLITE_CONSTRAINT_PRIMARYKEY'
-        ) {
-          throw new StoreError(
-            `run "${runId}" already exists for experiment "${experimentId}".`,
-            'RUN_EXISTS',
-          );
-        }
-        throw e;
-      }
+      let result = await trx
+        .insertInto('run')
+        .values({ runId, experimentId, status: 'running' })
+        .returning(['runId', 'experimentId'])
+        .executeTakeFirstOrThrow()
+        .catch((e) => {
+          if (
+            e instanceof Error &&
+            'code' in e &&
+            e.code === 'SQLITE_CONSTRAINT_PRIMARYKEY'
+          ) {
+            throw new StoreError(
+              `run "${runId}" already exists for experiment "${experimentId}".`,
+              'RUN_EXISTS',
+              e,
+            );
+          }
+          throw e;
+        });
+      await trx
+        .insertInto('logSequence')
+        .values({ ...result, sequenceNumber: 1, start: 1 })
+        .execute();
+      return result;
     });
   }
 
@@ -167,7 +170,7 @@ export class SQLiteStore {
           ]),
         )
         .select((eb) => [
-          eb.fn.max('seq.number').as('lastSeqNumber'),
+          eb.fn.max('seq.sequenceNumber').as('lastSeqNumber'),
           eb.fn
             .max('log.logNumber')
             .filterWhere('log.type', 'is not', null)
@@ -200,7 +203,7 @@ export class SQLiteStore {
         .values({
           runId,
           experimentId,
-          number: lastSeqNumber + 1,
+          sequenceNumber: lastSeqNumber + 1,
           start: resumeFrom,
         })
         .returning(['runId', 'experimentId'])
@@ -251,21 +254,21 @@ export class SQLiteStore {
   ) {
     if (logs.length === 0) return;
     await this.#db.transaction().execute(async (trx) => {
-      let { start, logSequenceId, maxLogNumber } = await trx
+      let { start, sequenceId, maxLogNumber } = await trx
         .selectFrom('logSequence as seq')
         .having((eb) =>
           eb.and([
             eb('seq.experimentId', '=', experimentId),
             eb('seq.runId', '=', runId),
-            eb('seq.number', '=', eb.fn.max('seq.number')),
+            eb('seq.sequenceNumber', '=', eb.fn.max('seq.sequenceNumber')),
           ]),
         )
         .groupBy(['seq.experimentId', 'seq.runId'])
-        .leftJoin('log', 'log.logSequenceId', 'seq.id')
+        .leftJoin('log', 'log.sequenceId', 'seq.sequenceId')
         .select((eb) => [
-          'seq.id as logSequenceId',
+          'seq.sequenceId',
           'seq.start',
-          eb.fn.max('log.number').as('maxLogNumber'),
+          eb.fn.max('log.logNumber').as('maxLogNumber'),
         ])
         .executeTakeFirstOrThrow(
           () =>
@@ -292,23 +295,23 @@ export class SQLiteStore {
           // happens, the database should be the one to complain.
           logRows.push(
             ...logs.map(({ type, number }) => ({
-              logSequenceId,
+              sequenceId,
               type,
-              number,
+              logNumber: number,
             })),
           );
         } else if (maxLogNumber == null || nb > maxLogNumber) {
           // If the log number is greater than maxLogNumber, there is a missing
           // log. We need to add it to the database.
-          logRows.push({ logSequenceId, number: nb });
+          logRows.push({ sequenceId, logNumber: nb });
         }
       }
       await trx
         .deleteFrom('log')
         .where((eb) =>
           eb.and([
-            eb('logSequenceId', '=', logSequenceId),
-            eb('number', 'in', newLogNumbers),
+            eb('sequenceId', '=', sequenceId),
+            eb('logNumber', 'in', newLogNumbers),
             eb('type', 'is', null),
           ]),
         )
@@ -316,7 +319,7 @@ export class SQLiteStore {
       let dbLogs = await trx
         .insertInto('log')
         .values(logRows)
-        .returning(['id', 'number', 'type'])
+        .returning(['logId', 'logNumber', 'type'])
         .execute();
 
       // Sort by number to ensure that the log values are properly
@@ -327,8 +330,8 @@ export class SQLiteStore {
         .flatMap((dbLog) => {
           // We know there is only one log with this number because of the
           // loop above.
-          let values = indexedNewLogs[dbLog.number][0].values;
-          return deconstructValues(values, { logId: dbLog.id });
+          let values = indexedNewLogs[dbLog.logNumber][0].values;
+          return deconstructValues(values, { logId: dbLog.logId });
         });
       if (logValues.length > 0) {
         await trx.insertInto('logValue').values(logValues).execute();
@@ -339,12 +342,12 @@ export class SQLiteStore {
   async getLogValueNames(filter: LogFilter = {}) {
     let result = await this.#db
       .selectFrom('logValue')
-      .innerJoin('runLogView as log', 'log.id', 'logValue.logId')
-      .$if(filter.experiment != null, (qb) =>
-        qb.where('log.experimentId', 'in', arrayify(filter.experiment, true)),
+      .innerJoin('runLogView as log', 'log.logId', 'logValue.logId')
+      .$if(filter.experimentId != null, (qb) =>
+        qb.where('log.experimentId', 'in', arrayify(filter.experimentId, true)),
       )
-      .$if(filter.run != null, (qb) =>
-        qb.where('log.runId', 'in', arrayify(filter.run, true)),
+      .$if(filter.runId != null, (qb) =>
+        qb.where('log.runId', 'in', arrayify(filter.runId, true)),
       )
       .$if(filter.type != null, (qb) =>
         qb.where('log.type', 'in', arrayify(filter.type, true)),
@@ -359,20 +362,17 @@ export class SQLiteStore {
   async getLogSummary(
     // It does not make sense to get the summary of multiple experiments or
     // runs, so we do not allow it.
-    filter: Omit<LogFilter, 'experiment' | 'run'> & {
-      experiment: string;
-      run: string;
-    },
+    filter: LogFilter & { experimentId: string; runId: string },
   ): Promise<
     Array<{ type: string; count: number; pending: number; lastNumber: number }>
   > {
     let result = await this.#db
       .selectFrom('runLogView as log')
-      .innerJoin('logSequence as seq', 'seq.id', 'log.logSequenceId')
+      .innerJoin('logSequence as seq', 'seq.sequenceId', 'log.sequenceId')
       .where((eb) =>
         eb.and([
-          eb('seq.experimentId', '=', filter.experiment),
-          eb('seq.runId', '=', filter.run),
+          eb('seq.experimentId', '=', filter.experimentId),
+          eb('seq.runId', '=', filter.runId),
           eb('log.type', 'is not', null),
         ]),
       )
@@ -384,13 +384,12 @@ export class SQLiteStore {
           selectFrom('runLogView')
             .where('type', 'is', null)
             .select((eb) => [
-              'logSequenceId',
+              'sequenceId',
               eb.fn.min('logNumber').as('logNumber'),
             ])
-            .groupBy('logSequenceId')
+            .groupBy('sequenceId')
             .as('firstMissing'),
-        (join) =>
-          join.onRef('log.logSequenceId', '=', 'firstMissing.logSequenceId'),
+        (join) => join.onRef('log.sequenceId', '=', 'firstMissing.sequenceId'),
       )
       .select((eb) => [
         'log.type',
@@ -441,12 +440,12 @@ export class SQLiteStore {
     // is good enough.
     let result = await this.#db
       .selectFrom('runLogView as l')
-      .innerJoin('logValue as v', 'l.id', 'v.logId')
-      .$if(filter.experiment != null, (qb) =>
-        qb.where('l.experimentId', 'in', arrayify(filter.experiment, true)),
+      .innerJoin('logValue as v', 'l.logId', 'v.logId')
+      .$if(filter.experimentId != null, (qb) =>
+        qb.where('l.experimentId', 'in', arrayify(filter.experimentId, true)),
       )
-      .$if(filter.run != null, (qb) =>
-        qb.where('l.runId', 'in', arrayify(filter.run, true)),
+      .$if(filter.runId != null, (qb) =>
+        qb.where('l.runId', 'in', arrayify(filter.runId, true)),
       )
       .$if(filter.type != null, (qb) =>
         qb.where('l.type', 'in', arrayify(filter.type, true)),
@@ -455,7 +454,7 @@ export class SQLiteStore {
       .select([
         'l.experimentId as experimentId',
         'l.runId as runId',
-        'l.id as logId',
+        'l.logId as logId',
         'l.type as type',
         'l.logNumber as number',
         'v.name',
@@ -464,7 +463,7 @@ export class SQLiteStore {
       .$narrowType<{ type: string }>()
       .orderBy('experimentId')
       .orderBy('runId')
-      .orderBy('logNumber')
+      .orderBy('number')
       .execute();
 
     if (result.length === 0) return;
@@ -540,8 +539,8 @@ function reconstructValues(
 
 export type LogFilter = {
   type?: string | string[];
-  run?: string | string[];
-  experiment?: string | string[];
+  runId?: string | string[];
+  experimentId?: string | string[];
 };
 
 export type Log = {

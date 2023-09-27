@@ -17,7 +17,7 @@ const ctx = zodiosContext(
       z.null(),
       z
         .object({
-          role: z.union([z.literal('admin'), z.literal('participant')]),
+          role: z.union([z.literal('host'), z.literal('participant')]),
           runs: z.array(
             z.object({ runId: z.string(), experimentId: z.string() }),
           ),
@@ -69,7 +69,7 @@ export function LogServer({
     }
     const { role, password } = req.body;
     if (
-      role === 'admin' &&
+      role === 'host' &&
       adminPassword != null &&
       password !== adminPassword
     ) {
@@ -89,10 +89,7 @@ export function LogServer({
     res.status(200).json({
       status: 'ok',
       role: req.session.role,
-      runs: req.session.runs.map((r) => ({
-        id: r.runId,
-        experiment: r.experimentId,
-      })),
+      runs: req.session.runs,
     });
   });
 
@@ -117,129 +114,131 @@ export function LogServer({
         });
         return;
       }
-      let runId = req.body?.id ?? createId();
-      let experimentId = req.body?.experiment ?? 'default';
+      let runId = req.body?.runId ?? createId();
+      let experimentId = req.body?.experimentId ?? 'default';
       const run = { experimentId, runId, createdAt: new Date() };
       await store.addRun(run);
       req.session.runs.push({ runId, experimentId });
       res.status(201).json({
         status: 'ok',
-        run: runId,
-        experiment: experimentId,
-        links: {
-          logs: `/experiments/${experimentId}/runs/${runId}/logs`,
-          run: `/experiments/${experimentId}/runs/${runId}`,
-        },
+        runId,
+        experimentId,
       });
     } catch (e) {
       if (e instanceof StoreError && e.code === 'RUN_EXISTS') {
-        res.status(400).json({ status: 'error', message: e.message });
+        res.status(403).json({ status: 'error', message: e.message });
         return;
       }
       next(e);
     }
   });
 
-  router.get('/experiments/:experiment/runs/:run', async (req, res, next) => {
-    try {
-      let { experiment: experimentId, run: runId } = req.params;
-      experimentId = String(experimentId);
-      runId = String(runId);
-      if (
-        req.session?.runs?.find(
-          (r) => r.runId === runId && r.experimentId === experimentId,
-        ) == null
-      ) {
-        res.status(403).json({
-          status: 'error',
-          message: `Client does not have permission to access run "${runId}" of experiment "${experimentId}"`,
-        });
-        return;
-      }
-      let [run, logCounts] = await Promise.all([
-        store.getRun(experimentId, runId),
-        store.getLogSummary({ experiment: experimentId, run: runId }),
-      ]);
-      if (run == null) {
-        // This will cause an internal server error. It should not happen
-        // in normal use, except if the participant's session is corrupted,
-        // or the database is corrupted, or removed.
-        throw new Error(`Session run not found: ${runId}`);
-      }
-      res.status(200).json({
-        status: 'ok',
-        run: {
-          status: run.status,
-          id: run.runId,
-          experiment: run.experimentId,
-          logs: logCounts,
-        },
-      });
-    } catch (e) {
-      next(e);
-    }
-  });
-
-  router.patch('/experiments/:experiment/runs/:run', async (req, res, next) => {
-    let { experiment: experimentId, run: runId } = req.params;
-    experimentId = String(experimentId);
-    runId = String(runId);
-    try {
-      if (
-        req.session?.runs?.find(
-          (r) => r.runId === runId && r.experimentId === experimentId,
-        ) == null
-      ) {
-        res.status(403).json({
-          status: 'error',
-          message: `Client does not have permission to update run "${runId}" of experiment "${experimentId}"`,
-        });
-        return;
-      }
-      let run = await store.getRun(experimentId, runId);
-      if (run == null) {
-        // This will cause an internal server error. It should not happen
-        // in normal use, except if the participant's session is corrupted,
-        // or the database is corrupted, or removed.
-        throw new Error(`Session run not found: ${runId}`);
-      }
-
-      if ('resumeFrom' in req.body) {
-        if (run.status === 'completed') {
-          res.status(400).json({
+  router.get(
+    '/experiments/:experimentId/runs/:runId',
+    async (req, res, next) => {
+      try {
+        let { experimentId, runId } = req.params;
+        experimentId = String(experimentId);
+        runId = String(runId);
+        if (
+          req.session?.runs?.find(
+            (r) => r.runId === runId && r.experimentId === experimentId,
+          ) == null
+        ) {
+          res.status(403).json({
             status: 'error',
-            message: 'Run has already been completed',
+            message: `Client does not have permission to access run "${runId}" of experiment "${experimentId}"`,
           });
           return;
         }
-        await store.resumeRun({
-          experimentId,
-          runId,
-          resumeFrom: req.body.resumeFrom,
+        let [run, logCounts] = await Promise.all([
+          store.getRun(experimentId, runId),
+          store.getLogSummary({ experimentId, runId }),
+        ]);
+        if (run == null) {
+          // This will cause an internal server error. It should not happen
+          // in normal use, except if the participant's session is corrupted,
+          // or the database is corrupted, or removed.
+          throw new Error(`Session run not found: ${runId}`);
+        }
+        res.status(200).json({
+          status: 'ok',
+          run: {
+            runId: run.runId,
+            experimentId: run.experimentId,
+            status: run.status,
+            logs: logCounts,
+          },
         });
-        res.status(200).json({ status: 'ok' });
-        return;
+      } catch (e) {
+        next(e);
       }
+    },
+  );
 
-      if (run.status != 'running') {
-        // This should not happen in normal use since the client should lose
-        // access to the run once it is ended.
-        res
-          .status(400)
-          .json({ status: 'error', message: 'Run has already ended' });
-        return;
+  router.patch(
+    '/experiments/:experimentId/runs/:runId',
+    async (req, res, next) => {
+      let { experimentId, runId } = req.params;
+      experimentId = String(experimentId);
+      runId = String(runId);
+      try {
+        if (
+          req.session?.runs?.find(
+            (r) => r.runId === runId && r.experimentId === experimentId,
+          ) == null
+        ) {
+          res.status(403).json({
+            status: 'error',
+            message: `Client does not have permission to update run "${runId}" of experiment "${experimentId}"`,
+          });
+          return;
+        }
+        let run = await store.getRun(experimentId, runId);
+        if (run == null) {
+          // This will cause an internal server error. It should not happen
+          // in normal use, except if the participant's session is corrupted,
+          // or the database is corrupted, or removed.
+          throw new Error(`Session run not found: ${runId}`);
+        }
+
+        if ('resumeFrom' in req.body) {
+          if (run.status === 'completed') {
+            res.status(400).json({
+              status: 'error',
+              message: 'Run has already been completed',
+            });
+            return;
+          }
+          await store.resumeRun({
+            experimentId,
+            runId,
+            resumeFrom: req.body.resumeFrom,
+          });
+          res.status(200).json({ status: 'ok' });
+          return;
+        }
+
+        if (run.status != 'running') {
+          // This should not happen in normal use since the client should lose
+          // access to the run once it is ended.
+          res
+            .status(400)
+            .json({ status: 'error', message: 'Run has already ended' });
+          return;
+        }
+        await store.setRunStatus(experimentId, runId, req.body.status);
+        res.status(200).json({ status: 'ok' });
+      } catch (e) {
+        next(e);
       }
-      await store.setRunStatus(experimentId, runId, req.body.status);
-      res.status(200).json({ status: 'ok' });
-    } catch (e) {
-      next(e);
-    }
-  });
+    },
+  );
 
   router.post(
-    '/experiments/:experiment/runs/:run/logs',
+    '/experiments/:experimentId/runs/:runId/logs',
     async (req, res, next) => {
-      let { experiment: experimentId, run: runId } = req.params;
+      let { experimentId, runId } = req.params;
       experimentId = String(experimentId);
       runId = String(runId);
       try {
@@ -279,9 +278,9 @@ export function LogServer({
     },
   );
 
-  router.get('/experiments/:experiment/logs', async (req, res, next) => {
+  router.get('/experiments/:experimentId/logs', async (req, res, next) => {
     try {
-      if (req.session?.role !== 'admin') {
+      if (req.session?.role !== 'host') {
         res
           .status(403)
           .json({ status: 'error', message: 'Access restricted.' });
@@ -301,7 +300,7 @@ export function LogServer({
         }
       }
       let filter: LogFilter = {
-        experiment: String(req.params.experiment),
+        experimentId: String(req.params.experimentId),
         type: req.query.type,
       };
       if (format === 'csv') {

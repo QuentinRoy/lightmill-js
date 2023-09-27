@@ -1,38 +1,39 @@
-import { GeneratedAlways, Kysely, sql } from 'kysely';
+import { ColumnType, GeneratedAlways, Kysely, sql } from 'kysely';
 
+// We use ColumnType to prevent the column from being updated.
 type RunTable = {
-  runId: string;
-  experimentId: string;
+  runId: ColumnType<string, string, never>;
+  experimentId: ColumnType<string, string, never>;
   status: 'running' | 'completed' | 'canceled';
 };
 type LogSequenceTable = {
-  id: GeneratedAlways<number>;
-  experimentId: string;
-  runId: string;
-  number: number;
-  start: number;
+  sequenceId: GeneratedAlways<number>;
+  experimentId: ColumnType<string, string, never>;
+  runId: ColumnType<string, string, never>;
+  sequenceNumber: ColumnType<number, number, never>;
+  start: ColumnType<number, number, never>;
 };
 type logTable = {
-  id: GeneratedAlways<number>;
-  logSequenceId: number;
-  number: number;
+  logId: GeneratedAlways<number>;
+  sequenceId: ColumnType<number, number, never>;
+  logNumber: ColumnType<number, number, never>;
   // Logs with no types are used to fill in missing log numbers.
   type?: string;
 };
 type RunLogView = {
-  id: GeneratedAlways<number>;
-  experimentId: string;
-  runId: string;
-  logSequenceId: number;
-  logNumber: number;
-  sequenceNumber: number;
+  logId: ColumnType<number, never, never>;
+  experimentId: ColumnType<string, never, never>;
+  runId: ColumnType<string, never, never>;
+  sequenceId: ColumnType<number, never, never>;
+  logNumber: ColumnType<number, never, never>;
+  sequenceNumber: ColumnType<number, never, never>;
   // Logs with no types are used to fill in missing log numbers.
-  type?: string;
+  type?: ColumnType<string, never, never>;
 };
 type LogValueTable = {
-  logId: number;
-  name: string;
-  value: string;
+  logId: ColumnType<number, number, never>;
+  name: ColumnType<string, string, never>;
+  value: ColumnType<string, string, never>;
 };
 type Database = {
   run: RunTable;
@@ -58,10 +59,10 @@ export async function up(db: Kysely<Database>) {
 
     await trx.schema
       .createTable('logSequence')
-      .addColumn('id', 'integer', (column) => column.primaryKey())
+      .addColumn('sequenceId', 'integer', (column) => column.primaryKey())
       .addColumn('experimentId', 'text', (column) => column.notNull())
       .addColumn('runId', 'text', (column) => column.notNull())
-      .addColumn('number', 'integer', (column) =>
+      .addColumn('sequenceNumber', 'integer', (column) =>
         column.notNull().check(sql`number > 0`),
       )
       .addColumn('start', 'integer', (column) =>
@@ -73,7 +74,7 @@ export async function up(db: Kysely<Database>) {
       .addUniqueConstraint('logSequenceUnique', [
         'experimentId',
         'runId',
-        'number',
+        'sequenceNumber',
       ])
       .addForeignKeyConstraint(
         'ForeignLogSequenceRun',
@@ -85,19 +86,19 @@ export async function up(db: Kysely<Database>) {
 
     await trx.schema
       .createTable('log')
-      .addColumn('id', 'integer', (column) => column.primaryKey())
-      .addColumn('logSequenceId', 'integer', (column) => column.notNull())
-      .addColumn('number', 'integer', (column) => column.notNull())
+      .addColumn('logId', 'integer', (column) => column.primaryKey())
+      .addColumn('sequenceId', 'integer', (column) => column.notNull())
+      .addColumn('logNumber', 'integer', (column) => column.notNull())
       // Empty means missing log.
       .addColumn('type', 'text')
       // This creates an index on the columns (so no need to create another) and
       // prevents duplicate rows.
-      .addUniqueConstraint('UniqueLog', ['logSequenceId', 'number'])
+      .addUniqueConstraint('UniqueLog', ['sequenceId', 'logNumber'])
       .addForeignKeyConstraint(
         'ForeignLogSequenceId',
-        ['logSequenceId'],
+        ['sequenceId'],
         'logSequence',
-        ['id'],
+        ['sequenceId'],
       )
       .execute();
     // Prevent updates of log rows whose current type column is not null.
@@ -122,8 +123,8 @@ export async function up(db: Kysely<Database>) {
     await sql`
       CREATE TRIGGER prevent_log_insert
       BEFORE INSERT ON log
-      WHEN NEW.number < (
-        SELECT start FROM log_sequence WHERE id = NEW.log_sequence_id
+      WHEN NEW.log_number < (
+        SELECT start FROM log_sequence WHERE sequence_id = NEW.sequence_id
       )
       BEGIN
         SELECT RAISE(ABORT, 'Cannot insert log with number smaller than its sequence start');
@@ -149,40 +150,45 @@ export async function up(db: Kysely<Database>) {
               .leftJoin(
                 ({ selectFrom }) =>
                   selectFrom('logSequence as nextSeq')
-                    .select(['experimentId', 'runId', 'number', 'start'])
+                    .select([
+                      'experimentId',
+                      'runId',
+                      'sequenceNumber',
+                      'start',
+                    ])
                     .as('nextSeq'),
                 (join) =>
                   join
                     .onRef('nextSeq.experimentId', '=', 'seq.experimentId')
                     .onRef('nextSeq.runId', '=', 'seq.runId')
-                    .onRef('nextSeq.number', '>', 'seq.number'),
+                    .onRef('nextSeq.sequenceNumber', '>', 'seq.sequenceNumber'),
               )
-              .groupBy(['seq.id'])
+              .groupBy(['seq.sequenceId'])
               .select((eb) => [
-                'seq.id as id',
+                'seq.sequenceId',
                 'seq.experimentId',
                 'seq.runId',
-                'seq.number as number',
+                'seq.sequenceNumber',
                 eb.fn.min('nextSeq.start').as('end'),
               ]),
           )
           .selectFrom('log')
           .innerJoin('logSequenceWithEnd as seq', (join) =>
-            join.onRef('seq.id', '=', 'log.logSequenceId'),
+            join.onRef('seq.sequenceId', '=', 'log.sequenceId'),
           )
           .where((eb) =>
             eb.or([
               eb('seq.end', 'is', null),
-              eb('log.number', '<', eb.ref('seq.end')),
+              eb('log.logNumber', '<', eb.ref('seq.end')),
             ]),
           )
           .select([
-            'log.id as id',
+            'log.logId',
             'seq.experimentId',
             'seq.runId',
-            'seq.id as logSequenceId',
-            'seq.number as sequenceNumber',
-            'log.number as logNumber',
+            'seq.sequenceId',
+            'seq.sequenceNumber',
+            'log.logNumber',
             'log.type',
           ]),
       )

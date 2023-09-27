@@ -195,14 +195,10 @@ describe('runs', () => {
     it('should create a run', async () => {
       await api
         .post('/runs')
-        .send({ experiment: 'exp-id', id: 'run-id' })
+        .send({ experimentId: 'exp-id', runId: 'run-id' })
         .expect(201, {
-          experiment: 'exp-id',
-          links: {
-            logs: '/experiments/exp-id/runs/run-id/logs',
-            run: '/experiments/exp-id/runs/run-id',
-          },
-          run: 'run-id',
+          experimentId: 'exp-id',
+          runId: 'run-id',
           status: 'ok',
         });
       expect(store.addRun).toHaveBeenCalledWith({
@@ -213,18 +209,11 @@ describe('runs', () => {
     });
 
     it('should use the default experiment if the experiment is not named', async () => {
-      await api
-        .post('/runs')
-        .send({ id: 'run' })
-        .expect(201, {
-          status: 'ok',
-          experiment: 'default',
-          run: 'run',
-          links: {
-            logs: '/experiments/default/runs/run/logs',
-            run: '/experiments/default/runs/run',
-          },
-        });
+      await api.post('/runs').send({ runId: 'run' }).expect(201, {
+        status: 'ok',
+        experimentId: 'default',
+        runId: 'run',
+      });
       expect(store.addRun).toHaveBeenCalledWith({
         experimentId: 'default',
         runId: 'run',
@@ -235,19 +224,11 @@ describe('runs', () => {
     it('should generate a unique run id if the run id is not provided', async () => {
       let resp = await api
         .post('/runs')
-        .send({ experiment: 'exp' })
+        .send({ experimentId: 'exp' })
         .expect(201);
-      let runId = resp.body.run;
+      let { runId } = resp.body;
       expect(runId).toBeDefined();
-      expect(resp.body).toEqual({
-        status: 'ok',
-        experiment: 'exp',
-        run: runId,
-        links: {
-          logs: `/experiments/exp/runs/${runId}/logs`,
-          run: `/experiments/exp/runs/${runId}`,
-        },
-      });
+      expect(resp.body).toEqual({ status: 'ok', experimentId: 'exp', runId });
       expect(store.addRun).toHaveBeenCalledWith({
         experimentId: 'exp',
         runId,
@@ -258,11 +239,11 @@ describe('runs', () => {
     it('should add the run to the session', async () => {
       await api
         .post('/runs')
-        .send({ experiment: 'exp-id', id: 'run-id' })
+        .send({ experimentId: 'exp-id', runId: 'run-id' })
         .expect(201);
       await api.get('/sessions/current').expect(200, {
         role: 'participant',
-        runs: [{ id: 'run-id', experiment: 'exp-id' }],
+        runs: [{ runId: 'run-id', experimentId: 'exp-id' }],
         status: 'ok',
       });
     });
@@ -270,11 +251,11 @@ describe('runs', () => {
     it('should refuse to create a run if the participant already has one running', async () => {
       await api
         .post('/runs')
-        .send({ experiment: 'exp-id', id: 'run1' })
+        .send({ experimentId: 'exp-id', runId: 'run1' })
         .expect(201);
       await api
         .post('/runs')
-        .send({ experiment: 'exp-id', id: 'run2' })
+        .send({ experimentId: 'exp-id', runId: 'run2' })
         .expect(403, {
           message: 'Client already has a started run, end it first',
           status: 'error',
@@ -288,8 +269,8 @@ describe('runs', () => {
       });
       await api
         .post('/runs')
-        .send({ experiment: 'exp-id', id: 'run-id' })
-        .expect(400, {
+        .send({ experimentId: 'exp-id', runId: 'run-id' })
+        .expect(403, {
           status: 'error',
           message: 'run "run-id" already exists',
         });
@@ -307,13 +288,13 @@ describe('runs', () => {
     it('should return some run information otherwise', async () => {
       await api
         .post('/runs')
-        .send({ experiment: 'exp-id', id: 'my-run' })
+        .send({ experimentId: 'exp-id', runId: 'my-run' })
         .expect(201);
       await api.get('/experiments/exp-id/runs/my-run').expect(200, {
         status: 'ok',
         run: {
-          id: 'getRun:runId',
-          experiment: 'getRun:experimentId',
+          runId: 'getRun:runId',
+          experimentId: 'getRun:experimentId',
           status: 'running',
           logs: [
             { type: 'summary:type-1', count: 11, lastNumber: 12, pending: 13 },
@@ -323,8 +304,8 @@ describe('runs', () => {
       });
       expect(store.getRun).toHaveBeenCalledWith('exp-id', 'my-run');
       expect(store.getLogSummary).toHaveBeenCalledWith({
-        experiment: 'exp-id',
-        run: 'my-run',
+        experimentId: 'exp-id',
+        runId: 'my-run',
       });
     });
   });
@@ -344,7 +325,7 @@ describe('runs', () => {
     it('should return an error if the client tries to change the status of the run but does not have access to this particular run', async () => {
       await api
         .post('/runs')
-        .send({ experiment: 'exp-id', id: 'my-run' })
+        .send({ experimentId: 'exp-id', runId: 'my-run' })
         .expect(201);
       await api
         .patch('/experiments/exp/runs/not-my-run')
@@ -370,7 +351,7 @@ describe('runs', () => {
     it('should return an error if the client tries to resume a run but does not have access to this particular run', async () => {
       await api
         .post('/runs')
-        .send({ experiment: 'exp-id', id: 'my-run' })
+        .send({ experimentId: 'exp-id', runId: 'my-run' })
         .expect(201);
       await api
         .patch('/experiments/exp/runs/not-my-run')
@@ -385,7 +366,7 @@ describe('runs', () => {
     it('should complete a running run if argument is "completed"', async () => {
       await api
         .post('/runs')
-        .send({ experiment: 'exp-id', id: 'my-run' })
+        .send({ experimentId: 'exp-id', runId: 'my-run' })
         .expect(201);
       await api
         .patch('/experiments/exp-id/runs/my-run')
@@ -401,7 +382,7 @@ describe('runs', () => {
     it('should cancel a running run if argument is "canceled"', async () => {
       await api
         .post('/runs')
-        .send({ experiment: 'exp-id', id: 'my-run' })
+        .send({ experimentId: 'exp-id', runId: 'my-run' })
         .expect(201);
       await api
         .patch('/experiments/exp-id/runs/my-run')
@@ -424,7 +405,7 @@ describe('runs', () => {
       });
       await api
         .post('/runs')
-        .send({ experiment: 'exp-id', id: 'my-run' })
+        .send({ experimentId: 'exp-id', runId: 'my-run' })
         .expect(201);
       await api
         .patch('/experiments/exp-id/runs/my-run')
@@ -440,7 +421,7 @@ describe('runs', () => {
     it('should not revoke client access to the run even if the run has been completed', async () => {
       await api
         .post('/runs')
-        .send({ experiment: 'exp', id: 'my-run' })
+        .send({ experimentId: 'exp', runId: 'my-run' })
         .expect(201);
       await api
         .patch('/experiments/exp/runs/my-run')
@@ -448,14 +429,14 @@ describe('runs', () => {
         .expect(200);
       await api.get('/sessions/current').expect(200, {
         role: 'participant',
-        runs: [{ id: 'my-run', experiment: 'exp' }],
+        runs: [{ runId: 'my-run', experimentId: 'exp' }],
         status: 'ok',
       });
     });
     it('should resume a running run if request body contains "resumeFrom"', async () => {
       await api
         .post('/runs')
-        .send({ experiment: 'exp-id', id: 'my-run' })
+        .send({ experimentId: 'exp-id', runId: 'my-run' })
         .expect(201);
       await api
         .patch('/experiments/exp-id/runs/my-run')
@@ -471,7 +452,7 @@ describe('runs', () => {
     it('should resume a canceled run if request body contains "resumeFrom"', async () => {
       await api
         .post('/runs')
-        .send({ experiment: 'exp', id: 'my-run' })
+        .send({ experimentId: 'exp', runId: 'my-run' })
         .expect(201);
       store.getRun.mockImplementation(async () => {
         return {
@@ -493,7 +474,7 @@ describe('runs', () => {
     it('should refuse to resume a completed run', async () => {
       await api
         .post('/runs')
-        .send({ experiment: 'exp', id: 'my-run' })
+        .send({ experimentId: 'exp', runId: 'my-run' })
         .expect(201);
       store.getRun.mockImplementation(async () => {
         return {
@@ -530,13 +511,18 @@ describe('logs', () => {
       });
       api = request.agent(app);
       await api.post('/sessions').send({ role: 'participant' });
-      await api.post('/runs').send({ experiment: 'test-exp', id: 'test-run' });
+      await api
+        .post('/runs')
+        .send({ experimentId: 'test-exp', runId: 'test-run' });
     });
     afterEach(() => {
       vi.useRealTimers();
     });
 
-    type PostLogsBody = Body<'post', '/experiments/:experiment/runs/:run/logs'>;
+    type PostLogsBody = Body<
+      'post',
+      '/experiments/:experimentId/runs/:runId/logs'
+    >;
 
     it('should refuse to add logs if the client does not have access to the run', async () => {
       await api
@@ -620,13 +606,13 @@ describe('logs', () => {
     });
     it('should return logs as json by default', async () => {
       let result = await api.get('/experiments/exp/logs').expect(200);
-      expect(store.getLogs).toHaveBeenCalledWith({ experiment: 'exp' });
+      expect(store.getLogs).toHaveBeenCalledWith({ experimentId: 'exp' });
       expect(result.body).toMatchInlineSnapshot(`
         [
           {
-            "experiment": "getLogs:experimentId-1",
+            "experimentId": "getLogs:experimentId-1",
             "number": 1,
-            "run": "getLogs:runId-1",
+            "runId": "getLogs:runId-1",
             "type": "getLogs:type-1",
             "values": {
               "mock-col1": "log1-mock-value1",
@@ -634,9 +620,9 @@ describe('logs', () => {
             },
           },
           {
-            "experiment": "getLogs:experimentId-2",
+            "experimentId": "getLogs:experimentId-2",
             "number": 2,
-            "run": "getLogs:runId-2",
+            "runId": "getLogs:runId-2",
             "type": "getLogs:type-2",
             "values": {
               "mock-col1": "log2-mock-value1",
@@ -655,13 +641,13 @@ describe('logs', () => {
           'application/xml,application/json,text/csv,application/pdf',
         )
         .expect(200);
-      expect(store.getLogs).toHaveBeenCalledWith({ experiment: 'exp' });
+      expect(store.getLogs).toHaveBeenCalledWith({ experimentId: 'exp' });
       expect(result.body).toMatchInlineSnapshot(`
         [
           {
-            "experiment": "getLogs:experimentId-1",
+            "experimentId": "getLogs:experimentId-1",
             "number": 1,
-            "run": "getLogs:runId-1",
+            "runId": "getLogs:runId-1",
             "type": "getLogs:type-1",
             "values": {
               "mock-col1": "log1-mock-value1",
@@ -669,9 +655,9 @@ describe('logs', () => {
             },
           },
           {
-            "experiment": "getLogs:experimentId-2",
+            "experimentId": "getLogs:experimentId-2",
             "number": 2,
-            "run": "getLogs:runId-2",
+            "runId": "getLogs:runId-2",
             "type": "getLogs:type-2",
             "values": {
               "mock-col1": "log2-mock-value1",
@@ -690,9 +676,9 @@ describe('logs', () => {
           'application/pdf,text/csv,application/json,application/xml',
         )
         .expect(200);
-      expect(store.getLogs).toHaveBeenCalledWith({ experiment: 'exp' });
+      expect(store.getLogs).toHaveBeenCalledWith({ experimentId: 'exp' });
       expect(result.text).toMatchInlineSnapshot(`
-        "type,run,mock_col1,mock_col2,mock_col3,number
+        "type,run_id,mock_col1,mock_col2,mock_col3,number
         getLogs:type-1,getLogs:runId-1,log1-mock-value1,log1-mock-value2,,1
         getLogs:type-2,getLogs:runId-2,log2-mock-value1,log2-mock-value2,log2-mock-value3,2
         "
@@ -703,13 +689,13 @@ describe('logs', () => {
         .get('/experiments/exp/logs')
         .set('Accept', 'application/xml')
         .expect(200);
-      expect(store.getLogs).toHaveBeenCalledWith({ experiment: 'exp' });
+      expect(store.getLogs).toHaveBeenCalledWith({ experimentId: 'exp' });
       expect(result.body).toMatchInlineSnapshot(`
         [
           {
-            "experiment": "getLogs:experimentId-1",
+            "experimentId": "getLogs:experimentId-1",
             "number": 1,
-            "run": "getLogs:runId-1",
+            "runId": "getLogs:runId-1",
             "type": "getLogs:type-1",
             "values": {
               "mock-col1": "log1-mock-value1",
@@ -717,9 +703,9 @@ describe('logs', () => {
             },
           },
           {
-            "experiment": "getLogs:experimentId-2",
+            "experimentId": "getLogs:experimentId-2",
             "number": 2,
-            "run": "getLogs:runId-2",
+            "runId": "getLogs:runId-2",
             "type": "getLogs:type-2",
             "values": {
               "mock-col1": "log2-mock-value1",
@@ -736,7 +722,7 @@ describe('logs', () => {
         .query({ type: 'log-type' })
         .expect(200);
       expect(store.getLogs).toHaveBeenCalledWith({
-        experiment: 'exp',
+        experimentId: 'exp',
         type: 'log-type',
       });
     });
