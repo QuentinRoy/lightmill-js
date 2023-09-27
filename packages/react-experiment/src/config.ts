@@ -4,25 +4,21 @@ export interface RegisterExperiment {
   // log: Log;
 }
 
-export type BaseLog = {
-  type: string;
-};
-
-export type BaseTask = {
-  type: string;
+export type Typed<T extends string = string> = {
+  type: T;
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type AnyTask = BaseTask & { [key: PropertyKey]: any };
+export type AnyTask = Typed & { [key: PropertyKey]: any };
 export type RegisteredTask = RegisterExperiment extends { task: infer T }
-  ? T extends BaseTask
+  ? T extends Typed
     ? T
     : never
   : AnyTask;
 
-export type AnyLog = BaseLog & { [key: PropertyKey]: unknown };
-export type RegisteredLog = RegisterExperiment extends { log: infer T }
-  ? T extends BaseLog
-    ? T
+export type AnyLog = Typed & { [key: PropertyKey]: unknown };
+export type RegisteredLog = RegisterExperiment extends { log: infer L }
+  ? L extends Typed
+    ? L
     : never
-  : BaseLog;
+  : Typed;

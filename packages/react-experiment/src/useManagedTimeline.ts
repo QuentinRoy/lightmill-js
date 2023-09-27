@@ -1,39 +1,32 @@
 import * as React from 'react';
-import { BaseTask } from './config.js';
 import { Runner as TimelineRunner } from '@lightmill/runner';
 
 export type TimelineStatus = 'running' | 'completed' | 'loading' | 'idle';
 
-export type TimelineState<Task extends BaseTask> =
+export type TimelineState<Task> =
   | { status: 'completed' }
   | { status: 'loading' }
   | { status: 'idle' }
   | { status: 'canceled' }
-  | { status: 'crashed'; error: unknown }
+  | { status: 'error'; error: Error }
   | { status: 'running'; task: Task; onTaskCompleted: () => void };
 
-export type AsyncTimeline<Task extends BaseTask> =
-  | AsyncIterator<Task>
-  | AsyncIterable<Task>;
+export type AsyncTimeline<Task> = AsyncIterator<Task> | AsyncIterable<Task>;
 
-export type SyncTimeline<Task extends BaseTask> =
-  | Iterator<Task>
-  | Iterable<Task>;
+export type SyncTimeline<Task> = Iterator<Task> | Iterable<Task>;
 
-export type Timeline<Task extends BaseTask> =
-  | AsyncTimeline<Task>
-  | SyncTimeline<Task>;
+export type Timeline<Task> = AsyncTimeline<Task> | SyncTimeline<Task>;
 
-type Options<Task extends BaseTask> = {
+type Options<Task> = {
   onTimelineCompleted?: () => void;
   onTimelineStarted?: () => void;
   onTaskStarted?: (task: Task) => void;
   onTaskCompleted?: (task: Task) => void;
   onTaskLoadingError?: (error: unknown) => void;
-  timeline: Timeline<Task> | null;
+  timeline?: Timeline<Task> | null;
 };
 
-export default function useManagedTimeline<Task extends BaseTask>(
+export default function useManagedTimeline<Task>(
   options: Options<Task>,
 ): TimelineState<Task> {
   const [state, setState] = React.useState<TimelineState<Task>>({
@@ -70,7 +63,11 @@ export default function useManagedTimeline<Task extends BaseTask>(
         callbacksRef.current.onTimelineCompleted?.();
       },
       onError(error) {
-        setState({ status: 'crashed', error });
+        if (error instanceof Error) {
+          setState({ status: 'error', error });
+        } else {
+          setState({ status: 'error', error: new Error(String(error)) });
+        }
         callbacksRef.current.onTaskLoadingError?.(error);
       },
     });

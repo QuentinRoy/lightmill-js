@@ -1,225 +1,146 @@
 import * as React from 'react';
-import { RegisteredTask, BaseTask, RegisteredLog } from './config.js';
+import { RegisteredTask, Typed, RegisteredLog } from './config.js';
 import { loggerContext, timelineContext } from './contexts.js';
-import useManagedTimeline, { Timeline } from './timeline.js';
+import useManagedTimeline, {
+  Timeline,
+  TimelineState,
+} from './useManagedTimeline.js';
 
-export type RunElements<T extends BaseTask = RegisteredTask> = {
+export type RunElements<T extends Typed> = {
   tasks: Record<T['type'], React.ReactElement>;
   loading?: React.ReactElement;
   completed?: React.ReactElement;
 };
 
-export type Logger = (log: RegisteredLog) => Promise<void>;
+export type Logger<Log> = (log: Log) => Promise<void>;
 
-export type RunProps<Task extends RegisteredTask> = {
+export type RunProps<Task extends Typed, Log> = {
   elements: RunElements<Task>;
   confirmBeforeUnload?: boolean;
-  onCompleted?: () => void | Promise<void>;
-} & (
-  | {
-      timeline: Timeline<Task>;
-      log?: Logger;
-      init?: () => Promise<void | { timeline?: undefined; log?: undefined }>;
-    }
-  | {
-      timeline?: undefined;
-      log?: Logger;
-      init: () => Promise<void | { timeline: Timeline<Task>; log?: undefined }>;
-    }
-  | {
-      timeline?: undefined;
-      log?: undefined;
-      init: () => Promise<void | { timeline: Timeline<Task>; log?: Logger }>;
-    }
-  | {
-      timeline: Timeline<Task>;
-      log?: undefined;
-      init?: () => Promise<void | { timeline?: undefined; log?: Logger }>;
-    }
-);
-
-type RunState =
-  | { status: 'loading' }
-  | { status: 'ok' }
-  | { status: 'error'; error: string; source?: Error };
+} & UseRunParameter<Task, Log>;
 
 // This component uses explicit return type to prevent the function from
 // returning undefined, which could indicate a state isn't being handled.
 export function Run<T extends RegisteredTask>({
-  elements: { tasks, completed, loading },
+  elements,
   confirmBeforeUnload = true,
-  onCompleted,
-  ...immutableParams
-}: RunProps<T>): JSX.Element | null {
-  // Logger and timeline are not controlled. We make sure any change to them
-  // is ignored, and the previous value is used instead.
-  const [timeline, setTimeline] = React.useState<Timeline<T> | null>(
-    immutableParams.timeline ?? null,
-  );
-  const [logger, setLogger] = React.useState<Logger | null>(
-    immutableParams.log ?? null,
-  );
-  const [runState, setRunState] = React.useState<RunState>({
-    status: immutableParams.init == null ? 'ok' : 'loading',
-  });
-  const timelineState = useManagedTimeline({
-    timeline,
-    onTimelineCompleted() {
-      let onCompletedResult = onCompleted?.();
-      if (onCompletedResult == null) {
-        return;
-      }
-      setRunState({ status: 'loading' });
-      onCompletedResult.then(
-        () => {
-          setRunState({ status: 'ok' });
-        },
-        (error) => {
-          if (error instanceof Error) {
-            setRunState({
-              status: 'error',
-              error: `Could not complete: ${error.message}`,
-              source: error,
-            });
-          } else {
-            setRunState({ status: 'error', error: 'Could not complete' });
-          }
-        },
-      );
-    },
-  });
+  ...useRunParameter
+}: RunProps<T, RegisteredLog>): JSX.Element | null {
+  const { log, ...state } = useRun(useRunParameter);
+  useConfirmBeforeUnload(confirmBeforeUnload && state.status !== 'completed');
 
-  let immutableConfigRef = React.useRef(immutableParams);
-  // Initialize the timeline and logger (if needed).
-  React.useEffect(() => {
-    const current = immutableConfigRef.current;
-    let isNotMounted = false;
-    current.init?.().then(
-      (result) => {
-        if (isNotMounted) {
-          return;
-        }
-        if (result?.timeline != null && current.timeline == null) {
-          setTimeline(result.timeline);
-        } else if (result?.timeline != null) {
-          setRunState({ status: 'error', error: 'Timeline cannot be changed' });
-          return;
-        }
-        if (result?.log != null && current.log == null) {
-          setLogger(result.log);
-        } else if (result?.log != null) {
-          setRunState({ status: 'error', error: 'Logger cannot be changed' });
-          return;
-        }
-        setRunState({ status: 'ok' });
-      },
-      (error) => {
-        if (isNotMounted) {
-          return;
-        }
-        if (error instanceof Error) {
-          setRunState({
-            status: 'error',
-            error: `Could not initialize: ${error.message}`,
-            source: error,
-          });
-        } else {
-          setRunState({ status: 'error', error: 'Could not initialize' });
-        }
-      },
-    );
-    return () => {
-      isNotMounted = true;
-    };
-  }, []);
-  // Prevent changes to timeline and logger props.
-  React.useEffect(() => {
-    const current = immutableConfigRef.current;
-    if (immutableParams.timeline !== current.timeline) {
-      throw new Error('Timeline cannot be changed');
-    }
-    if (immutableParams.log !== current.log) {
-      throw new Error('Logger cannot be changed');
-    }
-  }, [immutableParams.timeline, immutableParams.log]);
-
-  const addLog = React.useMemo(() => {
-    const thisLogger = logger;
-    return thisLogger == null
-      ? null
-      : (log: RegisteredLog) => {
-          thisLogger(log).catch((error) => {
-            if (error instanceof Error) {
-              setRunState({
-                status: 'error',
-                error: `Could not add log : ${error.message}`,
-                source: error,
-              });
-            } else {
-              setRunState({ status: 'error', error: 'Could not add log :' });
-            }
-          });
-        };
-  }, [logger]);
-
-  useConfirmBeforeUnload(
-    confirmBeforeUnload && timelineState.status !== 'completed',
-  );
-
-  switch (runState.status) {
-    case 'ok':
-      break;
-    case 'error': {
-      let e = new Error(runState.error);
-      e.stack = runState.source?.stack ?? e.stack;
-      throw e;
-    }
-    case 'loading':
-      return (
-        <loggerContext.Provider value={addLog}>
-          {loading}
-        </loggerContext.Provider>
-      );
-  }
-
-  switch (timelineState.status) {
+  switch (state.status) {
     case 'running': {
-      let type: T['type'] = timelineState.task.type;
-      if (!(type in tasks)) {
-        throw new Error(
-          `No task registered for type ${timelineState.task.type}`,
-        );
+      let type: T['type'] = state.task.type;
+      if (!(type in elements.tasks)) {
+        throw new Error(`No task registered for type ${state.task.type}`);
       }
       return (
-        <loggerContext.Provider value={addLog}>
-          <timelineContext.Provider value={timelineState}>
-            {tasks[type]}
+        <loggerContext.Provider value={log}>
+          <timelineContext.Provider value={state}>
+            {elements.tasks[type]}
           </timelineContext.Provider>
         </loggerContext.Provider>
       );
     }
 
     case 'completed':
-      return completed == null ? null : (
-        <loggerContext.Provider value={addLog}>
-          {completed}
+      return elements.completed == null ? null : (
+        <loggerContext.Provider value={log}>
+          {elements.completed}
         </loggerContext.Provider>
       );
 
     // This may seem surprising to have canceled, idle, and loading in the same
     // case, but canceled is basically the same as idle, only a run was already
     // started and then stopped, e.g. because timeline changed.
-    case 'loading':
     case 'idle':
     case 'canceled':
-      return loading == null ? null : (
-        <loggerContext.Provider value={addLog}>
-          {loading}
+    case 'loading':
+      return (
+        <loggerContext.Provider value={log}>
+          {elements.loading}
         </loggerContext.Provider>
       );
-    case 'crashed':
-      throw timelineState.error;
+    default:
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      let _exhaustiveCheck: never = state;
+      throw new Error('Unhandled timeline state');
   }
+}
+
+type UseRunParameter<Task, Log> = {
+  onCompleted?: () => void;
+  log?: Logger<Log>;
+} & (
+  | { timeline: Timeline<Task>; loading?: boolean }
+  | { timeline?: Timeline<Task> | null; loading: true }
+);
+type RunState<Task, Log> = Exclude<TimelineState<Task>, { status: 'error' }> & {
+  log: ((newLog: Log) => void) | null;
+};
+function useRun<T, L>({
+  onCompleted,
+  timeline,
+  loading = false,
+  log,
+}: UseRunParameter<T, L>): RunState<T, L> {
+  const { log: logWrapper, ...loggerState } = useLogWrapper(log);
+
+  let timelineRef = React.useRef(timeline);
+  // Prevent changes to timeline once set.
+  React.useLayoutEffect(() => {
+    const previousTimeline = timelineRef.current;
+    if (previousTimeline != null && previousTimeline !== timeline) {
+      throw new Error('Timeline cannot be changed once set');
+    }
+    timelineRef.current = timeline;
+  }, [timeline]);
+
+  const timelineState = useManagedTimeline({
+    timeline: timeline,
+    onTimelineCompleted: onCompleted,
+  });
+
+  if (timelineState.status === 'error') {
+    throw timelineState.error;
+  }
+  if (loggerState.status === 'error') {
+    throw loggerState.error;
+  }
+  if (loading) {
+    return { status: 'loading', log: logWrapper };
+  } else if (timeline == null) {
+    throw new Error('Timeline must be set when loading is false');
+  }
+  return { ...timelineState, log: logWrapper };
+}
+
+type LoggerState = { status: 'ok' } | { status: 'error'; error: Error };
+function useLogWrapper<L>(log?: Logger<L>): LoggerState & {
+  log: ((newLog: L) => void) | null;
+} {
+  const [loggerState, setLoggerState] = React.useState<LoggerState>({
+    status: 'ok',
+  });
+
+  const logWrapper = React.useMemo(() => {
+    if (log == null) return null;
+    const thisLogger = log;
+    return function logWrapper(newLog: L) {
+      thisLogger(newLog).catch((error) => {
+        if (error instanceof Error) {
+          let newError = new Error(`Could not add log : ${error.message}`);
+          newError.stack = error.stack;
+          setLoggerState({ status: 'error', error: newError });
+        } else {
+          let newError = new Error('Could not add log');
+          setLoggerState({ status: 'error', error: newError });
+        }
+      });
+    };
+  }, [log]);
+  return { ...loggerState, log: logWrapper };
 }
 
 function useConfirmBeforeUnload(isEnabled: boolean) {

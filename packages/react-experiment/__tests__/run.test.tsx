@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import userEventPackage from '@testing-library/user-event';
 import { Run, RunElements, useTask } from '../src/main.js';
+import * as React from 'react';
 
 const userEvent =
   userEventPackage as unknown as typeof userEventPackage.default;
@@ -131,9 +132,9 @@ describe('run', () => {
     vi.useRealTimers();
   });
 
-  it("fetch the timeline from init if it isn't specified as a prop", async () => {
-    vi.useFakeTimers();
-    const initTime = 150;
+  it('let timeline being undefined as long as loading is true', async () => {
+    const user = userEvent.setup();
+
     let config: RunElements<Task> = {
       tasks: {
         A: <Task type="A" dataProp="a" />,
@@ -142,24 +143,46 @@ describe('run', () => {
       loading: <div data-testid="loading" />,
       completed: <div data-testid="end" />,
     };
-    let init = async () => {
-      await wait(initTime);
-      return { timeline: tasks };
-    };
-    render(<Run elements={config} init={init} />);
+
+    function Test() {
+      const [isLoading, toggleLoading] = React.useReducer((s) => !s, true);
+      const [timeline, loadTimeline] = React.useReducer(
+        (): Task[] | undefined => tasks,
+        undefined,
+      );
+      return (
+        <div>
+          {/* @ts-expect-error this is a test */}
+          <Run elements={config} loading={isLoading} timeline={timeline} />
+          <button data-testid="load-timeline-button" onClick={loadTimeline}>
+            Load Timeline
+          </button>
+          <button data-testid="toggle-loading-button" onClick={toggleLoading}>
+            {isLoading ? 'Finish Loading' : 'Load'}
+          </button>
+        </div>
+      );
+    }
+
+    render(<Test />);
     expect(screen.getByTestId('loading')).toBeInTheDocument();
-    await act(() => vi.advanceTimersByTime(initTime));
+    await user.click(screen.getByTestId('load-timeline-button'));
+    expect(screen.getByTestId('loading')).toBeInTheDocument();
+    await user.click(screen.getByTestId('toggle-loading-button'));
     expect(screen.getByRole('heading')).toHaveTextContent('Type A');
     expect(screen.getByTestId('data')).toHaveTextContent('hello');
-    // Use fireEvent instead of userEvent because userEvent doesn't work with
-    // fake timers.
-    fireEvent.click(screen.getByRole('button'));
+    await user.click(screen.getByText('Complete'));
     expect(screen.getByRole('heading')).toHaveTextContent('Type B');
     expect(screen.getByTestId('data')).toHaveTextContent('42');
-    fireEvent.click(screen.getByRole('button'));
+    await user.click(screen.getByTestId('toggle-loading-button'));
+    expect(screen.getByTestId('loading')).toBeInTheDocument();
+    await user.click(screen.getByTestId('toggle-loading-button'));
+    expect(screen.getByRole('heading')).toHaveTextContent('Type B');
+    expect(screen.getByTestId('data')).toHaveTextContent('42');
+    await user.click(screen.getByText('Complete'));
     expect(screen.getByRole('heading')).toHaveTextContent('Type A');
     expect(screen.getByTestId('data')).toHaveTextContent('world');
-    fireEvent.click(screen.getByRole('button'));
+    await user.click(screen.getByText('Complete'));
     expect(screen.getByTestId('end')).toBeInTheDocument();
   });
 });
