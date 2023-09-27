@@ -29,39 +29,16 @@ const server = setupServer(
     },
   ),
   rest.post(
-    'https://server.test/api/experiments/experiment-id/runs/run-id/logs' satisfies ServerPath,
-    (req, res, ctx) => {
-      return res(
-        ctx.status(200),
-        ctx.json({ status: 'ok' } satisfies ApiResponse<
-          'post',
-          '/experiments/:experimentId/runs/:runId/logs'
-        >),
-      );
-    },
-  ),
-  rest.post(
     'https://server.test/api/runs' satisfies ServerPath,
     async (req, res, ctx) => {
+      let body = await req.json();
       return res(
         ctx.status(200),
         ctx.json({
           status: 'ok',
-          runId: 'run-id',
-          experimentId: 'experiment-id',
+          runId: body.runId ?? 'default-run-id',
+          experimentId: body.experimentId ?? 'default-experiment-id',
         } satisfies ApiResponse<'post', '/runs'>),
-      );
-    },
-  ),
-  rest.patch(
-    'https://server.test/api/experiments/experiment-id/runs/run-id' satisfies ServerPath,
-    (req, res, ctx) => {
-      return res(
-        ctx.status(200),
-        ctx.json({ status: 'ok' } satisfies ApiResponse<
-          'patch',
-          '/experiments/:experimentId/runs/:runId'
-        >),
       );
     },
   ),
@@ -80,12 +57,12 @@ const server = setupServer(
   ),
 );
 
-function setSessionRuns(
+function setServerRuns(
   runs: Array<{
     runId: string;
     experimentId: string;
-    status: 'completed' | 'canceled' | 'running';
-    logs: Array<{
+    status?: 'completed' | 'canceled' | 'running';
+    logs?: Array<{
       type: string;
       count: number;
       lastNumber: number;
@@ -113,9 +90,38 @@ function setSessionRuns(
         (req, res, ctx) => {
           return res(
             ctx.status(200),
-            ctx.json({ status: 'ok', run } satisfies ApiResponse<
+            ctx.json({
+              status: 'ok',
+              run: { status: 'running', logs: [], ...run },
+            } satisfies ApiResponse<
               'get',
               '/experiments/:experimentId/runs/:runId'
+            >),
+          );
+        },
+      ),
+      rest.patch(
+        `https://server.test/api/experiments/${run.experimentId}/runs/${run.runId}` satisfies ServerPath,
+        (req, res, ctx) => {
+          return res(
+            ctx.status(200),
+            ctx.json({ status: 'ok' } satisfies ApiResponse<
+              'patch',
+              '/experiments/:experimentId/runs/:runId'
+            >),
+          );
+        },
+      ),
+    ]),
+    ...runs.flatMap((run) => [
+      rest.post(
+        `https://server.test/api/experiments/${run.experimentId}/runs/${run.runId}/logs` satisfies ServerPath,
+        (req, res, ctx) => {
+          return res(
+            ctx.status(200),
+            ctx.json({ status: 'ok' } satisfies ApiResponse<
+              'post',
+              '/experiments/:experimentId/runs/:runId/logs'
             >),
           );
         },
@@ -216,47 +222,10 @@ describe('RunLogger#startRun', () => {
       },
     ]);
   });
-
-  it('should look for run to resume, but create a new run if none are found', async () => {
-    const logger = new LogClient({
-      apiRoot: 'https://server.test/api',
-    });
-    await logger.startRun({ resumeAfterType: 'test-type' });
-
-    await expect(waitForChangeRequestBodies()).resolves.toEqual([
-      {
-        url: 'https://server.test/api/runs',
-        method: 'POST',
-        body: {},
-      },
-    ]);
-  });
-
-  it('should look for run to resume, but create a new run if no matching runs are found', async () => {
-    setSessionRuns([
-      {
-        runId: 'other-run',
-        experimentId: 'other-experiment',
-        status: 'running',
-        logs: [],
-      },
-    ]);
-    const logger = new LogClient({
-      apiRoot: 'https://server.test/api',
-      experimentId: 'test-experiment',
-    });
-    await logger.startRun({ resumeAfterType: 'test-type' });
-    await expect(waitForChangeRequestBodies()).resolves.toEqual([
-      {
-        url: 'https://server.test/api/runs',
-        method: 'POST',
-        body: { experimentId: 'test-experiment' },
-      },
-    ]);
-  });
-
-  it('should resume an existing matching fully defined run using a type to resume after', async () => {
-    setSessionRuns([
+});
+describe('RunLogger#resumeRun', () => {
+  it('should resume an existing run using a type to resume after', async () => {
+    setServerRuns([
       {
         runId: 'test-run',
         experimentId: 'test-experiment',
@@ -272,7 +241,7 @@ describe('RunLogger#startRun', () => {
       runId: 'test-run',
       experimentId: 'test-experiment',
     });
-    await logger.startRun({ resumeAfterType: 'test-type' });
+    await logger.resumeRun({ resumeAfterLast: 'test-type' });
     await expect(waitForChangeRequestBodies()).resolves.toEqual([
       {
         url: 'https://server.test/api/experiments/test-experiment/runs/test-run',
@@ -282,8 +251,8 @@ describe('RunLogger#startRun', () => {
     ]);
   });
 
-  it('should resume an existing matching fully defined run using multiple types to resume after', async () => {
-    setSessionRuns([
+  it('should resume an existing run using multiple types to resume after', async () => {
+    setServerRuns([
       {
         runId: 'test-run',
         experimentId: 'test-experiment',
@@ -300,7 +269,7 @@ describe('RunLogger#startRun', () => {
       runId: 'test-run',
       experimentId: 'test-experiment',
     });
-    await logger.startRun({ resumeAfterType: ['test-type1', 'test-type2'] });
+    await logger.resumeRun({ resumeAfterLast: ['test-type1', 'test-type2'] });
     await expect(waitForChangeRequestBodies()).resolves.toEqual([
       {
         url: 'https://server.test/api/experiments/test-experiment/runs/test-run',
@@ -310,24 +279,25 @@ describe('RunLogger#startRun', () => {
     ]);
   });
 
-  it('should resume an existing matching run defined by the experiment only using using a type to resume after', async () => {
-    setSessionRuns([
+  it('should be able to use the runId and experimentId from its parameter', async () => {
+    setServerRuns([
       {
         runId: 'test-run',
         experimentId: 'test-experiment',
         status: 'running',
         logs: [
-          { type: 'test-type', count: 3, lastNumber: 5, pending: 2 },
-          { type: 'other-type1', count: 3, lastNumber: 7, pending: 0 },
-          { type: 'other-type2', count: 1, lastNumber: 1, pending: 1 },
+          { type: 'test-type1', count: 3, lastNumber: 5, pending: 2 },
+          { type: 'test-type2', count: 1, lastNumber: 1, pending: 1 },
+          { type: 'other-type', count: 3, lastNumber: 7, pending: 0 },
         ],
       },
     ]);
-    const logger = new LogClient({
-      apiRoot: 'https://server.test/api',
+    const logger = new LogClient({ apiRoot: 'https://server.test/api' });
+    await logger.resumeRun({
+      resumeAfterLast: ['test-type1', 'test-type2'],
       experimentId: 'test-experiment',
+      runId: 'test-run',
     });
-    await logger.startRun({ resumeAfterType: 'test-type' });
     await expect(waitForChangeRequestBodies()).resolves.toEqual([
       {
         url: 'https://server.test/api/experiments/test-experiment/runs/test-run',
@@ -337,23 +307,27 @@ describe('RunLogger#startRun', () => {
     ]);
   });
 
-  it('should resume an undefined existing matching run only using using a type to resume after', async () => {
-    setSessionRuns([
+  it("should use resumeRun's parameter if the constructor did not provide a run or an experiment", async () => {
+    setServerRuns([
       {
         runId: 'test-run',
         experimentId: 'test-experiment',
         status: 'running',
         logs: [
-          { type: 'test-type', count: 3, lastNumber: 5, pending: 2 },
-          { type: 'other-type1', count: 3, lastNumber: 7, pending: 0 },
-          { type: 'other-type2', count: 1, lastNumber: 1, pending: 1 },
+          { type: 'test-type1', count: 3, lastNumber: 5, pending: 2 },
+          { type: 'test-type2', count: 1, lastNumber: 1, pending: 1 },
+          { type: 'other-type', count: 3, lastNumber: 7, pending: 0 },
         ],
       },
     ]);
     const logger = new LogClient({
       apiRoot: 'https://server.test/api',
     });
-    await logger.startRun({ resumeAfterType: 'test-type' });
+    await logger.resumeRun({
+      resumeAfterLast: ['test-type1', 'test-type2'],
+      experimentId: 'test-experiment',
+      runId: 'test-run',
+    });
     await expect(waitForChangeRequestBodies()).resolves.toEqual([
       {
         url: 'https://server.test/api/experiments/test-experiment/runs/test-run',
@@ -363,112 +337,62 @@ describe('RunLogger#startRun', () => {
     ]);
   });
 
-  it('should refuse to resume a run only if there is more than one matching', async () => {
-    setSessionRuns([
-      {
-        runId: 'test-run-1',
-        experimentId: 'test-experiment-1',
-        status: 'running',
-        logs: [{ type: 'test-type', count: 5, lastNumber: 5, pending: 2 }],
-      },
-      {
-        runId: 'test-run-2',
-        experimentId: 'test-experiment-2',
-        status: 'running',
-        logs: [{ type: 'test-type', count: 4, lastNumber: 4, pending: 2 }],
-      },
-    ]);
+  it("should refuse to overwrite the constructor's experimentId", async () => {
     const logger = new LogClient({
       apiRoot: 'https://server.test/api',
+      experimentId: 'original-experiment',
     });
     await expect(
-      logger.startRun({ resumeAfterType: 'test-type' }),
-    ).rejects.toThrow();
-  });
-
-  it('should not resume a matching completed run', async () => {
-    setSessionRuns([
-      {
-        runId: 'test-run',
+      logger.resumeRun({
+        resumeAfterLast: ['test-type1', 'test-type2'],
         experimentId: 'test-experiment',
-        status: 'completed',
-        logs: [{ type: 'test-type', count: 5, lastNumber: 5, pending: 2 }],
-      },
-    ]);
-    const logger = new LogClient({
-      runId: 'test-run',
-      experimentId: 'test-experiment',
-      apiRoot: 'https://server.test/api',
-    });
-    await logger.startRun({ resumeAfterType: 'test-type' });
-    // This should be refused by the server since the run appears to already
-    // exist.
-    await expect(waitForChangeRequestBodies()).resolves.toEqual([
-      {
-        url: 'https://server.test/api/runs',
-        method: 'POST',
-        body: { runId: 'test-run', experimentId: 'test-experiment' },
-      },
-    ]);
+        runId: 'test-run',
+      }),
+    ).rejects.toThrowError(Error);
   });
 
-  it('should refuse a matching run if it is the only still running or cancelled', async () => {
-    setSessionRuns([
-      {
-        runId: 'test-run-1',
-        experimentId: 'test-experiment-1',
-        status: 'running',
-        logs: [{ type: 'test-type', count: 5, lastNumber: 5, pending: 2 }],
-      },
-      {
-        runId: 'test-run-2',
-        experimentId: 'test-experiment-2',
-        status: 'completed',
-        logs: [{ type: 'test-type', count: 4, lastNumber: 4, pending: 2 }],
-      },
-    ]);
+  it("should refuse to overwrite the constructor's runId", async () => {
     const logger = new LogClient({
       apiRoot: 'https://server.test/api',
+      runId: 'original-run',
     });
-    await logger.startRun({ resumeAfterType: 'test-type' });
-    await expect(waitForChangeRequestBodies()).resolves.toEqual([
-      {
-        url: 'https://server.test/api/experiments/test-experiment-1/runs/test-run-1',
-        method: 'PATCH',
-        body: { resumeFrom: 6 },
-      },
-    ]);
+    await expect(
+      logger.resumeRun({
+        resumeAfterLast: 'test-type',
+        experimentId: 'test-experiment',
+        runId: 'test-run',
+      }),
+    ).rejects.toThrowError(Error);
   });
 
-  it('should resume a matching cancelled run', async () => {
-    setSessionRuns([
-      {
-        runId: 'test-run-1',
-        experimentId: 'test-experiment-1',
-        status: 'canceled',
-        logs: [{ type: 'test-type', count: 5, lastNumber: 5, pending: 2 }],
-      },
-    ]);
+  it("should refuse to resume a run if the experimentId isn't defined", async () => {
     const logger = new LogClient({
       apiRoot: 'https://server.test/api',
+      runId: 'original-run',
     });
-    await logger.startRun({ resumeAfterType: 'test-type' });
-    await expect(waitForChangeRequestBodies()).resolves.toEqual([
-      {
-        url: 'https://server.test/api/experiments/test-experiment-1/runs/test-run-1',
-        method: 'PATCH',
-        body: { resumeFrom: 6 },
-      },
-    ]);
+    await expect(
+      logger.resumeRun({ resumeAfterLast: 'test-type' }),
+    ).rejects.toThrowError(Error);
+  });
+
+  it("should refuse to resume a run if the runId isn't defined", async () => {
+    const logger = new LogClient({
+      apiRoot: 'https://server.test/api',
+      experimentId: 'original-run',
+    });
+    await expect(
+      logger.resumeRun({ resumeAfterLast: 'test-type' }),
+    ).rejects.toThrowError(Error);
   });
 });
 
-describe('RunLogger#addLog', () => {
+describe('RunLogger#addLog (after start)', () => {
   let logger: LogClient;
 
   beforeEach(async () => {
+    setServerRuns([{ runId: 'run-id', experimentId: 'experiment-id' }]);
     logger = new LogClient({ apiRoot: 'https://server.test/api' });
-    await logger.startRun();
+    await logger.startRun({ experimentId: 'experiment-id', runId: 'run-id' });
     clearRequests();
   });
 
@@ -507,12 +431,12 @@ describe('RunLogger#addLog', () => {
       logger.addLog({
         type: 'mock-log',
         val: 2,
-        date: new Date('2021-06-03T02:00:00.000Z'),
+        date: new Date('2021-06-03T02:00:10.000Z'),
       }),
       logger.addLog({
         type: 'mock-log',
         val: 3,
-        date: new Date('2021-06-03T02:00:00.000Z'),
+        date: new Date('2021-06-03T02:00:20.000Z'),
       }),
     ]);
     vi.runAllTimers();
@@ -531,12 +455,12 @@ describe('RunLogger#addLog', () => {
             {
               type: 'mock-log',
               number: 2,
-              values: { val: 2, date: '2021-06-03T02:00:00.000Z' },
+              values: { val: 2, date: '2021-06-03T02:00:10.000Z' },
             },
             {
               type: 'mock-log',
               number: 3,
-              values: { val: 3, date: '2021-06-03T02:00:00.000Z' },
+              values: { val: 3, date: '2021-06-03T02:00:20.000Z' },
             },
           ],
         },
@@ -621,12 +545,78 @@ describe('RunLogger#addLog', () => {
   });
 });
 
+describe('RunLogger#addLog (after resume)', () => {
+  it('should properly start numbering after a run has been resumed', async () => {
+    setServerRuns([
+      {
+        experimentId: 'test-experiment',
+        runId: 'test-run',
+        status: 'running',
+        logs: [
+          { type: 'test-type', count: 3, lastNumber: 4, pending: 2 },
+          { type: 'other-type', count: 3, lastNumber: 6, pending: 0 },
+        ],
+      },
+    ]);
+    const logger = new LogClient({ apiRoot: 'https://server.test/api' });
+    await logger.resumeRun({
+      resumeAfterLast: 'test-type',
+      experimentId: 'test-experiment',
+      runId: 'test-run',
+    });
+    clearRequests();
+    let p = Promise.all([
+      logger.addLog({
+        type: 'mock-log',
+        val: 1,
+        date: new Date('2021-06-03T02:00:00.000Z'),
+      }),
+      logger.addLog({
+        type: 'mock-log',
+        val: 2,
+        date: new Date('2021-06-03T02:00:10.000Z'),
+      }),
+      logger.addLog({
+        type: 'mock-log',
+        val: 3,
+        date: new Date('2021-06-03T02:00:20.000Z'),
+      }),
+    ]);
+    vi.runAllTimers();
+    await p;
+    await expect(waitForChangeRequestBodies()).resolves.toEqual([
+      {
+        url: 'https://server.test/api/experiments/test-experiment/runs/test-run/logs',
+        method: 'POST',
+        body: {
+          logs: [
+            {
+              type: 'mock-log',
+              number: 5,
+              values: { val: 1, date: '2021-06-03T02:00:00.000Z' },
+            },
+            {
+              type: 'mock-log',
+              number: 6,
+              values: { val: 2, date: '2021-06-03T02:00:10.000Z' },
+            },
+            {
+              type: 'mock-log',
+              number: 7,
+              values: { val: 3, date: '2021-06-03T02:00:20.000Z' },
+            },
+          ],
+        },
+      },
+    ]);
+  });
+});
+
 describe('RunLogger#flush', () => {
   it('should flush', async () => {
-    const logger = new LogClient({
-      apiRoot: 'https://server.test/api',
-    });
-    await logger.startRun();
+    setServerRuns([{ runId: 'run-id', experimentId: 'experiment-id' }]);
+    const logger = new LogClient({ apiRoot: 'https://server.test/api' });
+    await logger.startRun({ runId: 'run-id', experimentId: 'experiment-id' });
     clearRequests();
     logger.addLog({
       type: 'mock-log',
@@ -675,10 +665,9 @@ describe('RunLogger#flush', () => {
 
 describe('RunLogger#completeRun', () => {
   it('should complete', async () => {
-    const logger = new LogClient({
-      apiRoot: 'https://server.test/api',
-    });
-    await logger.startRun();
+    setServerRuns([{ runId: 'run-id', experimentId: 'experiment-id' }]);
+    const logger = new LogClient({ apiRoot: 'https://server.test/api' });
+    await logger.startRun({ runId: 'run-id', experimentId: 'experiment-id' });
     clearRequests();
     await logger.completeRun();
     await expect(waitForChangeRequestBodies()).resolves.toEqual([
@@ -693,10 +682,9 @@ describe('RunLogger#completeRun', () => {
 
 describe('RunLogger#cancelRun', () => {
   it('should cancel', async () => {
-    const logger = new LogClient({
-      apiRoot: 'https://server.test/api',
-    });
-    await logger.startRun();
+    setServerRuns([{ runId: 'run-id', experimentId: 'experiment-id' }]);
+    const logger = new LogClient({ apiRoot: 'https://server.test/api' });
+    await logger.startRun({ runId: 'run-id', experimentId: 'experiment-id' });
     clearRequests();
     await logger.cancelRun();
     await expect(waitForChangeRequestBodies()).resolves.toEqual([

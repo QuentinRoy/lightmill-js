@@ -33,7 +33,13 @@ export class LogClient<ClientLog extends Typed & OptionallyDated = AnyLog> {
   #experimentId?: string;
   #apiRoot: string;
   #postLogs: throttle<() => void>;
-  #runStatus: 'idle' | 'running' | 'completed' | 'canceled' = 'idle';
+  #runStatus:
+    | 'idle'
+    | 'starting'
+    | 'running'
+    | 'completed'
+    | 'canceled'
+    | 'error' = 'idle';
   #logCount = 0;
 
   constructor({
@@ -64,35 +70,18 @@ export class LogClient<ClientLog extends Typed & OptionallyDated = AnyLog> {
     this.#postLogs = throttle(
       requestThrottle,
       this.#unthrottledPostLogs.bind(this),
-      {
-        noTrailing: false,
-        noLeading: true,
-      },
+      { noTrailing: false, noLeading: true },
     );
     this.#experimentId = experimentId;
     this.#runId = runId;
     this.#apiRoot = apiRoot.endsWith('/') ? apiRoot.slice(0, -1) : apiRoot;
   }
 
-  #isStarting = false;
-  async startRun({
-    resumeAfterType,
-  }: { resumeAfterType?: ClientLog['type'] | ClientLog['type'][] } = {}) {
-    if (this.#runStatus !== 'idle') {
-      throw new Error(
-        `Can only start a run when the run is idle. Run is ${this.#runStatus}`,
-      );
-    }
-    if (this.#isStarting) {
-      throw new Error('Run is already starting');
-    }
-    this.#isStarting = true;
-    if (resumeAfterType == null) {
-      return this.#startNewRun();
-    }
+  async getResumableRuns() {
     let sessionInfo = await Interface.getSessionInfo({
       apiRoot: this.#apiRoot,
     });
+
     let matchingRuns = (sessionInfo?.runs ?? []).filter(
       (r) =>
         (this.#runId == null || r.runId === this.#runId) &&
@@ -105,68 +94,145 @@ export class LogClient<ClientLog extends Typed & OptionallyDated = AnyLog> {
         ),
       ),
     );
-    matchingRunInfos = matchingRunInfos.filter(
-      (r) => r.status === 'running' || r.status === 'canceled',
-    );
-    if (matchingRunInfos.length === 0) {
-      return this.#startNewRun();
-    }
-    if (matchingRunInfos.length === 1) {
-      let match = matchingRunInfos[0];
-      return this.#resumeRun({
-        runId: match.runId,
-        experimentId: match.experimentId,
-        logs: match.logs,
-        resumeAfterType: Array.isArray(resumeAfterType)
-          ? resumeAfterType
-          : [resumeAfterType],
-      });
-    }
-    throw new Error(
-      `Ambiguous run to start or resume. Found ${matchingRunInfos.length} matching runs in session.`,
-    );
+    return matchingRunInfos
+      .filter((r) => r.status === 'running' || r.status === 'canceled')
+      .map((r) => ({
+        runId: r.runId,
+        experimentId: r.experimentId,
+        status: r.status as 'running' | 'canceled',
+      }));
   }
 
-  async #startNewRun() {
-    // We trust the server to return the correct type.
-    let createRunResponse = await Interface.createNewRun({
-      apiRoot: this.#apiRoot,
-      experimentId: this.#experimentId,
-      runId: this.#runId,
-    });
-    this.#runId = createRunResponse.runId;
-    this.#experimentId = createRunResponse.experimentId;
-    this.#runStatus = 'running';
-  }
-
-  async #resumeRun({
+  async resumeRun({
     runId,
     experimentId,
-    logs,
-    resumeAfterType,
+    resumeAfterLast,
   }: {
-    runId: string;
-    experimentId: string;
-    logs: Array<{ type: string; lastNumber: number }>;
-    resumeAfterType: ClientLog['type'][];
+    runId?: string;
+    experimentId?: string;
+    resumeAfterLast: ClientLog['type'] | ClientLog['type'][];
   }) {
-    let lastNumber = logs
-      .filter((l) => resumeAfterType.includes(l.type))
-      .reduce((acc, log) => Math.max(acc, log.lastNumber), 0);
-    await Interface.resumeRun({
-      apiRoot: this.#apiRoot,
-      runId,
-      experimentId,
-      resumeFrom: lastNumber + 1,
-    });
-    this.#runId = runId;
-    this.#experimentId = experimentId;
+    if (this.#runStatus !== 'idle') {
+      throw new Error(
+        `Can only resume a run when the logger is idle. Logger is ${
+          this.#runStatus
+        }`,
+      );
+    }
+    if (this.#runStatus !== 'idle') {
+      throw new Error(
+        `Can only start a run when the logger is idle. Logger is ${
+          this.#runStatus
+        }`,
+      );
+    }
+    if (this.#runId != null && runId != null && this.#runId !== runId) {
+      throw new Error(
+        `Trying to start a run with a different runId. Current runId is ${
+          this.#runId
+        } and new runId is ${runId}`,
+      );
+    }
+    if (
+      this.#experimentId != null &&
+      experimentId != null &&
+      this.#experimentId !== experimentId
+    ) {
+      throw new Error(
+        `Trying to start a run with a different experimentId. Current experimentId is ${
+          this.#experimentId
+        } and new experimentId is ${experimentId}`,
+      );
+    }
+    let runIdToResume = runId ?? this.#runId;
+    let experimentIdToResume = experimentId ?? this.#experimentId;
+    if (runIdToResume == null) {
+      throw new Error('Cannot resume a run without a runId');
+    }
+    if (experimentIdToResume == null) {
+      throw new Error('Cannot resume a run without an experimentId');
+    }
+    try {
+      this.#runStatus = 'starting';
+      let { run: runInfo } = await Interface.getRunInfo({
+        apiRoot: this.#apiRoot,
+        runId: runIdToResume,
+        experimentId: experimentIdToResume,
+      });
+      let resumeAfterLastSet = new Set(
+        Array.isArray(resumeAfterLast) ? resumeAfterLast : [resumeAfterLast],
+      );
+      let lastNumber = runInfo.logs
+        .filter((l) => resumeAfterLastSet.has(l.type))
+        .reduce((acc, log) => Math.max(acc, log.lastNumber), 0);
+      await Interface.resumeRun({
+        apiRoot: this.#apiRoot,
+        runId: runIdToResume,
+        experimentId: experimentIdToResume,
+        resumeFrom: lastNumber + 1,
+      });
+      this.#runId = runId;
+      this.#experimentId = experimentId;
+      this.#runStatus = 'running';
+      this.#logCount = lastNumber;
+    } catch (err) {
+      this.#runStatus = 'error';
+      throw err;
+    }
+  }
+
+  async startRun({
+    runId,
+    experimentId,
+  }: { runId?: string; experimentId?: string } = {}) {
+    if (this.#runStatus !== 'idle') {
+      throw new Error(
+        `Can only start a run when the logger is idle. Logger is ${
+          this.#runStatus
+        }`,
+      );
+    }
+    if (this.#runId != null && runId != null && this.#runId !== runId) {
+      throw new Error(
+        `Trying to start a run with a different runId. Current runId is ${
+          this.#runId
+        } and new runId is ${runId}`,
+      );
+    }
+    if (
+      this.#experimentId != null &&
+      experimentId != null &&
+      this.#experimentId !== experimentId
+    ) {
+      throw new Error(
+        `Trying to start a run with a different experimentId. Current experimentId is ${
+          this.#experimentId
+        } and new experimentId is ${experimentId}`,
+      );
+    }
+    try {
+      this.#runStatus = 'starting';
+      // We trust the server to return the correct type.
+      let createRunResponse = await Interface.createNewRun({
+        apiRoot: this.#apiRoot,
+        experimentId: experimentId ?? this.#experimentId,
+        runId: runId ?? this.#runId,
+      });
+      this.#runId = createRunResponse.runId;
+      this.#experimentId = createRunResponse.experimentId;
+      this.#runStatus = 'running';
+    } catch (err) {
+      this.#runStatus = 'error';
+      throw err;
+    }
   }
 
   async addLog({ type, ...values }: ClientLog) {
     if (this.#runStatus !== 'running') {
       throw new Error(
-        `Can only add logs to a running run. Run is ${this.#runStatus}`,
+        `Can only add logs when logger is running. Loggers is ${
+          this.#runStatus
+        }`,
       );
     }
     if (type == null) {
@@ -176,8 +242,8 @@ export class LogClient<ClientLog extends Typed & OptionallyDated = AnyLog> {
     }
     this.#logCount += 1;
     this.#logQueue.push({
-      number: this.#logCount,
       type,
+      number: this.#logCount,
       values: { date: new Date(), ...values },
     });
     let promise = this.#logQueuePromise;
