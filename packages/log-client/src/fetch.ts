@@ -38,7 +38,7 @@ function makeJsonFetchMethod(method: string, { noBody = false } = {}) {
     if (response.ok) {
       return json as unknown;
     } else {
-      throw new Error(json.message ?? 'Unknown error');
+      throw new RequestError(response, json.message);
     }
   };
 }
@@ -48,3 +48,15 @@ export const put = makeJsonFetchMethod('PUT');
 export const get = makeJsonFetchMethod('GET', { noBody: true });
 export const del = makeJsonFetchMethod('DELETE');
 export const patch = makeJsonFetchMethod('PATCH');
+
+export class RequestError extends Error {
+  readonly name = 'RequestError';
+  readonly status: number;
+  readonly statusText: string;
+
+  constructor(response: Response, message?: string) {
+    super(message);
+    this.status = response.status;
+    this.statusText = response.statusText;
+  }
+}
