@@ -1,6 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-
-import { Runner } from '../src/runner.js';
+import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
+import { TimelineRunner } from '../src/runner.js';
 
 function wait(t = 0) {
   return new Promise<void>((resolve) => {
@@ -18,137 +17,146 @@ type Deffered<V> = {
 function deffer<V>(value: V): Deffered<V>;
 function deffer(): Deffered<void>;
 function deffer<V>(value?: V) {
-  let resolve: () => void;
-  let reject: (err?: Error) => void;
-  const promise = new Promise<V>((res, rej) => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    resolve = () => res(value as any);
+  let resolve: (() => void) | null = null;
+  let reject: ((err?: Error) => void) | null = null;
+  const promise = new Promise<V | undefined>((res, rej) => {
+    resolve = () => res(value);
     reject = rej;
   });
-  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-  return { promise, resolve: resolve!, reject: reject! };
+  if (resolve == null || reject == null) {
+    throw new Error('Internal error: No resolve or reject function');
+  }
+  return { promise, resolve, reject };
 }
 
-describe('Runner', () => {
-  let tasks: Task[];
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  let handler = vi.fn((handlerName: string, ...rest: unknown[]) => wait());
+describe('TimelineRunner', () => {
+  let timeline: Task[];
 
   beforeEach(() => {
-    tasks = [
-      { type: 'typeA' as const, dA: 1 },
-      { type: 'typeB' as const, dB: 2 },
-      { type: 'typeA' as const, dA: 3 },
+    timeline = [
+      { type: 'typeA', dA: 1 },
+      { type: 'typeB', dB: 2 },
+      { type: 'typeA', dA: 3 },
     ];
-    handler.mockReset();
   });
 
-  it('run tasks and calls their corresponding handlers', async () => {
-    let runner = new Runner<Task>({
-      tasks: {
-        typeA: (...args) => handler('typeA', ...args),
-        typeB: (...args) => handler('typeB', ...args),
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('run tasks and corresponding handlers', async () => {
+    let logCall = vi.fn<LogCallArgs, LogCallResult>();
+    type LogCallArgs = [handlerName: string, ...rest: unknown[]];
+    type LogCallResult = Promise<void>;
+    let runner = new TimelineRunner<Task>({
+      timeline,
+      onTaskCompleted(...args) {
+        logCall('onTaskCompleted', ...args);
+      },
+      onTaskStarted(...args) {
+        logCall('onTaskStarted', ...args);
+      },
+      onTimelineCompleted(...args) {
+        logCall('onTimelineCompleted', ...args);
+      },
+      onTimelineStarted(...args) {
+        logCall('onTimelineStarted', ...args);
+      },
+      onTimelineCanceled(...args) {
+        logCall('onTimelineCanceled', ...args);
+      },
+      onLoading(...args) {
+        logCall('onLoading', ...args);
+      },
+      onError(...args) {
+        logCall('onError', ...args);
       },
     });
-    await expect(runner.run(tasks)).resolves.toBe(undefined);
-    expect(handler.mock.calls).toEqual([
-      ['typeA', { type: 'typeA', dA: 1 }],
-      ['typeB', { type: 'typeB', dB: 2 }],
-      ['typeA', { type: 'typeA', dA: 3 }],
+
+    runner.start();
+    expect(logCall.mock.calls).toEqual([
+      ['onTimelineStarted'],
+      ['onTaskStarted', { type: 'typeA', dA: 1 }],
+    ]);
+    logCall.mockClear();
+    runner.completeTask();
+    expect(logCall.mock.calls).toEqual([
+      ['onTaskCompleted', { type: 'typeA', dA: 1 }],
+      ['onTaskStarted', { type: 'typeB', dB: 2 }],
+    ]);
+    logCall.mockClear();
+    runner.completeTask();
+    expect(logCall.mock.calls).toEqual([
+      ['onTaskCompleted', { type: 'typeB', dB: 2 }],
+      ['onTaskStarted', { type: 'typeA', dA: 3 }],
+    ]);
+    logCall.mockClear();
+    runner.completeTask();
+    expect(logCall.mock.calls).toEqual([
+      ['onTaskCompleted', { type: 'typeA', dA: 3 }],
+      ['onTimelineCompleted'],
     ]);
   });
 
-  it('supports progress handlers', async () => {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    let handler = vi.fn((...args: unknown[]) => wait());
-    let runner = new Runner<Task>({
-      tasks: {
-        typeA: (...args) => handler('typeA', ...args),
-        typeB: (...args) => handler('typeB', ...args),
-      },
-      onExperimentStarted: (...args) => handler('onExperimentStarted', ...args),
-      onExperimentCompleted: (...args) =>
-        handler('onExperimentCompleted', ...args),
-      onLoading: (...args) => handler('onLoading', ...args),
-    });
-    await expect(runner.run(tasks)).resolves.toBe(undefined);
-    expect(handler.mock.calls).toEqual([
-      ['onExperimentStarted'],
-      ['onLoading'],
-      ['typeA', { type: 'typeA', dA: 1 }],
-      ['onLoading'],
-      ['typeB', { type: 'typeB', dB: 2 }],
-      ['onLoading'],
-      ['typeA', { type: 'typeA', dA: 3 }],
-      ['onLoading'],
-      ['onExperimentCompleted'],
-    ]);
-  });
-
-  it('maintains its state property', async () => {
-    type HanlerArgs = [string, ...unknown[]];
-    let taskDeffers = tasks.map((task) => deffer(task));
+  it('maintains its status property', async () => {
+    let taskDeffers = timeline.map((task) => deffer(task));
     async function* taskGen() {
       for (const deffer of taskDeffers) {
         yield deffer.promise;
       }
     }
-    let taskHandler = vi.fn<HanlerArgs, Deffered<void>>(() => {
-      expect(runner.state).toBe('running');
-      return deffer();
+    let onTaskStarted = vi.fn<unknown[], void>(() => {
+      expect(runner.status).toBe('running');
     });
-    let onExperimentStarted = vi.fn(() => {
-      expect(runner.state).toBe('loading');
+    let onTimelineStarted = vi.fn(() => {
+      expect(runner.status).toBe('running');
     });
-    let onExperimentCompleted = vi.fn(() => {
-      expect(runner.state).toBe('completed');
+    let onTimelineCompleted = vi.fn(() => {
+      expect(runner.status).toBe('completed');
     });
     let onLoading = vi.fn(() => {
-      expect(runner.state).toBe('loading');
+      expect(runner.status).toBe('loading');
     });
-    let runner = new Runner<Task>({
-      tasks: {
-        typeA: (...args) => taskHandler('typeA', ...args).promise,
-        typeB: (...args) => taskHandler('typeB', ...args).promise,
-      },
-      onExperimentStarted: onExperimentStarted,
-      onExperimentCompleted: onExperimentCompleted,
-      onLoading: onLoading,
+    let runner = new TimelineRunner<Task>({
+      timeline: taskGen(),
+      onTaskStarted,
+      onTimelineStarted,
+      onTimelineCompleted,
+      onLoading,
     });
-    expect(runner.state).toBe('idle');
-    let runPromise = runner.run(taskGen());
-    expect(runner.state).toBe('loading');
-    expect(onExperimentStarted.mock.calls).toEqual([[]]);
+    expect(runner.status).toBe('idle');
+    runner.start();
+    expect(runner.status).toBe('loading');
+    expect(onTimelineStarted.mock.calls).toEqual([[]]);
     expect(onLoading.mock.calls).toEqual([[]]);
     taskDeffers[0].resolve();
     await wait();
-    expect(taskHandler.mock.calls).toEqual([
-      ['typeA', { type: 'typeA', dA: 1 }],
-    ]);
-    taskHandler.mock.results[0].value.resolve();
+    expect(onTaskStarted.mock.calls).toEqual([[{ type: 'typeA', dA: 1 }]]);
+    runner.completeTask();
     await wait();
-    expect(runner.state).toBe('loading');
+    expect(runner.status).toBe('loading');
     expect(onLoading.mock.calls).toEqual([[], []]);
     taskDeffers[1].resolve();
     await wait();
-    expect(taskHandler.mock.calls).toEqual([
-      ['typeA', { type: 'typeA', dA: 1 }],
-      ['typeB', { type: 'typeB', dB: 2 }],
+    expect(onTaskStarted.mock.calls).toEqual([
+      [{ type: 'typeA', dA: 1 }],
+      [{ type: 'typeB', dB: 2 }],
     ]);
     await wait();
-    taskHandler.mock.results[1].value.resolve();
-    await wait();
-    expect(runner.state).toBe('loading');
+    runner.completeTask();
+    expect(runner.status).toBe('loading');
     expect(onLoading.mock.calls).toEqual([[], [], []]);
     taskDeffers[2].resolve();
     await wait();
-    expect(taskHandler.mock.calls).toEqual([
-      ['typeA', { type: 'typeA', dA: 1 }],
-      ['typeB', { type: 'typeB', dB: 2 }],
-      ['typeA', { type: 'typeA', dA: 3 }],
+    expect(onTaskStarted.mock.calls).toEqual([
+      [{ type: 'typeA', dA: 1 }],
+      [{ type: 'typeB', dB: 2 }],
+      [{ type: 'typeA', dA: 3 }],
     ]);
-    taskHandler.mock.results[2].value.resolve();
-    await runPromise;
-    expect(onExperimentCompleted.mock.calls).toEqual([[]]);
+    runner.completeTask();
+    expect(runner.status).toBe('loading');
+    expect(onLoading.mock.calls).toEqual([[], [], [], []]);
+    await wait();
+    expect(onTimelineCompleted.mock.calls).toEqual([[]]);
   });
 });
