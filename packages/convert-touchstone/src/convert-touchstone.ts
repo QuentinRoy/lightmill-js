@@ -1,13 +1,14 @@
 import * as sax from 'sax';
 import type StaticDesign from '@lightmill/static-design';
 
-export type ExperimentBase = {
+export type Experiment = {
   author: string;
   description: string;
   id: string;
 };
-export type RunBase = { id: string };
-export type Run<T extends BaseTask> = RunBase & {
+export type WithId = { id: string };
+export type Run<T extends MinimalTask> = {
+  id: string;
   tasks: Array<T>;
 };
 export type Trial = (
@@ -18,9 +19,9 @@ export type Trial = (
 export type Block = ({ practice: false; number: number } | { practice: true }) &
   FactorValues;
 export type FactorValues = Record<string, unknown>;
-export type BaseTask = { type: string; id: string };
-export type UndefinedTask = BaseTask & Record<string, unknown>;
-export type DesignConfig<T extends BaseTask> = ExperimentBase &
+export type MinimalTask = { type: string; id: string };
+export type UndefinedTask = MinimalTask & Record<string, unknown>;
+export type DesignConfig<T extends MinimalTask> = Experiment &
   ConstructorParameters<typeof StaticDesign<T>>[0];
 
 type TypeParserKey = 'integer' | 'float' | 'string';
@@ -43,18 +44,18 @@ type DefinedMapper<FArgs extends MapperArgs, T> =
   | T
   | Array<T>;
 type MapperOptions<T> = {
-  preBlock?: Mapper<[Block, RunBase, ExperimentBase], T>;
-  postBlock?: Mapper<[Block, RunBase, ExperimentBase], T>;
-  trial?: Mapper<[Trial, Block, RunBase, ExperimentBase], T>;
-  preRun?: Mapper<[RunBase, ExperimentBase], T>;
-  postRun?: Mapper<[RunBase, ExperimentBase], T>;
+  preBlock?: Mapper<[Block, WithId, Experiment], T>;
+  postBlock?: Mapper<[Block, WithId, Experiment], T>;
+  trial?: Mapper<[Trial, Block, WithId, Experiment], T>;
+  preRun?: Mapper<[WithId, Experiment], T>;
+  postRun?: Mapper<[WithId, Experiment], T>;
 };
 type DefinedMapperOptions<T> = {
-  preBlock?: DefinedMapper<[Block, RunBase, ExperimentBase], T>;
-  postBlock?: DefinedMapper<[Block, RunBase, ExperimentBase], T>;
-  trial?: DefinedMapper<[Trial, Block, RunBase, ExperimentBase], T>;
-  preRun?: DefinedMapper<[RunBase, ExperimentBase], T>;
-  postRun?: DefinedMapper<[RunBase, ExperimentBase], T>;
+  preBlock?: DefinedMapper<[Block, WithId, Experiment], T>;
+  postBlock?: DefinedMapper<[Block, WithId, Experiment], T>;
+  trial?: DefinedMapper<[Trial, Block, WithId, Experiment], T>;
+  preRun?: DefinedMapper<[WithId, Experiment], T>;
+  postRun?: DefinedMapper<[WithId, Experiment], T>;
 };
 
 /**
@@ -84,7 +85,7 @@ type DefinedMapperOptions<T> = {
  * convertTouchStone(data, { preBlocks, postBlocks, postRuns, preRuns })
  *   .then(doSomething);
  */
-export default function convertTouchstone<T extends BaseTask>(
+export default function convertTouchstone<T extends MinimalTask>(
   touchStoneXML: string | { pipe: (arg0: sax.SAXStream) => void },
   opts: DefinedMapperOptions<FacultativeId<T>> &
     Required<Pick<DefinedMapperOptions<FacultativeId<T>>, 'trial'>>,
@@ -128,8 +129,8 @@ export default function convertTouchstone(
     const getPostRunTasks = createTaskGetter(postRun, getTaskId);
     const getTrialTasks = createTaskGetter(trial, getTaskId);
 
-    let experiment: DesignConfig<BaseTask> | null = null;
-    let currentRun: Run<BaseTask> | null = null;
+    let experiment: DesignConfig<MinimalTask> | null = null;
+    let currentRun: Run<MinimalTask> | null = null;
     let currentBlock: Block | null = null;
 
     // Handlers to be called on open tag events.
@@ -390,18 +391,18 @@ class IdManager {
   }
 }
 
-function createTaskGetter<FArgs extends MapperArgs, T extends BaseTask>(
+function createTaskGetter<FArgs extends MapperArgs, T extends MinimalTask>(
   mapper: DefinedMapper<FArgs, FacultativeId<T>> | undefined,
   getId: (type: string, requestedId?: string) => string,
 ): (...args: FArgs) => Array<T>;
-function createTaskGetter<FArgs extends MapperArgs, T extends BaseTask>(
+function createTaskGetter<FArgs extends MapperArgs, T extends MinimalTask>(
   mapper: Mapper<FArgs, FacultativeId<T>> | undefined,
   getId: (type: string, requestedId?: string) => string,
-): (...args: FArgs) => Array<BaseTask>;
-function createTaskGetter<FArgs extends MapperArgs, T extends BaseTask>(
+): (...args: FArgs) => Array<MinimalTask>;
+function createTaskGetter<FArgs extends MapperArgs, T extends MinimalTask>(
   mapper: Mapper<FArgs, FacultativeId<T>> | undefined,
   getId: (type: string, requestedId?: string) => string,
-): (...args: FArgs) => Array<BaseTask> {
+): (...args: FArgs) => Array<MinimalTask> {
   if (mapper == null) {
     return () => [];
   }
@@ -437,7 +438,7 @@ function createTaskGetter<FArgs extends MapperArgs, T extends BaseTask>(
 
 function createDefaultTrialMapper() {
   let lastPracticeTrialId = 0;
-  return function (trial: Trial, block: Block): BaseTask {
+  return function (trial: Trial, block: Block): MinimalTask {
     let id: string;
     if (trial.practice || block.practice) {
       lastPracticeTrialId += 1;
