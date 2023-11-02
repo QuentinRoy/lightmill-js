@@ -30,14 +30,14 @@ const ctx = zodiosContext(
 type CreateLogServerOptions = {
   store: Store;
   secret: string;
-  adminPassword?: string;
+  hostPassword?: string;
   allowCrossOrigin?: boolean;
   secureCookies?: boolean;
 };
 export function LogServer({
   store,
   secret,
-  adminPassword,
+  hostPassword,
   allowCrossOrigin = true,
   secureCookies = allowCrossOrigin,
 }: CreateLogServerOptions): RequestHandler {
@@ -68,11 +68,7 @@ export function LogServer({
       return;
     }
     const { role, password } = req.body;
-    if (
-      role === 'host' &&
-      adminPassword != null &&
-      password !== adminPassword
-    ) {
+    if (role === 'host' && hostPassword != null && password !== hostPassword) {
       res
         .status(403)
         .json({ status: 'error', message: `Forbidden role: ${role}` });

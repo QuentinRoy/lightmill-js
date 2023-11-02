@@ -96,43 +96,43 @@ describe('sessions', () => {
       await api.post('/sessions').send({ role: 'fake' }).expect(400);
     });
 
-    it('should accept the creation of an admin session if there is no admin password set on the server', async () => {
-      await api.post('/sessions').send({ role: 'admin' }).expect(201, {
-        role: 'admin',
+    it('should accept the creation of an host session if there is no host password set on the server', async () => {
+      await api.post('/sessions').send({ role: 'host' }).expect(201, {
+        role: 'host',
         runs: [],
         status: 'ok',
       });
     });
 
-    it('should accept the creation of an admin role if the provided password is correct', async () => {
+    it('should accept the creation of an host role if the provided password is correct', async () => {
       let app = LogServer({
         store: MockStore(),
         secret: 'secret',
-        adminPassword: 'admin password',
+        hostPassword: 'host password',
       });
       let api = request(app);
       await api
         .post('/sessions')
-        .send({ role: 'admin', password: 'admin password' })
+        .send({ role: 'host', password: 'host password' })
         .expect(201, {
-          role: 'admin',
+          role: 'host',
           runs: [],
           status: 'ok',
         });
     });
 
-    it('should refuse the creation of an admin role if the provided password is incorrect', async () => {
+    it('should refuse the creation of an host role if the provided password is incorrect', async () => {
       let app = LogServer({
         store: MockStore(),
         secret: 'secret',
-        adminPassword: 'admin password',
+        hostPassword: 'host password',
       });
       let req = request(app);
       await req
         .post('/sessions')
-        .send({ role: 'admin', password: 'not the admin password' })
+        .send({ role: 'host', password: 'not the host password' })
         .expect(403, {
-          message: 'Forbidden role: admin',
+          message: 'Forbidden role: host',
           status: 'error',
         });
     });
@@ -589,13 +589,13 @@ describe('logs', () => {
         secureCookies: false,
       });
       api = request.agent(app);
-      await api.post('/sessions').send({ role: 'admin' });
+      await api.post('/sessions').send({ role: 'host' });
     });
     afterEach(() => {
       vi.useRealTimers();
     });
 
-    it('should refuse to fetch logs if the client is not logged as an admin', async () => {
+    it('should refuse to fetch logs if the client is not logged as an host', async () => {
       await api.delete('/sessions/current').expect(200);
       await api.post('/sessions').send({ role: 'participant' }).expect(201);
       await api.get('/experiments/exp/logs').expect(403, {
