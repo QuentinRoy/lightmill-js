@@ -63,7 +63,7 @@ export async function up(db: Kysely<Database>) {
       .addColumn('experimentId', 'text', (column) => column.notNull())
       .addColumn('runId', 'text', (column) => column.notNull())
       .addColumn('sequenceNumber', 'integer', (column) =>
-        column.notNull().check(sql`number > 0`),
+        column.notNull().check(sql`sequence_number > 0`),
       )
       .addColumn('start', 'integer', (column) =>
         // Make sure that the start number is greater than zero.
@@ -127,17 +127,17 @@ export async function up(db: Kysely<Database>) {
         SELECT start FROM log_sequence WHERE sequence_id = NEW.sequence_id
       )
       BEGIN
-        SELECT RAISE(ABORT, 'Cannot insert log with number smaller than its sequence start');
+        SELECT RAISE(ABORT, 'Cannot insert log with log_number smaller than its sequence start');
       END;
     `.execute(trx);
 
-    // There should already be an index to select logs by logSequenceId and
-    // number, but we need to create an index to select logs by logSequenceId,
+    // There should already be an index to select logs by sequenceId and
+    // number, but we need to create an index to select logs by sequenceId,
     // type, and number.
     await trx.schema
       .createIndex('logSelectWithType')
       .on('log')
-      .columns(['logSequenceId', 'type', 'number'])
+      .columns(['sequenceId', 'type', 'logNumber'])
       .execute();
 
     await trx.schema
@@ -199,7 +199,9 @@ export async function up(db: Kysely<Database>) {
       .addColumn('logId', 'integer', (column) => column.notNull())
       .addColumn('name', 'text', (column) => column.notNull())
       .addColumn('value', 'json', (column) => column.notNull())
-      .addForeignKeyConstraint('ForeignLogValuelogId', ['logId'], 'log', ['id'])
+      .addForeignKeyConstraint('ForeignLogValuelogId', ['logId'], 'log', [
+        'logId',
+      ])
       .addPrimaryKeyConstraint('logValuePrimaryKey', ['logId', 'name'])
       .execute();
     await sql`
