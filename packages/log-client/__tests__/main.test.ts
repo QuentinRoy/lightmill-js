@@ -1,9 +1,13 @@
 import { LogClient } from '../src/log-client.js';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { afterAll, afterEach, beforeAll } from 'vitest';
-import type { Response as ApiResponse, Path } from '@lightmill/log-api';
+import type {
+  Response as ApiResponse,
+  Path,
+  Body as ApiBody,
+} from '@lightmill/log-api';
 import { setupServer } from 'msw/node';
-import { rest } from 'msw';
+import { http, HttpResponse } from 'msw';
 
 // This does not work well because it does not prevent string from containing
 // a slash, so some incorrect paths are allowed,
@@ -16,43 +20,34 @@ type TemplatizedPath<P> = P extends `${infer Start}/:${string}/${infer End}`
 type ServerPath = `https://server.test/api${TemplatizedPath<Path>}`;
 
 const server = setupServer(
-  rest.delete(
+  http.delete(
     'https://server.test/api/sessions/current' satisfies ServerPath,
-    (req, res, ctx) => {
-      return res(
-        ctx.status(200),
-        ctx.json({ status: 'ok' } satisfies ApiResponse<
-          'delete',
-          '/sessions/current'
-        >),
-      );
+    () => {
+      return HttpResponse.json({ status: 'ok' } satisfies ApiResponse<
+        'delete',
+        '/sessions/current'
+      >);
     },
   ),
-  rest.post(
+  http.post(
     'https://server.test/api/runs' satisfies ServerPath,
-    async (req, res, ctx) => {
-      let body = await req.json();
-      return res(
-        ctx.status(200),
-        ctx.json({
-          status: 'ok',
-          runId: body.runId ?? 'default-run-id',
-          experimentId: body.experimentId ?? 'default-experiment-id',
-        } satisfies ApiResponse<'post', '/runs'>),
-      );
+    async ({ request }) => {
+      let body = (await request.json()) as ApiBody<'post', '/runs'>;
+      return HttpResponse.json({
+        status: 'ok',
+        runId: body?.runId ?? 'default-run-id',
+        experimentId: body?.experimentId ?? 'default-experiment-id',
+      } satisfies ApiResponse<'post', '/runs'>);
     },
   ),
-  rest.get(
+  http.get(
     'https://server.test/api/sessions/current' satisfies ServerPath,
-    (req, res, ctx) => {
-      return res(
-        ctx.status(200),
-        ctx.json({
-          status: 'ok',
-          role: 'participant',
-          runs: [],
-        } satisfies ApiResponse<'get', '/sessions/current'>),
-      );
+    () => {
+      return HttpResponse.json({
+        status: 'ok',
+        role: 'participant',
+        runs: [],
+      } satisfies ApiResponse<'get', '/sessions/current'>);
     },
   ),
 );
@@ -71,95 +66,83 @@ function setServerRuns(
   }>,
 ) {
   server.use(
-    rest.get(
+    http.get(
       'https://server.test/api/sessions/current' satisfies ServerPath,
-      (req, res, ctx) => {
-        return res(
-          ctx.status(200),
-          ctx.json({
-            status: 'ok',
-            role: 'participant',
-            runs,
-          } satisfies ApiResponse<'get', '/sessions/current'>),
-        );
+      () => {
+        return HttpResponse.json({
+          status: 'ok',
+          role: 'participant',
+          runs,
+        } satisfies ApiResponse<'get', '/sessions/current'>);
       },
     ),
     ...runs.flatMap((run) => [
-      rest.get(
+      http.get(
         `https://server.test/api/experiments/${run.experimentId}/runs/${run.runId}` satisfies ServerPath,
-        (req, res, ctx) => {
-          return res(
-            ctx.status(200),
-            ctx.json({
-              status: 'ok',
-              run: { status: 'running', logs: [], ...run },
-            } satisfies ApiResponse<
-              'get',
-              '/experiments/:experimentId/runs/:runId'
-            >),
-          );
+        () => {
+          return HttpResponse.json({
+            status: 'ok',
+            run: { status: 'running', logs: [], ...run },
+          } satisfies ApiResponse<
+            'get',
+            '/experiments/:experimentId/runs/:runId'
+          >);
         },
       ),
-      rest.patch(
+      http.patch(
         `https://server.test/api/experiments/${run.experimentId}/runs/${run.runId}` satisfies ServerPath,
-        (req, res, ctx) => {
-          return res(
-            ctx.status(200),
-            ctx.json({ status: 'ok' } satisfies ApiResponse<
-              'patch',
-              '/experiments/:experimentId/runs/:runId'
-            >),
-          );
+        () => {
+          return HttpResponse.json({ status: 'ok' } satisfies ApiResponse<
+            'patch',
+            '/experiments/:experimentId/runs/:runId'
+          >);
         },
       ),
     ]),
     ...runs.flatMap((run) => [
-      rest.post(
+      http.post(
         `https://server.test/api/experiments/${run.experimentId}/runs/${run.runId}/logs` satisfies ServerPath,
-        (req, res, ctx) => {
-          return res(
-            ctx.status(200),
-            ctx.json({ status: 'ok' } satisfies ApiResponse<
-              'post',
-              '/experiments/:experimentId/runs/:runId/logs'
-            >),
-          );
+        () => {
+          return HttpResponse.json({ status: 'ok' } satisfies ApiResponse<
+            'post',
+            '/experiments/:experimentId/runs/:runId/logs'
+          >);
         },
       ),
-      rest.patch(
+      http.patch(
         `https://server.test/api/experiments/${run.experimentId}/runs/${run.runId}` satisfies ServerPath,
-        (req, res, ctx) => {
-          return res(
-            ctx.status(200),
-            ctx.json({ status: 'ok' } satisfies ApiResponse<
-              'patch',
-              '/experiments/:experimentId/runs/:runId'
-            >),
-          );
+        () => {
+          return HttpResponse.json({ status: 'ok' } satisfies ApiResponse<
+            'patch',
+            '/experiments/:experimentId/runs/:runId'
+          >);
         },
       ),
     ]),
   );
 }
 
-let requests: Array<{ url: string; method: string }> = [];
-let requestBodies: Array<Promise<string>> = [];
+let requests: Array<Request> = [];
 
-async function waitForRequestBodies() {
-  let bodies = await Promise.all(requestBodies);
-  return bodies
-    .map((body) => (body === '' ? undefined : JSON.parse(body)))
-    .map((body, i) => ({ body, ...requests[i] }));
+async function waitForRequests() {
+  return Promise.all(
+    requests.map(async (r) => {
+      let body = r.body == null ? null : await r.json();
+      return { method: r.method, url: r.url, body };
+    }),
+  );
 }
-const changeRequestMethods = ['PUT', 'PATCH', 'POST', 'DELETE'];
-async function waitForChangeRequestBodies() {
-  let requests = await waitForRequestBodies();
-  return requests.filter((r) => changeRequestMethods.includes(r.method));
+
+// In most cases, these are the one we care about because these are the one
+// that actually change the state of the server.
+const HTTP_CHANGE_METHODS = ['PUT', 'PATCH', 'POST', 'DELETE'];
+async function waitForChangeRequests() {
+  let requests = await waitForRequests();
+  return requests.filter((r) => HTTP_CHANGE_METHODS.includes(r.method));
 }
 
 function clearRequests() {
   requests = [];
-  requestBodies = [];
 }
 
 // Start server before all tests.
@@ -174,12 +157,10 @@ afterAll(() => {
 
 beforeEach(() => {
   vi.useFakeTimers();
-  server.events.on('request:start', (req) => {
-    requests.push({
-      url: req.url.toString(),
-      method: req.method,
-    });
-    requestBodies.push(req.text());
+  server.events.on('request:start', ({ request }) => {
+    // We need to clone the request because it is a stream and may be
+    // consumed by the server.
+    requests.push(request.clone());
   });
 });
 
@@ -197,7 +178,7 @@ describe('RunLogger#startRun', () => {
       apiRoot: 'https://server.test/api',
     });
     await logger.startRun();
-    await expect(waitForChangeRequestBodies()).resolves.toEqual([
+    await expect(waitForChangeRequests()).resolves.toEqual([
       {
         url: 'https://server.test/api/runs',
         method: 'POST',
@@ -214,7 +195,7 @@ describe('RunLogger#startRun', () => {
     });
     await logger.startRun();
 
-    await expect(waitForChangeRequestBodies()).resolves.toEqual([
+    await expect(waitForChangeRequests()).resolves.toEqual([
       {
         url: 'https://server.test/api/runs',
         method: 'POST',
@@ -242,7 +223,7 @@ describe('RunLogger#resumeRun', () => {
       experimentId: 'test-experiment',
     });
     await logger.resumeRun({ resumeAfterLast: 'test-type' });
-    await expect(waitForChangeRequestBodies()).resolves.toEqual([
+    await expect(waitForChangeRequests()).resolves.toEqual([
       {
         url: 'https://server.test/api/experiments/test-experiment/runs/test-run',
         method: 'PATCH',
@@ -270,7 +251,7 @@ describe('RunLogger#resumeRun', () => {
       experimentId: 'test-experiment',
     });
     await logger.resumeRun({ resumeAfterLast: ['test-type1', 'test-type2'] });
-    await expect(waitForChangeRequestBodies()).resolves.toEqual([
+    await expect(waitForChangeRequests()).resolves.toEqual([
       {
         url: 'https://server.test/api/experiments/test-experiment/runs/test-run',
         method: 'PATCH',
@@ -298,7 +279,7 @@ describe('RunLogger#resumeRun', () => {
       experimentId: 'test-experiment',
       runId: 'test-run',
     });
-    await expect(waitForChangeRequestBodies()).resolves.toEqual([
+    await expect(waitForChangeRequests()).resolves.toEqual([
       {
         url: 'https://server.test/api/experiments/test-experiment/runs/test-run',
         method: 'PATCH',
@@ -328,7 +309,7 @@ describe('RunLogger#resumeRun', () => {
       experimentId: 'test-experiment',
       runId: 'test-run',
     });
-    await expect(waitForChangeRequestBodies()).resolves.toEqual([
+    await expect(waitForChangeRequests()).resolves.toEqual([
       {
         url: 'https://server.test/api/experiments/test-experiment/runs/test-run',
         method: 'PATCH',
@@ -404,7 +385,7 @@ describe('RunLogger#addLog (after start)', () => {
     });
     vi.runAllTimers();
     await p;
-    await expect(waitForChangeRequestBodies()).resolves.toEqual([
+    await expect(waitForChangeRequests()).resolves.toEqual([
       {
         url: 'https://server.test/api/experiments/experiment-id/runs/run-id/logs',
         method: 'POST',
@@ -441,7 +422,7 @@ describe('RunLogger#addLog (after start)', () => {
     ]);
     vi.runAllTimers();
     await p;
-    await expect(waitForChangeRequestBodies()).resolves.toEqual([
+    await expect(waitForChangeRequests()).resolves.toEqual([
       {
         url: 'https://server.test/api/experiments/experiment-id/runs/run-id/logs',
         method: 'POST',
@@ -474,7 +455,7 @@ describe('RunLogger#addLog (after start)', () => {
     let p = logger.addLog({ type: 'mock-log', val: 1 });
     vi.runAllTimers();
     await p;
-    await expect(waitForChangeRequestBodies()).resolves.toEqual([
+    await expect(waitForChangeRequests()).resolves.toEqual([
       {
         url: 'https://server.test/api/experiments/experiment-id/runs/run-id/logs',
         method: 'POST',
@@ -499,7 +480,7 @@ describe('RunLogger#addLog (after start)', () => {
     p = logger.addLog({ type: 'mock-log', val: 2 });
     vi.runAllTimers();
     await p;
-    await expect(waitForChangeRequestBodies()).resolves.toEqual([
+    await expect(waitForChangeRequests()).resolves.toEqual([
       {
         url: 'https://server.test/api/experiments/experiment-id/runs/run-id/logs',
         method: 'POST',
@@ -527,7 +508,7 @@ describe('RunLogger#addLog (after start)', () => {
     let p = logger.addLog({ type: 'mock-log' });
     vi.runAllTimers();
     await p;
-    await expect(waitForChangeRequestBodies()).resolves.toEqual([
+    await expect(waitForChangeRequests()).resolves.toEqual([
       {
         url: 'https://server.test/api/experiments/experiment-id/runs/run-id/logs',
         method: 'POST',
@@ -584,7 +565,7 @@ describe('RunLogger#addLog (after resume)', () => {
     ]);
     vi.runAllTimers();
     await p;
-    await expect(waitForChangeRequestBodies()).resolves.toEqual([
+    await expect(waitForChangeRequests()).resolves.toEqual([
       {
         url: 'https://server.test/api/experiments/test-experiment/runs/test-run/logs',
         method: 'POST',
@@ -635,7 +616,7 @@ describe('RunLogger#flush', () => {
     });
     // No timer this time, flush should send the request immediately.
     await logger.flush();
-    await expect(waitForChangeRequestBodies()).resolves.toEqual([
+    await expect(waitForChangeRequests()).resolves.toEqual([
       {
         url: 'https://server.test/api/experiments/experiment-id/runs/run-id/logs',
         method: 'POST',
@@ -670,7 +651,7 @@ describe('RunLogger#completeRun', () => {
     await logger.startRun({ runId: 'run-id', experimentId: 'experiment-id' });
     clearRequests();
     await logger.completeRun();
-    await expect(waitForChangeRequestBodies()).resolves.toEqual([
+    await expect(waitForChangeRequests()).resolves.toEqual([
       {
         method: 'PATCH',
         url: 'https://server.test/api/experiments/experiment-id/runs/run-id',
@@ -687,7 +668,7 @@ describe('RunLogger#cancelRun', () => {
     await logger.startRun({ runId: 'run-id', experimentId: 'experiment-id' });
     clearRequests();
     await logger.cancelRun();
-    await expect(waitForChangeRequestBodies()).resolves.toEqual([
+    await expect(waitForChangeRequests()).resolves.toEqual([
       {
         method: 'PATCH',
         url: 'https://server.test/api/experiments/experiment-id/runs/run-id',
@@ -705,10 +686,11 @@ describe('RunLogger#logout', () => {
     await logger.startRun();
     clearRequests();
     await logger.logout();
-    await expect(waitForChangeRequestBodies()).resolves.toEqual([
+    await expect(waitForChangeRequests()).resolves.toEqual([
       {
         method: 'DELETE',
         url: 'https://server.test/api/sessions/current',
+        body: null,
       },
     ]);
   });
