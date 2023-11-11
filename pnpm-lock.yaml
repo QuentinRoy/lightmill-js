@@ -1,9 +1,5 @@
 lockfileVersion: '6.0'
 
-settings:
-  autoInstallPeers: true
-  excludeLinksFromLockfile: false
-
 importers:
 
   .:
@@ -56,16 +52,16 @@ importers:
         version: 5.1.6
       vite:
         specifier: ^4.4.8
-        version: 4.4.8(@types/node@18.17.2)
+        version: 4.4.8
       vitest:
         specifier: ^0.34.1
-        version: 0.34.1(jsdom@22.1.0)
+        version: 0.34.1
 
   packages/log-api:
     dependencies:
       '@zodios/core':
         specifier: ^10.9.2
-        version: 10.9.2(axios@1.4.0)(zod@3.21.4)
+        version: 10.9.2(zod@3.21.4)
       zod:
         specifier: ^3.21.4
         version: 3.21.4
@@ -75,10 +71,10 @@ importers:
         version: 5.1.6
       vite:
         specifier: ^4.4.8
-        version: 4.4.8(@types/node@18.17.2)
+        version: 4.4.8
       vitest:
         specifier: ^0.34.1
-        version: 0.34.1(jsdom@22.1.0)
+        version: 0.34.1
 
   packages/log-client:
     dependencies:
@@ -106,7 +102,7 @@ importers:
         version: 5.1.6
       vitest:
         specifier: ^0.34.1
-        version: 0.34.1(jsdom@22.1.0)
+        version: 0.34.1
 
   packages/log-server:
     dependencies:
@@ -118,10 +114,10 @@ importers:
         version: 2.2.1
       '@zodios/express':
         specifier: ^10.6.1
-        version: 10.6.1(@zodios/core@10.9.2)(express@4.18.2)(zod@3.21.4)
+        version: 10.6.1(express@4.18.2)(zod@3.21.4)
       axios:
-        specifier: ^1.4.0
-        version: 1.4.0
+        specifier: ^1.6.0
+        version: 1.6.0
       better-sqlite3:
         specifier: ^8.5.0
         version: 8.5.0
@@ -206,7 +202,7 @@ importers:
         version: 4.4.8(@types/node@18.17.2)
       vitest:
         specifier: ^0.34.1
-        version: 0.34.1(jsdom@22.1.0)
+        version: 0.34.1
 
   packages/react-experiment:
     dependencies:
@@ -270,7 +266,7 @@ importers:
         version: 5.1.6
       vite:
         specifier: ^4.4.8
-        version: 4.4.8(@types/node@18.17.2)
+        version: 4.4.8
       vitest:
         specifier: ^0.34.1
         version: 0.34.1(jsdom@22.1.0)
@@ -285,10 +281,10 @@ importers:
         version: 5.1.6
       vite:
         specifier: ^4.4.8
-        version: 4.4.8(@types/node@18.17.2)
+        version: 4.4.8
       vitest:
         specifier: ^0.34.1
-        version: 0.34.1(jsdom@22.1.0)
+        version: 0.34.1
 
   packages/static-design:
     devDependencies:
@@ -300,10 +296,10 @@ importers:
         version: 5.1.6
       vite:
         specifier: ^4.4.8
-        version: 4.4.8(@types/node@18.17.2)
+        version: 4.4.8
       vitest:
         specifier: ^0.34.1
-        version: 0.34.1(jsdom@22.1.0)
+        version: 0.34.1
 
 packages:
 
@@ -3206,7 +3202,7 @@ packages:
       '@babel/plugin-transform-react-jsx-self': 7.22.5(@babel/core@7.22.9)
       '@babel/plugin-transform-react-jsx-source': 7.22.5(@babel/core@7.22.9)
       react-refresh: 0.14.0
-      vite: 4.4.8(@types/node@18.17.2)
+      vite: 4.4.8
     transitivePeerDependencies:
       - supports-color
     dev: true
@@ -3254,24 +3250,22 @@ packages:
     engines: {node: '>=10.0.0'}
     dev: true
 
-  /@zodios/core@10.9.2(axios@1.4.0)(zod@3.21.4):
+  /@zodios/core@10.9.2(zod@3.21.4):
     resolution: {integrity: sha512-aY8FgE6Y+91oBaMfTnqibGoHO62OiKKHoiQAq76PYJbU7InFeWsSRhpnBwpibWopRjz45AlqojxKo3QeSAYC7w==}
     peerDependencies:
       axios: ^0.x || ^1.0.0
       zod: ^3.x
     dependencies:
-      axios: 1.4.0
       zod: 3.21.4
     dev: false
 
-  /@zodios/express@10.6.1(@zodios/core@10.9.2)(express@4.18.2)(zod@3.21.4):
+  /@zodios/express@10.6.1(express@4.18.2)(zod@3.21.4):
     resolution: {integrity: sha512-FNgOq8mvwvWP5B2howMKGm6EPp6i/0XFAsQnX5Ov3MLbanzD1oE4WJtBkTL3cmJYvD0nyykbWSeHOh51bCmhUA==}
     peerDependencies:
       '@zodios/core': '>=10.4.4 <11.0.0'
       express: 4.x
       zod: ^3.x
     dependencies:
-      '@zodios/core': 10.9.2(axios@1.4.0)(zod@3.21.4)
       express: 4.18.2
       zod: 3.21.4
     dev: false
@@ -3492,8 +3486,8 @@ packages:
     engines: {node: '>=4'}
     dev: true
 
-  /axios@1.4.0:
-    resolution: {integrity: sha512-S4XCWMEmzvo64T9GfvQDOXgYRDJ/wsSZc7Jvdgx5u1sd0JwsuPLqb3SYmusag+edF6ziyMensPVqLTSc1PiSEA==}
+  /axios@1.6.0:
+    resolution: {integrity: sha512-EZ1DYihju9pwVB+jg67ogm+Tmqc6JmhamRN6I4Zt8DfZu5lbcQGw3ozH9lFejSJgs/ibaef3A9PMXPLeefFGJg==}
     dependencies:
       follow-redirects: 1.15.2
       form-data: 4.0.0
@@ -7867,6 +7861,41 @@ packages:
       - terser
     dev: true
 
+  /vite@4.4.8:
+    resolution: {integrity: sha512-LONawOUUjxQridNWGQlNizfKH89qPigK36XhMI7COMGztz8KNY0JHim7/xDd71CZwGT4HtSRgI7Hy+RlhG0Gvg==}
+    engines: {node: ^14.18.0 || >=16.0.0}
+    hasBin: true
+    peerDependencies:
+      '@types/node': '>= 14'
+      less: '*'
+      lightningcss: ^1.21.0
+      sass: '*'
+      stylus: '*'
+      sugarss: '*'
+      terser: ^5.4.0
+    peerDependenciesMeta:
+      '@types/node':
+        optional: true
+      less:
+        optional: true
+      lightningcss:
+        optional: true
+      sass:
+        optional: true
+      stylus:
+        optional: true
+      sugarss:
+        optional: true
+      terser:
+        optional: true
+    dependencies:
+      esbuild: 0.18.17
+      postcss: 8.4.27
+      rollup: 3.27.2
+    optionalDependencies:
+      fsevents: 2.3.2
+    dev: true
+
   /vite@4.4.8(@types/node@18.17.2):
     resolution: {integrity: sha512-LONawOUUjxQridNWGQlNizfKH89qPigK36XhMI7COMGztz8KNY0JHim7/xDd71CZwGT4HtSRgI7Hy+RlhG0Gvg==}
     engines: {node: ^14.18.0 || >=16.0.0}
@@ -7901,6 +7930,71 @@ packages:
       rollup: 3.27.2
     optionalDependencies:
       fsevents: 2.3.2
+    dev: true
+
+  /vitest@0.34.1:
+    resolution: {integrity: sha512-G1PzuBEq9A75XSU88yO5G4vPT20UovbC/2osB2KEuV/FisSIIsw7m5y2xMdB7RsAGHAfg2lPmp2qKr3KWliVlQ==}
+    engines: {node: '>=v14.18.0'}
+    hasBin: true
+    peerDependencies:
+      '@edge-runtime/vm': '*'
+      '@vitest/browser': '*'
+      '@vitest/ui': '*'
+      happy-dom: '*'
+      jsdom: '*'
+      playwright: '*'
+      safaridriver: '*'
+      webdriverio: '*'
+    peerDependenciesMeta:
+      '@edge-runtime/vm':
+        optional: true
+      '@vitest/browser':
+        optional: true
+      '@vitest/ui':
+        optional: true
+      happy-dom:
+        optional: true
+      jsdom:
+        optional: true
+      playwright:
+        optional: true
+      safaridriver:
+        optional: true
+      webdriverio:
+        optional: true
+    dependencies:
+      '@types/chai': 4.3.5
+      '@types/chai-subset': 1.3.3
+      '@types/node': 18.17.2
+      '@vitest/expect': 0.34.1
+      '@vitest/runner': 0.34.1
+      '@vitest/snapshot': 0.34.1
+      '@vitest/spy': 0.34.1
+      '@vitest/utils': 0.34.1
+      acorn: 8.10.0
+      acorn-walk: 8.2.0
+      cac: 6.7.14
+      chai: 4.3.7
+      debug: 4.3.4
+      local-pkg: 0.4.3
+      magic-string: 0.30.2
+      pathe: 1.1.1
+      picocolors: 1.0.0
+      std-env: 3.3.3
+      strip-literal: 1.3.0
+      tinybench: 2.5.0
+      tinypool: 0.7.0
+      vite: 4.4.8(@types/node@18.17.2)
+      vite-node: 0.34.1(@types/node@18.17.2)
+      why-is-node-running: 2.2.2
+    transitivePeerDependencies:
+      - less
+      - lightningcss
+      - sass
+      - stylus
+      - sugarss
+      - supports-color
+      - terser
     dev: true
 
   /vitest@0.34.1(jsdom@22.1.0):
@@ -8207,3 +8301,7 @@ packages:
   /zod@3.21.4:
     resolution: {integrity: sha512-m46AKbrzKVzOzs/DZgVnG5H55N1sv1M8qZU3A8RIKbs3mrACDNeIOeilDymVb2HdmP8uwshOCF4uJ8uM9rCqJw==}
     dev: false
+
+settings:
+  autoInstallPeers: true
+  excludeLinksFromLockfile: false
