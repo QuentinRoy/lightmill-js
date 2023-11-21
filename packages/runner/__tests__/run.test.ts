@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, Mock, vi } from 'vitest';
-import { run } from '../src/run.js';
+import { runTimeline } from '../src/run.js';
 
 const wait = (t: number) =>
   new Promise((resolve) => {
@@ -36,8 +36,8 @@ describe('run', () => {
     });
   });
 
-  it('calls runTask for each tasks, then taskCallback', async () => {
-    await expect(run({ taskIterator: genTasks(), runTask })).resolves.toBe(
+  it('calls runTask for each tasks', async () => {
+    await expect(runTimeline({ timeline: genTasks(), runTask })).resolves.toBe(
       undefined,
     );
     expect(runTask.mock.calls).toEqual([
@@ -52,7 +52,7 @@ describe('run', () => {
       if (task.id === 'task2') throw new Error('mock error');
     });
     await expect(
-      run({ runTask: throwingRunTask, taskIterator: genTasks() }),
+      runTimeline({ runTask: throwingRunTask, timeline: genTasks() }),
     ).rejects.toThrow('mock error');
     expect(throwingRunTask.mock.calls).toEqual([
       [{ id: 'task1', callIndex: 0 }],
@@ -60,7 +60,7 @@ describe('run', () => {
     ]);
   });
 
-  it('rejects if the taskIterator rejects', async () => {
+  it('rejects if the timeline rejects', async () => {
     const throwingGenTasks = vi.fn(async function* mockGenTasks() {
       await wait(0);
       yield { id: 'task1' };
@@ -69,7 +69,7 @@ describe('run', () => {
       throw new Error('mock error');
     });
     await expect(
-      run({ runTask, taskIterator: throwingGenTasks() }),
+      runTimeline({ runTask, timeline: throwingGenTasks() }),
     ).rejects.toThrow('mock error');
     expect(runTask.mock.calls).toEqual([[{ id: 'task1' }], [{ id: 'task2' }]]);
   });

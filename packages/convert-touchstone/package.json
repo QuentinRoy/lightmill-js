@@ -1,9 +1,9 @@
 {
   "name": "@lightmill/convert-touchstone",
-  "packageManager": "pnpm@7.13.4",
   "version": "3.0.0-alpha.8",
   "type": "module",
   "description": "Converts touchstone XML exports to lightmill format.",
+  "packageManager": "pnpm@8.10.2",
   "exports": {
     "default": "./dist/convert-touchstone.js",
     "*": "./dist/*"
@@ -23,7 +23,7 @@
     "@lightmill/static-design": "workspace:*",
     "@types/sax": "^1.2.4",
     "cross-env": "^7.0.3",
-    "typescript": "5.1.6",
+    "typescript": "5.2.2",
     "vite": "^4.4.8",
     "vitest": "^0.34.1"
   },

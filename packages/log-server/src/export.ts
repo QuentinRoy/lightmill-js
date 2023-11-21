@@ -5,10 +5,7 @@ import { Log, Store } from './store.js';
 import { toSnakeCase } from './utils.js';
 
 const logColumns: Array<keyof Log> = ['type', 'experimentId', 'runId'];
-const renamedLogColumns: Partial<Record<keyof Log, string>> = {
-  experimentId: 'experiment',
-  runId: 'run',
-};
+const renamedLogColumns: Partial<Record<keyof Log, string>> = {};
 const ignoredLogValues: Array<keyof Log> = ['values'];
 
 export function csvExportStream(
@@ -22,8 +19,8 @@ export function csvExportStream(
       let logColumnFilter = (columnName: keyof Log) =>
         !valueColumns.includes(columnName) &&
         (filter?.type == null || columnName !== 'type') &&
-        (filter?.experiment == null || columnName !== 'experimentId') &&
-        (filter?.run == null || columnName !== 'runId') &&
+        (filter?.experimentId == null || columnName !== 'experimentId') &&
+        (filter?.runId == null || columnName !== 'runId') &&
         !ignoredLogValues.includes(columnName);
       let columns = [
         ...logColumns

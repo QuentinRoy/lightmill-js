@@ -23,7 +23,7 @@ const __dirname = url.fileURLToPath(new URL('.', import.meta.url));
 const env = z
   .object({
     SECRET: z.string().optional(),
-    ADMIN_PASSWORD: z.string().optional(),
+    HOST_PASSWORD: z.string().optional(),
     PORT: z.number().default(3000),
     DB_PATH: z.string().default('./data.sqlite'),
     LOG_LEVEL: z
@@ -50,13 +50,13 @@ type StartParameter = {
   database: string;
   port: number;
   secret?: string;
-  adminPassword?: string;
+  hostPassword?: string;
 };
 async function start({
   database: dbPath,
   port,
   secret,
-  adminPassword,
+  hostPassword,
 }: StartParameter) {
   if (secret == null) {
     log.error(
@@ -79,7 +79,7 @@ async function start({
   }
   let server = express()
     .use(cors())
-    .use(LogServer({ store, secret, adminPassword }))
+    .use(LogServer({ store, secret, hostPassword }))
     .listen(port, () => {
       log.info(`Listening on port ${port}`);
     });
@@ -176,11 +176,11 @@ yargs(process.argv.slice(2))
           type: 'string',
           default: env.SECRET,
         })
-        .option('admin-password', {
-          alias: 'a',
-          desc: 'Password for the admin user',
+        .option('host-password', {
+          alias: 'w',
+          desc: 'Password for the host user',
           type: 'string',
-          default: env.ADMIN_PASSWORD,
+          default: env.HOST_PASSWORD,
         })
         .help()
         .alias('help', 'h')

@@ -1,21 +1,28 @@
-import { asyncForEach } from './utils.js';
+import { TimelineRunner } from './runner.js';
+import { SuperIterator } from './types.js';
 
-export type SuperIterator<I> =
-  | Iterator<I>
-  | AsyncIterator<I>
-  | Iterable<I>
-  | AsyncIterable<I>;
-
-export type RunProps<Task> = {
-  taskIterator: SuperIterator<Task>;
+export type RunTimelineParams<Task> = {
+  timeline: SuperIterator<Task>;
   runTask: (task: Task) => PromiseLike<void>;
 };
-export function run<Task>({ taskIterator, runTask }: RunProps<Task>) {
-  if (Symbol.iterator in taskIterator) {
-    taskIterator = taskIterator[Symbol.iterator]();
-  }
-  if (Symbol.asyncIterator in taskIterator) {
-    taskIterator = taskIterator[Symbol.asyncIterator]();
-  }
-  return asyncForEach(taskIterator, (task) => runTask(task));
+export function runTimeline<Task>({
+  timeline,
+  runTask,
+}: RunTimelineParams<Task>) {
+  return new Promise<void>((resolve, reject) => {
+    let runner = new TimelineRunner<Task>({
+      timeline,
+      onTaskStarted(task) {
+        runTask(task).then(() => {
+          runner.completeTask();
+        }, reject);
+      },
+      onTimelineCompleted() {
+        resolve();
+      },
+      onError(error) {
+        reject(error);
+      },
+    }).start();
+  });
 }

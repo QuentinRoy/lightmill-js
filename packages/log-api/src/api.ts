@@ -16,7 +16,7 @@ const ErrorResponse = z.object({
   status: z.literal('error'),
   message: z.string(),
 });
-const Role = z.enum(['admin', 'participant']);
+const Role = z.enum(['host', 'participant']);
 const LogParameter = z.object({
   type: z.string(),
   // Required because requests can arrive out of order.
@@ -42,7 +42,9 @@ export const api = makeApi([
     ],
     response: OkResponse.extend({
       role: Role,
-      runs: z.array(z.string()),
+      runs: z.array(
+        z.object({ runId: z.string(), experimentId: z.string() }).strict(),
+      ),
     }).strict(),
     errors: [
       { status: 400, schema: ErrorResponse },
@@ -54,7 +56,7 @@ export const api = makeApi([
     path: '/sessions/current',
     response: OkResponse.extend({
       runs: z.array(
-        z.object({ id: z.string(), experiment: z.string() }).strict(),
+        z.object({ runId: z.string(), experimentId: z.string() }).strict(),
       ),
       role: Role,
     }).strict(),
@@ -76,8 +78,8 @@ export const api = makeApi([
       {
         schema: z
           .object({
-            id: z.string().optional(),
-            experiment: z.string().optional(),
+            runId: z.string().optional(),
+            experimentId: z.string().optional(),
           })
           .strict()
           .optional(),
@@ -86,23 +88,42 @@ export const api = makeApi([
       },
     ],
     response: OkResponse.extend({
-      run: z.string(),
-      experiment: z.string(),
-      links: z
+      runId: z.string(),
+      experimentId: z.string(),
+    }).strict(),
+    errors: [{ status: 403, schema: ErrorResponse.strict() }],
+  },
+  {
+    method: 'get',
+    path: '/experiments/:experimentId/runs/:runId',
+    response: OkResponse.extend({
+      run: z
         .object({
-          logs: z.string(),
-          run: z.string(),
+          runId: z.string(),
+          experimentId: z.string(),
+          status: z.union([
+            z.literal('completed'),
+            z.literal('canceled'),
+            z.literal('running'),
+          ]),
+          logs: z.array(
+            z
+              .object({
+                type: z.string(),
+                count: z.number(),
+                pending: z.number(),
+                lastNumber: z.number(),
+              })
+              .strict(),
+          ),
         })
         .strict(),
     }).strict(),
-    errors: [
-      { status: 403, schema: ErrorResponse.strict() },
-      { status: 400, schema: ErrorResponse.strict() },
-    ],
+    errors: [{ status: 403, schema: ErrorResponse.strict() }],
   },
   {
     method: 'patch',
-    path: '/experiments/:experiment/runs/:run',
+    path: '/experiments/:experimentId/runs/:runId',
     response: OkResponse.strict(),
     errors: [
       { status: 404, schema: ErrorResponse.strict() },
@@ -111,11 +132,14 @@ export const api = makeApi([
     ],
     parameters: [
       {
-        schema: z
-          .object({
-            status: z.union([z.literal('completed'), z.literal('canceled')]),
-          })
-          .strict(),
+        schema: z.union([
+          z
+            .object({
+              status: z.union([z.literal('completed'), z.literal('canceled')]),
+            })
+            .strict(),
+          z.object({ resumeFrom: z.number() }).strict(),
+        ]),
         name: 'body',
         type: 'Body',
       },
@@ -123,7 +147,7 @@ export const api = makeApi([
   },
   {
     method: 'post',
-    path: '/experiments/:experiment/runs/:run/logs',
+    path: '/experiments/:experimentId/runs/:runId/logs',
     parameters: [
       {
         schema: z.union([
@@ -139,7 +163,7 @@ export const api = makeApi([
   },
   {
     method: 'get',
-    path: '/experiments/:experiment/logs',
+    path: '/experiments/:experimentId/logs',
     parameters: [
       {
         name: 'type',
@@ -175,7 +199,7 @@ export type Response<
 export type Error<
   M extends Method,
   P extends ZodiosPathsByMethod<Api, M>,
-  Status extends number,
+  Status extends number = number,
 > = ZodiosErrorByPath<Api, M, P, Status>;
 export type ErrorStatus<
   M extends Method,
