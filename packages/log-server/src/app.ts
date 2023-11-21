@@ -195,16 +195,32 @@ export function LogServer({
           });
           return;
         }
-        let run = await store.getRun(experimentId, runId);
-        if (run == null) {
+
+        const targetRun = await store.getRun(experimentId, runId);
+
+        if (targetRun == null) {
           // This will cause an internal server error. It should not happen
           // in normal use, except if the participant's session is corrupted,
           // or the database is corrupted, or removed.
           throw new Error(`Session run not found: ${runId}`);
         }
 
+        // Case: resume run.
         if ('resumeFrom' in req.body) {
-          if (run.status === 'completed') {
+          let otherRuns = await Promise.all(
+            req.session.runs
+              .filter((r) => r.experimentId != experimentId || r.runId != runId)
+              .map((r) => store.getRun(r.experimentId, r.runId)),
+          );
+          if (otherRuns.some((r) => r?.status === 'running')) {
+            res.status(403).json({
+              status: 'error',
+              message: 'Client already has other running runs, end them first',
+            });
+            return;
+          }
+
+          if (targetRun.status === 'completed') {
             res.status(400).json({
               status: 'error',
               message: 'Run has already been completed',
@@ -220,7 +236,8 @@ export function LogServer({
           return;
         }
 
-        if (run.status != 'running') {
+        // Case: end run.
+        if (targetRun.status != 'running') {
           // This should not happen in normal use since the client should lose
           // access to the run once it is ended.
           res

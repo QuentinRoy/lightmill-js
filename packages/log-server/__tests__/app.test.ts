@@ -322,6 +322,7 @@ describe('runs', () => {
       expect(store.resumeRun).not.toHaveBeenCalled();
       expect(store.setRunStatus).not.toHaveBeenCalled();
     });
+
     it('should return an error if the client tries to change the status of the run but does not have access to this particular run', async () => {
       await api
         .post('/runs')
@@ -337,6 +338,7 @@ describe('runs', () => {
       expect(store.setRunStatus).not.toHaveBeenCalled();
       expect(store.resumeRun).not.toHaveBeenCalled();
     });
+
     it('should return an error if the client tries to resume a run but does not have access to any run', async () => {
       await api
         .patch('/experiments/exp/runs/not-my-run')
@@ -348,6 +350,7 @@ describe('runs', () => {
       expect(store.resumeRun).not.toHaveBeenCalled();
       expect(store.setRunStatus).not.toHaveBeenCalled();
     });
+
     it('should return an error if the client tries to resume a run but does not have access to this particular run', async () => {
       await api
         .post('/runs')
@@ -363,6 +366,7 @@ describe('runs', () => {
       expect(store.resumeRun).not.toHaveBeenCalled();
       expect(store.setRunStatus).not.toHaveBeenCalled();
     });
+
     it('should complete a running run if argument is "completed"', async () => {
       await api
         .post('/runs')
@@ -379,6 +383,7 @@ describe('runs', () => {
       );
       expect(store.resumeRun).not.toHaveBeenCalled();
     });
+
     it('should cancel a running run if argument is "canceled"', async () => {
       await api
         .post('/runs')
@@ -395,6 +400,7 @@ describe('runs', () => {
       );
       expect(store.resumeRun).not.toHaveBeenCalled();
     });
+
     it('should refuse to change the status of a canceled run', async () => {
       store.getRun.mockImplementation(async () => {
         return {
@@ -418,6 +424,7 @@ describe('runs', () => {
       expect(store.setRunStatus).not.toHaveBeenCalled();
       expect(store.resumeRun).not.toHaveBeenCalled();
     });
+
     it('should not revoke client access to the run even if the run has been completed', async () => {
       await api
         .post('/runs')
@@ -433,6 +440,7 @@ describe('runs', () => {
         status: 'ok',
       });
     });
+
     it('should resume a running run if request body contains "resumeFrom"', async () => {
       await api
         .post('/runs')
@@ -471,6 +479,7 @@ describe('runs', () => {
         resumeFrom: 15,
       });
     });
+
     it('should refuse to resume a completed run', async () => {
       await api
         .post('/runs')
@@ -489,6 +498,32 @@ describe('runs', () => {
         .expect(400, {
           status: 'error',
           message: `Run has already been completed`,
+        });
+      expect(store.resumeRun).not.toHaveBeenCalled();
+    });
+
+    it('should refuse to resume a run if there is another running run', async () => {
+      await api
+        .post('/runs')
+        .send({ experimentId: 'exp', runId: 'canceled-run' })
+        .expect(201);
+      store.getRun.mockImplementation(async (experimentId, runId) => {
+        return {
+          runId: `getRun:${runId}`,
+          experimentId: `getRun:${experimentId}`,
+          status: runId === 'canceled-run' ? 'canceled' : 'running',
+        } as const;
+      });
+      await api
+        .post('/runs')
+        .send({ experimentId: 'exp', runId: 'running-run' })
+        .expect(201);
+      await api
+        .patch('/experiments/exp/runs/canceled-run')
+        .send({ resumeFrom: 15 })
+        .expect(403, {
+          status: 'error',
+          message: `Client already has other running runs, end them first`,
         });
       expect(store.resumeRun).not.toHaveBeenCalled();
     });
