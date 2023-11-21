@@ -248,7 +248,7 @@ describe('runs', () => {
       });
     });
 
-    it('should refuse to create a run if the participant already has one running', async () => {
+    it('should refuse to create a run if participant already has one running', async () => {
       await api
         .post('/runs')
         .send({ experimentId: 'exp-id', runId: 'run1' })
@@ -257,7 +257,7 @@ describe('runs', () => {
         .post('/runs')
         .send({ experimentId: 'exp-id', runId: 'run2' })
         .expect(403, {
-          message: 'Client already has a started run, end it first',
+          message: 'Client already has started runs, end them first',
           status: 'error',
         });
       expect(store.addRun).toHaveBeenCalledTimes(1);

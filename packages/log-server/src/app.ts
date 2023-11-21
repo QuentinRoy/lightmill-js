@@ -104,11 +104,16 @@ export function LogServer({
         req.session = { role: 'participant', runs: [] };
       }
       if (req.session.runs.length > 0) {
-        res.status(403).json({
-          status: 'error',
-          message: 'Client already has a started run, end it first',
-        });
-        return;
+        const clientRuns = await Promise.all(
+          req.session.runs.map((r) => store.getRun(r.experimentId, r.runId)),
+        );
+        if (clientRuns.some((r) => r?.status === 'running')) {
+          res.status(403).json({
+            status: 'error',
+            message: 'Client already has started runs, end them first',
+          });
+          return;
+        }
       }
       let runId = req.body?.runId ?? createId();
       let experimentId = req.body?.experimentId ?? 'default';
