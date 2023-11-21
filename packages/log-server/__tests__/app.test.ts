@@ -285,6 +285,7 @@ describe('runs', () => {
       });
       expect(store.getRun).not.toHaveBeenCalled();
     });
+
     it('should return some run information otherwise', async () => {
       await api
         .post('/runs')
@@ -457,6 +458,7 @@ describe('runs', () => {
         resumeFrom: 15,
       });
     });
+
     it('should resume a canceled run if request body contains "resumeFrom"', async () => {
       await api
         .post('/runs')

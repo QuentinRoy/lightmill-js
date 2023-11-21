@@ -120,23 +120,17 @@ export class LogClient<ClientLog extends Typed & OptionallyDated = AnyLog> {
   }) {
     if (this.#runStatus !== 'idle') {
       throw new Error(
-        `Can only resume a run when the logger is idle. Logger is ${
-          this.#runStatus
-        }`,
+        `Can only resume a run when the logger is idle. Logger is ${this.#runStatus}`,
       );
     }
     if (this.#runStatus !== 'idle') {
       throw new Error(
-        `Can only start a run when the logger is idle. Logger is ${
-          this.#runStatus
-        }`,
+        `Can only start a run when the logger is idle. Logger is ${this.#runStatus}`,
       );
     }
     if (this.#runId != null && runId != null && this.#runId !== runId) {
       throw new Error(
-        `Trying to start a run with a different runId. Current runId is ${
-          this.#runId
-        } and new runId is ${runId}`,
+        `Trying to start a run with a different runId. Current runId is ${this.#runId} and new runId is ${runId}`,
       );
     }
     if (
@@ -145,9 +139,7 @@ export class LogClient<ClientLog extends Typed & OptionallyDated = AnyLog> {
       this.#experimentId !== experimentId
     ) {
       throw new Error(
-        `Trying to start a run with a different experimentId. Current experimentId is ${
-          this.#experimentId
-        } and new experimentId is ${experimentId}`,
+        `Trying to start a run with a different experimentId. Current experimentId is ${this.#experimentId} and new experimentId is ${experimentId}`,
       );
     }
     let runIdToResume = runId ?? this.#runId;
@@ -198,16 +190,12 @@ export class LogClient<ClientLog extends Typed & OptionallyDated = AnyLog> {
   }: { runId?: string; experimentId?: string } = {}) {
     if (this.#runStatus !== 'idle') {
       throw new Error(
-        `Can only start a run when the logger is idle. Logger is ${
-          this.#runStatus
-        }`,
+        `Can only start a run when the logger is idle. Logger is ${this.#runStatus}`,
       );
     }
     if (this.#runId != null && runId != null && this.#runId !== runId) {
       throw new Error(
-        `Trying to start a run with a different runId. Current runId is ${
-          this.#runId
-        } and new runId is ${runId}`,
+        `Trying to start a run with a different runId. Current runId is ${this.#runId} and new runId is ${runId}`,
       );
     }
     if (
@@ -216,9 +204,7 @@ export class LogClient<ClientLog extends Typed & OptionallyDated = AnyLog> {
       this.#experimentId !== experimentId
     ) {
       throw new Error(
-        `Trying to start a run with a different experimentId. Current experimentId is ${
-          this.#experimentId
-        } and new experimentId is ${experimentId}`,
+        `Trying to start a run with a different experimentId. Current experimentId is ${this.#experimentId} and new experimentId is ${experimentId}`,
       );
     }
     try {
@@ -241,9 +227,7 @@ export class LogClient<ClientLog extends Typed & OptionallyDated = AnyLog> {
   async addLog({ type, ...values }: ClientLog) {
     if (this.#runStatus !== 'running') {
       throw new Error(
-        `Can only add logs when logger is running. Loggers is ${
-          this.#runStatus
-        }`,
+        `Can only add logs when logger is running. Loggers is ${this.#runStatus}`,
       );
     }
     if (type == null) {

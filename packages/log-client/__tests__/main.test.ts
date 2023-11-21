@@ -15,8 +15,8 @@ import { http, HttpResponse } from 'msw';
 type TemplatizedPath<P> = P extends `${infer Start}/:${string}/${infer End}`
   ? `${Start}/${string}/${TemplatizedPath<End>}`
   : P extends `${infer Start}/:${string}`
-  ? `${Start}/${string}`
-  : P;
+    ? `${Start}/${string}`
+    : P;
 type ServerPath = `https://server.test/api${TemplatizedPath<Path>}`;
 
 const server = setupServer(
