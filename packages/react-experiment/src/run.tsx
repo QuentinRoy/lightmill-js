@@ -69,9 +69,10 @@ export function Run<T extends RegisteredTask>({
   }
 }
 
-type UseRunParameter<Task, Log> = {
+type UseRunParameter<Task extends { type: string }, Log> = {
   onCompleted?: () => void;
   log?: Logger<Log>;
+  resumeAfter?: { type: Task['type']; number: number };
 } & (
   | { timeline: Timeline<Task>; loading?: boolean }
   | { timeline?: Timeline<Task> | null; loading: true }
@@ -79,9 +80,10 @@ type UseRunParameter<Task, Log> = {
 type RunState<Task, Log> = Exclude<TimelineState<Task>, { status: 'error' }> & {
   log: ((newLog: Log) => void) | null;
 };
-function useRun<T, L>({
+function useRun<T extends { type: string }, L>({
   onCompleted,
   timeline,
+  resumeAfter,
   loading = false,
   log,
 }: UseRunParameter<T, L>): RunState<T, L> {
@@ -99,6 +101,7 @@ function useRun<T, L>({
 
   const timelineState = useManagedTimeline({
     timeline: timeline,
+    resumeAfter,
     onTimelineCompleted: onCompleted,
   });
 

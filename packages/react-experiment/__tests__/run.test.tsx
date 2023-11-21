@@ -1,7 +1,6 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import userEventPackage from '@testing-library/user-event';
 import { Run, RunElements, useTask } from '../src/main.js';
-import * as React from 'react';
 
 const userEvent =
   userEventPackage as unknown as typeof userEventPackage.default;
@@ -14,10 +13,16 @@ type Task = { type: 'A'; a: string } | { type: 'B'; b: number };
 
 describe('run', () => {
   let Task: (props: { type: string; dataProp: string }) => JSX.Element;
-  let tasks: Task[];
-  let asyncTaskGen: (
+  const asyncTaskGen = async function* (
     taskLoadingTime: number,
-  ) => AsyncGenerator<Task, void, unknown>;
+    tasks: Task[],
+  ) {
+    for (let task of tasks) {
+      await wait(taskLoadingTime);
+      yield task;
+    }
+    await wait(taskLoadingTime);
+  };
 
   beforeEach(() => {
     Task = ({ type, dataProp }) => {
@@ -30,18 +35,6 @@ describe('run', () => {
         </div>
       );
     };
-    tasks = [
-      { type: 'A', a: 'hello' },
-      { type: 'B', b: 42 },
-      { type: 'A', a: 'world' },
-    ];
-    asyncTaskGen = async function* (taskLoadingTime) {
-      for (let task of tasks) {
-        await wait(taskLoadingTime);
-        yield task;
-      }
-      await wait(taskLoadingTime);
-    };
   });
 
   it('renders tasks in accordance with the timeline', async () => {
@@ -53,12 +46,52 @@ describe('run', () => {
       },
       completed: <div data-testid="end" />,
     };
-    render(<Run elements={config} timeline={tasks} />);
+    render(
+      <Run
+        elements={config}
+        timeline={[
+          { type: 'A', a: 'hello' },
+          { type: 'B', b: 42 },
+          { type: 'A', a: 'world' },
+        ]}
+      />,
+    );
     expect(screen.getByRole('heading')).toHaveTextContent('Type A');
     expect(screen.getByTestId('data')).toHaveTextContent('hello');
     await user.click(screen.getByRole('button'));
     expect(screen.getByRole('heading')).toHaveTextContent('Type B');
     expect(screen.getByTestId('data')).toHaveTextContent('42');
+    await user.click(screen.getByRole('button'));
+    expect(screen.getByRole('heading')).toHaveTextContent('Type A');
+    expect(screen.getByTestId('data')).toHaveTextContent('world');
+    await user.click(screen.getByRole('button'));
+    expect(screen.getByTestId('end')).toBeInTheDocument();
+  });
+
+  it('starts with a later tasks if resumeAfter is provided', async () => {
+    const user = userEvent.setup();
+    render(
+      <Run
+        resumeAfter={{ type: 'B', number: 2 }}
+        elements={{
+          tasks: {
+            A: <Task type="A" dataProp="a" />,
+            B: <Task type="B" dataProp="b" />,
+          },
+          completed: <div data-testid="end" />,
+        }}
+        timeline={[
+          { type: 'A', a: 'hello' },
+          { type: 'B', b: 42 },
+          { type: 'B', b: 21 },
+          { type: 'B', b: 12 },
+          { type: 'A', a: 'world' },
+        ]}
+      />,
+    );
+
+    expect(screen.getByRole('heading')).toHaveTextContent('Type B');
+    expect(screen.getByTestId('data')).toHaveTextContent('12');
     await user.click(screen.getByRole('button'));
     expect(screen.getByRole('heading')).toHaveTextContent('Type A');
     expect(screen.getByTestId('data')).toHaveTextContent('world');
@@ -74,7 +107,16 @@ describe('run', () => {
         B: <Task type="B" dataProp="b" />,
       },
     };
-    let { container } = render(<Run elements={config} timeline={tasks} />);
+    let { container } = render(
+      <Run
+        elements={config}
+        timeline={[
+          { type: 'A', a: 'hello' },
+          { type: 'B', b: 42 },
+          { type: 'A', a: 'world' },
+        ]}
+      />,
+    );
 
     expect(screen.getByRole('heading')).toHaveTextContent('Type A');
     expect(screen.getByTestId('data')).toHaveTextContent('hello');
@@ -99,7 +141,16 @@ describe('run', () => {
       loading: <div data-testid="loading" />,
       completed: <div data-testid="end" />,
     };
-    render(<Run elements={config} timeline={asyncTaskGen(taskTime)} />);
+    render(
+      <Run
+        elements={config}
+        timeline={asyncTaskGen(taskTime, [
+          { type: 'A', a: 'hello' },
+          { type: 'B', b: 42 },
+          { type: 'A', a: 'world' },
+        ])}
+      />,
+    );
     expect(screen.getByTestId('loading')).toBeInTheDocument();
     await act(() => vi.advanceTimersByTime(taskTime));
     expect(screen.getByRole('heading')).toHaveTextContent('Type A');
@@ -134,7 +185,11 @@ describe('run', () => {
 
   it('let timeline being undefined as long as loading is true', async () => {
     const user = userEvent.setup();
-
+    const tasks: Task[] = [
+      { type: 'A', a: 'hello' },
+      { type: 'B', b: 42 },
+      { type: 'A', a: 'world' },
+    ];
     let config: RunElements<Task> = {
       tasks: {
         A: <Task type="A" dataProp="a" />,
@@ -144,39 +199,22 @@ describe('run', () => {
       completed: <div data-testid="end" />,
     };
 
-    function Test() {
-      const [isLoading, toggleLoading] = React.useReducer((s) => !s, true);
-      const [timeline, loadTimeline] = React.useReducer(
-        (): Task[] | undefined => tasks,
-        undefined,
-      );
-      return (
-        <div>
-          {/* @ts-expect-error this is a test */}
-          <Run elements={config} loading={isLoading} timeline={timeline} />
-          <button data-testid="load-timeline-button" onClick={loadTimeline}>
-            Load Timeline
-          </button>
-          <button data-testid="toggle-loading-button" onClick={toggleLoading}>
-            {isLoading ? 'Finish Loading' : 'Load'}
-          </button>
-        </div>
-      );
-    }
+    const { rerender } = render(<Run elements={config} loading />);
+    expect(screen.getByTestId('loading')).toBeInTheDocument();
+    rerender(<Run elements={config} loading timeline={tasks} />);
+    expect(screen.getByTestId('loading')).toBeInTheDocument();
 
-    render(<Test />);
-    expect(screen.getByTestId('loading')).toBeInTheDocument();
-    await user.click(screen.getByTestId('load-timeline-button'));
-    expect(screen.getByTestId('loading')).toBeInTheDocument();
-    await user.click(screen.getByTestId('toggle-loading-button'));
+    rerender(<Run elements={config} timeline={tasks} />);
     expect(screen.getByRole('heading')).toHaveTextContent('Type A');
     expect(screen.getByTestId('data')).toHaveTextContent('hello');
     await user.click(screen.getByText('Complete'));
     expect(screen.getByRole('heading')).toHaveTextContent('Type B');
     expect(screen.getByTestId('data')).toHaveTextContent('42');
-    await user.click(screen.getByTestId('toggle-loading-button'));
+
+    rerender(<Run elements={config} timeline={tasks} loading />);
     expect(screen.getByTestId('loading')).toBeInTheDocument();
-    await user.click(screen.getByTestId('toggle-loading-button'));
+
+    rerender(<Run elements={config} timeline={tasks} />);
     expect(screen.getByRole('heading')).toHaveTextContent('Type B');
     expect(screen.getByTestId('data')).toHaveTextContent('42');
     await user.click(screen.getByText('Complete'));
@@ -184,5 +222,58 @@ describe('run', () => {
     expect(screen.getByTestId('data')).toHaveTextContent('world');
     await user.click(screen.getByText('Complete'));
     expect(screen.getByTestId('end')).toBeInTheDocument();
+  });
+
+  it('throws an error if the timeline is changed', async () => {
+    const elements = {
+      tasks: {
+        A: <Task type="A" dataProp="a" />,
+        B: <Task type="B" dataProp="b" />,
+      },
+    };
+    const { rerender } = render(
+      <Run elements={elements} timeline={[{ type: 'A', a: 'hello' }]} />,
+    );
+    expect(screen.getByRole('heading')).toHaveTextContent('Type A');
+
+    // I cannot find a way to test rendering errors without React displaying
+    // them in the console.
+    console.log(
+      "Don't worry about the error below, it's unfortunate but expected",
+    );
+    expect(() => {
+      rerender(
+        <Run elements={elements} timeline={[{ type: 'A', a: 'world' }]} />,
+      );
+    }).toThrow('Timeline cannot be changed once set');
+  });
+
+  it('throws an error if the run should resume after an non existing task', async () => {
+    // I cannot find a way to test rendering errors without React displaying
+    // them in the console.
+    console.log(
+      "Don't worry about the error below, it's unfortunate but expected",
+    );
+    expect(() => {
+      render(
+        <Run
+          resumeAfter={{ type: 'B', number: 4 }}
+          elements={{
+            tasks: {
+              A: <Task type="A" dataProp="a" />,
+              B: <Task type="B" dataProp="b" />,
+            },
+            completed: <div data-testid="end" />,
+          }}
+          timeline={[
+            { type: 'A', a: 'hello' },
+            { type: 'B', b: 42 },
+            { type: 'B', b: 21 },
+            { type: 'B', b: 12 },
+            { type: 'A', a: 'world' },
+          ]}
+        />,
+      );
+    }).toThrow('Could not find task to resume after');
   });
 });
