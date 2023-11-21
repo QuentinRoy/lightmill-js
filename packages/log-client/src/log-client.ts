@@ -1,6 +1,7 @@
 import { throttle } from 'throttle-debounce';
 import type { JsonValue } from 'type-fest';
 import * as Interface from './log-server-interface.js';
+import { RequestError } from './fetch.js';
 
 interface Typed<Type extends string = string> {
   type: Type;
@@ -80,6 +81,11 @@ export class LogClient<ClientLog extends Typed & OptionallyDated = AnyLog> {
   async getResumableRuns() {
     let sessionInfo = await Interface.getSessionInfo({
       apiRoot: this.#apiRoot,
+    }).catch((error) => {
+      if (error instanceof RequestError && error.status === 404) {
+        return { runs: [] };
+      }
+      throw error;
     });
 
     let matchingRuns = (sessionInfo?.runs ?? []).filter(
@@ -103,14 +109,14 @@ export class LogClient<ClientLog extends Typed & OptionallyDated = AnyLog> {
       }));
   }
 
-  async resumeRun({
+  async resumeRun<T extends ClientLog['type']>({
     runId,
     experimentId,
     resumeAfterLast,
   }: {
     runId?: string;
     experimentId?: string;
-    resumeAfterLast: ClientLog['type'] | ClientLog['type'][];
+    resumeAfterLast: T | T[];
   }) {
     if (this.#runStatus !== 'idle') {
       throw new Error(
@@ -159,22 +165,27 @@ export class LogClient<ClientLog extends Typed & OptionallyDated = AnyLog> {
         runId: runIdToResume,
         experimentId: experimentIdToResume,
       });
-      let resumeAfterLastSet = new Set(
+      let resumeAfterLastSet = new Set<string>(
         Array.isArray(resumeAfterLast) ? resumeAfterLast : [resumeAfterLast],
       );
-      let lastNumber = runInfo.logs
-        .filter((l) => resumeAfterLastSet.has(l.type))
-        .reduce((acc, log) => Math.max(acc, log.lastNumber), 0);
+      let lastLog = runInfo.logs
+        .filter((l): l is { type: T } & typeof l =>
+          resumeAfterLastSet.has(l.type),
+        )
+        .reduce((maxLog, log) =>
+          maxLog.lastNumber > log.lastNumber ? maxLog : log,
+        );
       await Interface.resumeRun({
         apiRoot: this.#apiRoot,
         runId: runIdToResume,
         experimentId: experimentIdToResume,
-        resumeFrom: lastNumber + 1,
+        resumeFrom: lastLog.lastNumber + 1,
       });
       this.#runId = runId;
       this.#experimentId = experimentId;
       this.#runStatus = 'running';
-      this.#logCount = lastNumber;
+      this.#logCount = lastLog.lastNumber;
+      return { type: lastLog.type, number: lastLog.count };
     } catch (err) {
       this.#runStatus = 'error';
       throw err;
