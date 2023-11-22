@@ -120,11 +120,7 @@ export function LogServer({
       const run = { experimentId, runId, createdAt: new Date() };
       await store.addRun(run);
       req.session.runs.push({ runId, experimentId });
-      res.status(201).json({
-        status: 'ok',
-        runId,
-        experimentId,
-      });
+      res.status(201).json({ status: 'ok', runId, experimentId });
     } catch (e) {
       if (e instanceof StoreError && e.code === 'RUN_EXISTS') {
         res.status(403).json({ status: 'error', message: e.message });
