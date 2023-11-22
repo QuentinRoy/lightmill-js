@@ -1,5 +1,11 @@
 # @lightmill/log-server
 
+## 3.0.0-beta.24
+
+### Patch Changes
+
+- cd62201: Fix extra column "number" being exported
+
 ## 3.0.0-beta.23
 
 ### Major Changes
