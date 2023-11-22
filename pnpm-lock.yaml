@@ -195,6 +195,9 @@ importers:
       cross-env:
         specifier: ^7.0.3
         version: 7.0.3
+      string-dedent:
+        specifier: ^3.0.1
+        version: 3.0.1
       supertest:
         specifier: ^6.3.3
         version: 6.3.3
@@ -7181,6 +7184,11 @@ packages:
 
   /strict-event-emitter@0.5.1:
     resolution: {integrity: sha512-vMgjE/GGEPEFnhFub6pa4FmJBRBVOLpIII2hvCZ8Kzb7K0hlHo7mQv6xYrBvCL2LtAIBwFUK8wvuJgTVSQ5MFQ==}
+    dev: true
+
+  /string-dedent@3.0.1:
+    resolution: {integrity: sha512-A2zCXSgpPrpFi1lDJlDwIPYakBWeDtQZ8ZBKssB8M/WbtNEKTzsl1yCDRmHx55jSB27xZDQ6NOtRYekESWx6fw==}
+    engines: {node: '>=0.12.0'}
     dev: true
 
   /string-natural-compare@3.0.1:

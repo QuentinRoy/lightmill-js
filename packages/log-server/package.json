@@ -36,6 +36,7 @@
     "@types/supertest": "^2.0.16",
     "@types/yargs": "^17.0.32",
     "cross-env": "^7.0.3",
+    "string-dedent": "^3.0.1",
     "supertest": "^6.3.3",
     "tsx": "^4.2.0",
     "type-fest": "^4.8.2",
