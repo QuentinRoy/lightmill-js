@@ -1,5 +1,33 @@
 # @lightmill/log-server
 
+## 3.0.0-beta.23
+
+### Major Changes
+
+- 5b3eecd: Update log api : date isn't required anymore to save a log, but number is. Number is used to order logs, but also detect missing logs which date was not able to do.
+- aed9788: Clients now keep access to a run after having canceled or completed it. One must delete the session to remove a client's access to a run.
+- 5d9d8f3: createLogServer factory has been renamed to LogServer
+- 5b3eecd: Change the database schema with no provided migration. Consequently this is incompatible with old database file. This is to account for the new log api, and eventually run resuming. DO NOT UPGRADE IF YOU HAVE LOGS IN YOUR DATABASE.
+- 9021cd4: Stop exporting api types. Use export from @lightmill/log-api instead if needed.
+- b426249: Change log api HTTP method to update run status: switch to patch instead of put.
+- 956791f: Flatten urls to prevent collisions: post /experiments/runs -> post /runs, get /experiments/:experiment/runs/logs -> get /experiments/:experiment/logs.
+
+### Minor Changes
+
+- aed9788: Add endpoint to get run info
+- aed9788: Add the ability to resume a running or canceled run.
+
+### Patch Changes
+
+- aed9788: Prevent resuming a run when there is already another run running
+- aed9788: Fix run start being blocked when there run in the session but they're all completed
+- Updated dependencies [5b3eecd]
+- Updated dependencies [aed9788]
+- Updated dependencies [aed9788]
+- Updated dependencies [b426249]
+- Updated dependencies [9021cd4]
+  - @lightmill/log-api@3.0.0-beta.23
+
 ## 3.0.0-beta.22
 
 ### Major Changes
