@@ -4,14 +4,19 @@ import { mapKeys, pickBy, pipe } from 'remeda';
 import { Log, Store } from './store.js';
 import { toSnakeCase } from './utils.js';
 
-const logColumns: Array<keyof Log> = ['type', 'experimentId', 'runId'];
+const csvLogColumns: Array<keyof Log> = ['type', 'experimentId', 'runId'];
+const jsonLogColumns: Array<keyof Log> = [
+  'type',
+  'experimentId',
+  'runId',
+  'values',
+];
 const renamedLogColumns: Partial<Record<keyof Log, string>> = {};
-const ignoredLogValues: Array<keyof Log> = ['values'];
 
 export function csvExportStream(
-  store: Store,
+  store: Pick<Store, 'getLogs' | 'getLogValueNames'>,
   filter: Parameters<Store['getLogs']>[0] &
-    Parameters<Store['getLogValueNames']>[0],
+    Parameters<Store['getLogValueNames']>[0] = {},
 ): Readable {
   return pipeline(
     async function* () {
@@ -21,9 +26,9 @@ export function csvExportStream(
         (filter?.type == null || columnName !== 'type') &&
         (filter?.experimentId == null || columnName !== 'experimentId') &&
         (filter?.runId == null || columnName !== 'runId') &&
-        !ignoredLogValues.includes(columnName);
+        csvLogColumns.includes(columnName);
       let columns = [
-        ...logColumns
+        ...csvLogColumns
           .filter(logColumnFilter)
           .map((c) => renamedLogColumns[c] ?? c),
         ...valueColumns,
@@ -65,8 +70,8 @@ export function csvExportStream(
 }
 
 export function jsonExportStream(
-  store: Store,
-  filter: Parameters<Store['getLogs']>[0],
+  store: Pick<Store, 'getLogs'>,
+  filter: Parameters<Store['getLogs']>[0] = {},
 ) {
   return Readable.from(stringifyLogs(store.getLogs(filter)));
 }
@@ -78,7 +83,11 @@ async function* stringifyLogs(logs: AsyncIterable<Log>) {
     yield started ? ',' : '';
     started = true;
     yield JSON.stringify(
-      mapKeys(log, (key) => renamedLogColumns[key] ?? key),
+      pipe(
+        log,
+        pickBy((v, k) => jsonLogColumns.includes(k)),
+        mapKeys((key) => renamedLogColumns[key] ?? key),
+      ),
       stringifyDateSerializer,
     );
   }

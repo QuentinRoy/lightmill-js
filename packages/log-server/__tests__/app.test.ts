@@ -648,7 +648,6 @@ describe('logs', () => {
         [
           {
             "experimentId": "getLogs:experimentId-1",
-            "number": 1,
             "runId": "getLogs:runId-1",
             "type": "getLogs:type-1",
             "values": {
@@ -658,7 +657,6 @@ describe('logs', () => {
           },
           {
             "experimentId": "getLogs:experimentId-2",
-            "number": 2,
             "runId": "getLogs:runId-2",
             "type": "getLogs:type-2",
             "values": {
@@ -683,7 +681,6 @@ describe('logs', () => {
         [
           {
             "experimentId": "getLogs:experimentId-1",
-            "number": 1,
             "runId": "getLogs:runId-1",
             "type": "getLogs:type-1",
             "values": {
@@ -693,7 +690,6 @@ describe('logs', () => {
           },
           {
             "experimentId": "getLogs:experimentId-2",
-            "number": 2,
             "runId": "getLogs:runId-2",
             "type": "getLogs:type-2",
             "values": {
@@ -715,9 +711,9 @@ describe('logs', () => {
         .expect(200);
       expect(store.getLogs).toHaveBeenCalledWith({ experimentId: 'exp' });
       expect(result.text).toMatchInlineSnapshot(`
-        "type,run_id,mock_col1,mock_col2,mock_col3,number
-        getLogs:type-1,getLogs:runId-1,log1-mock-value1,log1-mock-value2,,1
-        getLogs:type-2,getLogs:runId-2,log2-mock-value1,log2-mock-value2,log2-mock-value3,2
+        "type,run_id,mock_col1,mock_col2,mock_col3
+        getLogs:type-1,getLogs:runId-1,log1-mock-value1,log1-mock-value2,
+        getLogs:type-2,getLogs:runId-2,log2-mock-value1,log2-mock-value2,log2-mock-value3
         "
       `);
     });
@@ -731,7 +727,6 @@ describe('logs', () => {
         [
           {
             "experimentId": "getLogs:experimentId-1",
-            "number": 1,
             "runId": "getLogs:runId-1",
             "type": "getLogs:type-1",
             "values": {
@@ -741,7 +736,6 @@ describe('logs', () => {
           },
           {
             "experimentId": "getLogs:experimentId-2",
-            "number": 2,
             "runId": "getLogs:runId-2",
             "type": "getLogs:type-2",
             "values": {
