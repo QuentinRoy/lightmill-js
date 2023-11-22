@@ -1,5 +1,16 @@
 # @lightmill/react-experiment
 
+## 3.0.0-beta.23
+
+### Minor Changes
+
+- aed9788: Add resumeAfter Run prop
+
+### Patch Changes
+
+- Updated dependencies [aed9788]
+  - @lightmill/runner@3.0.0-beta.23
+
 ## 3.0.0-beta.21
 
 ### Major Changes

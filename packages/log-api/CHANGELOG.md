@@ -1,0 +1,14 @@
+# @lightmill/log-api
+
+## 3.0.0-beta.23
+
+### Major Changes
+
+- 5b3eecd: Update log api : date isn't required anymore to save a log, but number is. Number is used to order logs, but also detect missing logs which date was not able to do.
+- b426249: Change log api HTTP method to update run status: switch to patch instead of put.
+- 9021cd4: Creation
+
+### Minor Changes
+
+- aed9788: Add endpoint to get run info
+- aed9788: Add the ability to resume a running or canceled run.

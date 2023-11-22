@@ -1,5 +1,11 @@
 # Change Log
 
+## 3.0.0-beta.23
+
+### Major Changes
+
+- aed9788: Update Runner interface.
+
 ## 3.0.0-alpha.10
 
 ### Major Changes

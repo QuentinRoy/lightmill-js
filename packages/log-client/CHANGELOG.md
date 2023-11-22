@@ -1,5 +1,27 @@
 # @lightmill/log-client
 
+## 3.0.0-beta.23
+
+### Major Changes
+
+- 956791f: Now complies with the new log-server API.
+- 5b3eecd: Update client to match new log api. Old server will not work with this client.
+- b426249: Change log api HTTP method to update run status: switch to patch instead of put.
+
+### Minor Changes
+
+- aed9788: Log client logout
+- aed9788: resumeRun returns the log after which the run has been resumed
+
+### Patch Changes
+
+- Updated dependencies [5b3eecd]
+- Updated dependencies [aed9788]
+- Updated dependencies [aed9788]
+- Updated dependencies [b426249]
+- Updated dependencies [9021cd4]
+  - @lightmill/log-api@3.0.0-beta.23
+
 ## 3.0.0-beta.22
 
 ### Patch Changes
