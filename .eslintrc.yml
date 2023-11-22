@@ -48,5 +48,7 @@ overrides:
         ['error', { requireReturnType: false, requireParamType: false }]
   - files:
       - 'packages/**/bin/**/*@(.mjs|.js|.ts|.cjs)'
+      - 'scripts/**/*@(.mjs|.js|.ts|.cjs)'
+      - 'packages/**/scripts/**/*@(.mjs|.js|.ts|.cjs)'
     env:
       node: true

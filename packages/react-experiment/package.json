@@ -11,15 +11,19 @@
   ],
   "exports": {
     ".": {
-      "import": "./dist/main.js",
-      "types": "./dist/main.d.ts"
+      "import": {
+        "types": "./dist/main.d.ts",
+        "default": "./dist/main.js"
+      }
     },
     "./*": {
-      "import": "./dist/*.js",
-      "types": "./dist/*.d.ts"
+      "import": {
+        "types": "./dist/*.d.ts",
+        "default": "./dist/*.js"
+      }
     }
   },
-  "main": "dist/main.js",
+  "main": "./dist/main.js",
   "types": "./dist/main.d.ts",
   "peerDependencies": {
     "react": "^18.2.0"

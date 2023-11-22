@@ -11,6 +11,12 @@
   ],
   "main": "./dist/main.js",
   "types": "./dist/main.d.ts",
+  "exports": {
+    "import": {
+      "types": "./dist/main.d.ts",
+      "default": "./dist/main.js"
+    }
+  },
   "devDependencies": {
     "@types/throttle-debounce": "^5.0.2",
     "cross-env": "^7.0.3",

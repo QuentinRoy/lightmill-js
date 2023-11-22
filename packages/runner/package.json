@@ -11,6 +11,12 @@
   ],
   "main": "./dist/main.js",
   "types": "./dist/main.d.ts",
+  "exports": {
+    "import": {
+      "types": "./dist/main.d.ts",
+      "default": "./dist/main.js"
+    }
+  },
   "devDependencies": {
     "cross-env": "^7.0.3",
     "typescript": "5.3.2",

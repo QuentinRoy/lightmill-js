@@ -8,10 +8,11 @@
     "node": "^20.x.x"
   },
   "exports": {
-    "default": "./dist/convert-touchstone.js",
-    "*": "./dist/*"
+    "import": {
+      "types": "./dist/convert-touchstone.d.ts",
+      "default": "./dist/convert-touchstone.js"
+    }
   },
-  "types": "./dist/convert-touchstone.d.ts",
   "bin": {
     "lightmill-convert-touchstone": "./bin/cli.mjs"
   },

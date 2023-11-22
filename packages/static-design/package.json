@@ -14,16 +14,18 @@
   },
   "exports": {
     ".": {
-      "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
     },
     "./*": {
-      "import": "./dist/*.js",
-      "types": "./dist/*.d.ts"
+      "import": {
+        "types": "./dist/*.d.ts",
+        "default": "./dist/*.js"
+      }
     }
   },
-  "main": "./dist/index.js",
-  "types": "./dist/runner.d.ts",
   "scripts": {
     "test": "cross-env NODE_ENV=test vitest",
     "build": "tsc -b tsconfig.build.json",
