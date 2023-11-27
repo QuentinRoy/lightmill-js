@@ -8,8 +8,8 @@ export type Typed<T extends string = string> = {
   type: T;
 };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type AnyTask = Typed & { [key: PropertyKey]: any };
+export type AnyTask = Typed & { [key: PropertyKey]: unknown };
+
 export type RegisteredTask = RegisterExperiment extends { task: infer T }
   ? T extends Typed
     ? T
@@ -21,4 +21,4 @@ export type RegisteredLog = RegisterExperiment extends { log: infer L }
   ? L extends Typed
     ? L
     : never
-  : Typed;
+  : AnyLog;
