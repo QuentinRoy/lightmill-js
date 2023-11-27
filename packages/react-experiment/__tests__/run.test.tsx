@@ -2,8 +2,8 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import userEventPackage from '@testing-library/user-event';
 import { Run, RunElements, useTask } from '../src/main.js';
 
-const userEvent =
-  userEventPackage as unknown as typeof userEventPackage.default;
+// @ts-expect-error - userEventPackage is not typed correctly
+const userEvent: typeof userEventPackage.default = userEventPackage;
 
 function wait(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -26,11 +26,11 @@ describe('run', () => {
 
   beforeEach(() => {
     Task = ({ type, dataProp }) => {
-      let { task, onTaskCompleted } = useTask();
+      let { task, onTaskCompleted } = useTask(type);
       return (
         <div>
-          <h1>Type {type}</h1>
-          <p data-testid="data">{task[dataProp]}</p>
+          <h1>Type {task.type}</h1>
+          <p data-testid="data">{task[dataProp] as string}</p>
           <button onClick={onTaskCompleted}>Complete</button>
         </div>
       );

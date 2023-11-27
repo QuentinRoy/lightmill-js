@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { RegisteredTask, Typed, RegisteredLog } from './config.js';
-import { loggerContext, timelineContext } from './contexts.js';
+import { loggerContext, noLoggerSymbol, timelineContext } from './contexts.js';
 import useManagedTimeline, {
   Timeline,
   TimelineState,
@@ -58,7 +58,7 @@ export function Run<T extends RegisteredTask>({
     case 'canceled':
     case 'loading':
       return (
-        <loggerContext.Provider value={onLog}>
+        <loggerContext.Provider value={onLog ?? noLoggerSymbol}>
           {elements.loading}
         </loggerContext.Provider>
       );
