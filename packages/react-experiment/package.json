@@ -10,17 +10,9 @@
     "dist"
   ],
   "exports": {
-    ".": {
-      "import": {
-        "types": "./dist/main.d.ts",
-        "default": "./dist/main.js"
-      }
-    },
-    "./*": {
-      "import": {
-        "types": "./dist/*.d.ts",
-        "default": "./dist/*.js"
-      }
+    "import": {
+      "types": "./dist/main.d.ts",
+      "default": "./dist/main.js"
     }
   },
   "main": "./dist/main.js",
