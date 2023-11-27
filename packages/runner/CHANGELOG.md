@@ -1,5 +1,11 @@
 # Change Log
 
+## 3.0.0-beta.25
+
+### Patch Changes
+
+- 2d3d87e: Remove package.json engines directive which fixes a warning when consumer uses a different node version.
+
 ## 3.0.0-beta.23
 
 ### Major Changes

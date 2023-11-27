@@ -1,5 +1,13 @@
 # @lightmill/log-client
 
+## 3.0.0-beta.25
+
+### Patch Changes
+
+- 2d3d87e: Remove package.json engines directive which fixes a warning when consumer uses a different node version.
+- Updated dependencies [2d3d87e]
+  - @lightmill/log-api@3.0.0-beta.25
+
 ## 3.0.0-beta.23
 
 ### Major Changes
