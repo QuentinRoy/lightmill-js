@@ -26,7 +26,7 @@ export function Run<T extends RegisteredTask>({
   confirmBeforeUnload = true,
   ...useRunParameter
 }: RunProps<T, RegisteredLog>): JSX.Element | null {
-  const { log, ...state } = useRun(useRunParameter);
+  const { onLog, ...state } = useRun(useRunParameter);
   useConfirmBeforeUnload(confirmBeforeUnload && state.status !== 'completed');
 
   switch (state.status) {
@@ -36,7 +36,7 @@ export function Run<T extends RegisteredTask>({
         throw new Error(`No task registered for type ${state.task.type}`);
       }
       return (
-        <loggerContext.Provider value={log}>
+        <loggerContext.Provider value={onLog}>
           <timelineContext.Provider value={state}>
             {elements.tasks[type]}
           </timelineContext.Provider>
@@ -46,7 +46,7 @@ export function Run<T extends RegisteredTask>({
 
     case 'completed':
       return elements.completed == null ? null : (
-        <loggerContext.Provider value={log}>
+        <loggerContext.Provider value={onLog}>
           {elements.completed}
         </loggerContext.Provider>
       );
@@ -58,7 +58,7 @@ export function Run<T extends RegisteredTask>({
     case 'canceled':
     case 'loading':
       return (
-        <loggerContext.Provider value={log}>
+        <loggerContext.Provider value={onLog}>
           {elements.loading}
         </loggerContext.Provider>
       );
@@ -71,23 +71,23 @@ export function Run<T extends RegisteredTask>({
 
 type UseRunParameter<Task extends { type: string }, Log> = {
   onCompleted?: () => void;
-  log?: Logger<Log>;
+  onLog?: Logger<Log>;
   resumeAfter?: { type: Task['type']; number: number };
 } & (
   | { timeline: Timeline<Task>; loading?: boolean }
   | { timeline?: Timeline<Task> | null; loading: true }
 );
 type RunState<Task, Log> = Exclude<TimelineState<Task>, { status: 'error' }> & {
-  log: ((newLog: Log) => void) | null;
+  onLog: ((newLog: Log) => void) | null;
 };
 function useRun<T extends { type: string }, L>({
   onCompleted,
   timeline,
   resumeAfter,
   loading = false,
-  log,
+  onLog,
 }: UseRunParameter<T, L>): RunState<T, L> {
-  const { log: logWrapper, ...loggerState } = useLogWrapper(log);
+  const { onLog: logWrapper, ...loggerState } = useLogWrapper(onLog);
 
   let timelineRef = React.useRef(timeline);
   // Prevent changes to timeline once set.
@@ -112,38 +112,39 @@ function useRun<T extends { type: string }, L>({
     throw loggerState.error;
   }
   if (loading) {
-    return { status: 'loading', log: logWrapper };
+    return { status: 'loading', onLog: logWrapper };
   } else if (timeline == null) {
     throw new Error('Timeline must be set when loading is false');
   }
-  return { ...timelineState, log: logWrapper };
+  return { ...timelineState, onLog: logWrapper };
 }
 
-type LoggerState = { status: 'ok' } | { status: 'error'; error: Error };
-function useLogWrapper<L>(log?: Logger<L>): LoggerState & {
-  log: ((newLog: L) => void) | null;
-} {
-  const [loggerState, setLoggerState] = React.useState<LoggerState>({
-    status: 'ok',
-  });
-
+type LoggerState<L> =
+  | { status: 'ok'; onLog: ((newLog: L) => void) | null }
+  | { status: 'error'; error: Error; onLog: ((newLog: L) => void) | null };
+function useLogWrapper<L>(onLog?: Logger<L>): LoggerState<L> {
   const logWrapper = React.useMemo(() => {
-    if (log == null) return null;
-    const thisLogger = log;
+    if (onLog == null) return null;
+    const thisLogger = onLog;
     return function logWrapper(newLog: L) {
       thisLogger(newLog).catch((error) => {
-        if (error instanceof Error) {
-          let newError = new Error(`Could not add log : ${error.message}`);
-          newError.stack = error.stack;
-          setLoggerState({ status: 'error', error: newError });
-        } else {
-          let newError = new Error('Could not add log');
-          setLoggerState({ status: 'error', error: newError });
-        }
+        let newError: Error =
+          error instanceof Error
+            ? new Error(`Could not add log : ${error.message}`, {
+                cause: error,
+              })
+            : new Error('Could not add log');
+        setLoggerState({ status: 'error', error: newError, onLog: logWrapper });
       });
     };
-  }, [log]);
-  return { ...loggerState, log: logWrapper };
+  }, [onLog]);
+
+  const [loggerState, setLoggerState] = React.useState<LoggerState<L>>({
+    status: 'ok',
+    onLog: logWrapper,
+  });
+
+  return loggerState;
 }
 
 function useConfirmBeforeUnload(isEnabled: boolean) {
