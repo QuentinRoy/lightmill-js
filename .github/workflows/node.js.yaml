@@ -120,4 +120,4 @@ jobs:
             ${{ runner.os }}-pnpm-store-
       - run: pnpm install --frozen-lockfile
       - run: pnpm run build-all
-      - run: pnpm run lint
+      - run: pnpm run publint
