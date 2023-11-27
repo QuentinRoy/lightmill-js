@@ -32,8 +32,5 @@
     "experiment"
   ],
   "private": false,
-  "packageManager": "pnpm@8.10.5",
-  "engines": {
-    "node": "^20.x.x"
-  }
+  "packageManager": "pnpm@8.10.5"
 }

@@ -29,8 +29,5 @@
     "@zodios/core": "^10.9.2",
     "zod": "^3.21.4"
   },
-  "packageManager": "pnpm@8.10.5",
-  "engines": {
-    "node": "^20.x.x"
-  }
+  "packageManager": "pnpm@8.10.5"
 }
