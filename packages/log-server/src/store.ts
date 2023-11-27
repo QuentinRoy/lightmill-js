@@ -105,7 +105,8 @@ export class SQLiteStore {
           if (
             e instanceof Error &&
             'code' in e &&
-            e.code === 'SQLITE_CONSTRAINT_PRIMARYKEY'
+            (e.code === 'SQLITE_CONSTRAINT_PRIMARYKEY' ||
+              e.code === 'SQLITE_CONSTRAINT_UNIQUE')
           ) {
             throw new StoreError(
               `run "${runId}" already exists for experiment "${experimentId}".`,
@@ -320,11 +321,26 @@ export class SQLiteStore {
         .insertInto('log')
         .values(logRows)
         .returning(['logId', 'logNumber', 'type'])
-        .execute();
+        .execute()
+        .catch((e) => {
+          if (
+            e instanceof Error &&
+            'code' in e &&
+            (e.code === 'SQLITE_CONSTRAINT_PRIMARYKEY' ||
+              e.code === 'SQLITE_CONSTRAINT_UNIQUE')
+          ) {
+            throw new StoreError(
+              `Cannot add log: duplicated log number in the sequence.`,
+              'LOG_NUMBER_EXISTS_IN_SEQUENCE',
+              e,
+            );
+          }
+          throw e;
+        });
 
-      // Sort by number to ensure that the log values are properly
-      // associated with the logs because that cannot be done in an insert
-      // query, and the order of the returning values is not guaranteed.
+      // Map the log values to the log ids. We cannot rely on the order of
+      // dbLogs because it is not guaranteed to be the same as the order of
+      // the logs we inserted.
       let logValues = dbLogs
         .filter((l) => l.type != null)
         .flatMap((dbLog) => {
@@ -553,6 +569,7 @@ export type Log = {
 
 type StoreErrorCode =
   | 'RUN_EXISTS'
+  | 'LOG_NUMBER_EXISTS_IN_SEQUENCE'
   | 'INVALID_LOG_NUMBER'
   | 'RUN_NOT_FOUND'
   | 'RUN_HAS_ENDED';

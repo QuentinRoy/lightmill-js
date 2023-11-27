@@ -327,13 +327,13 @@ describe('SQLiteStore#addLogs', () => {
       store.addLogs('experiment1', 'run1', [
         { type: 'log', number: 2, values: { x: 3 } },
       ]),
-    ).rejects.toThrow();
+    ).rejects.toThrow("Cannot add log: duplicated log number in the sequence.");
     await expect(
       store.addLogs('experiment1', 'run1', [
         { type: 'log', number: 3, values: { x: 3 } },
         { type: 'log', number: 4, values: { x: 3 } },
       ]),
-    ).rejects.toThrow();
+    ).rejects.toThrow("Cannot add log: duplicated log number in the sequence.");
   });
   it('should refuse to add two logs with the same number for the same run when added in the same requests', async () => {
     await expect(
@@ -343,13 +343,13 @@ describe('SQLiteStore#addLogs', () => {
         { type: 'log2', number: 4, values: { x: 3 } },
         { type: 'log2', number: 3, values: { x: 3 } },
       ]),
-    ).rejects.toThrow();
+    ).rejects.toThrow("Cannot add log: duplicated log number in the sequence.");
     await expect(
       store.addLogs('experiment1', 'run1', [
         { type: 'log1', number: 2, values: { x: 1 } },
         { type: 'log2', number: 2, values: { x: 3 } },
       ]),
-    ).rejects.toThrow();
+    ).rejects.toThrow("Cannot add log: duplicated log number in the sequence.");
   });
   it('should add logs with the same number as long as they are in different runs', async () => {
     await expect(
@@ -417,18 +417,18 @@ describe('SQLiteStore#addLogs', () => {
       store.addLogs('experiment1', 'run1', [
         { type: 'log4', number: 0, values: { x: 3 } },
       ]),
-    ).rejects.toThrow();
+    ).rejects.toThrow("Cannot insert log with log_number smaller than its sequence start");
     await expect(
       store.addLogs('experiment1', 'run1', [
         { type: 'log4', number: -1, values: { x: 3 } },
       ]),
-    ).rejects.toThrow();
+    ).rejects.toThrow("Cannot insert log with log_number smaller than its sequence start");
     await expect(
       store.addLogs('experiment1', 'run1', [
         { type: 'log4', number: -1, values: { x: 3 } },
         { type: 'log4', number: 1, values: { x: 3 } },
       ]),
-    ).rejects.toThrow();
+    ).rejects.toThrow("Cannot insert log with log_number smaller than its sequence start");
   });
   it('should add logs to a resumed run', async () => {
     await store.addLogs('experiment1', 'run1', [
