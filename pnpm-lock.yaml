@@ -114,7 +114,7 @@ importers:
   packages/log-server:
     dependencies:
       '@lightmill/log-api':
-        specifier: workspace:3.0.0-beta.25
+        specifier: workspace:*
         version: link:../log-api
       '@paralleldrive/cuid2':
         specifier: ^2.2.2
