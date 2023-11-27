@@ -1,7 +1,7 @@
 {
   "name": "@lightmill/static-design",
   "type": "module",
-  "version": "3.0.0-alpha.6",
+  "version": "3.0.0-beta.25",
   "description": "Select timelines and control the flow of trials based on a static design.",
   "author": "Quentin Roy <contact@quentinroy.fr>",
   "license": "MIT",
