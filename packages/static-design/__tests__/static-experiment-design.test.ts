@@ -8,7 +8,7 @@ import {
   vi,
 } from 'vitest';
 import StaticExperimentDesign from '../src/static-experiment-design.js';
-import UntypedTimelineIterator, { Timeline } from '../src/timeline-iterator.js';
+import UntypedTimelineIterator, { Run } from '../src/timeline-iterator.js';
 
 vi.mock('../src/timeline-iterator.js', () => {
   return {
@@ -24,16 +24,16 @@ const TimelineIterator = UntypedTimelineIterator as MockedClass<
 let design: StaticExperimentDesign<{ id: string }>;
 beforeEach(() => {
   // @ts-expect-error This is a mock.
-  TimelineIterator.mockImplementation((timeline: Timeline<unknown>) => {
+  TimelineIterator.mockImplementation((timeline: Run<unknown>) => {
     return { id: `mock-iterator-${timeline.id}` };
   });
   design = new StaticExperimentDesign({
     id: 'mock-xp',
-    timelines: [
-      { id: 'mock-timeline-1', tasks: [{ id: '1-1' }, { id: '1-2' }] },
-      { id: 'mock-timeline-2', tasks: [{ id: '2-1' }, { id: '2-2' }] },
-      { id: 'mock-timeline-3', tasks: [{ id: '3-1' }, { id: '3-2' }] },
-      { id: 'mock-timeline-4', tasks: [{ id: '4-1' }, { id: '4-2' }] },
+    runs: [
+      { id: 'mock-timeline-1', timeline: [{ id: '1-1' }, { id: '1-2' }] },
+      { id: 'mock-timeline-2', timeline: [{ id: '2-1' }, { id: '2-2' }] },
+      { id: 'mock-timeline-3', timeline: [{ id: '3-1' }, { id: '3-2' }] },
+      { id: 'mock-timeline-4', timeline: [{ id: '4-1' }, { id: '4-2' }] },
     ],
   });
 });
@@ -44,44 +44,44 @@ afterEach(() => {
 
 describe('StaticExperimentDesign#getAvailableTimelines', () => {
   it('returns the list of un-started available timelines from the list of started timelines', async () => {
-    await expect(
-      design.getAvailableTimelines(['mock-timeline-2', 'mock-timeline-3']),
-    ).resolves.toEqual(['mock-timeline-1', 'mock-timeline-4']);
+    expect(
+      design.getAvailableRuns(['mock-timeline-2', 'mock-timeline-3']),
+    ).toEqual(['mock-timeline-1', 'mock-timeline-4']);
   });
   it('returns an empty list if there is no available timelines', async () => {
-    await expect(
-      design.getAvailableTimelines([
+    expect(
+      design.getAvailableRuns([
         'mock-timeline-2',
         'mock-timeline-3',
         'mock-timeline-1',
         'mock-timeline-4',
       ]),
-    ).resolves.toEqual([]);
+    ).toEqual([]);
   });
 });
 
 describe('StaticExperimentDesign#startTimeline', () => {
   it('returns the timeline iterator for the specified timeline', async () => {
-    await expect(
-      design.startTimeline('mock-timeline-3', {
+    expect(
+      design.startRun('mock-timeline-3', {
         resumeAfter: '3-1',
         resumeWith: { id: 'resumeWith' },
       }),
-    ).resolves.toEqual({ id: 'mock-iterator-mock-timeline-3' });
-    await expect(TimelineIterator.mock.calls).toEqual([
+    ).toEqual({ id: 'mock-iterator-mock-timeline-3' });
+    expect(TimelineIterator.mock.calls).toEqual([
       [
-        { id: 'mock-timeline-3', tasks: [{ id: '3-1' }, { id: '3-2' }] },
+        { id: 'mock-timeline-3', timeline: [{ id: '3-1' }, { id: '3-2' }] },
         { resumeAfter: '3-1', resumeWith: { id: 'resumeWith' } },
       ],
     ]);
   });
   it('fails if the timeline design does not exists', async () => {
-    await expect(design.startTimeline('unknown-timeline-id')).rejects.toThrow();
+    expect(() => design.startRun('unknown-timeline-id')).toThrow();
   });
 });
 
 describe('StaticExperimentDesign#getId', () => {
   it('returns the id of the experiment', async () => {
-    await expect(design.getId()).resolves.toBe('mock-xp');
+    expect(design.getId()).toBe('mock-xp');
   });
 });

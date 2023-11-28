@@ -1,55 +1,50 @@
 export type BaseTask = { id: string };
-export type Timeline<Task, Id extends string = string> = {
+export type Run<Task, Id extends string = string> = {
   id: Id;
-  tasks: Task[];
+  timeline: Task[];
 };
 export type TimelineIteratorOptions<Task extends BaseTask> = {
   resumeAfter?: Task['id'];
   resumeWith?: Task;
 };
+
 export default class TimelineIterator<Task extends BaseTask>
-  implements AsyncIterator<Task, undefined, undefined>
+  implements Iterator<Task, undefined, undefined>
 {
-  #tasksIterator: Iterator<Task>;
-  #forcedNextTask: Task | null = null;
-  #id: string;
+  #iterator: Iterator<Task>;
+  #runId: string;
 
   constructor(
-    { id, tasks }: Timeline<Task>,
+    { id, timeline }: Run<Task>,
     {
       resumeAfter = undefined,
       resumeWith = undefined,
     }: TimelineIteratorOptions<Task> = {},
   ) {
-    let startIndex = 0;
+    let tasks = timeline;
     if (resumeAfter != null) {
-      const lastTaskIndex = tasks.findIndex((s) => s.id === resumeAfter);
+      const lastTaskIndex = timeline.findIndex((s) => s.id === resumeAfter);
       if (lastTaskIndex < 0) {
         throw new Error(
           `Cannot resume after task "${resumeAfter}": the task could not be found`,
         );
       }
-      startIndex = lastTaskIndex + 1;
+      tasks.splice(
+        0,
+        lastTaskIndex + 1,
+        ...(resumeWith == null ? [] : [resumeWith]),
+      );
     }
 
-    this.#id = id;
-    this.#tasksIterator = tasks.slice(startIndex)[Symbol.iterator]();
-
-    // Used to force the next value (used in particular when resumeWith
-    // is not null).
-    this.#forcedNextTask = resumeWith ?? null;
+    this.#runId = id;
+    this.#iterator = tasks[Symbol.iterator]();
   }
 
   next() {
-    if (this.#forcedNextTask != null) {
-      const value = this.#forcedNextTask;
-      this.#forcedNextTask = null;
-      return Promise.resolve({ value, done: false });
-    }
-    return Promise.resolve(this.#tasksIterator.next());
+    return this.#iterator.next();
   }
 
-  getId() {
-    return Promise.resolve(this.#id);
+  getRunId() {
+    return this.#runId;
   }
 }

@@ -1,45 +1,43 @@
 import TimelineIterator, {
   BaseTask,
-  Timeline,
+  Run,
   TimelineIteratorOptions,
 } from './timeline-iterator.js';
 
-type DesignConfig<Task, TimelineId extends string> = {
+type Experiment<Task, RunId extends string> = {
   id: string;
-  timelines: Timeline<Task, TimelineId>[];
+  runs: Run<Task, RunId>[];
 };
 
-export default class StaticDesign<
+export default class StaticExperimentDesign<
   Task extends BaseTask,
-  TimelineId extends string = string,
+  RunId extends string = string,
 > {
   #config;
 
-  constructor(config: DesignConfig<Task, TimelineId>) {
-    this.#config = config;
+  constructor(config: Experiment<Task, RunId>) {
+    this.#config = { ...config };
   }
 
-  getAvailableTimelines(startedTimelines: TimelineId[]): Promise<TimelineId[]> {
-    return Promise.resolve(
-      this.#config.timelines
-        .map((timeline) => timeline.id)
-        .filter((timelineId) =>
-          startedTimelines.every(
-            (startedTimelineId) => startedTimelineId !== timelineId,
-          ),
+  getAvailableRuns(startedRuns: RunId[] = []): RunId[] {
+    return this.#config.runs
+      .map((timeline) => timeline.id)
+      .filter((timelineId) =>
+        startedRuns.every(
+          (startedTimelineId) => startedTimelineId !== timelineId,
         ),
-    );
+      );
   }
 
-  startTimeline(id: TimelineId, options?: TimelineIteratorOptions<Task>) {
-    const timeline = this.#config.timelines.find((t) => t.id === id);
-    if (!timeline) {
-      return Promise.reject(new Error(`Cannot find timeline with id ${id}`));
+  startRun(id: RunId, options?: TimelineIteratorOptions<Task>) {
+    const run = this.#config.runs.find((t) => t.id === id);
+    if (!run) {
+      throw new Error(`Cannot find timeline with id ${id}`);
     }
-    return Promise.resolve(new TimelineIterator(timeline, options));
+    return new TimelineIterator(run, options);
   }
 
-  getId(): Promise<string> {
-    return Promise.resolve(this.#config.id);
+  getId() {
+    return this.#config.id;
   }
 }
