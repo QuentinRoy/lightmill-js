@@ -1,5 +1,11 @@
 # Change Log
 
+## 3.0.0-beta.27
+
+### Major Changes
+
+- ff4d4ac: Rename StaticDesign and Timeline's constructors 'tasks' option to 'timeline', rename StaticDesign's getId method to getRunId, and make every async methods sync (TimelineIterator now implements Iterator instead of AsyncInterator).
+
 ## 3.0.0-beta.25
 
 ### Patch Changes
