@@ -1,5 +1,11 @@
 # @lightmill/log-server
 
+## 3.0.0-beta.26
+
+### Patch Changes
+
+- ea9d60a: Do not crash when client attempts to post a log whose number already exists in the ongoing sequence.
+
 ## 3.0.0-beta.25
 
 ### Patch Changes
