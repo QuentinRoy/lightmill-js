@@ -36,6 +36,10 @@ jobs:
             ${{ runner.os }}-pnpm-store-
       - run: pnpm install --frozen-lockfile
       - run: pnpm run build-all
+      - uses: actions/upload-artifact@v3
+        with:
+          name: 'build'
+          path: 'packages/*/dist/'
 
   test:
     needs: ['build']
@@ -63,7 +67,11 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pnpm-store-
       - run: pnpm install --frozen-lockfile
-      - run: pnpm run build-all
+      - uses: actions/download-artifact@v3
+        id: download
+        with:
+          name: 'build'
+          path: 'packages'
       - run: pnpm run test-all
 
   lint:
