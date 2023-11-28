@@ -9,7 +9,7 @@ export type Experiment = {
 export type WithId = { id: string };
 export type Run<T extends MinimalTask> = {
   id: string;
-  tasks: Array<T>;
+  timeline: Array<T>;
 };
 export type Trial = (
   | { practice: false; number: number; blockNumber: number }
@@ -156,20 +156,20 @@ export default function convertTouchstone(
         if (experiment != null) {
           throw new Error('There can only be one experiment tag');
         }
-        experiment = { author, description, id, timelines: [] };
+        experiment = { author, description, id, runs: [] };
       },
       run({ attributes: { id } }: sax.Tag) {
         if (currentRun != null) throw new Error('Runs cannot be nested');
         if (experiment == null) {
           throw new Error('Blocks must be inside an experiment');
         }
-        currentRun = { id, tasks: [] };
-        experiment.timelines.push(currentRun);
+        currentRun = { id, timeline: [] };
+        experiment.runs.push(currentRun);
         // This is very protective, but it ensures mappers cannot mess with
         // our internal state.
-        let { tasks, ...runBase } = currentRun;
-        let { timelines, ...experimentBase } = experiment;
-        currentRun.tasks = getPreRunTasks(runBase, experimentBase);
+        let { timeline: tasks, ...runBase } = currentRun;
+        let { runs, ...experimentBase } = experiment;
+        currentRun.timeline = getPreRunTasks(runBase, experimentBase);
       },
       block(blockNode: sax.Tag, practice = false) {
         if (currentBlock != null) throw new Error('Blocks cannot be nested');
@@ -189,9 +189,9 @@ export default function convertTouchstone(
         };
         // This is very protective, but it ensures mappers cannot mess with
         // our internal state.
-        let { tasks, ...runBase } = currentRun;
-        let { timelines, ...experimentBase } = experiment;
-        currentRun.tasks.push(
+        let { timeline: tasks, ...runBase } = currentRun;
+        let { runs, ...experimentBase } = experiment;
+        currentRun.timeline.push(
           ...getPreBlockTasks({ ...currentBlock }, runBase, experimentBase),
         );
       },
@@ -225,9 +225,9 @@ export default function convertTouchstone(
             };
         // This is very protective, but it ensures mappers cannot mess with
         // our internal state.
-        let { tasks, ...runBase } = currentRun;
-        let { timelines, ...experimentBase } = experiment;
-        currentRun.tasks.push(
+        let { timeline, ...runBase } = currentRun;
+        let { runs, ...experimentBase } = experiment;
+        currentRun.timeline.push(
           ...getTrialTasks(trial, { ...currentBlock }, runBase, experimentBase),
         );
       },
@@ -267,9 +267,9 @@ export default function convertTouchstone(
         }
         // This is very protective, but it ensures mappers cannot mess with
         // our internal state.
-        let { timelines, ...experimentBase } = experiment;
-        let { tasks, ...runBase } = currentRun;
-        currentRun.tasks.push(...getPostRunTasks(runBase, experimentBase));
+        let { runs, ...experimentBase } = experiment;
+        let { timeline, ...runBase } = currentRun;
+        currentRun.timeline.push(...getPostRunTasks(runBase, experimentBase));
         currentRun = null;
         currentBlock = null;
         taskIdManager.reset();
@@ -286,9 +286,9 @@ export default function convertTouchstone(
         }
         // This is very protective, but it ensures mappers cannot mess with
         // our internal state.
-        let { timelines, ...experimentBase } = experiment;
-        let { tasks, ...runBase } = currentRun;
-        currentRun.tasks.push(
+        let { runs, ...experimentBase } = experiment;
+        let { timeline, ...runBase } = currentRun;
+        currentRun.timeline.push(
           ...getPostBlockTasks(currentBlock, runBase, experimentBase),
         );
         currentBlock = null;
