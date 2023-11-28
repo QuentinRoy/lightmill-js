@@ -5,10 +5,10 @@ exports[`convert > accepts a readable stream as input 1`] = `
   "author": "Quentin Roy",
   "description": "Some useless text",
   "id": "test",
-  "timelines": [
+  "runs": [
     {
       "id": "S0",
-      "tasks": [
+      "timeline": [
         {
           "factorFloat": 10.254,
           "factorInt": 2,
@@ -141,7 +141,7 @@ exports[`convert > accepts a readable stream as input 1`] = `
     },
     {
       "id": "S1",
-      "tasks": [
+      "timeline": [
         {
           "factorFloat": 0.5,
           "factorInt": 2,
@@ -281,10 +281,10 @@ exports[`convert > accepts a string as input 1`] = `
   "author": "Quentin Roy",
   "description": "Some useless text",
   "id": "test",
-  "timelines": [
+  "runs": [
     {
       "id": "S0",
-      "tasks": [
+      "timeline": [
         {
           "factorFloat": 10.254,
           "factorInt": 2,
@@ -417,7 +417,7 @@ exports[`convert > accepts a string as input 1`] = `
     },
     {
       "id": "S1",
-      "tasks": [
+      "timeline": [
         {
           "factorFloat": 0.5,
           "factorInt": 2,
@@ -557,10 +557,10 @@ exports[`convert > pres, posts, and trials can be specified as arrays of objects
   "author": "Quentin Roy",
   "description": "Some useless text",
   "id": "test",
-  "timelines": [
+  "runs": [
     {
       "id": "S0",
-      "tasks": [
+      "timeline": [
         {
           "id": "pre-run-1-0",
           "type": "pre-run-1",
@@ -773,7 +773,7 @@ exports[`convert > pres, posts, and trials can be specified as arrays of objects
     },
     {
       "id": "S1",
-      "tasks": [
+      "timeline": [
         {
           "id": "pre-run-1-0",
           "type": "pre-run-1",
@@ -993,10 +993,10 @@ exports[`convert > pres, posts, and trials options can be specified as arrays of
   "author": "Quentin Roy",
   "description": "Some useless text",
   "id": "test",
-  "timelines": [
+  "runs": [
     {
       "id": "S0",
-      "tasks": [
+      "timeline": [
         {
           "id": "pre-run-1-0",
           "type": "pre-run-1",
@@ -1397,7 +1397,7 @@ exports[`convert > pres, posts, and trials options can be specified as arrays of
     },
     {
       "id": "S1",
-      "tasks": [
+      "timeline": [
         {
           "id": "pre-run-1-0",
           "type": "pre-run-1",
@@ -1805,10 +1805,10 @@ exports[`convert > pres, posts, and trials options can be specified as functions
   "author": "Quentin Roy",
   "description": "Some useless text",
   "id": "test",
-  "timelines": [
+  "runs": [
     {
       "id": "S0",
-      "tasks": [
+      "timeline": [
         {
           "data": "data",
           "id": "0",
@@ -1943,7 +1943,7 @@ exports[`convert > pres, posts, and trials options can be specified as functions
     },
     {
       "id": "S1",
-      "tasks": [
+      "timeline": [
         {
           "data": "data",
           "id": "26",
@@ -3474,10 +3474,10 @@ exports[`convert > pres, posts, and trials options can be specified as strings 1
   "author": "Quentin Roy",
   "description": "Some useless text",
   "id": "test",
-  "timelines": [
+  "runs": [
     {
       "id": "S0",
-      "tasks": [
+      "timeline": [
         {
           "id": "mock-pre-run-0",
           "type": "mock-pre-run",
@@ -3680,7 +3680,7 @@ exports[`convert > pres, posts, and trials options can be specified as strings 1
     },
     {
       "id": "S1",
-      "tasks": [
+      "timeline": [
         {
           "id": "mock-pre-run-0",
           "type": "mock-pre-run",
@@ -3890,10 +3890,10 @@ exports[`convert > pres, posts, and trials options can be specified as strings 2
   "author": "Quentin Roy",
   "description": "Some useless text",
   "id": "test",
-  "timelines": [
+  "runs": [
     {
       "id": "S0",
-      "tasks": [
+      "timeline": [
         {
           "id": "mock-pre-run-0",
           "type": "mock-pre-run",
@@ -4096,7 +4096,7 @@ exports[`convert > pres, posts, and trials options can be specified as strings 2
     },
     {
       "id": "S1",
-      "tasks": [
+      "timeline": [
         {
           "id": "mock-pre-run-0",
           "type": "mock-pre-run",
