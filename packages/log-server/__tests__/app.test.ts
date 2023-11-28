@@ -613,6 +613,26 @@ describe('logs', () => {
         { type: 'test-log', values: { p3: 'v3', p4: 'v4' }, number: 2 },
       ]);
     });
+    it('should refuse to add logs if the store says that their number is already used', async () => {
+      store.addLogs.mockImplementation(async () => {
+        throw new StoreError(
+          'Log number 2 is already used',
+          'LOG_NUMBER_EXISTS_IN_SEQUENCE',
+        );
+      });
+      await api
+        .post('/experiments/test-exp/runs/test-run/logs')
+        .send({
+          logs: [
+            { type: 'test-log', values: { p1: 'v4', p2: 'v5' }, number: 2 },
+            { type: 'test-log', values: { p3: 'v3', p4: 'v4' }, number: 3 },
+          ],
+        } satisfies PostLogsBody)
+        .expect(403, {
+          status: 'error',
+          message: 'Log number 2 is already used',
+        });
+    });
   });
 
   describe('get /experiments/:experiment/logs', () => {

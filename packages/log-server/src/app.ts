@@ -287,6 +287,13 @@ export function LogServer({
         await store.addLogs(experimentId, runId, logs);
         res.status(201).json({ status: 'ok' });
       } catch (e) {
+        if (
+          e instanceof StoreError &&
+          e.code === 'LOG_NUMBER_EXISTS_IN_SEQUENCE'
+        ) {
+          res.status(403).json({ status: 'error', message: e.message });
+          return;
+        }
         next(e);
       }
     },
