@@ -6,8 +6,8 @@ import { post, patch, del, get } from './fetch.js';
 
 type RunEndpointConfig = {
   apiRoot?: string;
-  runId: string;
-  experimentId: string;
+  runName: string;
+  experimentName: string;
 };
 
 type CreateNewSessionParameter = {
@@ -20,9 +20,9 @@ export async function createNewSession({
   role,
   password,
 }: CreateNewSessionParameter) {
-  let body: ApiBody<'post', '/sessions'> = { role, password };
+  let body: ApiBody<'put', '/sessions/current'> = { role, password };
   let r = await post(`${apiRoot}/sessions`, { body, credentials: 'include' });
-  return r as ApiResponse<'post', '/sessions'>;
+  return r as ApiResponse<'put', '/sessions/current'>;
 }
 
 type GetSessionInfoParameter = { apiRoot?: string };
@@ -55,63 +55,76 @@ export async function createNewRun({
 type GetRunInfoParameter = RunEndpointConfig;
 export async function getRunInfo({
   apiRoot = '',
-  runId,
-  experimentId,
+  runName,
+  experimentName,
 }: GetRunInfoParameter) {
-  let r = await get(`${apiRoot}/experiments/${experimentId}/runs/${runId}`);
-  return r as ApiResponse<'get', '/experiments/:experimentId/runs/:runId'>;
+  let r = await get(`${apiRoot}/experiments/${experimentName}/runs/${runName}`);
+  return r as ApiResponse<'get', '/experiments/:experimentName/runs/:runName'>;
 }
 
 type UpdateRunStatusParameter = RunEndpointConfig & {
-  status: 'completed' | 'canceled';
+  runStatus: 'completed' | 'canceled' | 'interrupted';
 };
 export async function updateRunStatus({
   apiRoot = '',
-  runId,
-  experimentId,
-  status,
+  runName,
+  experimentName,
+  runStatus,
 }: UpdateRunStatusParameter) {
-  let body: ApiBody<'patch', '/experiments/:experimentId/runs/:runId'> = {
-    status,
+  let body: ApiBody<'patch', '/experiments/:experimentName/runs/:runName'> = {
+    runStatus,
   };
-  let r = await patch(`${apiRoot}/experiments/${experimentId}/runs/${runId}`, {
-    body,
-    credentials: 'include',
-    // This request is sometimes sent from a browser tab that is about to be
-    // closed. We want to make sure that the request is sent before the tab is
-    // closed.
-    keepalive: true,
-  });
-  return r as ApiResponse<'patch', '/experiments/:experimentId/runs/:runId'>;
+  let r = await patch(
+    `${apiRoot}/experiments/${experimentName}/runs/${runName}`,
+    {
+      body,
+      credentials: 'include',
+      // This request is sometimes sent from a browser tab that is about to be
+      // closed. We want to make sure that the request is sent before the tab is
+      // closed.
+      keepalive: true,
+    },
+  );
+  return r as ApiResponse<
+    'patch',
+    '/experiments/:experimentName/runs/:runName'
+  >;
 }
 
 type ResumeRunParameter = RunEndpointConfig & { resumeFrom: number };
 export async function resumeRun({
   apiRoot = '',
-  runId,
-  experimentId,
+  runName,
+  experimentName,
   resumeFrom,
 }: ResumeRunParameter) {
-  let body: ApiBody<'patch', '/experiments/:experimentId/runs/:runId'> = {
+  let body: ApiBody<'patch', '/experiments/:experimentName/runs/:runName'> = {
     resumeFrom,
+    runStatus: 'running',
   };
-  let r = await patch(`${apiRoot}/experiments/${experimentId}/runs/${runId}`, {
-    body,
-    credentials: 'include',
-  });
-  return r as ApiResponse<'patch', '/experiments/:experimentId/runs/:runId'>;
+  let r = await patch(
+    `${apiRoot}/experiments/${experimentName}/runs/${runName}`,
+    {
+      body,
+      credentials: 'include',
+    },
+  );
+  return r as ApiResponse<
+    'patch',
+    '/experiments/:experimentName/runs/:runName'
+  >;
 }
 
 type PostLogParameter = RunEndpointConfig &
-  ApiBody<'post', '/experiments/:experimentId/runs/:runId/logs'>;
+  ApiBody<'post', '/experiments/:experimentName/runs/:runName/logs'>;
 export async function postLog({
   apiRoot = '',
-  runId,
-  experimentId,
+  runName,
+  experimentName,
   ...body
 }: PostLogParameter) {
   let r = await post(
-    `${apiRoot}/experiments/${experimentId}/runs/${runId}/logs`,
+    `${apiRoot}/experiments/${experimentName}/runs/${runName}/logs`,
     {
       body,
       credentials: 'include',
@@ -120,6 +133,6 @@ export async function postLog({
   );
   return r as ApiResponse<
     'post',
-    '/experiments/:experimentId/runs/:runId/logs'
+    '/experiments/:experimentName/runs/:runName/logs'
   >;
 }

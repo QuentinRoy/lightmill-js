@@ -9,5 +9,9 @@ export default defineConfig({
     root: resolve(dirname),
     globals: false,
     include: ['**/__tests__/*.test.ts'],
+    typecheck: {
+      checker: 'tsc',
+      ignoreSourceErrors: true,
+    },
   },
 });
