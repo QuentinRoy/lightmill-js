@@ -222,7 +222,9 @@ describe('RunLogger#resumeRun', () => {
       runId: 'test-run',
       experimentId: 'test-experiment',
     });
-    await logger.resumeRun({ resumeAfterLast: 'test-type' });
+    await expect(
+      logger.resumeRun({ resumeAfterLast: 'test-type' }),
+    ).resolves.toEqual({ type: 'test-type', number: 4 });
     await expect(waitForChangeRequests()).resolves.toEqual([
       {
         url: 'https://server.test/api/experiments/test-experiment/runs/test-run',
@@ -250,12 +252,43 @@ describe('RunLogger#resumeRun', () => {
       runId: 'test-run',
       experimentId: 'test-experiment',
     });
-    await logger.resumeRun({ resumeAfterLast: ['test-type1', 'test-type2'] });
+    await expect(
+      logger.resumeRun({ resumeAfterLast: ['test-type1', 'test-type2'] }),
+    ).resolves.toEqual({ type: 'test-type1', number: 3 });
     await expect(waitForChangeRequests()).resolves.toEqual([
       {
         url: 'https://server.test/api/experiments/test-experiment/runs/test-run',
         method: 'PATCH',
         body: { resumeFrom: 6 },
+      },
+    ]);
+  });
+
+  it('should resume an existing run even if no matching logs are found', async () => {
+    setServerRuns([
+      {
+        runId: 'test-run',
+        experimentId: 'test-experiment',
+        status: 'running',
+        logs: [
+          { type: 'test-type1', count: 3, lastNumber: 5, pending: 2 },
+          { type: 'test-type2', count: 1, lastNumber: 1, pending: 1 },
+        ],
+      },
+    ]);
+    const logger = new LogClient({
+      apiRoot: 'https://server.test/api',
+      runId: 'test-run',
+      experimentId: 'test-experiment',
+    });
+    await expect(
+      logger.resumeRun({ resumeAfterLast: ['other-type'] }),
+    ).resolves.toBeNull();
+    await expect(waitForChangeRequests()).resolves.toEqual([
+      {
+        url: 'https://server.test/api/experiments/test-experiment/runs/test-run',
+        method: 'PATCH',
+        body: { resumeFrom: 1 },
       },
     ]);
   });
@@ -274,11 +307,13 @@ describe('RunLogger#resumeRun', () => {
       },
     ]);
     const logger = new LogClient({ apiRoot: 'https://server.test/api' });
-    await logger.resumeRun({
-      resumeAfterLast: ['test-type1', 'test-type2'],
-      experimentId: 'test-experiment',
-      runId: 'test-run',
-    });
+    await expect(
+      logger.resumeRun({
+        resumeAfterLast: ['test-type1', 'test-type2'],
+        experimentId: 'test-experiment',
+        runId: 'test-run',
+      }),
+    ).resolves.toEqual({ type: 'test-type1', number: 3 });
     await expect(waitForChangeRequests()).resolves.toEqual([
       {
         url: 'https://server.test/api/experiments/test-experiment/runs/test-run',
@@ -297,18 +332,20 @@ describe('RunLogger#resumeRun', () => {
         logs: [
           { type: 'test-type1', count: 3, lastNumber: 5, pending: 2 },
           { type: 'test-type2', count: 1, lastNumber: 1, pending: 1 },
-          { type: 'other-type', count: 3, lastNumber: 7, pending: 0 },
+          { type: 'other-type', count: 4, lastNumber: 8, pending: 0 },
         ],
       },
     ]);
     const logger = new LogClient({
       apiRoot: 'https://server.test/api',
     });
-    await logger.resumeRun({
-      resumeAfterLast: ['test-type1', 'test-type2'],
-      experimentId: 'test-experiment',
-      runId: 'test-run',
-    });
+    await expect(
+      logger.resumeRun({
+        resumeAfterLast: ['test-type1', 'test-type2'],
+        experimentId: 'test-experiment',
+        runId: 'test-run',
+      }),
+    ).resolves.toEqual({ type: 'test-type1', number: 3 });
     await expect(waitForChangeRequests()).resolves.toEqual([
       {
         url: 'https://server.test/api/experiments/test-experiment/runs/test-run',
@@ -318,7 +355,7 @@ describe('RunLogger#resumeRun', () => {
     ]);
   });
 
-  it("should refuse to overwrite the constructor's experimentId", async () => {
+  it('should refuse to resume a run with an experimentId different than the one provided in the constructor', async () => {
     const logger = new LogClient({
       apiRoot: 'https://server.test/api',
       experimentId: 'original-experiment',
@@ -332,7 +369,7 @@ describe('RunLogger#resumeRun', () => {
     ).rejects.toThrowError(Error);
   });
 
-  it("should refuse to overwrite the constructor's runId", async () => {
+  it('should refuse to resume a run with a runId different than the one provided in the constructor', async () => {
     const logger = new LogClient({
       apiRoot: 'https://server.test/api',
       runId: 'original-run',
