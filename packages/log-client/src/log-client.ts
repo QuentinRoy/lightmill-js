@@ -164,8 +164,9 @@ export class LogClient<ClientLog extends Typed & OptionallyDated = AnyLog> {
         .filter((l): l is { type: T } & typeof l =>
           resumeAfterLastSet.has(l.type),
         )
-        .reduce((maxLog, log) =>
-          maxLog.lastNumber > log.lastNumber ? maxLog : log,
+        .reduce(
+          (maxLog, log) => (maxLog.lastNumber > log.lastNumber ? maxLog : log),
+          { lastNumber: 0, count: 0, type: null as null | T },
         );
       await Interface.resumeRun({
         apiRoot: this.#apiRoot,
@@ -177,7 +178,9 @@ export class LogClient<ClientLog extends Typed & OptionallyDated = AnyLog> {
       this.#experimentId = experimentId;
       this.#runStatus = 'running';
       this.#logCount = lastLog.lastNumber;
-      return { type: lastLog.type, number: lastLog.count };
+      return lastLog.type == null
+        ? null
+        : { type: lastLog.type, number: lastLog.count };
     } catch (err) {
       this.#runStatus = 'error';
       throw err;
