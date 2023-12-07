@@ -1,5 +1,11 @@
 # @lightmill/log-client
 
+## 3.0.0-beta.28
+
+### Patch Changes
+
+- 1567f93: Fix resuming a log when there are no matching logs found.
+
 ## 3.0.0-beta.25
 
 ### Patch Changes
