@@ -120,7 +120,7 @@ describe('convert', () => {
 
   it('fails if it is provided with an empty string', async () => {
     await expect(() => convert('')).rejects.toThrowErrorMatchingInlineSnapshot(
-      '"No experiment tag found"',
+      `[Error: No experiment tag found]`,
     );
   });
 
@@ -135,6 +135,8 @@ describe('convert', () => {
 
     await expect(() =>
       convert(noOpReadable),
-    ).rejects.toThrowErrorMatchingInlineSnapshot('"No experiment tag found"');
+    ).rejects.toThrowErrorMatchingInlineSnapshot(
+      `[Error: No experiment tag found]`,
+    );
   });
 });
