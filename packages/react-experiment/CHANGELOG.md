@@ -1,5 +1,12 @@
 # @lightmill/react-experiment
 
+## 3.0.0-beta.29
+
+### Patch Changes
+
+- 6ee33d3: Run's elements prop must now support every tasks in timeline, even when no task types have been provided or registered
+- f6a7a82: Fix tasks being skipped when onTaskCompleted is called several times.
+
 ## 3.0.0-beta.25
 
 ### Major Changes
