@@ -276,4 +276,51 @@ describe('run', () => {
       );
     }).toThrow('Could not find task to resume after');
   });
+
+  it('throws an error if the same task is completed multiple times', async () => {
+    const wrapper = vi.fn(
+      (f: () => void, { shouldFail }: { shouldFail: boolean }) => {
+        if (shouldFail) {
+          try {
+            expect(() => f()).toThrowErrorMatchingInlineSnapshot(
+              `[Error: Task already completed]`,
+            );
+          } catch (e) {}
+        } else {
+          f();
+        }
+      },
+    );
+    const BadTask = () => {
+      let { onTaskCompleted } = useTask('bad');
+      return (
+        <div>
+          <h1>Bad Task</h1>
+          <button
+            onClick={() => {
+              wrapper(onTaskCompleted, { shouldFail: false });
+              wrapper(onTaskCompleted, { shouldFail: true });
+            }}
+          >
+            Complete
+          </button>
+        </div>
+      );
+    };
+    let config = {
+      tasks: {
+        bad: <BadTask />,
+        ok: <Task type="ok" dataProp="prop" />,
+      },
+    };
+    render(
+      <Run
+        elements={config}
+        timeline={[{ type: 'bad' }, { type: 'ok', prop: 'hello' }]}
+      />,
+    );
+    expect(screen.getByRole('heading')).toHaveTextContent('Bad Task');
+    fireEvent.click(screen.getByRole('button'));
+    expect(wrapper).toHaveBeenCalledTimes(2);
+  });
 });

@@ -52,11 +52,14 @@ export default function useManagedTimeline<Task extends { type: string }>(
           runner.completeTask();
           return;
         }
+        let hasBeenCompleted = false;
         setState({
           status: 'running',
           task,
           onTaskCompleted() {
+            if (hasBeenCompleted) throw new Error('Task already completed');
             runner.completeTask();
+            hasBeenCompleted = true;
           },
         });
         optionsRef.current.onTaskStarted?.(task);
