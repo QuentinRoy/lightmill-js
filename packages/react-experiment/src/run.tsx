@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { ReadonlyDeep } from 'type-fest';
 import { RegisteredTask, Typed, RegisteredLog } from './config.js';
 import { loggerContext, noLoggerSymbol, timelineContext } from './contexts.js';
 import useManagedTimeline, {
@@ -15,13 +16,13 @@ export type RunElements<T extends Typed> = {
 export type Logger<Log> = (log: Log) => Promise<void>;
 
 export type RunProps<Task extends Typed, Log> = {
-  elements: RunElements<Task>;
+  elements: Readonly<RunElements<Task>>;
   confirmBeforeUnload?: boolean;
 } & UseRunParameter<Task, Log>;
 
 // This component uses explicit return type to prevent the function from
 // returning undefined, which could indicate a state isn't being handled.
-export function Run<T extends RegisteredTask>({
+export function Run<const T extends RegisteredTask>({
   elements,
   confirmBeforeUnload = true,
   ...useRunParameter
@@ -74,13 +75,13 @@ type UseRunParameter<Task extends { type: string }, Log> = {
   onLog?: Logger<Log>;
   resumeAfter?: { type: Task['type']; number: number };
 } & (
-  | { timeline: Timeline<Task>; loading?: boolean }
-  | { timeline?: Timeline<Task> | null; loading: true }
+  | { timeline: ReadonlyDeep<Timeline<Task>>; loading?: boolean }
+  | { timeline?: ReadonlyDeep<Timeline<Task>> | null; loading: true }
 );
 type RunState<Task, Log> = Exclude<TimelineState<Task>, { status: 'error' }> & {
   onLog: ((newLog: Log) => void) | null;
 };
-function useRun<T extends { type: string }, L>({
+function useRun<const T extends { type: string }, L>({
   onCompleted,
   timeline,
   resumeAfter,
