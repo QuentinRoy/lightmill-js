@@ -1,9 +1,8 @@
 import * as React from 'react';
-import { ReadonlyDeep } from 'type-fest';
 import { RegisteredTask, Typed, RegisteredLog } from './config.js';
 import { loggerContext, noLoggerSymbol, timelineContext } from './contexts.js';
 import useManagedTimeline, {
-  Timeline,
+  AnyIteratorOrIterable,
   TimelineState,
 } from './useManagedTimeline.js';
 
@@ -16,7 +15,7 @@ export type RunElements<T extends Typed> = {
 export type Logger<Log> = (log: Log) => Promise<void>;
 
 export type RunProps<Task extends Typed, Log> = {
-  elements: Readonly<RunElements<Task>>;
+  elements: RunElements<Task>;
   confirmBeforeUnload?: boolean;
 } & UseRunParameter<Task, Log>;
 
@@ -75,13 +74,13 @@ type UseRunParameter<Task extends { type: string }, Log> = {
   onLog?: Logger<Log>;
   resumeAfter?: { type: Task['type']; number: number };
 } & (
-  | { timeline: ReadonlyDeep<Timeline<Task>>; loading?: boolean }
-  | { timeline?: ReadonlyDeep<Timeline<Task>> | null; loading: true }
+  | { timeline: AnyIteratorOrIterable<Task>; loading?: boolean }
+  | { timeline?: AnyIteratorOrIterable<Task> | null; loading: true }
 );
 type RunState<Task, Log> = Exclude<TimelineState<Task>, { status: 'error' }> & {
   onLog: ((newLog: Log) => void) | null;
 };
-function useRun<const T extends { type: string }, L>({
+function useRun<T extends { type: string }, L>({
   onCompleted,
   timeline,
   resumeAfter,
