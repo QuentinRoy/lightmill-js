@@ -11,11 +11,11 @@ export type TimelineState<Task> =
   | { status: 'error'; error: Error }
   | { status: 'running'; task: Task; onTaskCompleted: () => void };
 
-export type AsyncTimeline<Task> = AsyncIterator<Task> | AsyncIterable<Task>;
-
-export type SyncTimeline<Task> = Iterator<Task> | Iterable<Task>;
-
-export type Timeline<Task> = AsyncTimeline<Task> | SyncTimeline<Task>;
+export type AnyIteratorOrIterable<Task> =
+  | AsyncIterator<Task>
+  | AsyncIterable<Task>
+  | Iterator<Task>
+  | Iterable<Task>;
 
 type Options<Task extends { type: string }> = {
   onTimelineCompleted?: () => void;
@@ -23,7 +23,7 @@ type Options<Task extends { type: string }> = {
   onTaskStarted?: (task: Task) => void;
   onTaskCompleted?: (task: Task) => void;
   onTaskLoadingError?: (error: unknown) => void;
-  timeline?: Timeline<Task> | null;
+  timeline?: AnyIteratorOrIterable<Task> | null;
   resumeAfter?: { type: Task['type']; number: number };
 };
 
