@@ -1,5 +1,11 @@
 # @lightmill/react-experiment
 
+## 3.0.0-beta.30
+
+### Patch Changes
+
+- 3b71a26: Fix Run props type regression introduced in 6ee33d3d21882c2e6d8cc12ec0cfda5506fce46a.
+
 ## 3.0.0-beta.29
 
 ### Patch Changes
