@@ -52,7 +52,9 @@ describe('SQLiteStore#addRun', () => {
     await store.addRun({ runId: 'run1', experimentId: 'experiment1' });
     await expect(
       store.addRun({ runId: 'run1', experimentId: 'experiment1' }),
-    ).rejects.toThrow();
+    ).rejects.toThrowErrorMatchingInlineSnapshot(
+      `[StoreError: run "run1" already exists for experiment "experiment1".]`,
+    );
   });
   it('should add a run if a run with the same id already exists but for a different experiment', async () => {
     await expect(
@@ -116,19 +118,27 @@ describe('SQLiteStore#setRunStatus', () => {
     await store.setRunStatus('experiment', 'run1', 'completed');
     await expect(
       store.setRunStatus('experiment', 'run1', 'completed'),
-    ).rejects.toThrow();
+    ).rejects.toThrowErrorMatchingInlineSnapshot(
+      `[StoreError: Cannot set status of run "run1" for experiment "experiment".]`,
+    );
     await expect(
       store.setRunStatus('experiment', 'run1', 'canceled'),
-    ).rejects.toThrow();
+    ).rejects.toThrowErrorMatchingInlineSnapshot(
+      `[StoreError: Cannot set status of run "run1" for experiment "experiment".]`,
+    );
   });
   it('should refuse to update a canceled run', async () => {
     await store.setRunStatus('experiment', 'run1', 'canceled');
     await expect(
       store.setRunStatus('experiment', 'run1', 'completed'),
-    ).rejects.toThrow();
+    ).rejects.toThrowErrorMatchingInlineSnapshot(
+      `[StoreError: Cannot set status of run "run1" for experiment "experiment".]`,
+    );
     await expect(
       store.setRunStatus('experiment', 'run1', 'canceled'),
-    ).rejects.toThrow();
+    ).rejects.toThrowErrorMatchingInlineSnapshot(
+      `[StoreError: Cannot set status of run "run1" for experiment "experiment".]`,
+    );
   });
   it('should be able to complete a resumed run even if it was canceled before', async () => {
     await store.setRunStatus('experiment', 'run1', 'canceled');
@@ -155,7 +165,9 @@ describe('SQLiteStore#setRunStatus', () => {
   it('should throw if the run does not exist', async () => {
     await expect(
       store.setRunStatus('experiment', 'run4', 'completed'),
-    ).rejects.toThrow();
+    ).rejects.toThrowErrorMatchingInlineSnapshot(
+      `[StoreError: Cannot set status of run "run4" for experiment "experiment".]`,
+    );
   });
 });
 
@@ -208,12 +220,16 @@ describe('SQLiteStore#resumeRun', () => {
   it('should refuse to resume from 0', async () => {
     await expect(
       store.resumeRun({ experimentId: 'exp', runId: 'run', resumeFrom: 0 }),
-    ).rejects.toThrow();
+    ).rejects.toThrowErrorMatchingInlineSnapshot(
+      `[SqliteError: CHECK constraint failed: start > 0]`,
+    );
   });
   it('should refuse to resume from any number < 0', async () => {
     await expect(
       store.resumeRun({ experimentId: 'exp', runId: 'run', resumeFrom: -5 }),
-    ).rejects.toThrow();
+    ).rejects.toThrowErrorMatchingInlineSnapshot(
+      `[SqliteError: CHECK constraint failed: start > 0]`,
+    );
   });
   it('should refuse to resume if it would leave missing logs just before the resume number', async () => {
     await store.addLogs('exp', 'run', [
@@ -222,7 +238,9 @@ describe('SQLiteStore#resumeRun', () => {
     ]);
     await expect(
       store.resumeRun({ experimentId: 'exp', runId: 'run', resumeFrom: 4 }),
-    ).rejects.toThrow();
+    ).rejects.toThrowErrorMatchingInlineSnapshot(
+      `[StoreError: Cannot resume run "run" for experiment "exp" from log number 4 because the minimum is 3.]`,
+    );
   });
   it('should refuse to resume if it would leave missing logs in the middle', async () => {
     await store.addLogs('exp', 'run', [
@@ -233,7 +251,9 @@ describe('SQLiteStore#resumeRun', () => {
     ]);
     await expect(
       store.resumeRun({ experimentId: 'exp', runId: 'run', resumeFrom: 8 }),
-    ).rejects.toThrow();
+    ).rejects.toThrowErrorMatchingInlineSnapshot(
+      `[StoreError: Cannot resume run "run" for experiment "exp" from log number 8 because the minimum is 3.]`,
+    );
   });
   it('should resume a run even if it would overwrite existing logs', async () => {
     await store.addLogs('exp', 'run', [
@@ -327,13 +347,17 @@ describe('SQLiteStore#addLogs', () => {
       store.addLogs('experiment1', 'run1', [
         { type: 'log', number: 2, values: { x: 3 } },
       ]),
-    ).rejects.toThrow('Cannot add log: duplicated log number in the sequence.');
+    ).rejects.toThrowErrorMatchingInlineSnapshot(
+      `[StoreError: Cannot add log: duplicated log number in the sequence.]`,
+    );
     await expect(
       store.addLogs('experiment1', 'run1', [
         { type: 'log', number: 3, values: { x: 3 } },
         { type: 'log', number: 4, values: { x: 3 } },
       ]),
-    ).rejects.toThrow('Cannot add log: duplicated log number in the sequence.');
+    ).rejects.toThrowErrorMatchingInlineSnapshot(
+      `[StoreError: Cannot add log: duplicated log number in the sequence.]`,
+    );
   });
   it('should refuse to add two logs with the same number for the same run when added in the same requests', async () => {
     await expect(
@@ -343,13 +367,17 @@ describe('SQLiteStore#addLogs', () => {
         { type: 'log2', number: 4, values: { x: 3 } },
         { type: 'log2', number: 3, values: { x: 3 } },
       ]),
-    ).rejects.toThrow('Cannot add log: duplicated log number in the sequence.');
+    ).rejects.toThrowErrorMatchingInlineSnapshot(
+      `[StoreError: Cannot add log: duplicated log number in the sequence.]`,
+    );
     await expect(
       store.addLogs('experiment1', 'run1', [
         { type: 'log1', number: 2, values: { x: 1 } },
         { type: 'log2', number: 2, values: { x: 3 } },
       ]),
-    ).rejects.toThrow('Cannot add log: duplicated log number in the sequence.');
+    ).rejects.toThrowErrorMatchingInlineSnapshot(
+      `[StoreError: Cannot add log: duplicated log number in the sequence.]`,
+    );
   });
   it('should add logs with the same number as long as they are in different runs', async () => {
     await expect(
@@ -417,23 +445,23 @@ describe('SQLiteStore#addLogs', () => {
       store.addLogs('experiment1', 'run1', [
         { type: 'log4', number: 0, values: { x: 3 } },
       ]),
-    ).rejects.toThrow(
-      'Cannot insert log with log_number smaller than its sequence start',
+    ).rejects.toThrowErrorMatchingInlineSnapshot(
+      `[SqliteError: Cannot insert log with log_number smaller than its sequence start]`,
     );
     await expect(
       store.addLogs('experiment1', 'run1', [
         { type: 'log4', number: -1, values: { x: 3 } },
       ]),
-    ).rejects.toThrow(
-      'Cannot insert log with log_number smaller than its sequence start',
+    ).rejects.toThrowErrorMatchingInlineSnapshot(
+      `[SqliteError: Cannot insert log with log_number smaller than its sequence start]`,
     );
     await expect(
       store.addLogs('experiment1', 'run1', [
         { type: 'log4', number: -1, values: { x: 3 } },
         { type: 'log4', number: 1, values: { x: 3 } },
       ]),
-    ).rejects.toThrow(
-      'Cannot insert log with log_number smaller than its sequence start',
+    ).rejects.toThrowErrorMatchingInlineSnapshot(
+      `[SqliteError: Cannot insert log with log_number smaller than its sequence start]`,
     );
   });
   it('should add logs to a resumed run', async () => {
@@ -507,7 +535,9 @@ describe('SQLiteStore#addLogs', () => {
         { type: 'log4', number: 3, values: { x: 3 } },
         { type: 'log4', number: 4, values: { x: 3 } },
       ]),
-    ).rejects.toThrow();
+    ).rejects.toThrowErrorMatchingInlineSnapshot(
+      `[SqliteError: Cannot insert log with log_number smaller than its sequence start]`,
+    );
   });
 });
 
