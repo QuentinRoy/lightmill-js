@@ -82,7 +82,7 @@ afterEach(() => {
 });
 
 describe('sessions', () => {
-  let api: request.SuperTest<request.Test>;
+  let api: request.Agent;
   beforeEach(() => {
     let app = LogServer({
       store: MockStore(),
@@ -155,7 +155,7 @@ describe('sessions', () => {
     });
 
     it('should return the current session if it exists', async () => {
-      await api.post('/sessions').send({ role: 'participant' }).expect(201);
+      await api.put('/sessions/current').send({ role: 'participant' });
       await api.get('/sessions/current').expect(200, {
         role: 'participant',
         runs: [],
@@ -173,7 +173,7 @@ describe('sessions', () => {
     });
 
     it('should delete the current session if it exists', async () => {
-      await api.post('/sessions').send({ role: 'participant' }).expect(201);
+      await api.put('/sessions/current').send({ role: 'participant' });
       await api.delete('/sessions/current').expect(200, { status: 'ok' });
       await api.get('/sessions/current').expect(404);
     });
@@ -182,7 +182,7 @@ describe('sessions', () => {
 
 describe('runs', () => {
   let store: MockStore;
-  let api: request.SuperTest<request.Test>;
+  let api: request.Agent;
   beforeEach(async () => {
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(1234567890);
@@ -567,7 +567,7 @@ describe('runs', () => {
 
 describe('logs', () => {
   let store: MockStore;
-  let api: request.SuperTest<request.Test>;
+  let api: request.Agent;
 
   describe('post /experiments/:experiment/runs/:run/logs', () => {
     beforeEach(async () => {

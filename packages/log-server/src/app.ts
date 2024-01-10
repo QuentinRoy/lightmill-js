@@ -1,9 +1,9 @@
 /* eslint-disable @typescript-eslint/no-namespace */
-import express from 'express';
+import express, { Application } from 'express';
 import { zodiosContext } from '@zodios/express';
 import { LogFilter, RunId, RunStatus, Store, StoreError } from './store.js';
 import session from 'cookie-session';
-import { NextFunction, Request, RequestHandler, Response } from 'express';
+import { NextFunction, Request, Response } from 'express';
 import { api } from '@lightmill/log-api';
 import { csvExportStream, jsonExportStream } from './export.js';
 import { pipeline } from 'stream/promises';
@@ -38,7 +38,7 @@ export function LogServer({
   hostPassword,
   allowCrossOrigin = true,
   secureCookies = allowCrossOrigin,
-}: CreateLogServerOptions): RequestHandler {
+}: CreateLogServerOptions): Application {
   if (secret == null) {
     throw new Error('Cannot create log server: secret parameter is required');
   }
@@ -80,13 +80,13 @@ export function LogServer({
       res.status(404).json({ status: 'error', message: 'No session found' });
       return;
     }
-    res.status(200).json({
-      status: 'ok',
-      role: req.session.role,
-      runs: (await store.getRuns({ runId: req.session.runs })).map(
-        ({ runId, ...r }) => r,
-      ),
-    });
+    let runs =
+      req.session.runs.length > 0
+        ? (await store.getRuns({ runId: req.session.runs })).map(
+            ({ runId, ...r }) => r,
+          )
+        : [];
+    res.status(200).json({ status: 'ok', role: req.session.role, runs });
   });
 
   router.delete('/sessions/current', (req, res) => {
