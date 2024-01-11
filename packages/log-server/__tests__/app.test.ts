@@ -205,47 +205,47 @@ describe('runs', () => {
         .post('/runs')
         .send({ experimentName: 'exp-id', runName: 'run-id' })
         .expect(201, {
-          experimentName: 'exp-id',
-          runName: 'run-id',
+          experimentName: 'addRun:experimentName',
+          runName: 'addRun:runName',
           status: 'ok',
+          runStatus: 'idle',
         });
       expect(store.addRun).toHaveBeenCalledWith({
         experimentName: 'exp-id',
         runName: 'run-id',
-        createdAt: vi.getMockedSystemTime(),
       });
     });
 
     it('should use the default experiment if the experiment is not named', async () => {
       await api.post('/runs').send({ runName: 'run' }).expect(201, {
+        experimentName: 'addRun:experimentName',
+        runName: 'addRun:runName',
         status: 'ok',
-        experimentName: 'default',
-        runName: 'run',
+        runStatus: 'idle',
       });
       expect(store.addRun).toHaveBeenCalledWith({
         experimentName: 'default',
         runName: 'run',
-        createdAt: vi.getMockedSystemTime(),
       });
     });
 
-    it('should generate a unique run id if the run id is not provided', async () => {
+    it('should generate a unique run name if the run name is not provided', async () => {
       let resp = await api
         .post('/runs')
         .send({ experimentName: 'exp' })
         .expect(201);
-      let { runName } = resp.body;
-      expect(runName).toBeDefined();
       expect(resp.body).toEqual({
         status: 'ok',
-        experimentName: 'exp',
-        runName,
+        experimentName: 'addRun:experimentName',
+        runName: 'addRun:runName',
+        runStatus: 'idle',
       });
-      expect(store.addRun).toHaveBeenCalledWith({
+      let call = store.addRun.mock.calls[0][0];
+      expect(call).toMatchObject({
         experimentName: 'exp',
-        runName,
-        createdAt: vi.getMockedSystemTime(),
+        runStatus: undefined,
       });
+      expect(call.runName).toBeTypeOf('string');
     });
 
     it('should add the run to the session', async () => {
@@ -255,7 +255,14 @@ describe('runs', () => {
         .expect(201);
       await api.get('/sessions/current').expect(200, {
         role: 'participant',
-        runs: [{ runName: 'run-id', experimentName: 'exp-id' }],
+        runs: [
+          {
+            runName: 'getRun:runName',
+            experimentName: 'getRun:experimentName',
+            runCreatedAt: '1970-01-15T06:56:07.890Z',
+            runStatus: 'running',
+          },
+        ],
         status: 'ok',
       });
     });
