@@ -217,7 +217,7 @@ export function LogServer({
       experimentName = String(experimentName);
       runName = String(runName);
       let matchingSessionRuns =
-        req.session?.runs == null
+        req.session?.runs == null || req.session.runs.length === 0
           ? []
           : await store.getRuns({
               runId: req.session.runs,
@@ -313,7 +313,7 @@ export function LogServer({
       if (matchingSessionRuns.length === 0) {
         res.status(403).json({
           status: 'error',
-          message: `Client does not have permission to access run "${runName}" of experiment "${experimentName}"`,
+          message: `Client does not have permission to add logs to run "${runName}" of experiment "${experimentName}"`,
         });
         return;
       }

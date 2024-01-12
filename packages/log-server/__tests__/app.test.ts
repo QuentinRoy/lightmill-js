@@ -2,7 +2,14 @@
 
 import request from 'supertest';
 import { afterEach, describe, beforeEach, it, vi, expect, Mock } from 'vitest';
-import { Log, RunFilter, RunId, Store, StoreError } from '../src/store.js';
+import {
+  Log,
+  RunFilter,
+  RunId,
+  RunStatus,
+  Store,
+  StoreError,
+} from '../src/store.js';
 import { LogServer } from '../src/app.js';
 import type { Body } from '@lightmill/log-api';
 import { arrayify } from '../src/utils.js';
@@ -639,11 +646,25 @@ describe('runs', () => {
 describe('logs', () => {
   let store: MockStore;
   let api: request.Agent;
+  let myRun: {
+    runId: RunId;
+    runName: string;
+    experimentName: string;
+    runStatus: RunStatus;
+    runCreatedAt: Date;
+  };
 
   describe('post /experiments/:experiment/runs/:run/logs', () => {
     beforeEach(async () => {
       vi.useFakeTimers({ toFake: ['Date'] });
       vi.setSystemTime(100100);
+      myRun = {
+        runId: 111 as RunId,
+        runName: 'test-run',
+        experimentName: 'test-exp',
+        runStatus: 'running' as const,
+        runCreatedAt: vi.getMockedSystemTime() ?? new Date(),
+      };
       store = MockStore();
       let app = LogServer({
         store,
@@ -651,6 +672,8 @@ describe('logs', () => {
         secureCookies: false,
       });
       api = request.agent(app);
+      store.addRun.mockImplementation(async () => myRun);
+      store.getRuns.mockImplementation(async () => [myRun]);
       await api.post('/sessions').send({ role: 'participant' });
       await api
         .post('/runs')
@@ -666,6 +689,13 @@ describe('logs', () => {
     >;
 
     it('should refuse to add logs if the client does not have access to the run', async () => {
+      store.getRuns.mockImplementation(async (filter) => {
+        if (arrayify(filter?.runName, true).includes('not-my-run')) {
+          return [];
+        } else {
+          return [myRun];
+        }
+      });
       await api
         .post('/experiments/test-exp/runs/not-my-run/logs')
         .send({
@@ -694,7 +724,7 @@ describe('logs', () => {
           },
         } satisfies PostLogsBody)
         .expect(201, { status: 'ok' });
-      expect(store.addLogs).toHaveBeenCalledWith('test-exp', 'test-run', [
+      expect(store.addLogs).toHaveBeenCalledWith(myRun.runId, [
         {
           type: 'test-log',
           values: { p1: 'v1', p2: 'v2' },
@@ -713,7 +743,7 @@ describe('logs', () => {
           ],
         } satisfies PostLogsBody)
         .expect(201, { status: 'ok' });
-      expect(store.addLogs).toHaveBeenCalledWith('test-exp', 'test-run', [
+      expect(store.addLogs).toHaveBeenCalledWith(myRun.runId, [
         { type: 'test-log', values: { p1: 'v1', p2: 'v2' }, number: 1 },
         { type: 'test-log', values: { p3: 'v3', p4: 'v4' }, number: 2 },
       ]);
@@ -746,13 +776,9 @@ describe('logs', () => {
       vi.useFakeTimers({ toFake: ['Date'] });
       vi.setSystemTime(1234567890);
       store = MockStore();
-      let app = LogServer({
-        store,
-        secret: 'secret',
-        secureCookies: false,
-      });
+      let app = LogServer({ store, secret: 'secret', secureCookies: false });
       api = request.agent(app);
-      await api.post('/sessions').send({ role: 'host' });
+      await api.put('/sessions/current').send({ role: 'host' });
     });
     afterEach(() => {
       vi.useRealTimers();
@@ -760,39 +786,21 @@ describe('logs', () => {
 
     it('should refuse to fetch logs if the client is not logged as an host', async () => {
       await api.delete('/sessions/current').expect(200);
-      await api.post('/sessions').send({ role: 'participant' }).expect(201);
+      await api
+        .put('/sessions/current')
+        .send({ role: 'participant' })
+        .expect(201);
       await api.get('/experiments/exp/logs').expect(403, {
         status: 'error',
         message: 'Access restricted.',
       });
       expect(store.getLogs).not.toHaveBeenCalled();
     });
+
     it('should return logs as json by default', async () => {
       let result = await api.get('/experiments/exp/logs').expect(200);
-      expect(store.getLogs).toHaveBeenCalledWith({ experimentName: 'exp' });
-      expect(result.body).toMatchInlineSnapshot(`
-        [
-          {
-            "experimentName": "getLogs:experimentName-1",
-            "runName": "getLogs:runName-1",
-            "type": "getLogs:type-1",
-            "values": {
-              "mock-col1": "log1-mock-value1",
-              "mock-col2": "log1-mock-value2",
-            },
-          },
-          {
-            "experimentName": "getLogs:experimentName-2",
-            "runName": "getLogs:runName-2",
-            "type": "getLogs:type-2",
-            "values": {
-              "mock-col1": "log2-mock-value1",
-              "mock-col2": "log2-mock-value2",
-              "mock-col3": "log2-mock-value3",
-            },
-          },
-        ]
-      `);
+      expect(store.getLogs.mock.calls).toMatchSnapshot();
+      expect(result.body).toMatchSnapshot();
     });
     it('should return logs as json if json is the first supported format in the Accept header', async () => {
       let result = await api
@@ -802,30 +810,8 @@ describe('logs', () => {
           'application/xml,application/json,text/csv,application/pdf',
         )
         .expect(200);
-      expect(store.getLogs).toHaveBeenCalledWith({ experimentName: 'exp' });
-      expect(result.body).toMatchInlineSnapshot(`
-        [
-          {
-            "experimentName": "getLogs:experimentName-1",
-            "runName": "getLogs:runName-1",
-            "type": "getLogs:type-1",
-            "values": {
-              "mock-col1": "log1-mock-value1",
-              "mock-col2": "log1-mock-value2",
-            },
-          },
-          {
-            "experimentName": "getLogs:experimentName-2",
-            "runName": "getLogs:runName-2",
-            "type": "getLogs:type-2",
-            "values": {
-              "mock-col1": "log2-mock-value1",
-              "mock-col2": "log2-mock-value2",
-              "mock-col3": "log2-mock-value3",
-            },
-          },
-        ]
-      `);
+      expect(store.getLogs.mock.calls).toMatchSnapshot();
+      expect(result.body).toMatchSnapshot();
     });
     it('should return logs as csv if csv is the first supported format in the Accept header', async () => {
       let result = await api
@@ -835,53 +821,25 @@ describe('logs', () => {
           'application/pdf,text/csv,application/json,application/xml',
         )
         .expect(200);
-      expect(store.getLogs).toHaveBeenCalledWith({ experimentName: 'exp' });
-      expect(result.text).toMatchInlineSnapshot(`
-        "type,run_id,mock_col1,mock_col2,mock_col3
-        getLogs:type-1,getLogs:runName-1,log1-mock-value1,log1-mock-value2,
-        getLogs:type-2,getLogs:runName-2,log2-mock-value1,log2-mock-value2,log2-mock-value3
-        "
-      `);
+      expect(store.getLogs.mock.calls).toMatchSnapshot();
+      expect(result.text).toMatchSnapshot();
     });
+
     it('should return logs as json if the Accept header is not supported', async () => {
       let result = await api
         .get('/experiments/exp/logs')
         .set('Accept', 'application/xml')
         .expect(200);
-      expect(store.getLogs).toHaveBeenCalledWith({ experimentName: 'exp' });
-      expect(result.body).toMatchInlineSnapshot(`
-        [
-          {
-            "experimentName": "getLogs:experimentName-1",
-            "runName": "getLogs:runName-1",
-            "type": "getLogs:type-1",
-            "values": {
-              "mock-col1": "log1-mock-value1",
-              "mock-col2": "log1-mock-value2",
-            },
-          },
-          {
-            "experimentName": "getLogs:experimentName-2",
-            "runName": "getLogs:runName-2",
-            "type": "getLogs:type-2",
-            "values": {
-              "mock-col1": "log2-mock-value1",
-              "mock-col2": "log2-mock-value2",
-              "mock-col3": "log2-mock-value3",
-            },
-          },
-        ]
-      `);
+      expect(store.getLogs.mock.calls).toMatchSnapshot();
+      expect(result.body).toMatchSnapshot();
     });
+
     it('should be able to filter logs by type using the type query parameter', async () => {
       await api
         .get('/experiments/exp/logs')
         .query({ type: 'log-type' })
         .expect(200);
-      expect(store.getLogs).toHaveBeenCalledWith({
-        experimentName: 'exp',
-        type: 'log-type',
-      });
+      expect(store.getLogs.mock.calls).toMatchSnapshot();
     });
   });
 });
