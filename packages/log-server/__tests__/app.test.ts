@@ -2,9 +2,10 @@
 
 import request from 'supertest';
 import { afterEach, describe, beforeEach, it, vi, expect, Mock } from 'vitest';
-import { Log, RunId, Store, StoreError } from '../src/store.js';
+import { Log, RunFilter, RunId, Store, StoreError } from '../src/store.js';
 import { LogServer } from '../src/app.js';
 import type { Body } from '@lightmill/log-api';
+import { arrayify } from '../src/utils.js';
 
 type MockStore = {
   [K in keyof Store]: Store[K] extends (...args: infer A) => infer R
@@ -297,134 +298,189 @@ describe('runs', () => {
   });
 
   describe('get /experiments/:experiment/runs/:run', () => {
-    it('should return an error if the client does not have access to the run', async () => {
+    it('should return an error if the client does not have access to any run', async () => {
+      store.getRuns.mockImplementation(async () => []);
       await api.get('/experiments/exp/runs/not-my-run').expect(403, {
         status: 'error',
         message: `Client does not have permission to access run "not-my-run" of experiment "exp"`,
       });
-      expect(store.getRuns).not.toHaveBeenCalled();
+    });
+
+    it('should return an error if the client does not have access to this particular run', async () => {
+      let myRuns = [
+        {
+          runId: 999 as RunId,
+          runName: 'my-run',
+          experimentName: 'exp',
+          runStatus: 'running' as const,
+          runCreatedAt: vi.getMockedSystemTime() ?? new Date(),
+        },
+      ];
+      store.getRuns.mockImplementation(async (filter) => {
+        if (arrayify(filter?.runName, true).includes('not-my-run')) {
+          return [];
+        }
+        return myRuns;
+      });
+      await api.get('/experiments/exp/runs/not-my-run').expect(403, {
+        status: 'error',
+        message: `Client does not have permission to access run "not-my-run" of experiment "exp"`,
+      });
     });
 
     it('should return some run information otherwise', async () => {
       await api
         .post('/runs')
-        .send({ experimentName: 'exp-id', runName: 'my-run' })
+        .send({ experimentName: 'exp', runName: 'my-run' })
         .expect(201);
       await api.get('/experiments/exp-id/runs/my-run').expect(200, {
         status: 'ok',
         run: {
           runName: 'getRun:runName',
           experimentName: 'getRun:experimentName',
-          status: 'running',
+          runStatus: 'running',
           logs: [
             { type: 'summary:type-1', count: 11, lastNumber: 12, pending: 13 },
             { type: 'summary:type-2', count: 21, lastNumber: 22, pending: 23 },
           ],
         },
       });
-      expect(store.getRuns).toHaveBeenCalledWith({
-        experimentName: 'exp-id',
-        runName: 'my-run',
-      });
-      expect(store.getLogSummary).toHaveBeenCalledWith({
-        experimentName: 'exp-id',
-        runName: 'my-run',
-      });
     });
   });
 
   describe('patch /experiments/:experiment/runs/:run', () => {
     it('should return an error if the client tries to change the status of the run but does not have access to any run', async () => {
+      store.getRuns.mockImplementation(async () => []);
       await api
         .patch('/experiments/exp/runs/not-my-run')
-        .send({ status: 'completed' })
+        .send({ runStatus: 'completed' })
         .expect(403, {
           status: 'error',
-          message: `Client does not have permission to update run "not-my-run" of experiment "exp"`,
+          message: `Client does not have permission to access run "not-my-run" of experiment "exp"`,
         });
       expect(store.resumeRun).not.toHaveBeenCalled();
       expect(store.setRunStatus).not.toHaveBeenCalled();
     });
 
     it('should return an error if the client tries to change the status of the run but does not have access to this particular run', async () => {
+      let myRuns = [
+        {
+          runId: 999 as RunId,
+          runName: 'my-run',
+          experimentName: 'exp',
+          runStatus: 'running' as const,
+          runCreatedAt: vi.getMockedSystemTime() ?? new Date(),
+        },
+      ];
+      store.getRuns.mockImplementation(async (filter) => {
+        if (arrayify(filter?.runName, true).includes('not-my-run')) {
+          return [];
+        }
+        return myRuns;
+      });
       await api
         .post('/runs')
-        .send({ experimentName: 'exp-id', runName: 'my-run' })
+        .send({ experimentName: 'exp', runName: 'my-run' })
         .expect(201);
       await api
         .patch('/experiments/exp/runs/not-my-run')
-        .send({ status: 'completed' })
+        .send({ runStatus: 'completed' })
         .expect(403, {
           status: 'error',
-          message: `Client does not have permission to update run "not-my-run" of experiment "exp"`,
+          message: `Client does not have permission to access run "not-my-run" of experiment "exp"`,
         });
       expect(store.setRunStatus).not.toHaveBeenCalled();
       expect(store.resumeRun).not.toHaveBeenCalled();
     });
 
     it('should return an error if the client tries to resume a run but does not have access to any run', async () => {
+      store.getRuns.mockImplementation(async () => []);
       await api
         .patch('/experiments/exp/runs/not-my-run')
-        .send({ resumeFrom: 10 })
+        .send({ resumeFrom: 10, runStatus: 'running' })
         .expect(403, {
           status: 'error',
-          message: `Client does not have permission to update run "not-my-run" of experiment "exp"`,
+          message: `Client does not have permission to access run "not-my-run" of experiment "exp"`,
         });
       expect(store.resumeRun).not.toHaveBeenCalled();
       expect(store.setRunStatus).not.toHaveBeenCalled();
     });
 
     it('should return an error if the client tries to resume a run but does not have access to this particular run', async () => {
+      let myRuns = [
+        {
+          runId: 999 as RunId,
+          runName: 'my-run',
+          experimentName: 'exp',
+          runStatus: 'running' as const,
+          runCreatedAt: vi.getMockedSystemTime() ?? new Date(),
+        },
+      ];
+      store.getRuns.mockImplementation(async (filter) => {
+        if (arrayify(filter?.runName, true).includes('not-my-run')) {
+          return [];
+        }
+        return myRuns;
+      });
       await api
         .post('/runs')
         .send({ experimentName: 'exp-id', runName: 'my-run' })
         .expect(201);
       await api
         .patch('/experiments/exp/runs/not-my-run')
-        .send({ resumeFrom: 10 })
+        .send({ resumeFrom: 10, runStatus: 'running' })
         .expect(403, {
           status: 'error',
-          message: `Client does not have permission to update run "not-my-run" of experiment "exp"`,
+          message: `Client does not have permission to access run "not-my-run" of experiment "exp"`,
         });
       expect(store.resumeRun).not.toHaveBeenCalled();
       expect(store.setRunStatus).not.toHaveBeenCalled();
     });
 
     it('should complete a running run if argument is "completed"', async () => {
+      const storeRun = {
+        runId: 999 as RunId,
+        runName: 'my-run',
+        experimentName: 'my-exp',
+        runStatus: 'running' as const,
+        runCreatedAt: vi.getMockedSystemTime() ?? new Date(),
+      };
+      store.addRun.mockImplementation(async () => storeRun);
+      store.getRuns.mockImplementation(async (opt) => {
+        if (
+          opt?.runId === storeRun.runId ||
+          (Array.isArray(opt?.runId) && opt.runId.includes(storeRun.runId))
+        ) {
+          return [storeRun];
+        }
+        return [];
+      });
       await api
         .post('/runs')
-        .send({ experimentName: 'exp-id', runName: 'my-run' })
+        .send({ experimentName: 'my-exp', runName: 'my-run' })
         .expect(201);
       await api
-        .patch('/experiments/exp-id/runs/my-run')
-        .send({ status: 'completed' })
+        .patch('/experiments/my-exp/runs/my-run')
+        .send({ runStatus: 'completed' })
         .expect(200, { status: 'ok' });
-      expect(store.setRunStatus).toHaveBeenCalledWith(
-        'exp-id',
-        'my-run',
-        'completed',
-      );
+      expect(store.setRunStatus).toHaveBeenCalledWith(999, 'completed');
       expect(store.resumeRun).not.toHaveBeenCalled();
     });
 
     it('should cancel a running run if argument is "canceled"', async () => {
       await api
         .post('/runs')
-        .send({ experimentName: 'exp-id', runName: 'my-run' })
+        .send({ experimentName: 'my-exp', runName: 'my-run' })
         .expect(201);
       await api
-        .patch('/experiments/exp-id/runs/my-run')
-        .send({ status: 'canceled' })
+        .patch('/experiments/my-exp/runs/my-run')
+        .send({ runStatus: 'canceled' })
         .expect(200, { status: 'ok' });
-      expect(store.setRunStatus).toHaveBeenCalledWith(
-        'exp-id',
-        'my-run',
-        'canceled',
-      );
+      expect(store.setRunStatus).toHaveBeenCalledWith(1, 'canceled');
       expect(store.resumeRun).not.toHaveBeenCalled();
     });
 
-    it('should refuse to change the status of a canceled run', async () => {
+    it('should refuse to change the status of a completed run', async () => {
       store.getRuns.mockImplementation(async () => {
         return [
           {
@@ -442,54 +498,23 @@ describe('runs', () => {
         .expect(201);
       await api
         .patch('/experiments/exp-id/runs/my-run')
-        .send({ status: 'canceled' })
-        .expect(400, { status: 'error', message: 'Run has already ended' });
+        .send({ runStatus: 'canceled' })
+        .expect(400, {
+          status: 'error',
+          message: 'Cannot cancel a completed run',
+        });
       await api
         .patch('/experiments/exp-id/runs/my-run')
-        .send({ status: 'completed' })
-        .expect(400, { status: 'error', message: 'Run has already ended' });
+        .send({ runStatus: 'completed' })
+        .expect(400, {
+          status: 'error',
+          message: 'Run is already completed',
+        });
       expect(store.setRunStatus).not.toHaveBeenCalled();
       expect(store.resumeRun).not.toHaveBeenCalled();
     });
 
-    it('should not revoke client access to the run even if the run has been completed', async () => {
-      await api
-        .post('/runs')
-        .send({ experimentName: 'exp', runName: 'my-run' })
-        .expect(201);
-      await api
-        .patch('/experiments/exp/runs/my-run')
-        .send({ status: 'completed' })
-        .expect(200);
-      await api.get('/sessions/current').expect(200, {
-        role: 'participant',
-        runs: [{ runName: 'my-run', experimentName: 'exp' }],
-        status: 'ok',
-      });
-    });
-
-    it('should resume a running run if request body contains "resumeFrom"', async () => {
-      await api
-        .post('/runs')
-        .send({ experimentName: 'exp-id', runName: 'my-run' })
-        .expect(201);
-      await api
-        .patch('/experiments/exp-id/runs/my-run')
-        .send({ resumeFrom: 15 })
-        .expect(200, { status: 'ok' });
-      expect(store.setRunStatus).not.toHaveBeenCalled();
-      expect(store.resumeRun).toHaveBeenCalledWith({
-        experimentName: 'exp-id',
-        runName: 'my-run',
-        resumeFrom: 15,
-      });
-    });
-
-    it('should resume a canceled run if request body contains "resumeFrom"', async () => {
-      await api
-        .post('/runs')
-        .send({ experimentName: 'exp', runName: 'my-run' })
-        .expect(201);
+    it('should refuse to change the status of a canceled run', async () => {
       store.getRuns.mockImplementation(async () => {
         return [
           {
@@ -502,14 +527,59 @@ describe('runs', () => {
         ];
       });
       await api
+        .post('/runs')
+        .send({ experimentName: 'exp-id', runName: 'my-run' })
+        .expect(201);
+      await api
+        .patch('/experiments/exp-id/runs/my-run')
+        .send({ runStatus: 'completed' })
+        .expect(400, {
+          status: 'error',
+          message: 'Cannot complete a canceled run',
+        });
+      await api
+        .patch('/experiments/exp-id/runs/my-run')
+        .send({ runStatus: 'canceled' })
+        .expect(400, {
+          status: 'error',
+          message: 'Run is already canceled',
+        });
+      expect(store.setRunStatus).not.toHaveBeenCalled();
+      expect(store.resumeRun).not.toHaveBeenCalled();
+    });
+
+    it('should resume a running run if request body contains "resumeFrom"', async () => {
+      await api
+        .post('/runs')
+        .send({ experimentName: 'exp', runName: 'my-run' })
+        .expect(201);
+      await api
         .patch('/experiments/exp/runs/my-run')
-        .send({ resumeFrom: 15 })
+        .send({ runStatus: 'running', resumeFrom: 15 })
         .expect(200, { status: 'ok' });
-      expect(store.resumeRun).toHaveBeenCalledWith({
-        experimentName: 'exp',
-        runName: 'my-run',
-        resumeFrom: 15,
-      });
+      expect(store.setRunStatus).not.toHaveBeenCalled();
+      expect(store.resumeRun).toHaveBeenCalledWith(1, { from: 15 });
+    });
+
+    it('should resume an interrupted run if request body contains "resumeFrom"', async () => {
+      let myRun = {
+        runId: 666 as RunId,
+        runName: 'getRun:runName',
+        experimentName: 'getRun:experimentName',
+        runStatus: 'interrupted' as const,
+        runCreatedAt: vi.getMockedSystemTime() ?? new Date(),
+      };
+      store.addRun.mockImplementation(async () => myRun);
+      store.getRuns.mockImplementation(async () => [myRun]);
+      await api
+        .post('/runs')
+        .send({ experimentName: 'exp', runName: 'my-run' })
+        .expect(201);
+      await api
+        .patch('/experiments/exp/runs/my-run')
+        .send({ runStatus: 'running', resumeFrom: 12 })
+        .expect(200, { status: 'ok' });
+      expect(store.resumeRun).toHaveBeenCalledWith(666, { from: 12 });
     });
 
     it('should refuse to resume a completed run', async () => {
@@ -530,42 +600,36 @@ describe('runs', () => {
       });
       await api
         .patch('/experiments/exp/runs/my-run')
-        .send({ resumeFrom: 15 })
+        .send({ runStatus: 'running', resumeFrom: 15 })
         .expect(400, {
           status: 'error',
-          message: `Run has already been completed`,
+          message: `Cannot resume a completed run`,
         });
       expect(store.resumeRun).not.toHaveBeenCalled();
     });
 
-    it('should refuse to resume a run if there is another running run', async () => {
+    it('should refuse to resume a canceled run', async () => {
       await api
         .post('/runs')
-        .send({ experimentName: 'exp', runName: 'canceled-run' })
+        .send({ experimentName: 'exp', runName: 'my-run' })
         .expect(201);
-      store.getRuns.mockImplementation(async (filter) => {
-        if (filter == null) throw new Error('filter is null');
+      store.getRuns.mockImplementation(async () => {
         return [
           {
             runId: 1 as RunId,
-            runName: `getRun:${filter.runName}`,
-            experimentName: `getRun:${filter.experimentName}`,
-            runStatus:
-              filter.runName === 'canceled-run' ? 'canceled' : 'running',
+            runName: 'getRun:runName',
+            experimentName: 'getRun:experimentName',
+            runStatus: 'canceled' as const,
             runCreatedAt: vi.getMockedSystemTime() ?? new Date(),
           },
         ];
       });
       await api
-        .post('/runs')
-        .send({ experimentName: 'exp', runName: 'running-run' })
-        .expect(201);
-      await api
-        .patch('/experiments/exp/runs/canceled-run')
-        .send({ resumeFrom: 15 })
-        .expect(403, {
+        .patch('/experiments/exp/runs/my-run')
+        .send({ runStatus: 'running', resumeFrom: 15 })
+        .expect(400, {
           status: 'error',
-          message: `Client already has other running runs, end them first`,
+          message: `Cannot resume a canceled run`,
         });
       expect(store.resumeRun).not.toHaveBeenCalled();
     });
@@ -638,6 +702,7 @@ describe('logs', () => {
         },
       ]);
     });
+
     it('should add multiple logs to the run at once', async () => {
       await api
         .post('/experiments/test-exp/runs/test-run/logs')
@@ -653,6 +718,7 @@ describe('logs', () => {
         { type: 'test-log', values: { p3: 'v3', p4: 'v4' }, number: 2 },
       ]);
     });
+
     it('should refuse to add logs if the store says that their number is already used', async () => {
       store.addLogs.mockImplementation(async () => {
         throw new StoreError(

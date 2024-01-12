@@ -104,12 +104,11 @@ export function LogServer({
         req.session = { role: 'participant', runs: [] };
       }
       if (req.session.runs.length > 0) {
-        const clientRuns = await store.getRuns({ runId: req.session.runs });
-        if (
-          clientRuns.some(
-            (r) => r?.runStatus === 'running' || r?.runStatus === 'interrupted',
-          )
-        ) {
+        const onGoingRuns = await store.getRuns({
+          runId: req.session.runs,
+          runStatus: ['running', 'interrupted'],
+        });
+        if (onGoingRuns.length > 0) {
           res.status(403).json({
             status: 'error',
             message: 'Client already has started runs, end them first',
@@ -188,19 +187,43 @@ export function LogServer({
     { from: 'idle', to: 'canceled' },
     { from: 'idle', to: 'interrupted' },
   ] as const satisfies Array<{ from: RunStatus; to: RunStatus }>;
+  const transitionVerbs: Record<
+    RunStatus,
+    string | Record<RunStatus, string | null> | null
+  > = {
+    interrupted: 'interrupt',
+    canceled: 'cancel',
+    running: {
+      idle: 'start',
+      interrupted: 'resume',
+      canceled: 'resume',
+      completed: 'resume',
+      running: 'resume',
+    },
+    completed: 'complete',
+    idle: null,
+  };
+  function getTransitionVerb(from: RunStatus, to: RunStatus): string | null {
+    let verb = transitionVerbs[to];
+    if (typeof verb === 'string') {
+      return verb;
+    }
+    return verb?.[from] ?? null;
+  }
   router.patch(
     '/experiments/:experimentName/runs/:runName',
     async (req, res) => {
       let { experimentName, runName } = req.params;
       experimentName = String(experimentName);
       runName = String(runName);
-      let sessionRuns =
-        req.session?.runs == null || req.session.runs.length === 0
+      let matchingSessionRuns =
+        req.session?.runs == null
           ? []
-          : await store.getRuns({ runId: req.session.runs });
-      let matchingSessionRuns = sessionRuns.filter(
-        (r) => r.experimentName === experimentName && r.runName === runName,
-      );
+          : await store.getRuns({
+              runId: req.session.runs,
+              experimentName,
+              runName,
+            });
       if (matchingSessionRuns.length === 0) {
         res.status(403).json({
           status: 'error',
@@ -208,7 +231,7 @@ export function LogServer({
         });
         return;
       }
-      let targetRun = matchingSessionRuns[sessionRuns.length - 1];
+      let targetRun = matchingSessionRuns[matchingSessionRuns.length - 1];
 
       const oldRunStatus = targetRun.runStatus;
       const newRunStatus = req.body.runStatus;
@@ -218,22 +241,33 @@ export function LogServer({
           (t) => t.from === oldRunStatus && t.to === newRunStatus,
         )
       ) {
-        res.status(400).json({
-          status: 'error',
-          message: `Cannot transition from ${oldRunStatus} to ${newRunStatus}`,
-        });
+        let message = `Run is already ${oldRunStatus}`;
+        if (newRunStatus !== oldRunStatus) {
+          let verb = getTransitionVerb(oldRunStatus, newRunStatus);
+          message = `Cannot ${verb} a ${oldRunStatus} run`;
+        }
+        res.status(400).json({ status: 'error', message });
         return;
       }
 
-      if (
-        newRunStatus !== 'canceled' &&
-        sessionRuns.some((r) => r !== targetRun && r.runStatus !== 'canceled')
-      ) {
-        res.status(403).json({
-          status: 'error',
-          message: 'Client already has other ongoing runs, end them first',
-        });
-        return;
+      if (newRunStatus !== 'canceled') {
+        let otherRunIds = (req.session?.runs ?? []).filter(
+          (r) => r !== targetRun.runId,
+        );
+        let otherOngoingRuns =
+          otherRunIds.length === 0
+            ? []
+            : await store.getRuns({
+                runStatus: ['running', 'interrupted'],
+                runId: otherRunIds,
+              });
+        if (otherOngoingRuns.length > 0) {
+          res.status(403).json({
+            status: 'error',
+            message: 'Client already has other ongoing runs, end them first',
+          });
+          return;
+        }
       }
 
       // Case: resume run, target run status should necessarily be 'running'.
