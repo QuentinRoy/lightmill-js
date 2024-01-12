@@ -89,3 +89,6 @@ $RECYCLE.BIN/
 .VolumeIcon.icns
 .com.apple.timemachine.donotpresent
 tsconfig.tsbuildinfo
+
+# Vitest temp files
+tsconfig.vitest-temp.json
