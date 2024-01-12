@@ -60,6 +60,7 @@ describe('SQLiteStore#addRun', () => {
   function isAddRunResult(result: unknown): result is { runId: RunId } {
     return isObject(result) && 'runId' in result && result.runId != null;
   }
+
   it('should create runs with different ids', async () => {
     await expect(
       store.addRun({ runName: 'run1', experimentName: 'experiment1' }),
@@ -75,6 +76,7 @@ describe('SQLiteStore#addRun', () => {
       (runIds): boolean => Array.isArray(runIds) && allUnique(runIds),
     );
   });
+
   it('should refuse to add a run if a run with the same id already exists for the experiment', async () => {
     await store.addRun({ runName: 'run1', experimentName: 'experiment1' });
     await expect(
@@ -83,6 +85,7 @@ describe('SQLiteStore#addRun', () => {
       `[StoreError: run "run1" already exists for experiment "experiment1".]`,
     );
   });
+
   it('should add a run if a run with the same id already exists but for a different experiment', async () => {
     await expect(
       store.addRun({ runName: 'run-id', experimentName: 'experiment1' }),
@@ -114,6 +117,7 @@ describe('SQLiteStore#getRuns', () => {
     await store.close();
     vi.useRealTimers();
   });
+
   it('should return the run corresponding to a runId', async () => {
     const runs = await store.getRuns({ runId: runId });
     expect(runs).toHaveLength(1);
@@ -126,20 +130,20 @@ describe('SQLiteStore#getRuns', () => {
       runId,
     });
   });
+
   it('should return an empty array if no corresponding runs are not found', async () => {
     await expect(store.getRuns({ runId: unknownRun })).resolves.toEqual([]);
   });
-  it.fails('should return all runs if no filter is provided', async () => {
+
+  it('should return all runs if no filter is provided', async () => {
     throw new Error('Not implemented');
   });
-  it.fails(
-    'should return all runs corresponding to an experiment name',
-    async () => {
-      throw new Error('Not implemented');
-    },
-  );
 
-  it.fails('should return all runs corresponding to a run name', async () => {
+  it('should return all runs corresponding to an experiment name', async () => {
+    throw new Error('Not implemented');
+  });
+
+  it('should return all runs corresponding to a run name', async () => {
     throw new Error('Not implemented');
   });
 });
@@ -173,43 +177,48 @@ describe('SQLiteStore#setRunStatus', () => {
   afterEach(async () => {
     await store.close();
   });
+
   it('should set the status of the run if it exists', async () => {
     await expect(
       store.setRunStatus(run1, 'completed'),
     ).resolves.toBeUndefined();
     await expect(store.setRunStatus(run2, 'canceled')).resolves.toBeUndefined();
   });
+
   it('should refuse to set an unknown status', async () => {
     await expect(
       store.setRunStatus(run1, 'unknown' as 'completed'),
     ).rejects.toThrow();
   });
+
   it('should refuse to update a completed run', async () => {
     await store.setRunStatus(run1, 'completed');
     await expect(
       store.setRunStatus(run1, 'completed'),
     ).rejects.toThrowErrorMatchingInlineSnapshot(
-      `[StoreError: Cannot set status of run "run1" for experiment "experiment".]`,
+      `[StoreError: Cannot update status of run "run1" for experiment "experiment" because the run is completed or canceled]`,
     );
     await expect(
       store.setRunStatus(run1, 'canceled'),
     ).rejects.toThrowErrorMatchingInlineSnapshot(
-      `[StoreError: Cannot set status of run "run1" for experiment "experiment".]`,
+      `[StoreError: Cannot update status of run "run1" for experiment "experiment" because the run is completed or canceled]`,
     );
   });
+
   it('should refuse to update a canceled run', async () => {
     await store.setRunStatus(run1, 'canceled');
     await expect(
       store.setRunStatus(run1, 'completed'),
     ).rejects.toThrowErrorMatchingInlineSnapshot(
-      `[StoreError: Cannot set status of run "run1" for experiment "experiment".]`,
+      `[StoreError: Cannot update status of run "run1" for experiment "experiment" because the run is completed or canceled]`,
     );
     await expect(
       store.setRunStatus(run1, 'canceled'),
     ).rejects.toThrowErrorMatchingInlineSnapshot(
-      `[StoreError: Cannot set status of run "run1" for experiment "experiment".]`,
+      `[StoreError: Cannot update status of run "run1" for experiment "experiment" because the run is completed or canceled]`,
     );
   });
+
   it('should be able to complete a resumed run even if it was interrupted', async () => {
     await store.setRunStatus(run1, 'interrupted');
     await store.resumeRun(run1, { from: 3 });
@@ -217,16 +226,18 @@ describe('SQLiteStore#setRunStatus', () => {
       store.setRunStatus(run1, 'completed'),
     ).resolves.toBeUndefined();
   });
+
   it('should be able to cancel a resumed run even if it was interrupted before', async () => {
     await store.setRunStatus(run1, 'interrupted');
     await store.resumeRun(run1, { from: 2 });
     await expect(store.setRunStatus(run1, 'canceled')).resolves.toBeUndefined();
   });
+
   it('should throw if the run does not exist', async () => {
     await expect(
       store.setRunStatus(unknownRun, 'completed'),
     ).rejects.toThrowErrorMatchingInlineSnapshot(
-      `[StoreError: Cannot set status of run "run4" for experiment "experiment".]`,
+      `[StoreError: No run found for id 3]`,
     );
   });
 });
@@ -246,10 +257,12 @@ describe('SQLiteStore#resumeRun', () => {
   afterEach(async () => {
     await store.close();
   });
+
   it('should resume a running run without logs', async () => {
     store.resumeRun(runId, { from: 1 }).catch(console.error);
     await expect(store.resumeRun(runId, { from: 1 })).resolves.toBeUndefined();
   });
+
   it('should resume a running run with logs', async () => {
     await store.addLogs(runId, [
       { type: 'log', number: 1, values: { x: 1 } },
@@ -257,10 +270,12 @@ describe('SQLiteStore#resumeRun', () => {
     ]);
     await expect(store.resumeRun(runId, { from: 3 })).resolves.toBeUndefined();
   });
+
   it('should resume an interrupted run without logs', async () => {
     await store.setRunStatus(runId, 'interrupted');
     await expect(store.resumeRun(runId, { from: 1 })).resolves.toBeUndefined();
   });
+
   it('should resume an interrupted run with logs', async () => {
     await store.addLogs(runId, [
       { type: 'log', number: 1, values: { x: 1 } },
@@ -269,10 +284,12 @@ describe('SQLiteStore#resumeRun', () => {
     await store.setRunStatus(runId, 'interrupted');
     await expect(store.resumeRun(runId, { from: 3 })).resolves.toBeUndefined();
   });
+
   it('should refuse to resume a completed run', async () => {
     await store.setRunStatus(runId, 'completed');
     await expect(store.resumeRun(runId, { from: 4 })).rejects.toThrow();
   });
+
   it('should refuse to resume from 0', async () => {
     await expect(
       store.resumeRun(runId, { from: 0 }),
@@ -280,6 +297,7 @@ describe('SQLiteStore#resumeRun', () => {
       `[SqliteError: CHECK constraint failed: start > 0]`,
     );
   });
+
   it('should refuse to resume from any number < 0', async () => {
     await expect(
       store.resumeRun(runId, { from: -5 }),
@@ -287,6 +305,7 @@ describe('SQLiteStore#resumeRun', () => {
       `[SqliteError: CHECK constraint failed: start > 0]`,
     );
   });
+
   it('should refuse to resume if it would leave missing logs just before the resume number', async () => {
     await store.addLogs(runId, [
       { type: 'log', number: 1, values: { x: 1 } },
@@ -295,9 +314,10 @@ describe('SQLiteStore#resumeRun', () => {
     await expect(
       store.resumeRun(runId, { from: 4 }),
     ).rejects.toThrowErrorMatchingInlineSnapshot(
-      `[StoreError: Cannot resume run "run" for experiment "exp" from log number 4 because the minimum is 3.]`,
+      `[StoreError: Cannot resume run "run" of experiment "exp" from log number 4 because the minimum is 3.]`,
     );
   });
+
   it('should refuse to resume if it would leave missing logs in the middle', async () => {
     await store.addLogs(runId, [
       { type: 'log', number: 1, values: { x: 1 } },
@@ -308,9 +328,10 @@ describe('SQLiteStore#resumeRun', () => {
     await expect(
       store.resumeRun(runId, { from: 8 }),
     ).rejects.toThrowErrorMatchingInlineSnapshot(
-      `[StoreError: Cannot resume run "run" for experiment "exp" from log number 8 because the minimum is 3.]`,
+      `[StoreError: Cannot resume run "run" of experiment "exp" from log number 8 because the minimum is 3.]`,
     );
   });
+
   it('should resume a run even if it would overwrite existing logs', async () => {
     await store.addLogs(runId, [
       { type: 'log', number: 1, values: { x: 1 } },
@@ -350,6 +371,7 @@ describe('SQLiteStore#addLogs', () => {
   afterEach(async () => {
     await store.close();
   });
+
   it('should add non empty logs without error', async () => {
     await expect(
       store.addLogs(exp1run1, [
@@ -380,6 +402,7 @@ describe('SQLiteStore#addLogs', () => {
       ]),
     ).resolves.toBeUndefined();
   });
+
   it('should add empty logs without error', async () => {
     await expect(
       store.addLogs(exp1run2, [
@@ -394,6 +417,7 @@ describe('SQLiteStore#addLogs', () => {
       ]),
     ).resolves.toBeUndefined();
   });
+
   it('should refuse to add two logs with the same number for the same run when added in two different requests', async () => {
     await store.addLogs(exp1run1, [
       { type: 'log', number: 1, values: { x: 1 } },
@@ -414,6 +438,7 @@ describe('SQLiteStore#addLogs', () => {
       `[StoreError: Cannot add log: duplicated log number in the sequence.]`,
     );
   });
+
   it('should refuse to add two logs with the same number for the same run when added in the same requests', async () => {
     await expect(
       store.addLogs(exp1run1, [
@@ -434,6 +459,7 @@ describe('SQLiteStore#addLogs', () => {
       `[StoreError: Cannot add log: duplicated log number in the sequence.]`,
     );
   });
+
   it('should add logs with the same number as long as they are in different runs', async () => {
     await expect(
       store.addLogs(exp1run1, [
@@ -454,6 +480,7 @@ describe('SQLiteStore#addLogs', () => {
       ]),
     ).resolves.toBeUndefined();
   });
+
   it('should store non consecutive logs without error', async () => {
     await expect(
       store.addLogs(exp1run1, [
@@ -468,6 +495,7 @@ describe('SQLiteStore#addLogs', () => {
       ]),
     ).resolves.toBeUndefined();
   });
+
   it('should fill in missing logs without error', async () => {
     await expect(
       store.addLogs(exp1run1, [
@@ -495,6 +523,7 @@ describe('SQLiteStore#addLogs', () => {
       ]),
     ).resolves.toBeUndefined();
   });
+
   it('should refuse to add logs with number < 1', async () => {
     await expect(
       store.addLogs(exp1run1, [{ type: 'log4', number: 0, values: { x: 3 } }]),
@@ -515,6 +544,7 @@ describe('SQLiteStore#addLogs', () => {
       `[SqliteError: Cannot insert log with log_number smaller than its sequence start]`,
     );
   });
+
   it('should add logs to a resumed run', async () => {
     await store.addLogs(exp1run1, [
       { type: 'log4', number: 1, values: { x: 1 } },
@@ -530,6 +560,7 @@ describe('SQLiteStore#addLogs', () => {
       ]),
     ).resolves.toBeUndefined();
   });
+
   it('should add logs even if they have the same number as other logs added before resuming', async () => {
     await store.addLogs(exp1run1, [
       { type: 'log4', number: 1, values: { x: 1 } },
@@ -544,6 +575,7 @@ describe('SQLiteStore#addLogs', () => {
       ]),
     ).resolves.toBeUndefined();
   });
+
   it('should add logs to a resumed even if it creates a gap in log numbers', async () => {
     await store.addLogs(exp1run1, [
       { type: 'log4', number: 1, values: { x: 1 } },
@@ -558,6 +590,7 @@ describe('SQLiteStore#addLogs', () => {
       ]),
     ).resolves.toBeUndefined();
   });
+
   it('should refuse to add logs if the run was resumed from a number higher than the log number', async () => {
     await store.addLogs(exp1run1, [
       { type: 'log4', number: 1, values: { x: 1 } },
@@ -628,6 +661,7 @@ describe('SQLiteStore#getLogSummary', () => {
   afterEach(async () => {
     await store.close();
   });
+
   it('should be able to return a summary for a particular run', async () => {
     await expect(store.getLogSummary(exp1run1)).resolves.toEqual([
       { type: 'log1', count: 2, pending: 2, lastNumber: 3 },
@@ -642,6 +676,7 @@ describe('SQLiteStore#getLogSummary', () => {
       { type: 'log3', count: 0, pending: 2, lastNumber: null },
     ]);
   });
+
   it('should be able to filter logs by type', async () => {
     await expect(
       store.getLogSummary(exp1run1, { type: 'log2' }),
@@ -658,6 +693,7 @@ describe('SQLiteStore#getLogSummary', () => {
       { type: 'log2', count: 0, pending: 1, lastNumber: null },
     ]);
   });
+
   it('should resolve with an empty array if no log matches the filter', async () => {
     await expect(store.getLogSummary(unknownRun)).resolves.toEqual([]);
     await expect(
@@ -741,6 +777,7 @@ describe('SQLiteStore#getLogValueNames', () => {
       'y',
     ]);
   });
+
   it('should be able to filter logs of a particular type', async () => {
     await expect(store.getLogValueNames({ type: 'log1' })).resolves.toEqual([
       'bar',
@@ -753,6 +790,7 @@ describe('SQLiteStore#getLogValueNames', () => {
       'y',
     ]);
   });
+
   it('should be able to filter logs from a particular experiment', async () => {
     await expect(
       store.getLogValueNames({ experimentName: 'experiment1' }),
@@ -761,6 +799,7 @@ describe('SQLiteStore#getLogValueNames', () => {
       store.getLogValueNames({ experimentName: 'experiment2' }),
     ).resolves.toEqual(['foo', 'x', 'y']);
   });
+
   it('should be able to filter logs from a particular run', async () => {
     await expect(store.getLogValueNames({ runName: 'run1' })).resolves.toEqual([
       'foo',
@@ -776,6 +815,7 @@ describe('SQLiteStore#getLogValueNames', () => {
       'x',
     ]);
   });
+
   it('should be able to filter logs by run, experiment, and type all at once', async () => {
     await expect(
       store.getLogValueNames({ experimentName: 'experiment1', type: 'log2' }),
@@ -788,6 +828,7 @@ describe('SQLiteStore#getLogValueNames', () => {
       }),
     ).resolves.toEqual(['message', 'recipient']);
   });
+
   it('should resolve with an empty array if no log matches the filter', async () => {
     await expect(
       store.getLogValueNames({ experimentName: 'experiment2', type: 'log1' }),
@@ -863,6 +904,7 @@ describe('SQLiteStore#getLogs', () => {
     ]);
     expect(logs.map(({ runId, ...l }) => l)).toMatchSnapshot();
   });
+
   it('should ignore missing logs', async () => {
     await store.addLogs(exp1run1, [
       { type: 'log1', number: 11, values: { msg: 'hello', recipient: 'Anna' } },

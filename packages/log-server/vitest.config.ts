@@ -9,6 +9,9 @@ export default defineConfig({
     root: resolve(dirname),
     globals: false,
     include: ['**/__tests__/*.test.ts'],
+    // This are the default values with dist omitted because we do run some of
+    // the tests against the dist build.
+    watchExclude: ['**/node_modules/**'],
     typecheck: {
       checker: 'tsc',
       ignoreSourceErrors: true,

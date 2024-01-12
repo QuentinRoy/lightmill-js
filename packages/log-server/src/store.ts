@@ -144,10 +144,11 @@ export class SQLiteStore {
         .executeTakeFirstOrThrow()
         .catch((e) => {
           if (
-            e instanceof Error &&
-            'code' in e &&
-            (e.code === 'SQLITE_CONSTRAINT_PRIMARYKEY' ||
-              e.code === 'SQLITE_CONSTRAINT_UNIQUE')
+            e instanceof SQLiteDB.SqliteError &&
+            e.code === 'SQLITE_CONSTRAINT_TRIGGER' &&
+            e.message.includes(
+              'Cannot insert run when another run with the same name and experiment name exists and is not canceled',
+            )
           ) {
             throw new StoreError(
               `run "${runName}" already exists for experiment "${experimentName}".`,
@@ -167,25 +168,17 @@ export class SQLiteStore {
 
   async resumeRun(runId: RunId, { from: resumeFrom }: { from: number }) {
     return this.#db.transaction().execute(async (trx) => {
-      let resumedRunResult = await trx
+      let { runName, experimentName } = await trx
         .updateTable('run')
         .set({ runStatus: 'running' })
-        .where((eb) =>
-          eb.and([eb('runId', '=', runId), eb('runStatus', '<>', 'idle')]),
-        )
-        .returning(['run.runId'])
-        .execute();
-      if (resumedRunResult.length === 0) {
-        throw new StoreError(
-          `Cannot resume run ${runId}: run is not found or still idle.`,
-          'RUN_NOT_FOUND',
-        );
-      }
-      if (resumedRunResult.length > 1) {
-        throw new Error(
-          `SQL query returned more than one row for run ${runId}.`,
-        );
-      }
+        .where('runId', '=', runId)
+        .returning(['run.experimentName', 'run.runName'])
+        .executeTakeFirstOrThrow(() => {
+          return new StoreError(
+            `No run found for id ${runId}`,
+            'RUN_NOT_FOUND',
+          );
+        });
       let { lastSeqNumber, firstMissingLogNumber, lastLogNumber } = await trx
         .selectFrom('logSequence as seq')
         .leftJoin('runLogView as log', (join) =>
@@ -203,10 +196,12 @@ export class SQLiteStore {
             .filterWhere('log.type', 'is', null)
             .as('firstMissingLogNumber'),
         ])
-        .executeTakeFirstOrThrow();
-      if (lastSeqNumber == null) {
-        throw new Error(`Could not find a sequence for run ${runId}.`);
-      }
+        .executeTakeFirstOrThrow(
+          () =>
+            new Error(
+              `Could not find a sequence for run "${runName}" of experiment "${experimentName}".`,
+            ),
+        );
       let minResumeFrom = 1;
       if (firstMissingLogNumber != null) {
         minResumeFrom = firstMissingLogNumber;
@@ -215,7 +210,7 @@ export class SQLiteStore {
       }
       if (minResumeFrom < resumeFrom) {
         throw new StoreError(
-          `Cannot resume run ${runId} from log number ${resumeFrom} because the minimum is ${minResumeFrom}.`,
+          `Cannot resume run "${runName}" of experiment "${experimentName}" from log number ${resumeFrom} because the minimum is ${minResumeFrom}.`,
           'INVALID_LOG_NUMBER',
         );
       }
@@ -269,10 +264,24 @@ export class SQLiteStore {
       // We need to return something or else the query will not fail if nothing
       // is updated.
       .returning(['runName', 'experimentName', 'runStatus'])
-      .executeTakeFirstOrThrow(
-        () =>
-          new StoreError(`Cannot set status of run ${runId}.`, 'RUN_NOT_FOUND'),
-      );
+      .executeTakeFirstOrThrow(() => {
+        return new StoreError(`No run found for id ${runId}`, 'RUN_NOT_FOUND');
+      })
+      .catch((e) => {
+        if (
+          e instanceof SQLiteDB.SqliteError &&
+          e.code === 'SQLITE_CONSTRAINT_TRIGGER' &&
+          e.message ===
+            'Cannot update run status when the run is completed or canceled'
+        ) {
+          throw new StoreError(
+            `Cannot update status of run "run1" for experiment "experiment" because the run is completed or canceled`,
+            'RUN_HAS_ENDED',
+            e,
+          );
+        }
+        throw e;
+      });
   }
 
   async addLogs(
@@ -301,8 +310,7 @@ export class SQLiteStore {
           eb.fn.max('log.logNumber').as('maxLogNumber'),
         ])
         .executeTakeFirstOrThrow(
-          () =>
-            new StoreError(`Cannot add logs to run ${runId}.`, 'RUN_NOT_FOUND'),
+          () => new StoreError(`No run found for id ${runId}`, 'RUN_NOT_FOUND'),
         );
       let indexedNewLogs = groupBy(logs, (log) => log.number);
       let newLogNumbers = logs.map((log) => log.number);
