@@ -20,6 +20,16 @@ type TemplatizedPath<P> = P extends `${infer Start}/:${string}/${infer End}`
 type ServerPath = `https://server.test/api${TemplatizedPath<Path>}`;
 
 const server = setupServer(
+  http.put(
+    'https://server.test/api/sessions/current' satisfies ServerPath,
+    () => {
+      return HttpResponse.json({
+        status: 'ok',
+        role: 'participant',
+        runs: [],
+      } satisfies ApiResponse<'put', '/sessions/current'>);
+    },
+  ),
   http.delete(
     'https://server.test/api/sessions/current' satisfies ServerPath,
     () => {
@@ -173,7 +183,7 @@ afterEach(() => {
   clearRequests();
 });
 
-describe('RunLogger#startRun', () => {
+describe('LogClient#startRun', () => {
   it('should send a start request', async () => {
     const logger = new LogClient({
       apiRoot: 'https://server.test/api',
@@ -183,7 +193,7 @@ describe('RunLogger#startRun', () => {
       {
         url: 'https://server.test/api/runs',
         method: 'POST',
-        body: {},
+        body: {} satisfies ApiBody<'post', '/runs'>,
       },
     ]);
   });
@@ -200,12 +210,15 @@ describe('RunLogger#startRun', () => {
       {
         url: 'https://server.test/api/runs',
         method: 'POST',
-        body: { runName: 'test-run', experimentName: 'test-experiment' },
+        body: {
+          runName: 'test-run',
+          experimentName: 'test-experiment',
+        } satisfies ApiBody<'post', '/runs'>,
       },
     ]);
   });
 });
-describe('RunLogger#resumeRun', () => {
+describe('LogClient#resumeRun', () => {
   it('should resume an existing run using a type to resume after', async () => {
     setServerRuns([
       {
@@ -230,7 +243,10 @@ describe('RunLogger#resumeRun', () => {
       {
         url: 'https://server.test/api/experiments/test-experiment/runs/test-run',
         method: 'PATCH',
-        body: { resumeFrom: 6 },
+        body: { resumeFrom: 6, runStatus: 'running' } satisfies ApiBody<
+          'patch',
+          '/experiments/:experimentName/runs/:runName'
+        >,
       },
     ]);
   });
@@ -260,7 +276,10 @@ describe('RunLogger#resumeRun', () => {
       {
         url: 'https://server.test/api/experiments/test-experiment/runs/test-run',
         method: 'PATCH',
-        body: { resumeFrom: 6 },
+        body: { resumeFrom: 6, runStatus: 'running' } satisfies ApiBody<
+          'patch',
+          '/experiments/:experimentName/runs/:runName'
+        >,
       },
     ]);
   });
@@ -289,7 +308,10 @@ describe('RunLogger#resumeRun', () => {
       {
         url: 'https://server.test/api/experiments/test-experiment/runs/test-run',
         method: 'PATCH',
-        body: { resumeFrom: 1 },
+        body: { resumeFrom: 1, runStatus: 'running' } satisfies ApiBody<
+          'patch',
+          '/experiments/:experimentName/runs/:runName'
+        >,
       },
     ]);
   });
@@ -319,7 +341,10 @@ describe('RunLogger#resumeRun', () => {
       {
         url: 'https://server.test/api/experiments/test-experiment/runs/test-run',
         method: 'PATCH',
-        body: { resumeFrom: 6 },
+        body: { resumeFrom: 6, runStatus: 'running' } satisfies ApiBody<
+          'patch',
+          '/experiments/:experimentName/runs/:runName'
+        >,
       },
     ]);
   });
@@ -351,7 +376,10 @@ describe('RunLogger#resumeRun', () => {
       {
         url: 'https://server.test/api/experiments/test-experiment/runs/test-run',
         method: 'PATCH',
-        body: { resumeFrom: 6 },
+        body: { resumeFrom: 6, runStatus: 'running' } satisfies ApiBody<
+          'patch',
+          '/experiments/:experimentName/runs/:runName'
+        >,
       },
     ]);
   });
@@ -367,7 +395,9 @@ describe('RunLogger#resumeRun', () => {
         experimentName: 'test-experiment',
         runName: 'test-run',
       }),
-    ).rejects.toThrowError(Error);
+    ).rejects.toThrowErrorMatchingInlineSnapshot(
+      `[Error: Trying to start a run with a different experimentName. Current experimentName is original-experiment and new experimentName is test-experiment]`,
+    );
   });
 
   it("should refuse to overwrite the constructor's runName", async () => {
@@ -381,7 +411,9 @@ describe('RunLogger#resumeRun', () => {
         experimentName: 'test-experiment',
         runName: 'test-run',
       }),
-    ).rejects.toThrowError(Error);
+    ).rejects.toThrowErrorMatchingInlineSnapshot(
+      `[Error: Trying to start a run with a different runName. Current runName is original-run and new runName is test-run]`,
+    );
   });
 
   it("should refuse to resume a run if the experimentName isn't defined", async () => {
@@ -391,7 +423,9 @@ describe('RunLogger#resumeRun', () => {
     });
     await expect(
       logger.resumeRun({ resumeAfterLast: 'test-type' }),
-    ).rejects.toThrowError(Error);
+    ).rejects.toThrowErrorMatchingInlineSnapshot(
+      `[Error: Cannot resume a run without an experimentName]`,
+    );
   });
 
   it("should refuse to resume a run if the runName isn't defined", async () => {
@@ -401,11 +435,13 @@ describe('RunLogger#resumeRun', () => {
     });
     await expect(
       logger.resumeRun({ resumeAfterLast: 'test-type' }),
-    ).rejects.toThrowError(Error);
+    ).rejects.toThrowErrorMatchingInlineSnapshot(
+      `[Error: Cannot resume a run without a runName]`,
+    );
   });
 });
 
-describe('RunLogger#addLog (after start)', () => {
+describe('LogClient#addLog (after start)', () => {
   let logger: LogClient;
 
   beforeEach(async () => {
@@ -438,7 +474,10 @@ describe('RunLogger#addLog (after start)', () => {
               number: 1,
             },
           ],
-        },
+        } satisfies ApiBody<
+          'post',
+          '/experiments/:experimentName/runs/:runName/logs'
+        >,
       },
     ]);
   });
@@ -485,7 +524,10 @@ describe('RunLogger#addLog (after start)', () => {
               values: { val: 3, date: '2021-06-03T02:00:20.000Z' },
             },
           ],
-        },
+        } satisfies ApiBody<
+          'post',
+          '/experiments/:experimentName/runs/:runName/logs'
+        >,
       },
     ]);
   });
@@ -508,7 +550,10 @@ describe('RunLogger#addLog (after start)', () => {
               number: 1,
             },
           ],
-        },
+        } satisfies ApiBody<
+          'post',
+          '/experiments/:experimentName/runs/:runName/logs'
+        >,
       },
     ]);
   });
@@ -538,7 +583,10 @@ describe('RunLogger#addLog (after start)', () => {
               number: 2,
             },
           ],
-        },
+        } satisfies ApiBody<
+          'post',
+          '/experiments/:experimentName/runs/:runName/logs'
+        >,
       },
     ]);
   });
@@ -561,13 +609,16 @@ describe('RunLogger#addLog (after start)', () => {
               number: 1,
             },
           ],
-        },
+        } satisfies ApiBody<
+          'post',
+          '/experiments/:experimentName/runs/:runName/logs'
+        >,
       },
     ]);
   });
 });
 
-describe('RunLogger#addLog (after resume)', () => {
+describe('LogClient#addLog (after resume)', () => {
   it('should properly start numbering after a run has been resumed', async () => {
     setServerRuns([
       {
@@ -628,13 +679,16 @@ describe('RunLogger#addLog (after resume)', () => {
               values: { val: 3, date: '2021-06-03T02:00:20.000Z' },
             },
           ],
-        },
+        } satisfies ApiBody<
+          'post',
+          '/experiments/:experimentName/runs/:runName/logs'
+        >,
       },
     ]);
   });
 });
 
-describe('RunLogger#flush', () => {
+describe('LogClient#flush', () => {
   it('should flush', async () => {
     setServerRuns([{ runName: 'run-id', experimentName: 'experiment-id' }]);
     const logger = new LogClient({ apiRoot: 'https://server.test/api' });
@@ -682,13 +736,16 @@ describe('RunLogger#flush', () => {
               values: { val: 3, date: '2021-06-03T04:00:00.000Z' },
             },
           ],
-        },
+        } satisfies ApiBody<
+          'post',
+          '/experiments/:experimentName/runs/:runName/logs'
+        >,
       },
     ]);
   });
 });
 
-describe('RunLogger#completeRun', () => {
+describe('LogClient#completeRun', () => {
   it('should complete', async () => {
     setServerRuns([{ runName: 'run-id', experimentName: 'experiment-id' }]);
     const logger = new LogClient({ apiRoot: 'https://server.test/api' });
@@ -702,13 +759,16 @@ describe('RunLogger#completeRun', () => {
       {
         method: 'PATCH',
         url: 'https://server.test/api/experiments/experiment-id/runs/run-id',
-        body: { status: 'completed' },
+        body: { runStatus: 'completed' } satisfies ApiBody<
+          'patch',
+          '/experiments/:experimentName/runs/:runName'
+        >,
       },
     ]);
   });
 });
 
-describe('RunLogger#cancelRun', () => {
+describe('LogClient#cancelRun', () => {
   it('should cancel', async () => {
     setServerRuns([{ runName: 'run-id', experimentName: 'experiment-id' }]);
     const logger = new LogClient({ apiRoot: 'https://server.test/api' });
@@ -722,13 +782,16 @@ describe('RunLogger#cancelRun', () => {
       {
         method: 'PATCH',
         url: 'https://server.test/api/experiments/experiment-id/runs/run-id',
-        body: { status: 'canceled' },
+        body: { runStatus: 'canceled' } satisfies ApiBody<
+          'patch',
+          '/experiments/:experimentName/runs/:runName'
+        >,
       },
     ]);
   });
 });
 
-describe('RunLogger#logout', () => {
+describe('LogClient#logout', () => {
   it('should close the session', async () => {
     const logger = new LogClient({
       apiRoot: 'https://server.test/api',
