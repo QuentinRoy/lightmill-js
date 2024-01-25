@@ -72,7 +72,7 @@ jobs:
         with:
           name: 'build'
           path: 'packages'
-      - run: pnpm run test-all
+      - run: pnpm run test
 
   lint:
     runs-on: ubuntu-latest

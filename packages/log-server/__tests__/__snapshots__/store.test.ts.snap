@@ -1,0 +1,191 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`SQLiteStore#getLogs > should ignore missing logs 1`] = `
+[
+  {
+    "experimentName": "experiment1",
+    "number": 1,
+    "runName": "run1",
+    "runStatus": "running",
+    "type": "log1",
+    "values": {
+      "msg": "hello",
+      "recipient": "Anna",
+    },
+  },
+  {
+    "experimentName": "experiment1",
+    "number": 2,
+    "runName": "run1",
+    "runStatus": "running",
+    "type": "log1",
+    "values": {
+      "msg": "bonjour",
+      "recipient": "Jo",
+    },
+  },
+  {
+    "experimentName": "experiment1",
+    "number": 3,
+    "runName": "run1",
+    "runStatus": "running",
+    "type": "log3",
+    "values": {
+      "foo": true,
+      "x": 25,
+      "y": 0,
+    },
+  },
+  {
+    "experimentName": "experiment1",
+    "number": 11,
+    "runName": "run1",
+    "runStatus": "running",
+    "type": "log1",
+    "values": {
+      "msg": "hello",
+      "recipient": "Anna",
+    },
+  },
+  {
+    "experimentName": "experiment1",
+    "number": 22,
+    "runName": "run1",
+    "runStatus": "running",
+    "type": "log1",
+    "values": {
+      "msg": "hello",
+      "recipient": "Anna",
+    },
+  },
+  {
+    "experimentName": "experiment1",
+    "number": 33,
+    "runName": "run1",
+    "runStatus": "running",
+    "type": "log1",
+    "values": {
+      "msg": "bonjour",
+      "recipient": "Jo",
+    },
+  },
+  {
+    "experimentName": "experiment1",
+    "number": 44,
+    "runName": "run1",
+    "runStatus": "running",
+    "type": "log1",
+    "values": {
+      "msg": "bonjour",
+      "recipient": "Jo",
+    },
+  },
+  {
+    "experimentName": "experiment1",
+    "number": 1,
+    "runName": "run2",
+    "runStatus": "running",
+    "type": "log1",
+    "values": {
+      "bar": null,
+      "message": "hola",
+    },
+  },
+  {
+    "experimentName": "experiment1",
+    "number": 2,
+    "runName": "run2",
+    "runStatus": "running",
+    "type": "log2",
+    "values": {
+      "foo": false,
+      "x": 12,
+    },
+  },
+  {
+    "experimentName": "experiment2",
+    "number": 1,
+    "runName": "run1",
+    "runStatus": "running",
+    "type": "log2",
+    "values": {
+      "foo": true,
+      "x": 25,
+      "y": 0,
+    },
+  },
+]
+`;
+
+exports[`SQLiteStore#getLogs > should return the logs in order of experimentName, runName, and ascending number 1`] = `
+[
+  {
+    "experimentName": "experiment1",
+    "number": 1,
+    "runName": "run1",
+    "runStatus": "running",
+    "type": "log1",
+    "values": {
+      "msg": "hello",
+      "recipient": "Anna",
+    },
+  },
+  {
+    "experimentName": "experiment1",
+    "number": 2,
+    "runName": "run1",
+    "runStatus": "running",
+    "type": "log1",
+    "values": {
+      "msg": "bonjour",
+      "recipient": "Jo",
+    },
+  },
+  {
+    "experimentName": "experiment1",
+    "number": 3,
+    "runName": "run1",
+    "runStatus": "running",
+    "type": "log3",
+    "values": {
+      "foo": true,
+      "x": 25,
+      "y": 0,
+    },
+  },
+  {
+    "experimentName": "experiment1",
+    "number": 1,
+    "runName": "run2",
+    "runStatus": "running",
+    "type": "log1",
+    "values": {
+      "bar": null,
+      "message": "hola",
+    },
+  },
+  {
+    "experimentName": "experiment1",
+    "number": 2,
+    "runName": "run2",
+    "runStatus": "running",
+    "type": "log2",
+    "values": {
+      "foo": false,
+      "x": 12,
+    },
+  },
+  {
+    "experimentName": "experiment2",
+    "number": 1,
+    "runName": "run1",
+    "runStatus": "running",
+    "type": "log2",
+    "values": {
+      "foo": true,
+      "x": 25,
+      "y": 0,
+    },
+  },
+]
+`;

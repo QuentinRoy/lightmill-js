@@ -49,8 +49,8 @@ const log = loglevel.getLogger('main');
 type StartParameter = {
   database: string;
   port: number;
-  secret?: string;
-  hostPassword?: string;
+  secret?: string | undefined;
+  hostPassword?: string | undefined;
 };
 async function start({
   database: dbPath,
@@ -102,18 +102,18 @@ async function start({
 type ExportLogsParameter = {
   database: string;
   format: 'json' | 'csv';
-  output?: string;
-  logType?: string;
-  experimentId?: string;
+  output?: string | undefined;
+  logType?: string | undefined;
+  experimentName?: string | undefined;
 };
 async function exportLogs({
   database,
   format,
   logType,
-  experimentId,
+  experimentName,
   output = undefined,
 }: ExportLogsParameter) {
-  let filter = { type: logType, experimentId };
+  let filter = { type: logType, experimentName };
   let store = new SQLiteStore(database);
   let stream =
     format === 'csv'
@@ -232,7 +232,7 @@ yargs(process.argv.slice(2))
           alias: 't',
           type: 'string',
         })
-        .option('experimentId', {
+        .option('experimentName', {
           alias: 'e',
           type: 'string',
         })

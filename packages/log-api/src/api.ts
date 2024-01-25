@@ -9,7 +9,7 @@ import {
   ZodiosResponseByPath,
 } from '@zodios/core';
 import { z } from 'zod';
-import { JsonObject } from './utils.js';
+import { JsonObject, NonEmptyArray } from './utils.js';
 
 const OkResponse = z.object({ status: z.literal('ok') });
 const ErrorResponse = z.object({
@@ -24,10 +24,20 @@ const LogParameter = z.object({
   values: JsonObject,
 });
 
+const runStatuses = [
+  'idle',
+  'running',
+  'completed',
+  'interrupted',
+  'canceled',
+] as const;
+
+type RunStatus = (typeof runStatuses)[number];
+
 export const api = makeApi([
   {
-    method: 'post',
-    path: '/sessions',
+    method: 'put',
+    path: '/sessions/current',
     parameters: [
       {
         schema: z
@@ -43,7 +53,13 @@ export const api = makeApi([
     response: OkResponse.extend({
       role: Role,
       runs: z.array(
-        z.object({ runId: z.string(), experimentId: z.string() }).strict(),
+        z
+          .object({
+            experimentName: z.string(),
+            runName: z.string(),
+            runStatus: z.enum(runStatuses),
+          })
+          .strict(),
       ),
     }).strict(),
     errors: [
@@ -56,7 +72,13 @@ export const api = makeApi([
     path: '/sessions/current',
     response: OkResponse.extend({
       runs: z.array(
-        z.object({ runId: z.string(), experimentId: z.string() }).strict(),
+        z
+          .object({
+            experimentName: z.string(),
+            runName: z.string(),
+            runStatus: z.string(),
+          })
+          .strict(),
       ),
       role: Role,
     }).strict(),
@@ -78,8 +100,11 @@ export const api = makeApi([
       {
         schema: z
           .object({
-            runId: z.string().optional(),
-            experimentId: z.string().optional(),
+            runName: z.string().optional(),
+            experimentName: z.string().optional(),
+            runStatus: z
+              .enum(['running', 'idle'] satisfies NonEmptyArray<RunStatus>)
+              .optional(),
           })
           .strict()
           .optional(),
@@ -88,24 +113,21 @@ export const api = makeApi([
       },
     ],
     response: OkResponse.extend({
-      runId: z.string(),
-      experimentId: z.string(),
+      experimentName: z.string(),
+      runName: z.string(),
+      runStatus: z.string(),
     }).strict(),
     errors: [{ status: 403, schema: ErrorResponse.strict() }],
   },
   {
     method: 'get',
-    path: '/experiments/:experimentId/runs/:runId',
+    path: '/experiments/:experimentName/runs/:runName',
     response: OkResponse.extend({
       run: z
         .object({
-          runId: z.string(),
-          experimentId: z.string(),
-          status: z.union([
-            z.literal('completed'),
-            z.literal('canceled'),
-            z.literal('running'),
-          ]),
+          runName: z.string(),
+          experimentName: z.string(),
+          runStatus: z.enum(runStatuses),
           logs: z.array(
             z
               .object({
@@ -123,7 +145,7 @@ export const api = makeApi([
   },
   {
     method: 'patch',
-    path: '/experiments/:experimentId/runs/:runId',
+    path: '/experiments/:experimentName/runs/:runName',
     response: OkResponse.strict(),
     errors: [
       { status: 404, schema: ErrorResponse.strict() },
@@ -135,10 +157,20 @@ export const api = makeApi([
         schema: z.union([
           z
             .object({
-              status: z.union([z.literal('completed'), z.literal('canceled')]),
+              runStatus: z.enum([
+                'running',
+                'completed',
+                'interrupted',
+                'canceled',
+              ]),
             })
             .strict(),
-          z.object({ resumeFrom: z.number() }).strict(),
+          z
+            .object({
+              resumeFrom: z.number(),
+              runStatus: z.literal('running'),
+            })
+            .strict(),
         ]),
         name: 'body',
         type: 'Body',
@@ -147,7 +179,7 @@ export const api = makeApi([
   },
   {
     method: 'post',
-    path: '/experiments/:experimentId/runs/:runId/logs',
+    path: '/experiments/:experimentName/runs/:runName/logs',
     parameters: [
       {
         schema: z.union([
@@ -163,7 +195,7 @@ export const api = makeApi([
   },
   {
     method: 'get',
-    path: '/experiments/:experimentId/logs',
+    path: '/experiments/:experimentName/logs',
     parameters: [
       {
         name: 'type',
@@ -213,4 +245,4 @@ export type ErrorStatus<
 // Why not export Zodios api as the recommended way to use it? I am not sure
 // I want to use zodios on the client, it depends on zod and could uselessly
 // bloat the client. I would rather hide its usage from the lib consumers so
-// I can ditch it if I want to later without breaking change.
+// I can later ditch it if I want to without breaking change.
