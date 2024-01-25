@@ -1,15 +1,8 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
 import request from 'supertest';
-import { afterEach, describe, beforeEach, it, vi, expect, Mock } from 'vitest';
-import {
-  Log,
-  RunFilter,
-  RunId,
-  RunStatus,
-  Store,
-  StoreError,
-} from '../src/store.js';
+import { afterEach, describe, beforeEach, it, vi, Mock } from 'vitest';
+import { Log, RunId, RunStatus, Store, StoreError } from '../src/store.js';
 import { LogServer } from '../src/app.js';
 import type { Body } from '@lightmill/log-api';
 import { arrayify } from '../src/utils.js';
