@@ -101,7 +101,7 @@ describe('sessions', () => {
   });
 
   describe('put /sessions/current', () => {
-    it('should create a session', async () => {
+    it('should create a session', async ({ expect }) => {
       await api
         .put('/sessions/current')
         .send({ role: 'participant' })
@@ -112,11 +112,15 @@ describe('sessions', () => {
         });
     });
 
-    it('should refuse to create a session for an unknown role', async () => {
+    it('should refuse to create a session for an unknown role', async ({
+      expect,
+    }) => {
       await api.put('/sessions/current').send({ role: 'fake' }).expect(400);
     });
 
-    it('should accept the creation of an host session if there is no host password set on the server', async () => {
+    it('should accept the creation of an host session if there is no host password set on the server', async ({
+      expect,
+    }) => {
       await api.put('/sessions/current').send({ role: 'host' }).expect(201, {
         role: 'host',
         runs: [],
@@ -124,7 +128,9 @@ describe('sessions', () => {
       });
     });
 
-    it('should accept the creation of an host role if the provided password is correct', async () => {
+    it('should accept the creation of an host role if the provided password is correct', async ({
+      expect,
+    }) => {
       let app = LogServer({
         store: MockStore(),
         secret: 'secret',
@@ -137,7 +143,9 @@ describe('sessions', () => {
         .expect(201, { role: 'host', runs: [], status: 'ok' });
     });
 
-    it('should refuse the creation of an host role if the provided password is incorrect', async () => {
+    it('should refuse the creation of an host role if the provided password is incorrect', async ({
+      expect,
+    }) => {
       let app = LogServer({
         store: MockStore(),
         secret: 'secret',
@@ -155,14 +163,16 @@ describe('sessions', () => {
   });
 
   describe('get /sessions/current', () => {
-    it('should return an error if the session does not exists', async () => {
+    it('should return an error if the session does not exists', async ({
+      expect,
+    }) => {
       await api.get('/sessions/current').expect(404, {
         message: 'No session found',
         status: 'error',
       });
     });
 
-    it('should return the current session if it exists', async () => {
+    it('should return the current session if it exists', async ({ expect }) => {
       await api.put('/sessions/current').send({ role: 'participant' });
       await api.get('/sessions/current').expect(200, {
         role: 'participant',
@@ -173,14 +183,16 @@ describe('sessions', () => {
   });
 
   describe('delete /sessions/current', () => {
-    it('should return an error if the session does not exists', async () => {
+    it('should return an error if the session does not exists', async ({
+      expect,
+    }) => {
       await api.delete('/sessions/current').expect(404, {
         message: 'No session found',
         status: 'error',
       });
     });
 
-    it('should delete the current session if it exists', async () => {
+    it('should delete the current session if it exists', async ({ expect }) => {
       await api.put('/sessions/current').send({ role: 'participant' });
       await api.delete('/sessions/current').expect(200, { status: 'ok' });
       await api.get('/sessions/current').expect(404);
@@ -208,7 +220,7 @@ describe('runs', () => {
   });
 
   describe('post /runs', () => {
-    it('should create a run', async () => {
+    it('should create a run', async ({ expect }) => {
       await api
         .post('/runs')
         .send({ experimentName: 'exp-id', runName: 'run-id' })
@@ -224,7 +236,9 @@ describe('runs', () => {
       });
     });
 
-    it('should use the default experiment if the experiment is not named', async () => {
+    it('should use the default experiment if the experiment is not named', async ({
+      expect,
+    }) => {
       await api.post('/runs').send({ runName: 'run' }).expect(201, {
         experimentName: 'addRun:experimentName',
         runName: 'addRun:runName',
@@ -237,7 +251,9 @@ describe('runs', () => {
       });
     });
 
-    it('should generate a unique run name if the run name is not provided', async () => {
+    it('should generate a unique run name if the run name is not provided', async ({
+      expect,
+    }) => {
       let resp = await api
         .post('/runs')
         .send({ experimentName: 'exp' })
@@ -256,7 +272,7 @@ describe('runs', () => {
       expect(call.runName).toBeTypeOf('string');
     });
 
-    it('should add the run to the session', async () => {
+    it('should add the run to the session', async ({ expect }) => {
       await api
         .post('/runs')
         .send({ experimentName: 'exp-id', runName: 'run-id' })
@@ -275,7 +291,9 @@ describe('runs', () => {
       });
     });
 
-    it('should refuse to create a run if participant already has one running', async () => {
+    it('should refuse to create a run if participant already has one running', async ({
+      expect,
+    }) => {
       await api
         .post('/runs')
         .send({ experimentName: 'exp-id', runName: 'run1' })
@@ -290,7 +308,9 @@ describe('runs', () => {
       expect(store.addRun).toHaveBeenCalledTimes(1);
     });
 
-    it('should refuse to create a run if the run id already exists', async () => {
+    it('should refuse to create a run if the run id already exists', async ({
+      expect,
+    }) => {
       store.addRun.mockImplementation(async ({ runName }) => {
         throw new StoreError(`run "${runName}" already exists`, 'RUN_EXISTS');
       });
@@ -305,7 +325,9 @@ describe('runs', () => {
   });
 
   describe('get /experiments/:experiment/runs/:run', () => {
-    it('should return an error if the client does not have access to any run', async () => {
+    it('should return an error if the client does not have access to any run', async ({
+      expect,
+    }) => {
       store.getRuns.mockImplementation(async () => []);
       await api.get('/experiments/exp/runs/not-my-run').expect(403, {
         status: 'error',
@@ -313,7 +335,9 @@ describe('runs', () => {
       });
     });
 
-    it('should return an error if the client does not have access to this particular run', async () => {
+    it('should return an error if the client does not have access to this particular run', async ({
+      expect,
+    }) => {
       let myRuns = [
         {
           runId: 999 as RunId,
@@ -335,7 +359,7 @@ describe('runs', () => {
       });
     });
 
-    it('should return some run information otherwise', async () => {
+    it('should return some run information otherwise', async ({ expect }) => {
       await api
         .post('/runs')
         .send({ experimentName: 'exp', runName: 'my-run' })
@@ -356,7 +380,9 @@ describe('runs', () => {
   });
 
   describe('patch /experiments/:experiment/runs/:run', () => {
-    it('should return an error if the client tries to change the status of the run but does not have access to any run', async () => {
+    it('should return an error if the client tries to change the status of the run but does not have access to any run', async ({
+      expect,
+    }) => {
       store.getRuns.mockImplementation(async () => []);
       await api
         .patch('/experiments/exp/runs/not-my-run')
@@ -369,7 +395,9 @@ describe('runs', () => {
       expect(store.setRunStatus).not.toHaveBeenCalled();
     });
 
-    it('should return an error if the client tries to change the status of the run but does not have access to this particular run', async () => {
+    it('should return an error if the client tries to change the status of the run but does not have access to this particular run', async ({
+      expect,
+    }) => {
       let myRuns = [
         {
           runId: 999 as RunId,
@@ -400,7 +428,9 @@ describe('runs', () => {
       expect(store.resumeRun).not.toHaveBeenCalled();
     });
 
-    it('should return an error if the client tries to resume a run but does not have access to any run', async () => {
+    it('should return an error if the client tries to resume a run but does not have access to any run', async ({
+      expect,
+    }) => {
       store.getRuns.mockImplementation(async () => []);
       await api
         .patch('/experiments/exp/runs/not-my-run')
@@ -413,7 +443,9 @@ describe('runs', () => {
       expect(store.setRunStatus).not.toHaveBeenCalled();
     });
 
-    it('should return an error if the client tries to resume a run but does not have access to this particular run', async () => {
+    it('should return an error if the client tries to resume a run but does not have access to this particular run', async ({
+      expect,
+    }) => {
       let myRuns = [
         {
           runId: 999 as RunId,
@@ -444,7 +476,9 @@ describe('runs', () => {
       expect(store.setRunStatus).not.toHaveBeenCalled();
     });
 
-    it('should complete a running run if argument is "completed"', async () => {
+    it('should complete a running run if argument is "completed"', async ({
+      expect,
+    }) => {
       const storeRun = {
         runId: 999 as RunId,
         runName: 'my-run',
@@ -474,7 +508,9 @@ describe('runs', () => {
       expect(store.resumeRun).not.toHaveBeenCalled();
     });
 
-    it('should cancel a running run if argument is "canceled"', async () => {
+    it('should cancel a running run if argument is "canceled"', async ({
+      expect,
+    }) => {
       await api
         .post('/runs')
         .send({ experimentName: 'my-exp', runName: 'my-run' })
@@ -487,7 +523,9 @@ describe('runs', () => {
       expect(store.resumeRun).not.toHaveBeenCalled();
     });
 
-    it('should refuse to change the status of a completed run', async () => {
+    it('should refuse to change the status of a completed run', async ({
+      expect,
+    }) => {
       store.getRuns.mockImplementation(async () => {
         return [
           {
@@ -521,7 +559,9 @@ describe('runs', () => {
       expect(store.resumeRun).not.toHaveBeenCalled();
     });
 
-    it('should refuse to change the status of a canceled run', async () => {
+    it('should refuse to change the status of a canceled run', async ({
+      expect,
+    }) => {
       store.getRuns.mockImplementation(async () => {
         return [
           {
@@ -555,7 +595,9 @@ describe('runs', () => {
       expect(store.resumeRun).not.toHaveBeenCalled();
     });
 
-    it('should resume a running run if request body contains "resumeFrom"', async () => {
+    it('should resume a running run if request body contains "resumeFrom"', async ({
+      expect,
+    }) => {
       await api
         .post('/runs')
         .send({ experimentName: 'exp', runName: 'my-run' })
@@ -568,7 +610,9 @@ describe('runs', () => {
       expect(store.resumeRun).toHaveBeenCalledWith(1, { from: 15 });
     });
 
-    it('should resume an interrupted run if request body contains "resumeFrom"', async () => {
+    it('should resume an interrupted run if request body contains "resumeFrom"', async ({
+      expect,
+    }) => {
       let myRun = {
         runId: 666 as RunId,
         runName: 'getRun:runName',
@@ -589,7 +633,7 @@ describe('runs', () => {
       expect(store.resumeRun).toHaveBeenCalledWith(666, { from: 12 });
     });
 
-    it('should refuse to resume a completed run', async () => {
+    it('should refuse to resume a completed run', async ({ expect }) => {
       await api
         .post('/runs')
         .send({ experimentName: 'exp', runName: 'my-run' })
@@ -615,7 +659,7 @@ describe('runs', () => {
       expect(store.resumeRun).not.toHaveBeenCalled();
     });
 
-    it('should refuse to resume a canceled run', async () => {
+    it('should refuse to resume a canceled run', async ({ expect }) => {
       await api
         .post('/runs')
         .send({ experimentName: 'exp', runName: 'my-run' })
@@ -688,7 +732,9 @@ describe('logs', () => {
       '/experiments/:experimentName/runs/:runName/logs'
     >;
 
-    it('should refuse to add logs if the client does not have access to the run', async () => {
+    it('should refuse to add logs if the client does not have access to the run', async ({
+      expect,
+    }) => {
       store.getRuns.mockImplementation(async (filter) => {
         if (arrayify(filter?.runName, true).includes('not-my-run')) {
           return [];
@@ -713,7 +759,7 @@ describe('logs', () => {
       expect(store.addLogs).not.toHaveBeenCalled();
     });
 
-    it('should add a single log to the run', async () => {
+    it('should add a single log to the run', async ({ expect }) => {
       await api
         .post('/experiments/test-exp/runs/test-run/logs')
         .send({
@@ -733,7 +779,7 @@ describe('logs', () => {
       ]);
     });
 
-    it('should add multiple logs to the run at once', async () => {
+    it('should add multiple logs to the run at once', async ({ expect }) => {
       await api
         .post('/experiments/test-exp/runs/test-run/logs')
         .send({
@@ -749,7 +795,9 @@ describe('logs', () => {
       ]);
     });
 
-    it('should refuse to add logs if the store says that their number is already used', async () => {
+    it('should refuse to add logs if the store says that their number is already used', async ({
+      expect,
+    }) => {
       store.addLogs.mockImplementation(async () => {
         throw new StoreError(
           'Log number 2 is already used',
@@ -784,7 +832,9 @@ describe('logs', () => {
       vi.useRealTimers();
     });
 
-    it('should refuse to fetch logs if the client is not logged as an host', async () => {
+    it('should refuse to fetch logs if the client is not logged as an host', async ({
+      expect,
+    }) => {
       await api.delete('/sessions/current').expect(200);
       await api
         .put('/sessions/current')
@@ -797,12 +847,14 @@ describe('logs', () => {
       expect(store.getLogs).not.toHaveBeenCalled();
     });
 
-    it('should return logs as json by default', async () => {
+    it('should return logs as json by default', async ({ expect }) => {
       let result = await api.get('/experiments/exp/logs').expect(200);
       expect(store.getLogs.mock.calls).toMatchSnapshot();
       expect(result.body).toMatchSnapshot();
     });
-    it('should return logs as json if json is the first supported format in the Accept header', async () => {
+    it('should return logs as json if json is the first supported format in the Accept header', async ({
+      expect,
+    }) => {
       let result = await api
         .get('/experiments/exp/logs')
         .set(
@@ -813,7 +865,9 @@ describe('logs', () => {
       expect(store.getLogs.mock.calls).toMatchSnapshot();
       expect(result.body).toMatchSnapshot();
     });
-    it('should return logs as csv if csv is the first supported format in the Accept header', async () => {
+    it('should return logs as csv if csv is the first supported format in the Accept header', async ({
+      expect,
+    }) => {
       let result = await api
         .get('/experiments/exp/logs')
         .set(
@@ -825,7 +879,9 @@ describe('logs', () => {
       expect(result.text).toMatchSnapshot();
     });
 
-    it('should return logs as json if the Accept header is not supported', async () => {
+    it('should return logs as json if the Accept header is not supported', async ({
+      expect,
+    }) => {
       let result = await api
         .get('/experiments/exp/logs')
         .set('Accept', 'application/xml')
@@ -834,7 +890,9 @@ describe('logs', () => {
       expect(result.body).toMatchSnapshot();
     });
 
-    it('should be able to filter logs by type using the type query parameter', async () => {
+    it('should be able to filter logs by type using the type query parameter', async ({
+      expect,
+    }) => {
       await api
         .get('/experiments/exp/logs')
         .query({ type: 'log-type' })
