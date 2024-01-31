@@ -12,6 +12,7 @@ import loglevel from 'loglevel';
 import yargs from 'yargs';
 import { SQLiteStore, LogServer } from './index.js';
 import { csvExportStream, jsonExportStream } from './export.js';
+import { Transform } from 'node:stream';
 
 // Constants and setup
 // -------------------
@@ -121,9 +122,39 @@ async function exportLogs({
       : jsonExportStream(store, filter);
   if (output === undefined) {
     stream.pipe(process.stdout).on('error', handleError);
-  } else {
-    stream.pipe(createWriteStream(output)).on('error', handleError);
+    return;
   }
+  let startDate = new Date();
+  let logCount = 0;
+  process.stdout.write(`${logCount.toLocaleString('en')} logs exported...`);
+  stream
+    .pipe(
+      new Transform({
+        writableObjectMode: true,
+        transform(chunk, encoding, callback) {
+          process.stdout.cursorTo(0);
+          logCount += 1;
+          process.stdout.write(
+            `${logCount.toLocaleString('en')} logs exported...`,
+          );
+          callback(null, chunk);
+        },
+      }),
+    )
+    .pipe(createWriteStream(output))
+    .on('error', handleError)
+    .on('finish', () => {
+      process.stdout.clearLine(0);
+      process.stdout.cursorTo(0);
+      let durationInSeconds = (Date.now() - startDate.getTime()) / 1000;
+      process.stdout.write(
+        `${logCount.toLocaleString(
+          'en',
+        )} logs exported in ${durationInSeconds.toLocaleString(
+          'en',
+        )} seconds.\n`,
+      );
+    });
 }
 
 type MigrateDatabaseParameter = {
