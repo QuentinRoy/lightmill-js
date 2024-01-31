@@ -219,9 +219,9 @@ export async function up(db: Kysely<Database>) {
       END;
     `.execute(trx);
     await trx.schema
-    .createIndex('logValueLogIdName')
-    .on('logValue')
-    .columns(['logId', 'name'])
-    .execute();
+      .createIndex('logValueLogIdName')
+      .on('logValue')
+      .columns(['logId', 'name'])
+      .execute();
   });
 }
