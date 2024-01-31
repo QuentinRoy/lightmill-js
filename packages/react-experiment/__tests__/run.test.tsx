@@ -236,24 +236,21 @@ describe('run', () => {
     );
     expect(screen.getByRole('heading')).toHaveTextContent('Type A');
 
-    // I cannot find a way to test rendering errors without React displaying
-    // them in the console.
-    console.log(
-      "Don't worry about the error below, it's unfortunate but expected",
-    );
+    const spy = vi.spyOn(console, 'error');
+    spy.mockImplementation(() => {});
+
     expect(() => {
       rerender(
         <Run elements={elements} timeline={[{ type: 'A', a: 'world' }]} />,
       );
     }).toThrow('Timeline cannot be changed once set');
+
+    spy.mockRestore();
   });
 
   it('throws an error if the run should resume after an non existing task', async () => {
-    // I cannot find a way to test rendering errors without React displaying
-    // them in the console.
-    console.log(
-      "Don't worry about the error below, it's unfortunate but expected",
-    );
+    const spy = vi.spyOn(console, 'error');
+    spy.mockImplementation(() => {});
     expect(() => {
       render(
         <Run
@@ -275,6 +272,7 @@ describe('run', () => {
         />,
       );
     }).toThrow('Could not find task to resume after');
+    spy.mockRestore();
   });
 
   it('throws an error if the same task is completed multiple times', async () => {
