@@ -15,7 +15,7 @@ import {
 } from 'kysely';
 import { JsonObject } from 'type-fest';
 import loglevel, { LogLevelDesc } from 'loglevel';
-import { groupBy, last, pick } from 'remeda';
+import { groupBy, last } from 'remeda';
 import { arrayify } from './utils.js';
 
 const __dirname = url.fileURLToPath(new URL('.', import.meta.url));
@@ -456,15 +456,16 @@ export class SQLiteStore {
 
   async *#getLogValues(filter: LogFilter) {
     let lastRow: {
-      number: number;
+      logNumber: number;
       logId: number;
       experimentId: string;
       runId: string;
+      name: string;
     } | null = null;
     let isFirst = true;
     let isDone = false;
     while (!isDone) {
-      let result = await this.#db
+      let query = this.#db
         .selectFrom('runLogView as l')
         .innerJoin('logValue as v', 'l.logId', 'v.logId')
         .$if(filter.experimentId != null, (qb) =>
@@ -476,29 +477,46 @@ export class SQLiteStore {
         .$if(filter.type != null, (qb) =>
           qb.where('l.type', 'in', arrayify(filter.type, true)),
         )
-        .$if(!isFirst, (qb) => {
-          if (lastRow === null) throw new Error('lastRow is null');
-          return qb
-            .where('l.experimentId', '>=', lastRow.experimentId)
-            .where('l.runId', '>=', lastRow.runId)
-            .where('l.logNumber', '>', lastRow.number);
-        })
         .where('l.type', 'is not', null)
         .select([
           'l.experimentId as experimentId',
           'l.runId as runId',
           'l.logId as logId',
           'l.type as type',
-          'l.logNumber as number',
-          'v.name',
-          'v.value',
+          'l.logNumber as logNumber',
+          'v.name as name',
+          'v.value as value',
         ])
         .$narrowType<{ type: string }>()
         .orderBy('experimentId')
         .orderBy('runId')
-        .orderBy('number')
+        .orderBy('logNumber')
+        .orderBy('name')
         .limit(this.#selectQueryLimit)
-        .execute();
+        .$if(!isFirst, (qb) =>
+          qb.where((eb) => {
+            if (lastRow === null) throw new Error('lastRow is null');
+            return eb.or([
+              eb('experimentId', '>', lastRow.experimentId),
+              eb.and([
+                eb('experimentId', '=', lastRow.experimentId),
+                eb('runId', '>', lastRow.runId),
+              ]),
+              eb.and([
+                eb('experimentId', '=', lastRow.experimentId),
+                eb('runId', '=', lastRow.runId),
+                eb('logNumber', '>', lastRow.logNumber),
+              ]),
+              eb.and([
+                eb('experimentId', '=', lastRow.experimentId),
+                eb('runId', '=', lastRow.runId),
+                eb('logNumber', '=', lastRow.logNumber),
+                eb('name', '>', lastRow.name),
+              ]),
+            ]);
+          }),
+        );
+      let result = await query.execute();
       isFirst = false;
       lastRow = last(result) ?? null;
       isDone = lastRow == null;
@@ -513,9 +531,13 @@ export class SQLiteStore {
     if (first.done) return;
     let currentValues = [first.value];
 
-    function getLogFromCurrentValues() {
+    function getLogFromCurrentValues(): Log {
+      let { experimentId, runId, logNumber, type } = currentValues[0];
       return {
-        ...pick(currentValues[0], ['experimentId', 'runId', 'number', 'type']),
+        experimentId,
+        runId,
+        number: logNumber,
+        type,
         values: reconstructValues(currentValues),
       };
     }
