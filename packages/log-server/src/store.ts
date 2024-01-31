@@ -18,7 +18,7 @@ import loglevel, { LogLevelDesc } from 'loglevel';
 import { groupBy, last } from 'remeda';
 import { arrayify } from './utils.js';
 
-const DEFAULT_SELECT_QUERY_LIMIT = 10000;
+const DEFAULT_SELECT_QUERY_LIMIT = 1000000;
 
 const __dirname = url.fileURLToPath(new URL('.', import.meta.url));
 const migrationFolder = path.join(__dirname, 'db-migrations');
