@@ -218,5 +218,10 @@ export async function up(db: Kysely<Database>) {
         SELECT RAISE(ABORT, 'Cannot delete existing log value');
       END;
     `.execute(trx);
+    await trx.schema
+      .createIndex('logValueLogIdName')
+      .on('logValue')
+      .columns(['logId', 'name'])
+      .execute();
   });
 }
