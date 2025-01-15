@@ -136,6 +136,31 @@ export function LogServer({
     }
   });
 
+  router.get('/experiments/:experimentName/runs', async (req, res, next) => {
+    try {
+      if (req.session?.role !== 'host') {
+        res
+          .status(403)
+          .json({ status: 'error', message: 'Access restricted.' });
+        return;
+      }
+      let runs = await store.getRuns({
+        experimentName: String(req.params.experimentName),
+      });
+      res
+        .status(200)
+        .json({
+          status: 'ok',
+          runs: runs.map((r) => ({
+            ...r,
+            runCreatedAt: r.runCreatedAt.toISOString(),
+          })),
+        });
+    } catch (e) {
+      next(e);
+    }
+  });
+
   router.get(
     '/experiments/:experimentName/runs/:runName',
     async (req, res, next) => {
