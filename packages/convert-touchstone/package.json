@@ -3,7 +3,6 @@
   "version": "3.0.0-alpha.8",
   "type": "module",
   "description": "Converts touchstone XML exports to lightmill format.",
-  "packageManager": "pnpm@8.11.0",
   "engines": {
     "node": "^20.x.x"
   },
@@ -39,6 +38,5 @@
   "files": [
     "dist",
     "bin"
-  ],
-  "private": false
+  ]
 }
