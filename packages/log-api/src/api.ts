@@ -24,15 +24,15 @@ const LogParameter = z.object({
   values: JsonObject,
 });
 
-const runStatuses = [
+const runStatusSchema = z.enum([
   'idle',
   'running',
   'completed',
   'interrupted',
   'canceled',
-] as const;
+]);
 
-type RunStatus = (typeof runStatuses)[number];
+type RunStatus = z.output<typeof runStatusSchema>;
 
 export const api = makeApi([
   {
@@ -57,7 +57,7 @@ export const api = makeApi([
           .object({
             experimentName: z.string(),
             runName: z.string(),
-            runStatus: z.enum(runStatuses),
+            runStatus: runStatusSchema,
           })
           .strict(),
       ),
@@ -76,7 +76,7 @@ export const api = makeApi([
           .object({
             experimentName: z.string(),
             runName: z.string(),
-            runStatus: z.string(),
+            runStatus: runStatusSchema,
           })
           .strict(),
       ),
@@ -121,13 +121,31 @@ export const api = makeApi([
   },
   {
     method: 'get',
+    path: '/experiments/:experimentName/runs',
+    response: OkResponse.extend({
+      runs: z.array(
+        z
+          .object({
+            runCreatedAt: z.string(),
+            runId: z.number(),
+            runName: z.string(),
+            experimentName: z.string(),
+            runStatus: runStatusSchema,
+          })
+          .strict(),
+      ),
+    }).strict(),
+    errors: [{ status: 403, schema: ErrorResponse.strict() }],
+  },
+  {
+    method: 'get',
     path: '/experiments/:experimentName/runs/:runName',
     response: OkResponse.extend({
       run: z
         .object({
           runName: z.string(),
           experimentName: z.string(),
-          runStatus: z.enum(runStatuses),
+          runStatus: runStatusSchema,
           logs: z.array(
             z
               .object({
