@@ -1,6 +1,6 @@
 {
   "name": "@lightmill/log-server",
-  "version": "3.0.0-beta.26",
+  "version": "3.0.0-beta.32",
   "description": "Server, and middleware to receive, store and export lightmill logs",
   "author": "Quentin Roy <contact@quentinroy.fr>",
   "license": "MIT",
@@ -63,7 +63,6 @@
     "yargs": "17.7.2",
     "zod": "^3.22.4"
   },
-  "packageManager": "pnpm@8.11.0",
   "engines": {
     "node": "^20.x.x"
   }

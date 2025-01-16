@@ -15,10 +15,12 @@ import {
 } from 'kysely';
 import { JsonObject, ReadonlyDeep } from 'type-fest';
 import loglevel, { LogLevelDesc } from 'loglevel';
-import { groupBy, omit } from 'remeda';
+import { groupBy, omit, last } from 'remeda';
 import { z } from 'zod';
 import { arrayify, removePrefix, startsWith } from './utils.js';
 import { JsonValue } from '../../log-api/dist/utils.js';
+
+const DEFAULT_SELECT_QUERY_LIMIT = 1000000;
 
 const __dirname = url.fileURLToPath(new URL('.', import.meta.url));
 const migrationFolder = path.join(__dirname, 'db-migrations');
@@ -102,13 +104,18 @@ type Database = {
 
 export class SQLiteStore {
   #db: Kysely<Database>;
+  #selectQueryLimit: number;
 
   constructor(
     db: string,
-    { logLevel = loglevel.getLevel() }: { logLevel?: LogLevelDesc } = {},
+    {
+      logLevel = loglevel.getLevel(),
+      selectQueryLimit = DEFAULT_SELECT_QUERY_LIMIT,
+    }: { logLevel?: LogLevelDesc; selectQueryLimit?: number } = {},
   ) {
     const logger = loglevel.getLogger('store');
     logger.setLevel(logLevel);
+    this.#selectQueryLimit = selectQueryLimit;
     this.#db = new Kysely({
       dialect: new SqliteDialect({ database: new SQLiteDB(db) }),
       log: (event) => {
@@ -381,7 +388,7 @@ export class SQLiteStore {
           // We know there is only one log with this number because of the
           // loop above.
           let values = indexedNewLogs[dbLog.logNumber][0].values;
-          return deconstructLog(values, { logId: dbLog.logId });
+          return deconstructValues(values, { logId: dbLog.logId });
         });
       if (logValues.length > 0) {
         await trx.insertInto('logValue').values(logValues).execute();
@@ -502,81 +509,114 @@ export class SQLiteStore {
     });
   }
 
-  async *getLogs(filter: LogFilter = {}): AsyncGenerator<Log> {
-    // It would probably be better not to read everything at once because
-    // this could be a lot of data. Instead we could read a few, yield, and
-    // restart with the remaining. However until this becomes a problem, this
-    // is good enough.
-    const { experimentName, runName, type, runStatus, runId } =
-      parseLogFilter(filter);
-    let result = await this.#db
-      .selectFrom('runLogView as l')
-      .innerJoin('logValue as v', 'l.logId', 'v.logId')
-      .$if(experimentName != null, (qb) => {
-        return qb.where(
-          'l.experimentName',
-          'in',
-          experimentName as NonNullable<typeof experimentName>,
+  async *#getLogValues(filter: LogFilter) {
+    let lastRow: {
+      logNumber: number;
+      logId: number;
+      experimentName: string;
+      runName: string;
+      name: string;
+    } | null = null;
+    let isFirst = true;
+    let isDone = false;
+    while (!isDone) {
+      let query = this.#db
+        .selectFrom('runLogView as l')
+        .innerJoin('logValue as v', 'l.logId', 'v.logId')
+        .$if(filter.experimentName != null, (qb) =>
+          qb.where(
+            'l.experimentName',
+            'in',
+            arrayify(filter.experimentName, true),
+          ),
+        )
+        .$if(filter.runId != null, (qb) =>
+          qb.where('l.runName', 'in', arrayify(filter.runName, true)),
+        )
+        .$if(filter.type != null, (qb) =>
+          qb.where('l.type', 'in', arrayify(filter.type, true)),
+        )
+        .where('l.type', 'is not', null)
+        .select([
+          'l.experimentName as experimentName',
+          'l.runName as runName',
+          'l.runId as runId',
+          'l.runStatus as runStatus',
+          'l.logId as logId',
+          'l.type as type',
+          'l.logNumber as logNumber',
+          'v.name as name',
+          'v.value as value',
+        ])
+        .$narrowType<{ type: string }>()
+        .orderBy('experimentName')
+        .orderBy('runName')
+        .orderBy('logNumber')
+        .orderBy('name')
+        .limit(this.#selectQueryLimit)
+        .$if(!isFirst, (qb) =>
+          qb.where((eb) => {
+            if (lastRow === null) throw new Error('lastRow is null');
+            return eb.or([
+              eb('experimentName', '>', lastRow.experimentName),
+              eb.and([
+                eb('experimentName', '=', lastRow.experimentName),
+                eb('runName', '>', lastRow.runName),
+              ]),
+              eb.and([
+                eb('experimentName', '=', lastRow.experimentName),
+                eb('runName', '=', lastRow.runName),
+                eb('logNumber', '>', lastRow.logNumber),
+              ]),
+              eb.and([
+                eb('experimentName', '=', lastRow.experimentName),
+                eb('runName', '=', lastRow.runName),
+                eb('logNumber', '=', lastRow.logNumber),
+                eb('name', '>', lastRow.name),
+              ]),
+            ]);
+          }),
         );
-      })
-      .$if(runName != null, (qb) => {
-        return qb.where(
-          'l.runName',
-          'in',
-          runName as NonNullable<typeof runName>,
-        );
-      })
-      .where('l.type', 'is not', null)
-      .$if(type != null, (qb) => {
-        return qb.where('l.type', 'in', type as NonNullable<typeof type>);
-      })
-      .$if(runStatus != null, (qb) => {
-        return qb.where(
-          'l.runStatus',
-          'in',
-          runStatus as NonNullable<typeof runStatus>,
-        );
-      })
-      .$if(runId != null, (qb) => {
-        return qb.where('l.runId', 'in', runId as NonNullable<typeof runId>);
-      })
-      .select([
-        'l.runId as runId',
-        'l.runStatus as runStatus',
-        'l.experimentName as experimentName',
-        'l.runName as runName',
-        'l.logId as logId',
-        'l.type as type',
-        'l.logNumber as number',
-        'v.name as name',
-        'v.value as value',
-      ])
-      .$narrowType<{ type: string }>()
-      .orderBy('experimentName')
-      .orderBy('runName')
-      .orderBy('runId')
-      .orderBy('number')
-      .execute();
+      let result = await query.execute();
+      isFirst = false;
+      lastRow = last(result) ?? null;
+      isDone = lastRow == null;
+      yield* result;
+    }
+  }
 
-    let currentLogStart = 0;
-    let lastRow = result[0];
-    for (let i = 1; i < result.length; i++) {
-      let thisRow = result[i];
-      if (thisRow.logId !== lastRow.logId) {
-        yield reconstructLog(
-          result.slice(currentLogStart, i),
-          omit(lastRow, ['value', 'name', 'logId']),
-        );
-        currentLogStart = i;
+  async *getLogs(filter: LogFilter = {}): AsyncGenerator<Log> {
+    const logValuesIterator = this.#getLogValues(filter);
+
+    function getLogFromCurrentValues(): Log {
+      let { experimentName, runName, logNumber, type, runId, runStatus } =
+        currentValues[0];
+      return {
+        experimentName,
+        runName,
+        runId,
+        runStatus,
+        number: logNumber,
+        type,
+        values: reconstructValues(currentValues),
+      };
+    }
+
+    let first = await logValuesIterator.next();
+    if (first.done) return;
+    let currentValues = [first.value];
+
+    for await (let logValue of logValuesIterator) {
+      let logFirst = currentValues[0];
+      if (logValue.logId !== logFirst.logId) {
+        yield getLogFromCurrentValues();
+        currentValues = [logValue];
+      } else {
+        currentValues.push(logValue);
       }
-      lastRow = thisRow;
     }
-    if (currentLogStart < result.length) {
-      yield reconstructLog(
-        result.slice(currentLogStart, result.length),
-        omit(lastRow, ['value', 'name', 'logId']),
-      );
-    }
+
+    yield getLogFromCurrentValues();
   }
 
   async migrateDatabase() {
@@ -596,14 +636,14 @@ export class SQLiteStore {
   }
 }
 
-function deconstructLog(
+function deconstructValues(
   data: JsonObject,
 ): Array<{ name: string; value: string }>;
-function deconstructLog<P extends Record<string, unknown>>(
+function deconstructValues<P extends Record<string, unknown>>(
   data: JsonObject,
   patch: P,
 ): Array<P & { name: string; value: string }>;
-function deconstructLog(
+function deconstructValues(
   data: JsonObject,
   patch?: Record<string, unknown>,
 ): Array<JsonObject & { name: string; value: string }> {
@@ -614,26 +654,14 @@ function deconstructLog(
   }));
 }
 
-function reconstructLog<N extends string>(
-  slice: { name: N; value: string }[],
-): { values: Partial<Record<N, JsonValue>> };
-function reconstructLog<N extends string, P extends Record<string, unknown>>(
-  slice: { name: N; value: string }[],
-  patch: P,
-): Omit<P, 'values'> & {
-  values: string extends N
-    ? Record<N, JsonValue>
-    : Partial<Record<N, JsonValue>>;
-};
-function reconstructLog<N extends string>(
-  slice: { name: N; value: string }[],
-  patch?: Record<PropertyKey, unknown>,
-) {
-  let values: Partial<Record<N, JsonValue>> = {};
-  for (let { name, value } of slice) {
+function reconstructValues(
+  data: Array<{ name: string; value: string }>,
+): JsonObject {
+  let values: JsonObject = {};
+  for (let { name, value } of data) {
     values[name] = JSON.parse(value);
   }
-  return patch == null ? { values } : { ...patch, values };
+  return values;
 }
 
 function parseRunFilter(runFilter: RunFilter) {

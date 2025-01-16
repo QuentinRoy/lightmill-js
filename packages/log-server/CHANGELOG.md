@@ -1,5 +1,18 @@
 # @lightmill/log-server
 
+## 3.0.0-beta.32
+
+### Minor Changes
+
+- 09e128a: Significantly increase default select query limit of SQLiteStore
+- 289f5f6: Display count of exported logs during export when output is a file.
+
+## 3.0.0-beta.31
+
+### Minor Changes
+
+- 634945b: Add a select query result limit for SQliteStore to prevent too many logs to be loaded in memory at the same time. Once the limit is attained logs are yielded and the next logs are loaded once their done being processed.
+
 ## 3.0.0-beta.26
 
 ### Patch Changes

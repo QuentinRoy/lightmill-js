@@ -31,6 +31,5 @@
   "keywords": [
     "experiment"
   ],
-  "private": false,
-  "packageManager": "pnpm@8.11.0"
+  "private": false
 }

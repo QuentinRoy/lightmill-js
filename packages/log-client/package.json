@@ -37,7 +37,5 @@
   "keywords": [
     "logger",
     "client"
-  ],
-  "private": false,
-  "packageManager": "pnpm@8.11.0"
+  ]
 }

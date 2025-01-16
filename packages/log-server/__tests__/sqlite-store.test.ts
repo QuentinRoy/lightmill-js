@@ -888,93 +888,248 @@ describe('SQLiteStore#getLogValueNames', () => {
   });
 });
 
-describe('SQLiteStore#getLogs', () => {
-  let store: SQLiteStore;
-  let exp1run1: RunId;
-  let exp1run2: RunId;
-  let exp2run1: RunId;
-  beforeEach(async () => {
-    store = new SQLiteStore(':memory:');
-    await store.migrateDatabase();
-    exp1run1 = (
-      await store.addRun({
-        runName: 'run1',
-        experimentName: 'experiment1',
-        runStatus: 'running',
-      })
-    ).runId;
-    exp1run2 = (
-      await store.addRun({
-        runName: 'run2',
-        experimentName: 'experiment1',
-        runStatus: 'running',
-      })
-    ).runId;
-    exp2run1 = (
-      await store.addRun({
-        runName: 'run1',
-        experimentName: 'experiment2',
-        runStatus: 'running',
-      })
-    ).runId;
-    await store.addLogs(exp1run1, [
-      { type: 'log1', number: 1, values: { msg: 'hello', recipient: 'Anna' } },
-      { type: 'log1', number: 2, values: { msg: 'bonjour', recipient: 'Jo' } },
-    ]);
-    await store.addLogs(exp1run2, [
-      { type: 'log1', number: 1, values: { message: 'hola', bar: null } },
-      { type: 'log2', number: 2, values: { x: 12, foo: false } },
-    ]);
-    await store.addLogs(exp2run1, [
-      { type: 'log2', number: 1, values: { x: 25, y: 0, foo: true } },
-    ]);
-    await store.addLogs(exp1run1, [
-      { type: 'log3', number: 3, values: { x: 25, y: 0, foo: true } },
-    ]);
-  });
-  afterEach(async () => {
-    await store.close();
-  });
+for (const limit of [10000, 2]) {
+  describe(`SQLiteStore#getLogs (selectQueryLimit: ${limit})`, () => {
+    let store: SQLiteStore;
+    beforeEach(async () => {
+      store = new SQLiteStore(':memory:', { selectQueryLimit: limit });
+      await store.migrateDatabase();
+      await store.addRun({ runId: 'run1', experimentId: 'experiment1' });
+      await store.addRun({ runId: 'run2', experimentId: 'experiment1' });
+      await store.addRun({ runId: 'run1', experimentId: 'experiment2' });
+      await store.addLogs('experiment1', 'run1', [
+        {
+          type: 'log1',
+          number: 1,
+          values: { msg: 'hello', recipient: 'Anna' },
+        },
+        {
+          type: 'log1',
+          number: 2,
+          values: { msg: 'bonjour', recipient: 'Jo' },
+        },
+      ]);
+      await store.addLogs('experiment1', 'run2', [
+        { type: 'log1', number: 1, values: { message: 'hola', bar: null } },
+        { type: 'log2', number: 2, values: { x: 12, foo: false } },
+      ]);
+      await store.addLogs('experiment2', 'run1', [
+        { type: 'log2', number: 1, values: { x: 25, y: 0, foo: true } },
+      ]);
+      await store.addLogs('experiment1', 'run1', [
+        { type: 'log3', number: 3, values: { x: 25, y: 0, foo: true } },
+      ]);
+    });
+    afterEach(async () => {
+      await store.close();
+    });
 
-  it('should return the logs in order of experimentName, runName, and ascending number', async ({
-    expect,
-  }) => {
-    const logs = await fromAsync(store.getLogs());
-    // We do not know what the runIds will be, so we remove it from the logs
-    // below and test them here.
-    expect(logs.map((l) => l.runId)).toEqual([
-      ...times(3, exp1run1),
-      ...times(2, exp1run2),
-      ...times(1, exp2run1),
-    ]);
-    expect(logs.map(({ runId, ...l }) => l)).toMatchSnapshot();
-  });
-
-  it('should ignore missing logs', async ({ expect }) => {
-    await store.addLogs(exp1run1, [
-      { type: 'log1', number: 11, values: { msg: 'hello', recipient: 'Anna' } },
-      { type: 'log1', number: 33, values: { msg: 'bonjour', recipient: 'Jo' } },
-    ]);
-    await store.addLogs(exp1run1, [
-      { type: 'log1', number: 22, values: { msg: 'hello', recipient: 'Anna' } },
-      { type: 'log1', number: 44, values: { msg: 'bonjour', recipient: 'Jo' } },
-    ]);
-    const logs = await fromAsync(store.getLogs());
-    // We do not know what the runId will be, so we remove it from the logs.
-    expect(logs.map((l) => l.runId)).toEqual([
-      ...times(7, exp1run1),
-      ...times(2, exp1run2),
-      ...times(1, exp2run1),
-    ]);
-    await expect(
-      fromAsync(store.getLogs(), ({ runId, ...rest }) => rest),
-    ).resolves.toMatchSnapshot();
-  });
-  it('should be able to filter logs of a particular type', async ({
-    expect,
-  }) => {
-    await expect(fromAsync(store.getLogs({ type: 'log1' }))).resolves
-      .toMatchInlineSnapshot(`
+    it('should return the logs in order of experimentId, runId, and ascending number', async () => {
+      await expect(fromAsync(store.getLogs())).resolves.toMatchInlineSnapshot(`
+      [
+        {
+          "experimentId": "experiment1",
+          "number": 1,
+          "runId": "run1",
+          "type": "log1",
+          "values": {
+            "msg": "hello",
+            "recipient": "Anna",
+          },
+        },
+        {
+          "experimentId": "experiment1",
+          "number": 2,
+          "runId": "run1",
+          "type": "log1",
+          "values": {
+            "msg": "bonjour",
+            "recipient": "Jo",
+          },
+        },
+        {
+          "experimentId": "experiment1",
+          "number": 3,
+          "runId": "run1",
+          "type": "log3",
+          "values": {
+            "foo": true,
+            "x": 25,
+            "y": 0,
+          },
+        },
+        {
+          "experimentId": "experiment1",
+          "number": 1,
+          "runId": "run2",
+          "type": "log1",
+          "values": {
+            "bar": null,
+            "message": "hola",
+          },
+        },
+        {
+          "experimentId": "experiment1",
+          "number": 2,
+          "runId": "run2",
+          "type": "log2",
+          "values": {
+            "foo": false,
+            "x": 12,
+          },
+        },
+        {
+          "experimentId": "experiment2",
+          "number": 1,
+          "runId": "run1",
+          "type": "log2",
+          "values": {
+            "foo": true,
+            "x": 25,
+            "y": 0,
+          },
+        },
+      ]
+    `);
+    });
+    it('should return the logs in order of experimentId, runId, and ascending number', async () => {
+      await expect(fromAsync(store.getLogs())).resolves.toMatchSnapshot();
+    });
+    it('should ignore missing logs', async () => {
+      await store.addLogs('experiment2', 'run1', [
+        {
+          type: 'log1',
+          number: 11,
+          values: { msg: 'hello', recipient: 'Anna' },
+        },
+        {
+          type: 'log1',
+          number: 33,
+          values: { msg: 'bonjour', recipient: 'Jo' },
+        },
+      ]);
+      await store.addLogs('experiment2', 'run1', [
+        {
+          type: 'log1',
+          number: 22,
+          values: { msg: 'hello', recipient: 'Anna' },
+        },
+        {
+          type: 'log1',
+          number: 44,
+          values: { msg: 'bonjour', recipient: 'Jo' },
+        },
+      ]);
+      await expect(fromAsync(store.getLogs())).resolves.toMatchInlineSnapshot(`
+      [
+        {
+          "experimentId": "experiment1",
+          "number": 1,
+          "runId": "run1",
+          "type": "log1",
+          "values": {
+            "msg": "hello",
+            "recipient": "Anna",
+          },
+        },
+        {
+          "experimentId": "experiment1",
+          "number": 2,
+          "runId": "run1",
+          "type": "log1",
+          "values": {
+            "msg": "bonjour",
+            "recipient": "Jo",
+          },
+        },
+        {
+          "experimentId": "experiment1",
+          "number": 3,
+          "runId": "run1",
+          "type": "log3",
+          "values": {
+            "foo": true,
+            "x": 25,
+            "y": 0,
+          },
+        },
+        {
+          "experimentId": "experiment1",
+          "number": 1,
+          "runId": "run2",
+          "type": "log1",
+          "values": {
+            "bar": null,
+            "message": "hola",
+          },
+        },
+        {
+          "experimentId": "experiment1",
+          "number": 2,
+          "runId": "run2",
+          "type": "log2",
+          "values": {
+            "foo": false,
+            "x": 12,
+          },
+        },
+        {
+          "experimentId": "experiment2",
+          "number": 1,
+          "runId": "run1",
+          "type": "log2",
+          "values": {
+            "foo": true,
+            "x": 25,
+            "y": 0,
+          },
+        },
+        {
+          "experimentId": "experiment2",
+          "number": 11,
+          "runId": "run1",
+          "type": "log1",
+          "values": {
+            "msg": "hello",
+            "recipient": "Anna",
+          },
+        },
+        {
+          "experimentId": "experiment2",
+          "number": 22,
+          "runId": "run1",
+          "type": "log1",
+          "values": {
+            "msg": "hello",
+            "recipient": "Anna",
+          },
+        },
+        {
+          "experimentId": "experiment2",
+          "number": 33,
+          "runId": "run1",
+          "type": "log1",
+          "values": {
+            "msg": "bonjour",
+            "recipient": "Jo",
+          },
+        },
+        {
+          "experimentId": "experiment2",
+          "number": 44,
+          "runId": "run1",
+          "type": "log1",
+          "values": {
+            "msg": "bonjour",
+            "recipient": "Jo",
+          },
+        },
+      ]
+    `);
+    });
+    it('should be able to filter logs of a particular type', async () => {
+      await expect(fromAsync(store.getLogs({ type: 'log1' }))).resolves
+        .toMatchInlineSnapshot(`
       [
         {
           "experimentName": "experiment1",
@@ -1008,8 +1163,8 @@ describe('SQLiteStore#getLogs', () => {
         },
       ]
     `);
-    await expect(fromAsync(store.getLogs({ type: 'log2' }))).resolves
-      .toMatchInlineSnapshot(`
+      await expect(fromAsync(store.getLogs({ type: 'log2' }))).resolves
+        .toMatchInlineSnapshot(`
       [
         {
           "experimentName": "experiment1",
@@ -1366,8 +1521,9 @@ describe('SQLiteStore#getLogs', () => {
         },
       ]
     `);
+    });
   });
-});
+}
 
 async function fromAsync<T, O>(
   iterable: AsyncIterable<T>,
