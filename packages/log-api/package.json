@@ -21,9 +21,9 @@
     "prepublish": "pnpm run build"
   },
   "devDependencies": {
-    "typescript": "5.3.2",
-    "vite": "^6.0.7",
-    "vitest": "^3.0.1"
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vitest": "catalog:"
   },
   "dependencies": {
     "@zodios/core": "^10.9.2",

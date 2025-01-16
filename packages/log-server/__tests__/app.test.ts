@@ -8,8 +8,10 @@ import type { Body } from '@lightmill/log-api';
 import { arrayify } from '../src/utils.js';
 
 type MockStore = {
-  [K in keyof Store]: Store[K] extends (...args: infer A) => infer R
-    ? Mock<A, R>
+  [K in keyof Store]: Store[K] extends infer C extends (
+    ...args: never[]
+  ) => unknown
+    ? Mock<C>
     : Store[K];
 };
 

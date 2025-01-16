@@ -25,10 +25,10 @@
   "devDependencies": {
     "@lightmill/static-design": "workspace:*",
     "@types/sax": "^1.2.7",
-    "cross-env": "^7.0.3",
-    "typescript": "5.3.2",
-    "vite": "^6.0.7",
-    "vitest": "^3.0.1"
+    "cross-env": "catalog:",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vitest": "catalog:"
   },
   "scripts": {
     "test": "cross-env NODE_ENV=test vitest",

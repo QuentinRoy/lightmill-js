@@ -22,8 +22,8 @@
     "cross-env": "^7.0.3",
     "msw": "^2.0.13",
     "type-fest": "^4.9.0",
-    "typescript": "5.3.2",
-    "vitest": "^3.0.0"
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   },
   "dependencies": {
     "@lightmill/log-api": "workspace:*",

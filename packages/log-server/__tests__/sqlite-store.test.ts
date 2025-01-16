@@ -25,7 +25,6 @@ describe('SQLiteStore', () => {
     await store.close();
   });
 });
-
 describe('SQLiteStore#migrateDatabase', () => {
   it('should initialize the database without errors', async ({ expect }) => {
     let store = new SQLiteStore(':memory:');
@@ -44,10 +43,7 @@ describe('SQLiteStore#migrateDatabase', () => {
 
 describe('SQLiteStore#addRun', () => {
   let store: SQLiteStore;
-  let addRunSpy: MockInstance<
-    Parameters<SQLiteStore['addRun']>,
-    ReturnType<SQLiteStore['addRun']>
-  >;
+  let addRunSpy: MockInstance<SQLiteStore['addRun']>;
   beforeEach(async () => {
     store = new SQLiteStore(':memory:');
     addRunSpy = vi.spyOn(store, 'addRun');

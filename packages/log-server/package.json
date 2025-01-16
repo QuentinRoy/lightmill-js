@@ -38,10 +38,10 @@
     "cross-env": "^7.0.3",
     "string-dedent": "^3.0.1",
     "supertest": "^6.3.3",
-    "tsx": "^4.7.0",
+    "tsx": "catalog:",
     "type-fest": "^4.9.0",
-    "typescript": "5.3.3",
-    "vitest": "^3.0.1"
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   },
   "dependencies": {
     "@lightmill/log-api": "workspace:*",
