@@ -1,5 +1,5 @@
 import { ColumnType, GeneratedAlways, Kysely, sql } from 'kysely';
-import { Opaque } from 'type-fest';
+import { Tagged } from 'type-fest';
 
 const runStatuses = [
   'idle',
@@ -11,7 +11,7 @@ const runStatuses = [
 
 type RunStatus = (typeof runStatuses)[number];
 
-export type RunId = Opaque<number, 'RunId'>;
+export type RunId = Tagged<number, 'RunId'>;
 
 // We use ColumnType to indicate that the column cannot be updated.
 type RunTable = {
