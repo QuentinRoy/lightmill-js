@@ -228,32 +228,33 @@ export const api = makeApi([
 
 type Api = typeof api;
 
-export type Path = Api[number]['path'];
+export type Path<M extends Method = Method> = ZodiosPathsByMethod<Api, M>;
 export type Method = Api[number]['method'];
 export type PathParams<
   M extends Method,
-  P extends ZodiosPathsByMethod<Api, M>,
+  P extends Path<M>,
 > = ZodiosPathParamsByPath<Api, M, P>;
 export type QueryParams<
   M extends Method,
-  P extends ZodiosPathsByMethod<Api, M>,
+  P extends Path<M>,
 > = ZodiosQueryParamsByPath<Api, M, P>;
-export type Body<
-  M extends Method,
-  P extends ZodiosPathsByMethod<Api, M>,
-> = ZodiosBodyByPath<Api, M, P>;
+export type Body<M extends Method, P extends Path<M>> = ZodiosBodyByPath<
+  Api,
+  M,
+  P
+>;
 export type Response<
   M extends Method,
-  P extends ZodiosPathsByMethod<Api, M>,
+  P extends Path<M>,
 > = ZodiosResponseByPath<Api, M, P>;
 export type Error<
   M extends Method,
-  P extends ZodiosPathsByMethod<Api, M>,
+  P extends Path<M>,
   Status extends number = number,
 > = ZodiosErrorByPath<Api, M, P, Status>;
 export type ErrorStatus<
   M extends Method,
-  P extends ZodiosPathsByMethod<Api, M>,
+  P extends Path<M>,
 > = ZodiosEndpointDefinitionByPath<Api, M, P>[number] extends {
   errors: Array<{ status: infer S }>;
 }

@@ -1,136 +1,18 @@
 import { LogClient } from '../src/log-client.js';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { afterAll, afterEach, beforeAll } from 'vitest';
-import type {
-  Response as ApiResponse,
-  Path,
-  Body as ApiBody,
-} from '@lightmill/log-api';
+import type { Body as ApiBody } from '@lightmill/log-api';
 import { setupServer } from 'msw/node';
-import { http, HttpResponse } from 'msw';
+import { getServerHandlers } from '../__mocks__/handlers.js';
 
-// This does not work well because it does not prevent string from containing
-// a slash, so some incorrect paths are allowed,
-// e.g. /experiments/experiment-id/runs/run-id/no-correct.
-type TemplatizedPath<P> = P extends `${infer Start}/:${string}/${infer End}`
-  ? `${Start}/${string}/${TemplatizedPath<End>}`
-  : P extends `${infer Start}/:${string}`
-    ? `${Start}/${string}`
-    : P;
-type ServerPath = `https://server.test/api${TemplatizedPath<Path>}`;
-
-const server = setupServer(
-  http.put(
-    'https://server.test/api/sessions/current' satisfies ServerPath,
-    () => {
-      return HttpResponse.json({
-        status: 'ok',
-        role: 'participant',
-        runs: [],
-      } satisfies ApiResponse<'put', '/sessions/current'>);
-    },
-  ),
-  http.delete(
-    'https://server.test/api/sessions/current' satisfies ServerPath,
-    () => {
-      return HttpResponse.json({ status: 'ok' } satisfies ApiResponse<
-        'delete',
-        '/sessions/current'
-      >);
-    },
-  ),
-  http.post(
-    'https://server.test/api/runs' satisfies ServerPath,
-    async ({ request }) => {
-      let body = (await request.json()) as ApiBody<'post', '/runs'>;
-      return HttpResponse.json({
-        status: 'ok',
-        runStatus: 'running',
-        runName: body?.runName ?? 'default-run-id',
-        experimentName: body?.experimentName ?? 'default-experiment-id',
-      } satisfies ApiResponse<'post', '/runs'>);
-    },
-  ),
-  http.get(
-    'https://server.test/api/sessions/current' satisfies ServerPath,
-    () => {
-      return HttpResponse.json({
-        status: 'ok',
-        role: 'participant',
-        runs: [],
-      } satisfies ApiResponse<'get', '/sessions/current'>);
-    },
-  ),
-);
+const server = setupServer(...getServerHandlers());
 
 function setServerRuns(
-  runs: Array<{
-    runName: string;
-    experimentName: string;
-    runStatus?: 'completed' | 'canceled' | 'running';
-    logs?: Array<{
-      type: string;
-      count: number;
-      lastNumber: number;
-      pending: number;
-    }>;
-  }>,
+  runs: NonNullable<
+    NonNullable<Parameters<typeof getServerHandlers>[0]>['runs']
+  >,
 ) {
-  server.use(
-    http.get(
-      'https://server.test/api/sessions/current' satisfies ServerPath,
-      () => {
-        return HttpResponse.json({
-          status: 'ok',
-          role: 'participant',
-          runs: runs.map((run) => ({ runStatus: 'running', ...run })),
-        } satisfies ApiResponse<'get', '/sessions/current'>);
-      },
-    ),
-    ...runs.flatMap((run) => [
-      http.get(
-        `https://server.test/api/experiments/${run.experimentName}/runs/${run.runName}` satisfies ServerPath,
-        () => {
-          return HttpResponse.json({
-            status: 'ok',
-            run: { runStatus: 'running', logs: [], ...run },
-          } satisfies ApiResponse<
-            'get',
-            '/experiments/:experimentName/runs/:runName'
-          >);
-        },
-      ),
-      http.patch(
-        `https://server.test/api/experiments/${run.experimentName}/runs/${run.runName}` satisfies ServerPath,
-        () => {
-          return HttpResponse.json({ status: 'ok' } satisfies ApiResponse<
-            'patch',
-            '/experiments/:experimentName/runs/:runName'
-          >);
-        },
-      ),
-    ]),
-    ...runs.flatMap((run) => [
-      http.post(
-        `https://server.test/api/experiments/${run.experimentName}/runs/${run.runName}/logs` satisfies ServerPath,
-        () => {
-          return HttpResponse.json({ status: 'ok' } satisfies ApiResponse<
-            'post',
-            '/experiments/:experimentName/runs/:runName/logs'
-          >);
-        },
-      ),
-      http.patch(
-        `https://server.test/api/experiments/${run.experimentName}/runs/${run.runName}` satisfies ServerPath,
-        () => {
-          return HttpResponse.json({ status: 'ok' } satisfies ApiResponse<
-            'patch',
-            '/experiments/:experimentName/runs/:runName'
-          >);
-        },
-      ),
-    ]),
-  );
+  server.use(...getServerHandlers({ runs }));
 }
 
 let requests: Array<Request> = [];
@@ -144,7 +26,7 @@ async function waitForRequests() {
   );
 }
 
-// In most cases, these are the one we care about because these are the one
+// In most cases, these are the ones we care about because these are the ones
 // that actually change the state of the server.
 const HTTP_CHANGE_METHODS = ['PUT', 'PATCH', 'POST', 'DELETE'];
 async function waitForChangeRequests() {
@@ -161,13 +43,16 @@ beforeAll(() => {
   server.listen({ onUnhandledRequest: 'error' });
 });
 
-// Close server after all tests.
-afterAll(() => {
-  server.close();
-});
-
 beforeEach(() => {
-  vi.useFakeTimers();
+  vi.useFakeTimers({
+    toFake: [
+      'Date',
+      'setTimeout',
+      'clearTimeout',
+      'setInterval',
+      'clearInterval',
+    ],
+  });
   server.events.on('request:start', ({ request }) => {
     // We need to clone the request because it is a stream and may be
     // consumed by the server.
@@ -181,6 +66,11 @@ afterEach(() => {
   server.resetHandlers();
   server.events.removeAllListeners();
   clearRequests();
+});
+
+// Close server after all tests.
+afterAll(() => {
+  server.close();
 });
 
 describe('LogClient#startRun', () => {
