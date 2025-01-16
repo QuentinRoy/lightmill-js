@@ -20,7 +20,7 @@ function MockStore(): MockStore {
         runId: 1 as RunId,
         runName: 'addRun:runName',
         experimentName: 'addRun:experimentName',
-        runStatus: 'idle' as const,
+        runStatus: 'idle' satisfies RunStatus as RunStatus,
       };
     }),
     resumeRun: vi.fn(async (...args) => {
@@ -33,7 +33,7 @@ function MockStore(): MockStore {
           runName: 'getRun:runName',
           experimentName: 'getRun:experimentName',
           runCreatedAt: vi.getMockedSystemTime() ?? new Date(),
-          runStatus: 'running' as const,
+          runStatus: 'running' satisfies RunStatus as RunStatus,
         },
       ];
     }),
