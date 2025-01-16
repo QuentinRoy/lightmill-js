@@ -101,20 +101,36 @@ describe('SQLiteStore#addRun', () => {
 
 describe('SQLiteStore#getRuns', () => {
   let store: SQLiteStore;
-  let runId: RunId;
+  let runIds: RunId[];
   let unknownRun: RunId;
   beforeEach(async () => {
     vi.useFakeTimers();
     vi.setSystemTime('2021-06-03T00:00:00.000Z');
     store = new SQLiteStore(':memory:');
+    runIds = [];
     await store.migrateDatabase();
+    let { runId } = await store.addRun({
+      runName: 'run1',
+      experimentName: 'experiment1',
+      runStatus: 'running',
+    });
+    runIds.push(runId);
+    ({ runId } = await store.addRun({
+      runName: 'run2',
+      experimentName: 'experiment1',
+      runStatus: 'idle',
+    }));
+    runIds.push(runId);
     ({ runId } = await store.addRun({
       runName: 'run1',
-      experimentName: 'experiment',
+      experimentName: 'experiment2',
+      runStatus: 'idle',
     }));
-    // We do not know what will be the store's run runId, but there are only 1,
-    // so we know at least one of the runIds below will not match any run.
-    unknownRun = [11, 22].filter((x) => x !== runId)[0] as RunId;
+    runIds.push(runId);
+    unknownRun = 0 as RunId;
+    while (runIds.includes(unknownRun)) {
+      unknownRun++;
+    }
   });
   afterEach(async () => {
     await store.close();
@@ -122,34 +138,243 @@ describe('SQLiteStore#getRuns', () => {
   });
 
   it('should return the run corresponding to a runId', async ({ expect }) => {
-    const runs = await store.getRuns({ runId: runId });
-    expect(runs).toHaveLength(1);
-    const run = runs[0];
-    expect(run).toEqual({
-      runName: 'run1',
-      experimentName: 'experiment',
-      runStatus: 'idle',
-      runCreatedAt: new Date('2021-06-03T00:00:00.000Z'),
-      runId,
-    });
+    await expect(store.getRuns({ runId: runIds[0] })).resolves.toEqual([
+      {
+        runName: 'run1',
+        experimentName: 'experiment1',
+        runStatus: 'running',
+        runCreatedAt: new Date('2021-06-03T00:00:00.000Z'),
+        runId: runIds[0],
+      },
+    ]);
+    await expect(store.getRuns({ runId: runIds[1] })).resolves.toEqual([
+      {
+        runName: 'run2',
+        experimentName: 'experiment1',
+        runStatus: 'idle',
+        runCreatedAt: new Date('2021-06-03T00:00:00.000Z'),
+        runId: runIds[1],
+      },
+    ]);
+    await expect(store.getRuns({ runId: runIds[2] })).resolves.toEqual([
+      {
+        runName: 'run1',
+        experimentName: 'experiment2',
+        runStatus: 'idle',
+        runCreatedAt: new Date('2021-06-03T00:00:00.000Z'),
+        runId: runIds[2],
+      },
+    ]);
   });
 
-  it('should return an empty array if no corresponding runs are not found', async ({
+  it('should return an empty array if no corresponding runs are found', async ({
     expect,
   }) => {
     await expect(store.getRuns({ runId: unknownRun })).resolves.toEqual([]);
   });
 
-  it('should return all runs if no filter is provided', async () => {
-    throw new Error('Not implemented');
+  it('should return all runs if no filter is provided', async ({ expect }) => {
+    await expect(store.getRuns()).resolves.toEqual([
+      {
+        experimentName: 'experiment1',
+        runCreatedAt: new Date('2021-06-03T00:00:00.000Z'),
+        runId: runIds[0],
+        runName: 'run1',
+        runStatus: 'running',
+      },
+      {
+        experimentName: 'experiment1',
+        runCreatedAt: new Date('2021-06-03T00:00:00.000Z'),
+        runId: runIds[1],
+        runName: 'run2',
+        runStatus: 'idle',
+      },
+      {
+        experimentName: 'experiment2',
+        runCreatedAt: new Date('2021-06-03T00:00:00.000Z'),
+        runId: runIds[2],
+        runName: 'run1',
+        runStatus: 'idle',
+      },
+    ]);
   });
 
-  it('should return all runs corresponding to an experiment name', async () => {
-    throw new Error('Not implemented');
+  it('should return all runs corresponding to an experiment name', async ({
+    expect,
+  }) => {
+    await expect(
+      store.getRuns({ experimentName: 'experiment2' }),
+    ).resolves.toEqual([
+      {
+        experimentName: 'experiment2',
+        runCreatedAt: new Date('2021-06-03T00:00:00.000Z'),
+        runId: runIds[2],
+        runName: 'run1',
+        runStatus: 'idle',
+      },
+    ]);
+    await expect(
+      store.getRuns({ experimentName: 'experiment1' }),
+    ).resolves.toEqual([
+      {
+        experimentName: 'experiment1',
+        runCreatedAt: new Date('2021-06-03T00:00:00.000Z'),
+        runId: runIds[0],
+        runName: 'run1',
+        runStatus: 'running',
+      },
+      {
+        experimentName: 'experiment1',
+        runCreatedAt: new Date('2021-06-03T00:00:00.000Z'),
+        runId: runIds[1],
+        runName: 'run2',
+        runStatus: 'idle',
+      },
+    ]);
+    await expect(
+      store.getRuns({ experimentName: ['experiment1', 'experiment2'] }),
+    ).resolves.toEqual([
+      {
+        experimentName: 'experiment1',
+        runCreatedAt: new Date('2021-06-03T00:00:00.000Z'),
+        runId: runIds[0],
+        runName: 'run1',
+        runStatus: 'running',
+      },
+      {
+        experimentName: 'experiment1',
+        runCreatedAt: new Date('2021-06-03T00:00:00.000Z'),
+        runId: runIds[1],
+        runName: 'run2',
+        runStatus: 'idle',
+      },
+      {
+        experimentName: 'experiment2',
+        runCreatedAt: new Date('2021-06-03T00:00:00.000Z'),
+        runId: runIds[2],
+        runName: 'run1',
+        runStatus: 'idle',
+      },
+    ]);
   });
 
-  it('should return all runs corresponding to a run name', async () => {
-    throw new Error('Not implemented');
+  it('should return all runs corresponding to a run name', async ({
+    expect,
+  }) => {
+    await expect(store.getRuns({ runName: 'run2' })).resolves.toEqual([
+      {
+        experimentName: 'experiment1',
+        runCreatedAt: new Date('2021-06-03T00:00:00.000Z'),
+        runId: runIds[1],
+        runName: 'run2',
+        runStatus: 'idle',
+      },
+    ]);
+    await expect(store.getRuns({ runName: 'run1' })).resolves.toEqual([
+      {
+        experimentName: 'experiment1',
+        runCreatedAt: new Date('2021-06-03T00:00:00.000Z'),
+        runId: runIds[0],
+        runName: 'run1',
+        runStatus: 'running',
+      },
+      {
+        experimentName: 'experiment2',
+        runCreatedAt: new Date('2021-06-03T00:00:00.000Z'),
+        runId: runIds[2],
+        runName: 'run1',
+        runStatus: 'idle',
+      },
+    ]);
+    await expect(store.getRuns({ runName: ['run1', 'run2'] })).resolves.toEqual(
+      [
+        {
+          experimentName: 'experiment1',
+          runCreatedAt: new Date('2021-06-03T00:00:00.000Z'),
+          runId: runIds[0],
+          runName: 'run1',
+          runStatus: 'running',
+        },
+        {
+          experimentName: 'experiment1',
+          runCreatedAt: new Date('2021-06-03T00:00:00.000Z'),
+          runId: runIds[1],
+          runName: 'run2',
+          runStatus: 'idle',
+        },
+        {
+          experimentName: 'experiment2',
+          runCreatedAt: new Date('2021-06-03T00:00:00.000Z'),
+          runId: runIds[2],
+          runName: 'run1',
+          runStatus: 'idle',
+        },
+      ],
+    );
+  });
+
+  it('should return all runs with a specific status', async ({ expect }) => {
+    await expect(store.getRuns({ runStatus: 'running' })).resolves.toEqual([
+      {
+        experimentName: 'experiment1',
+        runCreatedAt: new Date('2021-06-03T00:00:00.000Z'),
+        runId: runIds[0],
+        runName: 'run1',
+        runStatus: 'running',
+      },
+    ]);
+    await expect(store.getRuns({ runStatus: '-idle' })).resolves.toEqual([
+      {
+        experimentName: 'experiment1',
+        runCreatedAt: new Date('2021-06-03T00:00:00.000Z'),
+        runId: runIds[0],
+        runName: 'run1',
+        runStatus: 'running',
+      },
+    ]);
+    await expect(
+      store.getRuns({ runStatus: ['idle', 'completed'] }),
+    ).resolves.toEqual([
+      {
+        experimentName: 'experiment1',
+        runCreatedAt: new Date('2021-06-03T00:00:00.000Z'),
+        runId: runIds[1],
+        runName: 'run2',
+        runStatus: 'idle',
+      },
+      {
+        experimentName: 'experiment2',
+        runCreatedAt: new Date('2021-06-03T00:00:00.000Z'),
+        runId: runIds[2],
+        runName: 'run1',
+        runStatus: 'idle',
+      },
+    ]);
+    await expect(
+      store.getRuns({ runStatus: ['idle', 'running', 'canceled'] }),
+    ).resolves.toEqual([
+      {
+        experimentName: 'experiment1',
+        runCreatedAt: new Date('2021-06-03T00:00:00.000Z'),
+        runId: runIds[0],
+        runName: 'run1',
+        runStatus: 'running',
+      },
+      {
+        experimentName: 'experiment1',
+        runCreatedAt: new Date('2021-06-03T00:00:00.000Z'),
+        runId: runIds[1],
+        runName: 'run2',
+        runStatus: 'idle',
+      },
+      {
+        experimentName: 'experiment2',
+        runCreatedAt: new Date('2021-06-03T00:00:00.000Z'),
+        runId: runIds[2],
+        runName: 'run1',
+        runStatus: 'idle',
+      },
+    ]);
   });
 });
 
