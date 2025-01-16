@@ -147,15 +147,13 @@ export function LogServer({
       let runs = await store.getRuns({
         experimentName: String(req.params.experimentName),
       });
-      res
-        .status(200)
-        .json({
-          status: 'ok',
-          runs: runs.map((r) => ({
-            ...r,
-            runCreatedAt: r.runCreatedAt.toISOString(),
-          })),
-        });
+      res.status(200).json({
+        status: 'ok',
+        runs: runs.map((r) => ({
+          ...r,
+          runCreatedAt: r.runCreatedAt.toISOString(),
+        })),
+      });
     } catch (e) {
       next(e);
     }

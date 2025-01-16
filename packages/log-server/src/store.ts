@@ -15,10 +15,9 @@ import {
 } from 'kysely';
 import { JsonObject, ReadonlyDeep } from 'type-fest';
 import loglevel, { LogLevelDesc } from 'loglevel';
-import { groupBy, omit, last } from 'remeda';
+import { groupBy, last } from 'remeda';
 import { z } from 'zod';
 import { arrayify, removePrefix, startsWith } from './utils.js';
-import { JsonValue } from '../../log-api/dist/utils.js';
 
 const DEFAULT_SELECT_QUERY_LIMIT = 1000000;
 
@@ -509,7 +508,8 @@ export class SQLiteStore {
     });
   }
 
-  async *#getLogValues(filter: LogFilter) {
+  async *#getLogValues(filter: LogFilter = {}) {
+    let parsedFilter = parseLogFilter(filter);
     let lastRow: {
       logNumber: number;
       logId: number;
@@ -523,18 +523,20 @@ export class SQLiteStore {
       let query = this.#db
         .selectFrom('runLogView as l')
         .innerJoin('logValue as v', 'l.logId', 'v.logId')
-        .$if(filter.experimentName != null, (qb) =>
-          qb.where(
-            'l.experimentName',
-            'in',
-            arrayify(filter.experimentName, true),
-          ),
+        .$if(parsedFilter.runStatus != null, (qb) =>
+          qb.where('l.runStatus', 'in', parsedFilter.runStatus!),
         )
-        .$if(filter.runId != null, (qb) =>
-          qb.where('l.runName', 'in', arrayify(filter.runName, true)),
+        .$if(parsedFilter.experimentName != null, (qb) =>
+          qb.where('l.experimentName', 'in', parsedFilter.experimentName!),
         )
-        .$if(filter.type != null, (qb) =>
-          qb.where('l.type', 'in', arrayify(filter.type, true)),
+        .$if(parsedFilter.runName != null, (qb) =>
+          qb.where('l.runName', 'in', parsedFilter.runName!),
+        )
+        .$if(parsedFilter.runId != null, (qb) =>
+          qb.where('l.runId', 'in', parsedFilter.runId!),
+        )
+        .$if(parsedFilter.type != null, (qb) =>
+          qb.where('l.type', 'in', parsedFilter.type!),
         )
         .where('l.type', 'is not', null)
         .select([
@@ -548,6 +550,8 @@ export class SQLiteStore {
           'v.name as name',
           'v.value as value',
         ])
+        // We filtered out logs with no type, so we can safely narrow the type.
+        // This needs to come after the select or it will not work.
         .$narrowType<{ type: string }>()
         .orderBy('experimentName')
         .orderBy('runName')
@@ -585,7 +589,7 @@ export class SQLiteStore {
     }
   }
 
-  async *getLogs(filter: LogFilter = {}): AsyncGenerator<Log> {
+  async *getLogs(filter?: LogFilter): AsyncGenerator<Log> {
     const logValuesIterator = this.#getLogValues(filter);
 
     function getLogFromCurrentValues(): Log {

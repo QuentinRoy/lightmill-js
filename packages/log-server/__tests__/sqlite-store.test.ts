@@ -10,7 +10,7 @@ import loglevel from 'loglevel';
 // These tests must run on the compiled code, not the source code, because
 // kysely does not support typescript migration files.
 import { SQLiteStore } from '../dist/store.js';
-import { RunId } from '../src/store.js';
+import type { RunId } from '../src/store.js';
 
 // Prevent kysely from logging anything.
 loglevel.setDefaultLevel('silent');
@@ -891,13 +891,28 @@ describe('SQLiteStore#getLogValueNames', () => {
 for (const limit of [10000, 2]) {
   describe(`SQLiteStore#getLogs (selectQueryLimit: ${limit})`, () => {
     let store: SQLiteStore;
+    let exp1Run1Id: RunId;
+    let exp1Run2Id: RunId;
+    let exp2Run1Id: RunId;
     beforeEach(async () => {
       store = new SQLiteStore(':memory:', { selectQueryLimit: limit });
       await store.migrateDatabase();
-      await store.addRun({ runId: 'run1', experimentId: 'experiment1' });
-      await store.addRun({ runId: 'run2', experimentId: 'experiment1' });
-      await store.addRun({ runId: 'run1', experimentId: 'experiment2' });
-      await store.addLogs('experiment1', 'run1', [
+      ({ runId: exp1Run1Id } = await store.addRun({
+        runName: 'run1',
+        experimentName: 'experiment1',
+        runStatus: 'running',
+      }));
+      ({ runId: exp1Run2Id } = await store.addRun({
+        runName: 'run2',
+        experimentName: 'experiment1',
+        runStatus: 'running',
+      }));
+      ({ runId: exp2Run1Id } = await store.addRun({
+        runName: 'run1',
+        experimentName: 'experiment2',
+        runStatus: 'running',
+      }));
+      await store.addLogs(exp1Run1Id, [
         {
           type: 'log1',
           number: 1,
@@ -909,14 +924,14 @@ for (const limit of [10000, 2]) {
           values: { msg: 'bonjour', recipient: 'Jo' },
         },
       ]);
-      await store.addLogs('experiment1', 'run2', [
+      await store.addLogs(exp1Run2Id, [
         { type: 'log1', number: 1, values: { message: 'hola', bar: null } },
         { type: 'log2', number: 2, values: { x: 12, foo: false } },
       ]);
-      await store.addLogs('experiment2', 'run1', [
+      await store.addLogs(exp2Run1Id, [
         { type: 'log2', number: 1, values: { x: 25, y: 0, foo: true } },
       ]);
-      await store.addLogs('experiment1', 'run1', [
+      await store.addLogs(exp1Run1Id, [
         { type: 'log3', number: 3, values: { x: 25, y: 0, foo: true } },
       ]);
     });
@@ -924,79 +939,95 @@ for (const limit of [10000, 2]) {
       await store.close();
     });
 
-    it('should return the logs in order of experimentId, runId, and ascending number', async () => {
+    it('should return the logs in order of experimentName, runName, and ascending number', async ({
+      expect,
+    }) => {
       await expect(fromAsync(store.getLogs())).resolves.toMatchInlineSnapshot(`
-      [
-        {
-          "experimentId": "experiment1",
-          "number": 1,
-          "runId": "run1",
-          "type": "log1",
-          "values": {
-            "msg": "hello",
-            "recipient": "Anna",
+        [
+          {
+            "experimentName": "experiment1",
+            "number": 1,
+            "runId": 1,
+            "runName": "run1",
+            "runStatus": "running",
+            "type": "log1",
+            "values": {
+              "msg": "hello",
+              "recipient": "Anna",
+            },
           },
-        },
-        {
-          "experimentId": "experiment1",
-          "number": 2,
-          "runId": "run1",
-          "type": "log1",
-          "values": {
-            "msg": "bonjour",
-            "recipient": "Jo",
+          {
+            "experimentName": "experiment1",
+            "number": 2,
+            "runId": 1,
+            "runName": "run1",
+            "runStatus": "running",
+            "type": "log1",
+            "values": {
+              "msg": "bonjour",
+              "recipient": "Jo",
+            },
           },
-        },
-        {
-          "experimentId": "experiment1",
-          "number": 3,
-          "runId": "run1",
-          "type": "log3",
-          "values": {
-            "foo": true,
-            "x": 25,
-            "y": 0,
+          {
+            "experimentName": "experiment1",
+            "number": 3,
+            "runId": 1,
+            "runName": "run1",
+            "runStatus": "running",
+            "type": "log3",
+            "values": {
+              "foo": true,
+              "x": 25,
+              "y": 0,
+            },
           },
-        },
-        {
-          "experimentId": "experiment1",
-          "number": 1,
-          "runId": "run2",
-          "type": "log1",
-          "values": {
-            "bar": null,
-            "message": "hola",
+          {
+            "experimentName": "experiment1",
+            "number": 1,
+            "runId": 2,
+            "runName": "run2",
+            "runStatus": "running",
+            "type": "log1",
+            "values": {
+              "bar": null,
+              "message": "hola",
+            },
           },
-        },
-        {
-          "experimentId": "experiment1",
-          "number": 2,
-          "runId": "run2",
-          "type": "log2",
-          "values": {
-            "foo": false,
-            "x": 12,
+          {
+            "experimentName": "experiment1",
+            "number": 2,
+            "runId": 2,
+            "runName": "run2",
+            "runStatus": "running",
+            "type": "log2",
+            "values": {
+              "foo": false,
+              "x": 12,
+            },
           },
-        },
-        {
-          "experimentId": "experiment2",
-          "number": 1,
-          "runId": "run1",
-          "type": "log2",
-          "values": {
-            "foo": true,
-            "x": 25,
-            "y": 0,
+          {
+            "experimentName": "experiment2",
+            "number": 1,
+            "runId": 3,
+            "runName": "run1",
+            "runStatus": "running",
+            "type": "log2",
+            "values": {
+              "foo": true,
+              "x": 25,
+              "y": 0,
+            },
           },
-        },
-      ]
-    `);
+        ]
+      `);
     });
-    it('should return the logs in order of experimentId, runId, and ascending number', async () => {
+    it('should return the logs in order of experimentName, runName, and ascending number', async ({
+      expect,
+    }) => {
       await expect(fromAsync(store.getLogs())).resolves.toMatchSnapshot();
     });
-    it('should ignore missing logs', async () => {
-      await store.addLogs('experiment2', 'run1', [
+    it('should ignore missing logs', async ({ expect }) => {
+      await store.addLogs(exp2Run1Id, [
         {
           type: 'log1',
           number: 11,
@@ -1008,7 +1039,7 @@ for (const limit of [10000, 2]) {
           values: { msg: 'bonjour', recipient: 'Jo' },
         },
       ]);
-      await store.addLogs('experiment2', 'run1', [
+      await store.addLogs(exp2Run1Id, [
         {
           type: 'log1',
           number: 22,
@@ -1021,506 +1052,584 @@ for (const limit of [10000, 2]) {
         },
       ]);
       await expect(fromAsync(store.getLogs())).resolves.toMatchInlineSnapshot(`
-      [
-        {
-          "experimentId": "experiment1",
-          "number": 1,
-          "runId": "run1",
-          "type": "log1",
-          "values": {
-            "msg": "hello",
-            "recipient": "Anna",
+        [
+          {
+            "experimentName": "experiment1",
+            "number": 1,
+            "runId": 1,
+            "runName": "run1",
+            "runStatus": "running",
+            "type": "log1",
+            "values": {
+              "msg": "hello",
+              "recipient": "Anna",
+            },
           },
-        },
-        {
-          "experimentId": "experiment1",
-          "number": 2,
-          "runId": "run1",
-          "type": "log1",
-          "values": {
-            "msg": "bonjour",
-            "recipient": "Jo",
+          {
+            "experimentName": "experiment1",
+            "number": 2,
+            "runId": 1,
+            "runName": "run1",
+            "runStatus": "running",
+            "type": "log1",
+            "values": {
+              "msg": "bonjour",
+              "recipient": "Jo",
+            },
           },
-        },
-        {
-          "experimentId": "experiment1",
-          "number": 3,
-          "runId": "run1",
-          "type": "log3",
-          "values": {
-            "foo": true,
-            "x": 25,
-            "y": 0,
+          {
+            "experimentName": "experiment1",
+            "number": 3,
+            "runId": 1,
+            "runName": "run1",
+            "runStatus": "running",
+            "type": "log3",
+            "values": {
+              "foo": true,
+              "x": 25,
+              "y": 0,
+            },
           },
-        },
-        {
-          "experimentId": "experiment1",
-          "number": 1,
-          "runId": "run2",
-          "type": "log1",
-          "values": {
-            "bar": null,
-            "message": "hola",
+          {
+            "experimentName": "experiment1",
+            "number": 1,
+            "runId": 2,
+            "runName": "run2",
+            "runStatus": "running",
+            "type": "log1",
+            "values": {
+              "bar": null,
+              "message": "hola",
+            },
           },
-        },
-        {
-          "experimentId": "experiment1",
-          "number": 2,
-          "runId": "run2",
-          "type": "log2",
-          "values": {
-            "foo": false,
-            "x": 12,
+          {
+            "experimentName": "experiment1",
+            "number": 2,
+            "runId": 2,
+            "runName": "run2",
+            "runStatus": "running",
+            "type": "log2",
+            "values": {
+              "foo": false,
+              "x": 12,
+            },
           },
-        },
-        {
-          "experimentId": "experiment2",
-          "number": 1,
-          "runId": "run1",
-          "type": "log2",
-          "values": {
-            "foo": true,
-            "x": 25,
-            "y": 0,
+          {
+            "experimentName": "experiment2",
+            "number": 1,
+            "runId": 3,
+            "runName": "run1",
+            "runStatus": "running",
+            "type": "log2",
+            "values": {
+              "foo": true,
+              "x": 25,
+              "y": 0,
+            },
           },
-        },
-        {
-          "experimentId": "experiment2",
-          "number": 11,
-          "runId": "run1",
-          "type": "log1",
-          "values": {
-            "msg": "hello",
-            "recipient": "Anna",
+          {
+            "experimentName": "experiment2",
+            "number": 11,
+            "runId": 3,
+            "runName": "run1",
+            "runStatus": "running",
+            "type": "log1",
+            "values": {
+              "msg": "hello",
+              "recipient": "Anna",
+            },
           },
-        },
-        {
-          "experimentId": "experiment2",
-          "number": 22,
-          "runId": "run1",
-          "type": "log1",
-          "values": {
-            "msg": "hello",
-            "recipient": "Anna",
+          {
+            "experimentName": "experiment2",
+            "number": 22,
+            "runId": 3,
+            "runName": "run1",
+            "runStatus": "running",
+            "type": "log1",
+            "values": {
+              "msg": "hello",
+              "recipient": "Anna",
+            },
           },
-        },
-        {
-          "experimentId": "experiment2",
-          "number": 33,
-          "runId": "run1",
-          "type": "log1",
-          "values": {
-            "msg": "bonjour",
-            "recipient": "Jo",
+          {
+            "experimentName": "experiment2",
+            "number": 33,
+            "runId": 3,
+            "runName": "run1",
+            "runStatus": "running",
+            "type": "log1",
+            "values": {
+              "msg": "bonjour",
+              "recipient": "Jo",
+            },
           },
-        },
-        {
-          "experimentId": "experiment2",
-          "number": 44,
-          "runId": "run1",
-          "type": "log1",
-          "values": {
-            "msg": "bonjour",
-            "recipient": "Jo",
+          {
+            "experimentName": "experiment2",
+            "number": 44,
+            "runId": 3,
+            "runName": "run1",
+            "runStatus": "running",
+            "type": "log1",
+            "values": {
+              "msg": "bonjour",
+              "recipient": "Jo",
+            },
           },
-        },
-      ]
-    `);
+        ]
+      `);
     });
-    it('should be able to filter logs of a particular type', async () => {
+    it('should be able to filter logs of a particular type', async ({
+      expect,
+    }) => {
       await expect(fromAsync(store.getLogs({ type: 'log1' }))).resolves
         .toMatchInlineSnapshot(`
-      [
-        {
-          "experimentName": "experiment1",
-          "number": 1,
-          "runName": "run1",
-          "type": "log1",
-          "values": {
-            "msg": "hello",
-            "recipient": "Anna",
+        [
+          {
+            "experimentName": "experiment1",
+            "number": 1,
+            "runId": 1,
+            "runName": "run1",
+            "runStatus": "running",
+            "type": "log1",
+            "values": {
+              "msg": "hello",
+              "recipient": "Anna",
+            },
           },
-        },
-        {
-          "experimentName": "experiment1",
-          "number": 2,
-          "runName": "run1",
-          "type": "log1",
-          "values": {
-            "msg": "bonjour",
-            "recipient": "Jo",
+          {
+            "experimentName": "experiment1",
+            "number": 2,
+            "runId": 1,
+            "runName": "run1",
+            "runStatus": "running",
+            "type": "log1",
+            "values": {
+              "msg": "bonjour",
+              "recipient": "Jo",
+            },
           },
-        },
-        {
-          "experimentName": "experiment1",
-          "number": 1,
-          "runName": "run2",
-          "type": "log1",
-          "values": {
-            "bar": null,
-            "message": "hola",
+          {
+            "experimentName": "experiment1",
+            "number": 1,
+            "runId": 2,
+            "runName": "run2",
+            "runStatus": "running",
+            "type": "log1",
+            "values": {
+              "bar": null,
+              "message": "hola",
+            },
           },
-        },
-      ]
-    `);
+        ]
+      `);
       await expect(fromAsync(store.getLogs({ type: 'log2' }))).resolves
         .toMatchInlineSnapshot(`
-      [
-        {
-          "experimentName": "experiment1",
-          "number": 2,
-          "runName": "run2",
-          "type": "log2",
-          "values": {
-            "foo": false,
-            "x": 12,
+        [
+          {
+            "experimentName": "experiment1",
+            "number": 2,
+            "runId": 2,
+            "runName": "run2",
+            "runStatus": "running",
+            "type": "log2",
+            "values": {
+              "foo": false,
+              "x": 12,
+            },
           },
-        },
-        {
-          "experimentName": "experiment2",
-          "number": 1,
-          "runName": "run1",
-          "type": "log2",
-          "values": {
-            "foo": true,
-            "x": 25,
-            "y": 0,
+          {
+            "experimentName": "experiment2",
+            "number": 1,
+            "runId": 3,
+            "runName": "run1",
+            "runStatus": "running",
+            "type": "log2",
+            "values": {
+              "foo": true,
+              "x": 25,
+              "y": 0,
+            },
           },
-        },
-      ]
-    `);
-  });
-  it('should be able to filter logs from a particular experiment', async ({
-    expect,
-  }) => {
-    await expect(fromAsync(store.getLogs({ experimentName: 'experiment1' })))
-      .resolves.toMatchInlineSnapshot(`
-      [
-        {
-          "experimentName": "experiment1",
-          "number": 1,
-          "runName": "run1",
-          "type": "log1",
-          "values": {
-            "msg": "hello",
-            "recipient": "Anna",
+        ]
+      `);
+    });
+    it('should be able to filter logs from a particular experiment', async ({
+      expect,
+    }) => {
+      await expect(fromAsync(store.getLogs({ experimentName: 'experiment1' })))
+        .resolves.toMatchInlineSnapshot(`
+        [
+          {
+            "experimentName": "experiment1",
+            "number": 1,
+            "runId": 1,
+            "runName": "run1",
+            "runStatus": "running",
+            "type": "log1",
+            "values": {
+              "msg": "hello",
+              "recipient": "Anna",
+            },
           },
-        },
-        {
-          "experimentName": "experiment1",
-          "number": 2,
-          "runName": "run1",
-          "type": "log1",
-          "values": {
-            "msg": "bonjour",
-            "recipient": "Jo",
+          {
+            "experimentName": "experiment1",
+            "number": 2,
+            "runId": 1,
+            "runName": "run1",
+            "runStatus": "running",
+            "type": "log1",
+            "values": {
+              "msg": "bonjour",
+              "recipient": "Jo",
+            },
           },
-        },
-        {
-          "experimentName": "experiment1",
-          "number": 3,
-          "runName": "run1",
-          "type": "log3",
-          "values": {
-            "foo": true,
-            "x": 25,
-            "y": 0,
+          {
+            "experimentName": "experiment1",
+            "number": 3,
+            "runId": 1,
+            "runName": "run1",
+            "runStatus": "running",
+            "type": "log3",
+            "values": {
+              "foo": true,
+              "x": 25,
+              "y": 0,
+            },
           },
-        },
-        {
-          "experimentName": "experiment1",
-          "number": 1,
-          "runName": "run2",
-          "type": "log1",
-          "values": {
-            "bar": null,
-            "message": "hola",
+          {
+            "experimentName": "experiment1",
+            "number": 1,
+            "runId": 2,
+            "runName": "run2",
+            "runStatus": "running",
+            "type": "log1",
+            "values": {
+              "bar": null,
+              "message": "hola",
+            },
           },
-        },
-        {
-          "experimentName": "experiment1",
-          "number": 2,
-          "runName": "run2",
-          "type": "log2",
-          "values": {
-            "foo": false,
-            "x": 12,
+          {
+            "experimentName": "experiment1",
+            "number": 2,
+            "runId": 2,
+            "runName": "run2",
+            "runStatus": "running",
+            "type": "log2",
+            "values": {
+              "foo": false,
+              "x": 12,
+            },
           },
-        },
-      ]
-    `);
-    await expect(fromAsync(store.getLogs({ experimentName: 'experiment2' })))
-      .resolves.toMatchInlineSnapshot(`
-      [
-        {
-          "experimentName": "experiment2",
-          "number": 1,
-          "runName": "run1",
-          "type": "log2",
-          "values": {
-            "foo": true,
-            "x": 25,
-            "y": 0,
+        ]
+      `);
+      await expect(fromAsync(store.getLogs({ experimentName: 'experiment2' })))
+        .resolves.toMatchInlineSnapshot(`
+        [
+          {
+            "experimentName": "experiment2",
+            "number": 1,
+            "runId": 3,
+            "runName": "run1",
+            "runStatus": "running",
+            "type": "log2",
+            "values": {
+              "foo": true,
+              "x": 25,
+              "y": 0,
+            },
           },
-        },
-      ]
-    `);
-  });
-  it('should be able to filter logs from a particular run', async ({
-    expect,
-  }) => {
-    await expect(fromAsync(store.getLogs({ runName: 'run1' }))).resolves
-      .toMatchInlineSnapshot(`
-      [
-        {
-          "experimentName": "experiment1",
-          "number": 1,
-          "runName": "run1",
-          "type": "log1",
-          "values": {
-            "msg": "hello",
-            "recipient": "Anna",
+        ]
+      `);
+    });
+    it('should be able to filter logs from a particular run', async ({
+      expect,
+    }) => {
+      await expect(fromAsync(store.getLogs({ runName: 'run1' }))).resolves
+        .toMatchInlineSnapshot(`
+        [
+          {
+            "experimentName": "experiment1",
+            "number": 1,
+            "runId": 1,
+            "runName": "run1",
+            "runStatus": "running",
+            "type": "log1",
+            "values": {
+              "msg": "hello",
+              "recipient": "Anna",
+            },
           },
-        },
-        {
-          "experimentName": "experiment1",
-          "number": 2,
-          "runName": "run1",
-          "type": "log1",
-          "values": {
-            "msg": "bonjour",
-            "recipient": "Jo",
+          {
+            "experimentName": "experiment1",
+            "number": 2,
+            "runId": 1,
+            "runName": "run1",
+            "runStatus": "running",
+            "type": "log1",
+            "values": {
+              "msg": "bonjour",
+              "recipient": "Jo",
+            },
           },
-        },
-        {
-          "experimentName": "experiment1",
-          "number": 3,
-          "runName": "run1",
-          "type": "log3",
-          "values": {
-            "foo": true,
-            "x": 25,
-            "y": 0,
+          {
+            "experimentName": "experiment1",
+            "number": 3,
+            "runId": 1,
+            "runName": "run1",
+            "runStatus": "running",
+            "type": "log3",
+            "values": {
+              "foo": true,
+              "x": 25,
+              "y": 0,
+            },
           },
-        },
-        {
-          "experimentName": "experiment2",
-          "number": 1,
-          "runName": "run1",
-          "type": "log2",
-          "values": {
-            "foo": true,
-            "x": 25,
-            "y": 0,
+          {
+            "experimentName": "experiment2",
+            "number": 1,
+            "runId": 3,
+            "runName": "run1",
+            "runStatus": "running",
+            "type": "log2",
+            "values": {
+              "foo": true,
+              "x": 25,
+              "y": 0,
+            },
           },
-        },
-      ]
-    `);
-    await expect(fromAsync(store.getLogs({ runName: 'run2' }))).resolves
-      .toMatchInlineSnapshot(`
-      [
-        {
-          "experimentName": "experiment1",
-          "number": 1,
-          "runName": "run2",
-          "type": "log1",
-          "values": {
-            "bar": null,
-            "message": "hola",
+        ]
+      `);
+      await expect(fromAsync(store.getLogs({ runName: 'run2' }))).resolves
+        .toMatchInlineSnapshot(`
+        [
+          {
+            "experimentName": "experiment1",
+            "number": 1,
+            "runId": 2,
+            "runName": "run2",
+            "runStatus": "running",
+            "type": "log1",
+            "values": {
+              "bar": null,
+              "message": "hola",
+            },
           },
-        },
-        {
-          "experimentName": "experiment1",
-          "number": 2,
-          "runName": "run2",
-          "type": "log2",
-          "values": {
-            "foo": false,
-            "x": 12,
+          {
+            "experimentName": "experiment1",
+            "number": 2,
+            "runId": 2,
+            "runName": "run2",
+            "runStatus": "running",
+            "type": "log2",
+            "values": {
+              "foo": false,
+              "x": 12,
+            },
           },
-        },
-      ]
-    `);
-  });
-  it('should be able to filter logs by run, experiment, and type all at once', async ({
-    expect,
-  }) => {
-    await expect(
-      fromAsync(store.getLogs({ experimentName: 'experiment1', type: 'log2' })),
-    ).resolves.toMatchInlineSnapshot(`
-      [
-        {
-          "experimentName": "experiment1",
-          "number": 2,
-          "runName": "run2",
-          "type": "log2",
-          "values": {
-            "foo": false,
-            "x": 12,
+        ]
+      `);
+    });
+    it('should be able to filter logs by run, experiment, and type all at once', async ({
+      expect,
+    }) => {
+      await expect(
+        fromAsync(
+          store.getLogs({ experimentName: 'experiment1', type: 'log2' }),
+        ),
+      ).resolves.toMatchInlineSnapshot(`
+        [
+          {
+            "experimentName": "experiment1",
+            "number": 2,
+            "runId": 2,
+            "runName": "run2",
+            "runStatus": "running",
+            "type": "log2",
+            "values": {
+              "foo": false,
+              "x": 12,
+            },
           },
-        },
-      ]
-    `);
-    await expect(
-      fromAsync(
-        store.getLogs({
-          experimentName: 'experiment1',
-          type: 'log1',
-          runName: 'run1',
-        }),
-      ),
-    ).resolves.toMatchInlineSnapshot(`
-      [
-        {
-          "experimentName": "experiment1",
-          "number": 1,
-          "runName": "run1",
-          "type": "log1",
-          "values": {
-            "msg": "hello",
-            "recipient": "Anna",
+        ]
+      `);
+      await expect(
+        fromAsync(
+          store.getLogs({
+            experimentName: 'experiment1',
+            type: 'log1',
+            runName: 'run1',
+          }),
+        ),
+      ).resolves.toMatchInlineSnapshot(`
+        [
+          {
+            "experimentName": "experiment1",
+            "number": 1,
+            "runId": 1,
+            "runName": "run1",
+            "runStatus": "running",
+            "type": "log1",
+            "values": {
+              "msg": "hello",
+              "recipient": "Anna",
+            },
           },
-        },
-        {
-          "experimentName": "experiment1",
-          "number": 2,
-          "runName": "run1",
-          "type": "log1",
-          "values": {
-            "msg": "bonjour",
-            "recipient": "Jo",
+          {
+            "experimentName": "experiment1",
+            "number": 2,
+            "runId": 1,
+            "runName": "run1",
+            "runStatus": "running",
+            "type": "log1",
+            "values": {
+              "msg": "bonjour",
+              "recipient": "Jo",
+            },
           },
-        },
-      ]
-    `);
-  });
-  it('should resolve with an empty array if no log matches the filter', async ({
-    expect,
-  }) => {
-    await expect(
-      fromAsync(store.getLogs({ experimentName: 'experiment2', type: 'log1' })),
-    ).resolves.toEqual([]);
-    await expect(
-      fromAsync(store.getLogs({ experimentName: 'do not exist' })),
-    ).resolves.toEqual([]);
-    await expect(
-      fromAsync(store.getLogs({ runName: 'do not exist' })),
-    ).resolves.toEqual([]);
-    await expect(
-      fromAsync(store.getLogs({ type: 'do not exist' })),
-    ).resolves.toEqual([]);
-  });
-  it('should return logs added after resuming', async ({ expect }) => {
-    await store.resumeRun(exp2run1, { from: 2 });
-    await store.addLogs(exp2run1, [
-      { type: 'log3', number: 2, values: { x: 25, y: 0, foo: true } },
-    ]);
-    await expect(
-      fromAsync(
-        store.getLogs({ experimentName: 'experiment2', runName: 'run1' }),
-      ),
-    ).resolves.toMatchInlineSnapshot(`
-      [
-        {
-          "experimentName": "experiment2",
-          "number": 1,
-          "runName": "run1",
-          "type": "log2",
-          "values": {
-            "foo": true,
-            "x": 25,
-            "y": 0,
+        ]
+      `);
+    });
+    it('should resolve with an empty array if no log matches the filter', async ({
+      expect,
+    }) => {
+      await expect(
+        fromAsync(
+          store.getLogs({ experimentName: 'experiment2', type: 'log1' }),
+        ),
+      ).resolves.toEqual([]);
+      await expect(
+        fromAsync(store.getLogs({ experimentName: 'do not exist' })),
+      ).resolves.toEqual([]);
+      await expect(
+        fromAsync(store.getLogs({ runName: 'do not exist' })),
+      ).resolves.toEqual([]);
+      await expect(
+        fromAsync(store.getLogs({ type: 'do not exist' })),
+      ).resolves.toEqual([]);
+    });
+    it('should return logs added after resuming', async ({ expect }) => {
+      await store.resumeRun(exp2Run1Id, { from: 2 });
+      await store.addLogs(exp2Run1Id, [
+        { type: 'log3', number: 2, values: { x: 25, y: 0, foo: true } },
+      ]);
+      await expect(
+        fromAsync(
+          store.getLogs({ experimentName: 'experiment2', runName: 'run1' }),
+        ),
+      ).resolves.toMatchInlineSnapshot(`
+        [
+          {
+            "experimentName": "experiment2",
+            "number": 1,
+            "runId": 3,
+            "runName": "run1",
+            "runStatus": "running",
+            "type": "log2",
+            "values": {
+              "foo": true,
+              "x": 25,
+              "y": 0,
+            },
           },
-        },
-        {
-          "experimentName": "experiment2",
-          "number": 2,
-          "runName": "run1",
-          "type": "log3",
-          "values": {
-            "foo": true,
-            "x": 25,
-            "y": 0,
+          {
+            "experimentName": "experiment2",
+            "number": 2,
+            "runId": 3,
+            "runName": "run1",
+            "runStatus": "running",
+            "type": "log3",
+            "values": {
+              "foo": true,
+              "x": 25,
+              "y": 0,
+            },
           },
-        },
-      ]
-    `);
-  });
-  it('should not return logs canceled from resuming', async ({ expect }) => {
-    await store.resumeRun(exp1run2, { from: 2 });
-    await expect(
-      fromAsync(
-        store.getLogs({ experimentName: 'experiment1', runName: 'run2' }),
-      ),
-    ).resolves.toMatchInlineSnapshot(`
-      [
-        {
-          "experimentName": "experiment1",
-          "number": 1,
-          "runName": "run2",
-          "type": "log1",
-          "values": {
-            "bar": null,
-            "message": "hola",
+        ]
+      `);
+    });
+    it('should not return logs canceled from resuming', async ({ expect }) => {
+      await store.resumeRun(exp1Run2Id, { from: 2 });
+      await expect(
+        fromAsync(
+          store.getLogs({ experimentName: 'experiment1', runName: 'run2' }),
+        ),
+      ).resolves.toMatchInlineSnapshot(`
+        [
+          {
+            "experimentName": "experiment1",
+            "number": 1,
+            "runId": 2,
+            "runName": "run2",
+            "runStatus": "running",
+            "type": "log1",
+            "values": {
+              "bar": null,
+              "message": "hola",
+            },
           },
-        },
-      ]
-    `);
-    await store.resumeRun(exp1run2, { from: 1 });
-    await expect(
-      fromAsync(
-        store.getLogs({ experimentName: 'experiment1', runName: 'run2' }),
-      ),
-    ).resolves.toEqual([]);
-  });
-  it('should return logs overwriting other logs after resuming', async ({
-    expect,
-  }) => {
-    await store.addLogs(exp1run2, [
-      { type: 'log1', number: 3, values: { x: 5 } },
-      { type: 'log1', number: 4, values: { x: 6 } },
-    ]);
-    await store.resumeRun(exp1run2, { from: 2 });
-    await store.addLogs(exp1run2, [
-      { type: 'overwriting', number: 2, values: { x: 1 } },
-      { type: 'overwriting', number: 3, values: { x: 2 } },
-    ]);
-    await expect(
-      fromAsync(
-        store.getLogs({ experimentName: 'experiment1', runName: 'run2' }),
-      ),
-    ).resolves.toMatchInlineSnapshot(`
-      [
-        {
-          "experimentName": "experiment1",
-          "number": 1,
-          "runName": "run2",
-          "type": "log1",
-          "values": {
-            "bar": null,
-            "message": "hola",
+        ]
+      `);
+      await store.resumeRun(exp1Run2Id, { from: 1 });
+      await expect(
+        fromAsync(
+          store.getLogs({ experimentName: 'experiment1', runName: 'run2' }),
+        ),
+      ).resolves.toEqual([]);
+    });
+    it('should return logs overwriting other logs after resuming', async ({
+      expect,
+    }) => {
+      await store.addLogs(exp1Run2Id, [
+        { type: 'log1', number: 3, values: { x: 5 } },
+        { type: 'log1', number: 4, values: { x: 6 } },
+      ]);
+      await store.resumeRun(exp1Run2Id, { from: 2 });
+      await store.addLogs(exp1Run2Id, [
+        { type: 'overwriting', number: 2, values: { x: 1 } },
+        { type: 'overwriting', number: 3, values: { x: 2 } },
+      ]);
+      await expect(
+        fromAsync(
+          store.getLogs({ experimentName: 'experiment1', runName: 'run2' }),
+        ),
+      ).resolves.toMatchInlineSnapshot(`
+        [
+          {
+            "experimentName": "experiment1",
+            "number": 1,
+            "runId": 2,
+            "runName": "run2",
+            "runStatus": "running",
+            "type": "log1",
+            "values": {
+              "bar": null,
+              "message": "hola",
+            },
           },
-        },
-        {
-          "experimentName": "experiment1",
-          "number": 2,
-          "runName": "run2",
-          "type": "overwriting",
-          "values": {
-            "x": 1,
+          {
+            "experimentName": "experiment1",
+            "number": 2,
+            "runId": 2,
+            "runName": "run2",
+            "runStatus": "running",
+            "type": "overwriting",
+            "values": {
+              "x": 1,
+            },
           },
-        },
-        {
-          "experimentName": "experiment1",
-          "number": 3,
-          "runName": "run2",
-          "type": "overwriting",
-          "values": {
-            "x": 2,
+          {
+            "experimentName": "experiment1",
+            "number": 3,
+            "runId": 2,
+            "runName": "run2",
+            "runStatus": "running",
+            "type": "overwriting",
+            "values": {
+              "x": 2,
+            },
           },
-        },
-      ]
-    `);
+        ]
+      `);
     });
   });
 }
@@ -1544,8 +1653,4 @@ function isObject(x: unknown): x is object {
 
 function allUnique<T>(values: T[]): boolean {
   return new Set(values).size === values.length;
-}
-
-function times<T>(n: number, t: T): T[] {
-  return Array(n).fill(t);
 }

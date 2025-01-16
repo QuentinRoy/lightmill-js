@@ -1,11 +1,13 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`SQLiteStore#getLogs (selectQueryLimit: 2) > should return the logs in order of experimentId, runId, and ascending number 2`] = `
+exports[`SQLiteStore#getLogs (selectQueryLimit: 2) > should return the logs in order of experimentName, runName, and ascending number 2`] = `
 [
   {
-    "experimentId": "experiment1",
+    "experimentName": "experiment1",
     "number": 1,
-    "runId": "run1",
+    "runId": 1,
+    "runName": "run1",
+    "runStatus": "running",
     "type": "log1",
     "values": {
       "msg": "hello",
@@ -13,9 +15,11 @@ exports[`SQLiteStore#getLogs (selectQueryLimit: 2) > should return the logs in o
     },
   },
   {
-    "experimentId": "experiment1",
+    "experimentName": "experiment1",
     "number": 2,
-    "runId": "run1",
+    "runId": 1,
+    "runName": "run1",
+    "runStatus": "running",
     "type": "log1",
     "values": {
       "msg": "bonjour",
@@ -23,9 +27,11 @@ exports[`SQLiteStore#getLogs (selectQueryLimit: 2) > should return the logs in o
     },
   },
   {
-    "experimentId": "experiment1",
+    "experimentName": "experiment1",
     "number": 3,
-    "runId": "run1",
+    "runId": 1,
+    "runName": "run1",
+    "runStatus": "running",
     "type": "log3",
     "values": {
       "foo": true,
@@ -34,9 +40,11 @@ exports[`SQLiteStore#getLogs (selectQueryLimit: 2) > should return the logs in o
     },
   },
   {
-    "experimentId": "experiment1",
+    "experimentName": "experiment1",
     "number": 1,
-    "runId": "run2",
+    "runId": 2,
+    "runName": "run2",
+    "runStatus": "running",
     "type": "log1",
     "values": {
       "bar": null,
@@ -44,9 +52,11 @@ exports[`SQLiteStore#getLogs (selectQueryLimit: 2) > should return the logs in o
     },
   },
   {
-    "experimentId": "experiment1",
+    "experimentName": "experiment1",
     "number": 2,
-    "runId": "run2",
+    "runId": 2,
+    "runName": "run2",
+    "runStatus": "running",
     "type": "log2",
     "values": {
       "foo": false,
@@ -54,9 +64,11 @@ exports[`SQLiteStore#getLogs (selectQueryLimit: 2) > should return the logs in o
     },
   },
   {
-    "experimentId": "experiment2",
+    "experimentName": "experiment2",
     "number": 1,
-    "runId": "run1",
+    "runId": 3,
+    "runName": "run1",
+    "runStatus": "running",
     "type": "log2",
     "values": {
       "foo": true,
@@ -67,12 +79,14 @@ exports[`SQLiteStore#getLogs (selectQueryLimit: 2) > should return the logs in o
 ]
 `;
 
-exports[`SQLiteStore#getLogs (selectQueryLimit: 10000) > should return the logs in order of experimentId, runId, and ascending number 2`] = `
+exports[`SQLiteStore#getLogs (selectQueryLimit: 10000) > should return the logs in order of experimentName, runName, and ascending number 2`] = `
 [
   {
-    "experimentId": "experiment1",
+    "experimentName": "experiment1",
     "number": 1,
-    "runId": "run1",
+    "runId": 1,
+    "runName": "run1",
+    "runStatus": "running",
     "type": "log1",
     "values": {
       "msg": "hello",
@@ -80,9 +94,11 @@ exports[`SQLiteStore#getLogs (selectQueryLimit: 10000) > should return the logs 
     },
   },
   {
-    "experimentId": "experiment1",
+    "experimentName": "experiment1",
     "number": 2,
-    "runId": "run1",
+    "runId": 1,
+    "runName": "run1",
+    "runStatus": "running",
     "type": "log1",
     "values": {
       "msg": "bonjour",
@@ -90,9 +106,11 @@ exports[`SQLiteStore#getLogs (selectQueryLimit: 10000) > should return the logs 
     },
   },
   {
-    "experimentId": "experiment1",
+    "experimentName": "experiment1",
     "number": 3,
-    "runId": "run1",
+    "runId": 1,
+    "runName": "run1",
+    "runStatus": "running",
     "type": "log3",
     "values": {
       "foo": true,
@@ -101,9 +119,11 @@ exports[`SQLiteStore#getLogs (selectQueryLimit: 10000) > should return the logs 
     },
   },
   {
-    "experimentId": "experiment1",
+    "experimentName": "experiment1",
     "number": 1,
-    "runId": "run2",
+    "runId": 2,
+    "runName": "run2",
+    "runStatus": "running",
     "type": "log1",
     "values": {
       "bar": null,
@@ -111,9 +131,11 @@ exports[`SQLiteStore#getLogs (selectQueryLimit: 10000) > should return the logs 
     },
   },
   {
-    "experimentId": "experiment1",
+    "experimentName": "experiment1",
     "number": 2,
-    "runId": "run2",
+    "runId": 2,
+    "runName": "run2",
+    "runStatus": "running",
     "type": "log2",
     "values": {
       "foo": false,
@@ -121,9 +143,11 @@ exports[`SQLiteStore#getLogs (selectQueryLimit: 10000) > should return the logs 
     },
   },
   {
-    "experimentId": "experiment2",
+    "experimentName": "experiment2",
     "number": 1,
-    "runId": "run1",
+    "runId": 3,
+    "runName": "run1",
+    "runStatus": "running",
     "type": "log2",
     "values": {
       "foo": true,

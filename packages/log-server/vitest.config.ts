@@ -1,6 +1,6 @@
 import { resolve } from 'node:path';
 import * as url from 'node:url';
-import {  defineProject } from 'vitest/config';
+import { defineProject } from 'vitest/config';
 
 const dirname = url.fileURLToPath(new URL('.', import.meta.url));
 
