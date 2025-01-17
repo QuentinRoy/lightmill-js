@@ -15,11 +15,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: corepack enable
-      - name: Install Node.js 20.x.x
+      - name: Install Node.js 22.x.x
         uses: actions/setup-node@v4
         with:
           cache: 'pnpm'
-          node-version: 20.x.x
+          node-version: 22.x.x
       - run: pnpm install --frozen-lockfile
       - run: pnpm run build-all
       - uses: actions/upload-artifact@v4
@@ -33,11 +33,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: corepack enable
-      - name: Install Node.js 20.x.x
+      - name: Install Node.js 22.x.x
         uses: actions/setup-node@v4
         with:
           cache: 'pnpm'
-          node-version: 20.x.x
+          node-version: 22.x.x
       - run: pnpm install --frozen-lockfile
       - uses: actions/download-artifact@v4
         id: download
@@ -51,11 +51,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: corepack enable
-      - name: Install Node.js 20.x.x
+      - name: Install Node.js 22.x.x
         uses: actions/setup-node@v4
         with:
           cache: 'pnpm'
-          node-version: 20.x.x
+          node-version: 22.x.x
       - run: pnpm install --frozen-lockfile
       - run: pnpm run lint
 
@@ -65,11 +65,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: corepack enable
-      - name: Install Node.js 20.x.x
+      - name: Install Node.js 22.x.x
         uses: actions/setup-node@v4
         with:
           cache: 'pnpm'
-          node-version: 20.x.x
+          node-version: 22.x.x
       - run: pnpm install --frozen-lockfile
       - uses: actions/download-artifact@v4
         id: download

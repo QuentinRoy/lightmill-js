@@ -4,7 +4,7 @@
   "type": "module",
   "description": "Converts touchstone XML exports to lightmill format.",
   "engines": {
-    "node": "^20.x.x"
+    "node": "^22.x.x"
   },
   "exports": {
     "import": {
