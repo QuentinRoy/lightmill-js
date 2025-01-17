@@ -17,7 +17,7 @@ export default defineProject({
     include: ['**/__tests__/*.test.ts'],
     root: resolve(dirname),
     typecheck: {
-      checker: 'tsc',
+      enabled: true,
       ignoreSourceErrors: true,
     },
   },

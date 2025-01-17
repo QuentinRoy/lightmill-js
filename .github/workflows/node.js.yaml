@@ -44,7 +44,7 @@ jobs:
         with:
           name: 'build'
           path: 'packages'
-      - run: pnpm run test
+      - run: pnpm test
 
   lint:
     runs-on: ubuntu-latest
