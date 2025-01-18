@@ -7,5 +7,5 @@ catalog:
   'cross-env': '^7.0.3'
   'vite': '^6.0.7'
   # Pin vitest version because testing types is experimental.
-  'vitest': '3.0.1'
+  'vitest': '3.0.2'
   'tsx': '^4.7.0'

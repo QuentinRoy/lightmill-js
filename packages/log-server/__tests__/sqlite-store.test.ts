@@ -59,18 +59,14 @@ describe('SQLiteStore#addRun', () => {
   it('should create runs with different ids', async ({ expect }) => {
     await expect(
       store.addRun({ runName: 'run1', experimentName: 'experiment1' }),
-      // @ts-expect-error This is a bug in vitest types
     ).resolves.toSatisfy(isAddRunResult);
     await expect(
       store.addRun({ runName: 'run2', experimentName: 'experiment1' }),
-      // @ts-expect-error This is a bug in vitest types
     ).resolves.toSatisfy(isAddRunResult);
     await expect(
       store.addRun({ runName: 'run3', experimentName: 'experiment2' }),
-      // @ts-expect-error This is a bug in vitest types
     ).resolves.toSatisfy(isAddRunResult);
     expect(addRunSpy).toHaveBeenCalledTimes(3);
-    // @ts-expect-error This is a bug in vitest types
     await expect(Promise.all(addRunSpy.mock.results)).resolves.toSatisfy(
       (runIds: unknown): boolean => Array.isArray(runIds) && allUnique(runIds),
     );
@@ -92,11 +88,9 @@ describe('SQLiteStore#addRun', () => {
   }) => {
     await expect(
       store.addRun({ runName: 'run-id', experimentName: 'experiment1' }),
-      // @ts-expect-error This is a bug in vitest types
     ).resolves.toSatisfy(isAddRunResult);
     await expect(
       store.addRun({ runName: 'run-id', experimentName: 'experiment2' }),
-      // @ts-expect-error This is a bug in vitest types
     ).resolves.toSatisfy(isAddRunResult);
   });
 });
