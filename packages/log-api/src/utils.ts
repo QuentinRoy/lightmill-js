@@ -21,3 +21,14 @@ export const JsonObject = z.record(JsonValue);
 export type JsonObject = z.infer<typeof JsonObject>;
 export const JsonArray = z.array(JsonValue);
 export type JsonArray = z.infer<typeof JsonArray>;
+
+export function isNonEmptyArray<T>(array: T[]): array is [T, ...T[]] {
+  return array.length > 0;
+}
+
+export function nonEmptyArray<T>(schema: z.ZodType<T>) {
+  return z.array(schema).refine(isNonEmptyArray, {
+    message: 'Expected a non-empty array',
+  });
+}
+export type NonEmptyArray<T> = z.infer<ReturnType<typeof nonEmptyArray<T>>>;

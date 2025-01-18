@@ -13,7 +13,7 @@ type LogSequenceTable = {
   sequenceNumber: ColumnType<number, number, never>;
   start: ColumnType<number, number, never>;
 };
-type logTable = {
+type LogTable = {
   logId: GeneratedAlways<number>;
   sequenceId: ColumnType<number, number, never>;
   logNumber: ColumnType<number, number, never>;
@@ -38,7 +38,7 @@ type LogValueTable = {
 type Database = {
   run: RunTable;
   logSequence: LogSequenceTable;
-  log: logTable;
+  log: LogTable;
   runLogView: RunLogView;
   logValue: LogValueTable;
 };
