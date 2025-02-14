@@ -8,25 +8,35 @@
   "main": "./dist/api.js",
   "types": "./dist/api.d.ts",
   "exports": {
-    "import": {
-      "types": "./dist/api.d.ts",
-      "default": "./dist/api.js"
-    }
+    ".": {
+      "import": {
+        "types": "./dist/api.d.ts",
+        "default": "./dist/api.js"
+      }
+    },
+    "./openapi.json": "./openapi.json"
   },
   "files": [
-    "dist"
+    "dist",
+    "openapi.json"
   ],
   "scripts": {
     "build": "tsc -b tsconfig.build.json",
-    "prepublish": "pnpm run build"
+    "generate-openapi": "tsx ./scripts/generate-openapi.ts > ./openapi.json",
+    "prepublish": "pnpm run build && pnpm run generate-openapi"
   },
   "devDependencies": {
+    "@types/node": "catalog:",
     "typescript": "catalog:",
     "vite": "catalog:",
     "vitest": "catalog:"
   },
   "dependencies": {
+    "@anatine/zod-openapi": "^2.2.7",
+    "@ts-rest/core": "^3.52.0",
+    "@ts-rest/open-api": "^3.52.0",
     "@zodios/core": "^10.9.2",
-    "zod": "^3.21.4"
+    "openapi3-ts": "^4.4.0",
+    "zod": "^3.24.2"
   }
 }
