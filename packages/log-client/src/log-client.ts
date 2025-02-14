@@ -30,8 +30,8 @@ export class LogClient<ClientLog extends Typed & OptionallyDated = AnyLog> {
   #rejectLogQueue: ((error: unknown) => void) | null = null;
   #serializeValues: ValuesSerializer<ClientLog>;
   #logQueuePromise: Promise<void> | null = null;
-  #runId?: string;
-  #experimentId?: string;
+  #runName?: string;
+  #experimentName?: string;
   #apiRoot: string;
   #postLogs: throttle<() => void>;
   #runStatus:
@@ -40,18 +40,19 @@ export class LogClient<ClientLog extends Typed & OptionallyDated = AnyLog> {
     | 'running'
     | 'completed'
     | 'canceled'
-    | 'error' = 'idle';
+    | 'error'
+    | 'interrupted' = 'idle';
   #logCount = 0;
 
   constructor({
-    experimentId,
-    runId,
+    experimentName,
+    runName,
     apiRoot,
     serializeLog,
     requestThrottle = 500,
   }: {
-    experimentId?: string;
-    runId?: string;
+    experimentName?: string;
+    runName?: string;
     apiRoot: string;
     requestThrottle?: number;
   } & (Exclude<ClientLog, AnyLog> extends never
@@ -73,8 +74,8 @@ export class LogClient<ClientLog extends Typed & OptionallyDated = AnyLog> {
       this.#unthrottledPostLogs.bind(this),
       { noTrailing: false, noLeading: true },
     );
-    this.#experimentId = experimentId;
-    this.#runId = runId;
+    this.#experimentName = experimentName;
+    this.#runName = runName;
     this.#apiRoot = apiRoot.endsWith('/') ? apiRoot.slice(0, -1) : apiRoot;
   }
 
@@ -90,8 +91,9 @@ export class LogClient<ClientLog extends Typed & OptionallyDated = AnyLog> {
 
     let matchingRuns = (sessionInfo?.runs ?? []).filter(
       (r) =>
-        (this.#runId == null || r.runId === this.#runId) &&
-        (this.#experimentId == null || r.experimentId === this.#experimentId),
+        (this.#runName == null || r.runName === this.#runName) &&
+        (this.#experimentName == null ||
+          r.experimentName === this.#experimentName),
     );
     let matchingRunInfos = await Promise.all(
       matchingRuns.map((r) =>
@@ -101,21 +103,24 @@ export class LogClient<ClientLog extends Typed & OptionallyDated = AnyLog> {
       ),
     );
     return matchingRunInfos
-      .filter((r) => r.status === 'running' || r.status === 'canceled')
+      .filter(
+        (r): r is typeof r & { runStatus: 'running' | 'interrupted' } =>
+          r.runStatus === 'running' || r.runStatus === 'interrupted',
+      )
       .map((r) => ({
-        runId: r.runId,
-        experimentId: r.experimentId,
-        status: r.status as 'running' | 'canceled',
+        runName: r.runName,
+        experimentName: r.experimentName,
+        status: r.runStatus,
       }));
   }
 
   async resumeRun<T extends ClientLog['type']>({
-    runId,
-    experimentId,
+    runName,
+    experimentName,
     resumeAfterLast,
   }: {
-    runId?: string;
-    experimentId?: string;
+    runName?: string;
+    experimentName?: string;
     resumeAfterLast: T | T[];
   }) {
     if (this.#runStatus !== 'idle') {
@@ -128,34 +133,34 @@ export class LogClient<ClientLog extends Typed & OptionallyDated = AnyLog> {
         `Can only start a run when the logger is idle. Logger is ${this.#runStatus}`,
       );
     }
-    if (this.#runId != null && runId != null && this.#runId !== runId) {
+    if (this.#runName != null && runName != null && this.#runName !== runName) {
       throw new Error(
-        `Trying to start a run with a different runId. Current runId is ${this.#runId} and new runId is ${runId}`,
+        `Trying to start a run with a different runName. Current runName is ${this.#runName} and new runName is ${runName}`,
       );
     }
     if (
-      this.#experimentId != null &&
-      experimentId != null &&
-      this.#experimentId !== experimentId
+      this.#experimentName != null &&
+      experimentName != null &&
+      this.#experimentName !== experimentName
     ) {
       throw new Error(
-        `Trying to start a run with a different experimentId. Current experimentId is ${this.#experimentId} and new experimentId is ${experimentId}`,
+        `Trying to start a run with a different experimentName. Current experimentName is ${this.#experimentName} and new experimentName is ${experimentName}`,
       );
     }
-    let runIdToResume = runId ?? this.#runId;
-    let experimentIdToResume = experimentId ?? this.#experimentId;
-    if (runIdToResume == null) {
-      throw new Error('Cannot resume a run without a runId');
+    let runNameToResume = runName ?? this.#runName;
+    let experimentNameToResume = experimentName ?? this.#experimentName;
+    if (runNameToResume == null) {
+      throw new Error('Cannot resume a run without a runName');
     }
-    if (experimentIdToResume == null) {
-      throw new Error('Cannot resume a run without an experimentId');
+    if (experimentNameToResume == null) {
+      throw new Error('Cannot resume a run without an experimentName');
     }
     try {
       this.#runStatus = 'starting';
       let { run: runInfo } = await Interface.getRunInfo({
         apiRoot: this.#apiRoot,
-        runId: runIdToResume,
-        experimentId: experimentIdToResume,
+        runName: runNameToResume,
+        experimentName: experimentNameToResume,
       });
       let resumeAfterLastSet = new Set<string>(
         Array.isArray(resumeAfterLast) ? resumeAfterLast : [resumeAfterLast],
@@ -170,12 +175,12 @@ export class LogClient<ClientLog extends Typed & OptionallyDated = AnyLog> {
         );
       await Interface.resumeRun({
         apiRoot: this.#apiRoot,
-        runId: runIdToResume,
-        experimentId: experimentIdToResume,
+        runName: runNameToResume,
+        experimentName: experimentNameToResume,
         resumeFrom: lastLog.lastNumber + 1,
       });
-      this.#runId = runId;
-      this.#experimentId = experimentId;
+      this.#runName = runName;
+      this.#experimentName = experimentName;
       this.#runStatus = 'running';
       this.#logCount = lastLog.lastNumber;
       return lastLog.type == null
@@ -188,26 +193,26 @@ export class LogClient<ClientLog extends Typed & OptionallyDated = AnyLog> {
   }
 
   async startRun({
-    runId,
-    experimentId,
-  }: { runId?: string; experimentId?: string } = {}) {
+    runName,
+    experimentName,
+  }: { runName?: string; experimentName?: string } = {}) {
     if (this.#runStatus !== 'idle') {
       throw new Error(
         `Can only start a run when the logger is idle. Logger is ${this.#runStatus}`,
       );
     }
-    if (this.#runId != null && runId != null && this.#runId !== runId) {
+    if (this.#runName != null && runName != null && this.#runName !== runName) {
       throw new Error(
-        `Trying to start a run with a different runId. Current runId is ${this.#runId} and new runId is ${runId}`,
+        `Trying to start a run with a different runName. Current runName is ${this.#runName} and new runName is ${runName}`,
       );
     }
     if (
-      this.#experimentId != null &&
-      experimentId != null &&
-      this.#experimentId !== experimentId
+      this.#experimentName != null &&
+      experimentName != null &&
+      this.#experimentName !== experimentName
     ) {
       throw new Error(
-        `Trying to start a run with a different experimentId. Current experimentId is ${this.#experimentId} and new experimentId is ${experimentId}`,
+        `Trying to start a run with a different experimentName. Current experimentName is ${this.#experimentName} and new experimentName is ${experimentName}`,
       );
     }
     try {
@@ -215,11 +220,11 @@ export class LogClient<ClientLog extends Typed & OptionallyDated = AnyLog> {
       // We trust the server to return the correct type.
       let createRunResponse = await Interface.createNewRun({
         apiRoot: this.#apiRoot,
-        experimentId: experimentId ?? this.#experimentId,
-        runId: runId ?? this.#runId,
+        experimentName: experimentName ?? this.#experimentName,
+        runName: runName ?? this.#runName,
       });
-      this.#runId = createRunResponse.runId;
-      this.#experimentId = createRunResponse.experimentId;
+      this.#runName = createRunResponse.runName;
+      this.#experimentName = createRunResponse.experimentName;
       this.#runStatus = 'running';
     } catch (err) {
       this.#runStatus = 'error';
@@ -269,16 +274,18 @@ export class LogClient<ClientLog extends Typed & OptionallyDated = AnyLog> {
     this.#rejectLogQueue = null;
     this.#logQueue = [];
 
-    if (this.#runId == null) {
+    if (this.#runName == null) {
       reject(
-        new Error('Internal RunLogger error: runId is null but run is started'),
+        new Error(
+          'Internal RunLogger error: runName is null but run is started',
+        ),
       );
       return;
     }
-    if (this.#experimentId == null) {
+    if (this.#experimentName == null) {
       reject(
         new Error(
-          'Internal RunLogger error: experimentId is null but run is started',
+          'Internal RunLogger error: experimentName is null but run is started',
         ),
       );
       return;
@@ -286,8 +293,8 @@ export class LogClient<ClientLog extends Typed & OptionallyDated = AnyLog> {
 
     await Interface.postLog({
       apiRoot: this.#apiRoot,
-      runId: this.#runId,
-      experimentId: this.#experimentId,
+      runName: this.#runName,
+      experimentName: this.#experimentName,
       logs: logQueue.map((log) => ({
         type: log.type,
         number: log.number,
@@ -311,32 +318,36 @@ export class LogClient<ClientLog extends Typed & OptionallyDated = AnyLog> {
     await this.#endRun('canceled');
   }
 
+  async interruptRun() {}
+
   async logout() {
     await this.flush();
     await Interface.deleteSession({ apiRoot: this.#apiRoot });
   }
 
-  async #endRun(status: 'canceled' | 'completed') {
+  async #endRun(runStatus: 'canceled' | 'completed' | 'interrupted') {
     if (this.#runStatus !== 'running') {
-      throw new Error(`Cannot end a run that is not running. Run is ${status}`);
-    }
-    if (this.#runId == null) {
       throw new Error(
-        'Internal RunLogger error: runId is null but run is started',
+        `Cannot end a run that is not running. Run is ${runStatus}`,
       );
     }
-    if (this.#experimentId == null) {
+    if (this.#runName == null) {
       throw new Error(
-        'Internal RunLogger error: experimentId is null but run is started',
+        'Internal RunLogger error: runName is null but run is started',
       );
     }
-    this.#runStatus = status;
+    if (this.#experimentName == null) {
+      throw new Error(
+        'Internal RunLogger error: experimentName is null but run is started',
+      );
+    }
+    this.#runStatus = runStatus;
     await this.flush();
     await Interface.updateRunStatus({
-      runId: this.#runId,
-      experimentId: this.#experimentId,
+      runName: this.#runName,
+      experimentName: this.#experimentName,
       apiRoot: this.#apiRoot,
-      status,
+      runStatus,
     });
   }
 }
