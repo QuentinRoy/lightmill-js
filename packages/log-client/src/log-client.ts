@@ -138,11 +138,6 @@ export class LogClient<ClientLog extends Typed & OptionallyDated = AnyLog> {
         `Can only resume a run when the logger is idle. Logger is ${this.#runStatus}`,
       );
     }
-    if (this.#runStatus !== 'idle') {
-      throw new Error(
-        `Can only start a run when the logger is idle. Logger is ${this.#runStatus}`,
-      );
-    }
     if (this.#runName != null && runName != null && this.#runName !== runName) {
       throw new Error(
         `Trying to start a run with a different runName. Current runName is ${this.#runName} and new runName is ${runName}`,
