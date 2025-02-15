@@ -1,9 +1,25 @@
 import { LogClient } from '../src/log-client.js';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { afterAll, afterEach, beforeAll } from 'vitest';
-import type { Body as ApiBody } from '@lightmill/log-api';
 import { setupServer } from 'msw/node';
 import { getServerHandlers } from '../__mocks__/handlers.js';
+import { paths } from '../src/api.js';
+
+type Method = 'get' | 'post' | 'delete' | 'patch';
+
+type ApiBody<M extends Method, P extends keyof paths> = paths[P] extends {
+  [K in M]: {
+    requestBody: { content: { 'application/json': infer B } };
+  };
+}
+  ? B
+  : paths[P] extends {
+        [K in M]: {
+          requestBody?: { content: { 'application/json': infer B } };
+        };
+      }
+    ? B | undefined
+    : never;
 
 const server = setupServer(...getServerHandlers());
 
@@ -135,7 +151,7 @@ describe('LogClient#resumeRun', () => {
         method: 'PATCH',
         body: { resumeFrom: 6, runStatus: 'running' } satisfies ApiBody<
           'patch',
-          '/experiments/:experimentName/runs/:runName'
+          '/experiments/{experimentName}/runs/{runName}'
         >,
       },
     ]);
@@ -168,7 +184,7 @@ describe('LogClient#resumeRun', () => {
         method: 'PATCH',
         body: { resumeFrom: 6, runStatus: 'running' } satisfies ApiBody<
           'patch',
-          '/experiments/:experimentName/runs/:runName'
+          '/experiments/{experimentName}/runs/{runName}'
         >,
       },
     ]);
@@ -200,7 +216,7 @@ describe('LogClient#resumeRun', () => {
         method: 'PATCH',
         body: { resumeFrom: 1, runStatus: 'running' } satisfies ApiBody<
           'patch',
-          '/experiments/:experimentName/runs/:runName'
+          '/experiments/{experimentName}/runs/{runName}'
         >,
       },
     ]);
@@ -233,7 +249,7 @@ describe('LogClient#resumeRun', () => {
         method: 'PATCH',
         body: { resumeFrom: 6, runStatus: 'running' } satisfies ApiBody<
           'patch',
-          '/experiments/:experimentName/runs/:runName'
+          '/experiments/{experimentName}/runs/{runName}'
         >,
       },
     ]);
@@ -268,7 +284,7 @@ describe('LogClient#resumeRun', () => {
         method: 'PATCH',
         body: { resumeFrom: 6, runStatus: 'running' } satisfies ApiBody<
           'patch',
-          '/experiments/:experimentName/runs/:runName'
+          '/experiments/{experimentName}/runs/{runName}'
         >,
       },
     ]);
@@ -366,7 +382,7 @@ describe('LogClient#addLog (after start)', () => {
           ],
         } satisfies ApiBody<
           'post',
-          '/experiments/:experimentName/runs/:runName/logs'
+          '/experiments/{experimentName}/runs/{runName}/logs'
         >,
       },
     ]);
@@ -416,7 +432,7 @@ describe('LogClient#addLog (after start)', () => {
           ],
         } satisfies ApiBody<
           'post',
-          '/experiments/:experimentName/runs/:runName/logs'
+          '/experiments/{experimentName}/runs/{runName}/logs'
         >,
       },
     ]);
@@ -442,7 +458,7 @@ describe('LogClient#addLog (after start)', () => {
           ],
         } satisfies ApiBody<
           'post',
-          '/experiments/:experimentName/runs/:runName/logs'
+          '/experiments/{experimentName}/runs/{runName}/logs'
         >,
       },
     ]);
@@ -475,7 +491,7 @@ describe('LogClient#addLog (after start)', () => {
           ],
         } satisfies ApiBody<
           'post',
-          '/experiments/:experimentName/runs/:runName/logs'
+          '/experiments/{experimentName}/runs/{runName}/logs'
         >,
       },
     ]);
@@ -501,7 +517,7 @@ describe('LogClient#addLog (after start)', () => {
           ],
         } satisfies ApiBody<
           'post',
-          '/experiments/:experimentName/runs/:runName/logs'
+          '/experiments/{experimentName}/runs/{runName}/logs'
         >,
       },
     ]);
@@ -571,7 +587,7 @@ describe('LogClient#addLog (after resume)', () => {
           ],
         } satisfies ApiBody<
           'post',
-          '/experiments/:experimentName/runs/:runName/logs'
+          '/experiments/{experimentName}/runs/{runName}/logs'
         >,
       },
     ]);
@@ -628,7 +644,7 @@ describe('LogClient#flush', () => {
           ],
         } satisfies ApiBody<
           'post',
-          '/experiments/:experimentName/runs/:runName/logs'
+          '/experiments/{experimentName}/runs/{runName}/logs'
         >,
       },
     ]);
@@ -651,7 +667,7 @@ describe('LogClient#completeRun', () => {
         url: 'https://server.test/api/experiments/experiment-id/runs/run-id',
         body: { runStatus: 'completed' } satisfies ApiBody<
           'patch',
-          '/experiments/:experimentName/runs/:runName'
+          '/experiments/{experimentName}/runs/{runName}'
         >,
       },
     ]);
@@ -674,7 +690,7 @@ describe('LogClient#cancelRun', () => {
         url: 'https://server.test/api/experiments/experiment-id/runs/run-id',
         body: { runStatus: 'canceled' } satisfies ApiBody<
           'patch',
-          '/experiments/:experimentName/runs/:runName'
+          '/experiments/{experimentName}/runs/{runName}'
         >,
       },
     ]);
