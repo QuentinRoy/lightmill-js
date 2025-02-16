@@ -1,216 +1,184 @@
-import {
-  makeApi,
-  ZodiosBodyByPath,
-  ZodiosEndpointDefinitionByPath,
-  ZodiosErrorByPath,
-  ZodiosPathParamsByPath,
-  ZodiosPathsByMethod,
-  ZodiosQueryParamsByPath,
-  ZodiosResponseByPath,
-} from '@zodios/core';
+import { initContract } from '@ts-rest/core';
 import { z } from 'zod';
-import { JsonObject } from './utils.js';
+import * as schemas from './schemas.js';
 
-const OkResponse = z.object({ status: z.literal('ok') });
-const ErrorResponse = z.object({
-  status: z.literal('error'),
-  message: z.string(),
-});
-const Role = z.enum(['host', 'participant']);
-const LogParameter = z.object({
-  type: z.string(),
-  // Required because requests can arrive out of order.
-  number: z.number(),
-  values: JsonObject,
+const contractBuilder = initContract();
+
+const runResultSchema = z.object({
+  url: z.string(),
+  runCreatedAt: z.string(),
+  runName: z.string(),
+  experimentName: z.string(),
+  runStatus: schemas.runStatus,
+  logs: z.array(
+    z
+      .object({
+        type: z.string(),
+        count: z.number(),
+        pending: z.number(),
+        lastNumber: z.number(),
+      })
+      .strict(),
+  ),
 });
 
-export const api = makeApi([
-  {
-    method: 'post',
-    path: '/sessions',
-    parameters: [
-      {
-        schema: z
-          .object({
-            role: Role.default('participant'),
-            password: z.string().optional(),
-          })
-          .strict(),
-        name: 'body',
-        type: 'Body',
-      },
-    ],
-    response: OkResponse.extend({
-      role: Role,
-      runs: z.array(
-        z.object({ runId: z.string(), experimentId: z.string() }).strict(),
-      ),
-    }).strict(),
-    errors: [
-      { status: 400, schema: ErrorResponse },
-      { status: 403, schema: ErrorResponse },
-    ],
-  },
-  {
-    method: 'get',
-    path: '/sessions/current',
-    response: OkResponse.extend({
-      runs: z.array(
-        z.object({ runId: z.string(), experimentId: z.string() }).strict(),
-      ),
-      role: Role,
-    }).strict(),
-    errors: [{ status: 404, schema: ErrorResponse }],
-  },
-  {
-    method: 'delete',
-    path: '/sessions/current',
-    response: OkResponse.strict(),
-    errors: [
-      { status: 404, schema: ErrorResponse.strict() },
-      { status: 403, schema: ErrorResponse.strict() },
-    ],
-  },
-  {
-    method: 'post',
+const runsContract = contractBuilder.router({
+  create: {
+    summary: 'Create a new run',
+    method: 'POST',
     path: '/runs',
-    parameters: [
-      {
-        schema: z
-          .object({
-            runId: z.string().optional(),
-            experimentId: z.string().optional(),
-          })
-          .strict()
-          .optional(),
-        name: 'body',
-        type: 'Body',
-      },
-    ],
-    response: OkResponse.extend({
-      runId: z.string(),
-      experimentId: z.string(),
-    }).strict(),
-    errors: [{ status: 403, schema: ErrorResponse.strict() }],
+    body: z
+      .object({
+        experimentName: z.string().optional(),
+        runName: z.string().optional(),
+        runStatus: schemas.runStatus.default('idle'),
+      })
+      .strict()
+      .default({}),
+    responses: {
+      201: schemas.okResponse.extend({
+        url: z.string(),
+        experimentName: z.string(),
+        runName: z.string(),
+        runStatus: z.string(),
+      }),
+      400: schemas.errorResponse,
+      403: schemas.errorResponse,
+    },
   },
-  {
-    method: 'get',
-    path: '/experiments/:experimentId/runs/:runId',
-    response: OkResponse.extend({
-      run: z
+
+  getFromExperiment: {
+    summary: 'Get information about all runs of an experiment',
+    method: 'GET',
+    path: '/experiments/:experimentName/runs',
+    pathParams: z.object({ experimentName: z.string() }),
+    responses: {
+      200: schemas.okResponse.extend({ runs: z.array(runResultSchema) }),
+      404: schemas.errorResponse,
+    },
+  },
+
+  get: {
+    summary: 'Get information about a run',
+    method: 'GET',
+    path: '/experiments/:experimentName/runs/:runName',
+    pathParams: z.object({ experimentName: z.string(), runName: z.string() }),
+    responses: {
+      200: schemas.okResponse.extend({ run: runResultSchema }).strict(),
+      404: schemas.errorResponse,
+    },
+  },
+
+  update: {
+    summary: 'Update the status of a run',
+    method: 'PATCH',
+    path: '/experiments/:experimentName/runs/:runName',
+    pathParams: z.object({ experimentName: z.string(), runName: z.string() }),
+    body: z.discriminatedUnion('runStatus', [
+      z
         .object({
-          runId: z.string(),
-          experimentId: z.string(),
-          status: z.union([
-            z.literal('completed'),
-            z.literal('canceled'),
-            z.literal('running'),
-          ]),
-          logs: z.array(
-            z
-              .object({
-                type: z.string(),
-                count: z.number(),
-                pending: z.number(),
-                lastNumber: z.number(),
-              })
-              .strict(),
-          ),
+          runStatus: z.enum(['completed', 'interrupted', 'canceled']),
         })
         .strict(),
-    }).strict(),
-    errors: [{ status: 403, schema: ErrorResponse.strict() }],
+      z
+        .object({
+          runStatus: z.literal('running'),
+          resumeFrom: z.number().optional(),
+        })
+        .strict(),
+    ]),
+    responses: {
+      200: schemas.okResponse,
+      404: schemas.errorResponse,
+      403: schemas.errorResponse,
+      400: schemas.errorResponse,
+    },
   },
-  {
-    method: 'patch',
-    path: '/experiments/:experimentId/runs/:runId',
-    response: OkResponse.strict(),
-    errors: [
-      { status: 404, schema: ErrorResponse.strict() },
-      { status: 403, schema: ErrorResponse.strict() },
-      { status: 400, schema: ErrorResponse.strict() },
-    ],
-    parameters: [
-      {
-        schema: z.union([
-          z
-            .object({
-              status: z.union([z.literal('completed'), z.literal('canceled')]),
-            })
-            .strict(),
-          z.object({ resumeFrom: z.number() }).strict(),
-        ]),
-        name: 'body',
-        type: 'Body',
-      },
-    ],
-  },
-  {
-    method: 'post',
-    path: '/experiments/:experimentId/runs/:runId/logs',
-    parameters: [
-      {
-        schema: z.union([
-          z.object({ log: LogParameter.strict() }).strict(),
-          z.object({ logs: z.array(LogParameter.strict()) }).strict(),
-        ]),
-        name: 'body',
-        type: 'Body',
-      },
-    ],
-    response: OkResponse,
-    errors: [{ status: 403, schema: ErrorResponse.strict() }],
-  },
-  {
-    method: 'get',
-    path: '/experiments/:experimentId/logs',
-    parameters: [
-      {
-        name: 'type',
-        type: 'Query',
-        schema: z.union([z.string(), z.array(z.string())]).optional(),
-      },
-    ],
-    response: z.union([z.array(JsonObject), z.string()]),
-    errors: [{ status: 403, schema: ErrorResponse.strict() }],
-  },
-]);
+});
 
-type Api = typeof api;
+const logsContract = contractBuilder.router({
+  get: {
+    method: 'GET',
+    path: '/experiments/:experimentName/logs',
+    pathParams: z.object({ experimentName: z.string() }),
+    query: z.object({
+      type: z.union([z.string(), z.array(z.string())]).optional(),
+    }),
+    responses: {
+      200: schemas.okResponse.extend({ logs: z.array(schemas.log) }),
+      404: schemas.errorResponse,
+    },
+  },
 
-export type Path = Api[number]['path'];
-export type Method = Api[number]['method'];
-export type PathParams<
-  M extends Method,
-  P extends ZodiosPathsByMethod<Api, M>,
-> = ZodiosPathParamsByPath<Api, M, P>;
-export type QueryParams<
-  M extends Method,
-  P extends ZodiosPathsByMethod<Api, M>,
-> = ZodiosQueryParamsByPath<Api, M, P>;
-export type Body<
-  M extends Method,
-  P extends ZodiosPathsByMethod<Api, M>,
-> = ZodiosBodyByPath<Api, M, P>;
-export type Response<
-  M extends Method,
-  P extends ZodiosPathsByMethod<Api, M>,
-> = ZodiosResponseByPath<Api, M, P>;
-export type Error<
-  M extends Method,
-  P extends ZodiosPathsByMethod<Api, M>,
-  Status extends number = number,
-> = ZodiosErrorByPath<Api, M, P, Status>;
-export type ErrorStatus<
-  M extends Method,
-  P extends ZodiosPathsByMethod<Api, M>,
-> = ZodiosEndpointDefinitionByPath<Api, M, P>[number] extends {
-  errors: Array<{ status: infer S }>;
-}
-  ? S
-  : never;
+  post: {
+    method: 'POST',
+    path: '/experiments/:experimentName/runs/:runName/logs',
+    pathParams: z.object({ experimentName: z.string(), runName: z.string() }),
+    body: z.object({ logs: z.array(schemas.log) }),
+    responses: {
+      201: schemas.okResponse,
+      404: schemas.errorResponse,
+      403: schemas.errorResponse,
+      400: schemas.errorResponse,
+    },
+  },
+});
 
-// Why not export Zodios api as the recommended way to use it? I am not sure
-// I want to use zodios on the client, it depends on zod and could uselessly
-// bloat the client. I would rather hide its usage from the lib consumers so
-// I can ditch it if I want to later without breaking change.
+const sessionsContract = contractBuilder.router(
+  {
+    get: {
+      summary: 'Get the current session (check login)',
+      method: 'GET',
+      path: '/current',
+      responses: {
+        200: schemas.okResponse
+          .extend({
+            role: schemas.userRole,
+            runs: z.array(schemas.run.strict()),
+          })
+          .strict(),
+        404: schemas.errorResponse,
+      },
+    },
+
+    put: {
+      summary: 'Set the current session (login)',
+      method: 'PUT',
+      path: '/current',
+      body: z
+        .object({
+          role: schemas.userRole.default('participant'),
+          password: z.string().optional(),
+        })
+        .strict()
+        .optional(),
+      responses: {
+        201: schemas.okResponse
+          .extend({
+            role: schemas.userRole,
+            runs: z.array(schemas.run.strict()),
+          })
+          .strict(),
+        400: schemas.errorResponse,
+        403: schemas.errorResponse,
+      },
+    },
+
+    delete: {
+      summary: 'Delete the current session (logout)',
+      method: 'DELETE',
+      path: '/current',
+      responses: {
+        201: schemas.okResponse,
+        404: schemas.errorResponse,
+        403: schemas.errorResponse,
+      },
+    },
+  },
+  { pathPrefix: '/sessions' },
+);
+
+export const contract = contractBuilder.router(
+  { sessions: sessionsContract, runs: runsContract, logs: logsContract },
+  { strictStatusCodes: true },
+);

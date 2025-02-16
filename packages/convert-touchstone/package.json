@@ -4,7 +4,7 @@
   "type": "module",
   "description": "Converts touchstone XML exports to lightmill format.",
   "engines": {
-    "node": "^20.x.x"
+    "node": "^22.x.x"
   },
   "exports": {
     "import": {
@@ -25,10 +25,10 @@
   "devDependencies": {
     "@lightmill/static-design": "workspace:*",
     "@types/sax": "^1.2.7",
-    "cross-env": "^7.0.3",
-    "typescript": "5.3.2",
-    "vite": "^5.0.12",
-    "vitest": "^1.0.2"
+    "cross-env": "catalog:",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vitest": "catalog:"
   },
   "scripts": {
     "test": "cross-env NODE_ENV=test vitest",
