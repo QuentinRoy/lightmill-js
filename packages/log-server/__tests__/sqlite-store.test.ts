@@ -372,6 +372,30 @@ describe('SQLiteStore#getRuns', () => {
       },
     ]);
   });
+
+  it('should return an empty array if part of the first is an empty array', async ({
+    expect,
+  }) => {
+    await expect(store.getRuns({ runStatus: [] })).resolves.toEqual([]);
+    await expect(store.getRuns({ runName: [] })).resolves.toEqual([]);
+    await expect(store.getRuns({ experimentName: [] })).resolves.toEqual([]);
+    await expect(
+      store.getRuns({ experimentName: [], runStatus: 'completed' }),
+    ).resolves.toEqual([]);
+    await expect(
+      store.getRuns({ experimentName: [], runStatus: ['idle', 'completed'] }),
+    ).resolves.toEqual([]);
+    await expect(
+      store.getRuns({ runName: [], runStatus: ['running', 'completed'] }),
+    ).resolves.toEqual([]);
+    await expect(
+      store.getRuns({
+        runName: [],
+        experimentName: 'experiment1',
+        runStatus: 'completed',
+      }),
+    ).resolves.toEqual([]);
+  });
 });
 
 describe('SQLiteStore#setRunStatus', () => {
@@ -489,7 +513,6 @@ describe('SQLiteStore#resumeRun', () => {
   });
 
   it('should resume a running run without logs', async ({ expect }) => {
-    store.resumeRun(runId, { from: 1 }).catch(console.error);
     await expect(store.resumeRun(runId, { from: 1 })).resolves.toBeUndefined();
   });
 
@@ -1283,6 +1306,42 @@ for (const limit of [10000, 2]) {
       ).resolves.toEqual([]);
       await expect(
         fromAsync(store.getLogs({ type: 'do not exist' })),
+      ).resolves.toEqual([]);
+    });
+
+    it('should resolve with an empty array if the filter includes an empty array', async ({
+      expect,
+    }) => {
+      await expect(
+        fromAsync(store.getLogs({ experimentName: [] })),
+      ).resolves.toEqual([]);
+      await expect(fromAsync(store.getLogs({ type: [] }))).resolves.toEqual([]);
+      await expect(fromAsync(store.getLogs({ runName: [] }))).resolves.toEqual(
+        [],
+      );
+      await expect(
+        fromAsync(
+          store.getLogs({ experimentName: [], runName: 'run1', type: 'log1' }),
+        ),
+      ).resolves.toEqual([]);
+      await expect(
+        fromAsync(
+          store.getLogs({
+            experimentName: 'experiment1',
+            runName: [],
+            type: 'log1',
+          }),
+        ),
+      ).resolves.toEqual([]);
+
+      await expect(
+        fromAsync(
+          store.getLogs({
+            experimentName: 'experiment1',
+            runName: 'runName',
+            type: [],
+          }),
+        ),
       ).resolves.toEqual([]);
     });
 
