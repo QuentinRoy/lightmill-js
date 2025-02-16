@@ -668,23 +668,48 @@ function reconstructValues(
   return values;
 }
 
+/**
+ * Parses a RunFilter object into its constituent parts with standardized array formats.
+ *
+ * Each filter field is converted to either undefined (if not provided) or an array of values.
+ * The runStatus field is specially handled through parseRunStatusFilter to support inclusion/exclusion notation.
+ *
+ * @param runFilter - The filter criteria for runs including optional runName, experimentName, runId and runStatus
+ * @returns Object containing processed versions of each filter field:
+ *          - runName: Array of run names or undefined
+ *          - experimentName: Array of experiment names or undefined
+ *          - runId: Array of run IDs or undefined
+ *          - runStatus: Array of RunStatus values after processing inclusion/exclusion rules
+ */
 function parseRunFilter(runFilter: RunFilter) {
   return {
     runName:
-      runFilter.runName == null ? undefined : arrayify(runFilter.runName, true),
+      runFilter.runName == null ? undefined : arrayify(runFilter.runName),
     experimentName:
       runFilter.experimentName == null
         ? undefined
-        : arrayify(runFilter.experimentName, true),
-    runId:
-      runFilter.runId == null ? undefined : arrayify(runFilter.runId, true),
+        : arrayify(runFilter.experimentName),
+    runId: runFilter.runId == null ? undefined : arrayify(runFilter.runId),
     runStatus: parseRunStatusFilter(runFilter.runStatus),
   };
 }
 
+/**
+ * Parses a run status filter and converts it into an array of RunStatus values.
+ * The filter can be a single RunStatus, an array of RunStatus values, or strings with a '-' prefix
+ * to indicate exclusion.
+ *
+ * If a status is prefixed with '-', it is excluded from the final set of statuses.
+ * If the first status begins with '-', the initial set includes all runStatuses, then removes the excluded ones.
+ * Otherwise, the initial set is empty and only includes explicitly specified statuses.
+ *
+ * @param runStatusFilter - A RunStatus, array of RunStatus values, or strings with '-' prefix for exclusion
+ * @returns Array of RunStatus values after applying inclusions/exclusions, or undefined if input is undefined
+ */
 function parseRunStatusFilter(runStatusFilter: RunFilter['runStatus']) {
   if (runStatusFilter == null) return undefined;
   const runStatusFilterArray = arrayify(runStatusFilter, true);
+  if (runStatusFilterArray.length === 0) return [];
   const include = new Set<RunStatus>(
     runStatusFilterArray[0].startsWith('-') ? runStatuses : undefined,
   );
@@ -698,10 +723,21 @@ function parseRunStatusFilter(runStatusFilter: RunFilter['runStatus']) {
   return Array.from(include);
 }
 
+/**
+ * Parses a LogFilter object by combining run filter parsing with log type filtering.
+ *
+ * Extends the parseRunFilter functionality to also handle the optional 'type' field
+ * specific to log filtering. The type field is converted to an array format if provided.
+ *
+ * @param logFilter - The filter criteria for logs, extending RunFilter with an optional type field
+ * @returns Object containing all parsed RunFilter fields plus:
+ *          - type: Array of log types or undefined
+ * @see {@link parseRunFilter}
+ */
 function parseLogFilter(logFilter: LogFilter) {
   return {
     ...parseRunFilter(logFilter),
-    type: logFilter.type == null ? undefined : arrayify(logFilter.type, true),
+    type: logFilter.type == null ? undefined : arrayify(logFilter.type),
   };
 }
 

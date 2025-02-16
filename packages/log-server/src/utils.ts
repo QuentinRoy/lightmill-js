@@ -1,13 +1,22 @@
 import { mapKeys } from 'remeda';
 import { SnakeCase, UnionToIntersection } from 'type-fest';
 import { snakeCase } from 'change-case';
-
+/**
+ * Converts a value to an array. If the value is already an array, it returns a copy of the array.
+ * If the value is undefined and `isEmptyWithUndefined` is true, it returns an empty array.
+ *
+ * @param value - The value to be converted to an array.
+ * @param isEmptyWithUndefined - A flag indicating whether to return an empty array if the value is undefined.
+ * @returns An array containing the value, or the value if the value was already an array, or an empty array
+  if the value is undefined and `isEmptyWithUndefined` is true.
+ */
 export function arrayify<T>(
   value: T | Readonly<T[]>,
   isEmptyWithUndefined?: false,
 ): T[];
+export function arrayify(value: undefined, isEmptyWithUndefined: true): [];
 export function arrayify<T>(
-  value: T | Readonly<T[]> | undefined,
+  value: T | Readonly<T[]>,
   isEmptyWithUndefined: true,
 ): T[];
 export function arrayify<T>(
