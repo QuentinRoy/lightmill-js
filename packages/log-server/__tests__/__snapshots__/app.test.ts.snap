@@ -20,7 +20,6 @@ exports[`logs > get /experiments/:experiment/logs > should return logs as csv if
     {
       "experimentName": "exp",
       "runStatus": "-canceled",
-      "type": undefined,
     },
   ],
 ]
@@ -41,7 +40,6 @@ exports[`logs > get /experiments/:experiment/logs > should return logs as json b
       "runStatus": [
         "-canceled",
       ],
-      "type": undefined,
     },
   ],
 ]
@@ -81,7 +79,6 @@ exports[`logs > get /experiments/:experiment/logs > should return logs as json i
       "runStatus": [
         "-canceled",
       ],
-      "type": undefined,
     },
   ],
 ]
@@ -121,7 +118,6 @@ exports[`logs > get /experiments/:experiment/logs > should return logs as json i
       "runStatus": [
         "-canceled",
       ],
-      "type": undefined,
     },
   ],
 ]

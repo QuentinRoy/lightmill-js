@@ -751,13 +751,15 @@ export type Log = {
   values: JsonObject;
 };
 
-type StoreErrorCode =
-  | 'RUN_EXISTS'
-  | 'LOG_NUMBER_EXISTS_IN_SEQUENCE'
-  | 'INVALID_LOG_NUMBER'
-  | 'RUN_NOT_FOUND'
-  | 'RUN_HAS_ENDED';
-export class StoreError extends Error {
+const storeErrorCodes = [
+  'RUN_EXISTS',
+  'LOG_NUMBER_EXISTS_IN_SEQUENCE',
+  'INVALID_LOG_NUMBER',
+  'RUN_NOT_FOUND',
+  'RUN_HAS_ENDED',
+] as const;
+type StoreErrorCode = (typeof storeErrorCodes)[number];
+class StoreError extends Error {
   code: StoreErrorCode;
   cause?: Error;
   constructor(message: string, code: StoreErrorCode, cause?: Error) {
@@ -769,3 +771,8 @@ export class StoreError extends Error {
     }
   }
 }
+const ExtendedStoreError = StoreError as typeof StoreError & {
+  [key in StoreErrorCode]: key;
+};
+Object.assign(ExtendedStoreError, storeErrorCodes);
+export { ExtendedStoreError as StoreError };

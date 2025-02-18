@@ -32,17 +32,9 @@ describe.concurrent('arrayify', () => {
 
 describe.concurrent('toSnakeCase', () => {
   it('converts an objects key to snake case', () => {
-    expect(
-      toSnakeCase({
-        foo: 'bar',
-        barBaz: 'qux',
-        quxQuux: 'quuz',
-      }),
-    ).toEqual({
-      foo: 'bar',
-      bar_baz: 'qux',
-      qux_quux: 'quuz',
-    });
+    expect(toSnakeCase({ foo: 'bar', barBaz: 'qux', quxQuux: 'quuz' })).toEqual(
+      { foo: 'bar', bar_baz: 'qux', qux_quux: 'quuz' },
+    );
   });
 });
 

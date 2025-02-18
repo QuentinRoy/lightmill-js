@@ -4,8 +4,8 @@ import request from 'supertest';
 import { afterEach, describe, beforeEach, it, vi, Mock } from 'vitest';
 import { Log, RunId, RunStatus, Store, StoreError } from '../src/store.js';
 import { LogServer } from '../src/app.js';
-import type { Body } from '@lightmill/log-api';
 import { arrayify } from '../src/utils.js';
+import { LogFilter, RunFilter } from '../dist/store.js';
 
 type MockStore = {
   [K in keyof Store]: Store[K] extends infer C extends (
@@ -28,7 +28,10 @@ function MockStore(): MockStore {
     resumeRun: vi.fn(async (...args) => {
       return;
     }),
-    getRuns: vi.fn(async (...args) => {
+    getRuns: vi.fn(async (filter) => {
+      if (isNoResultFilter(filter)) {
+        return [];
+      }
       return [
         {
           runId: 1 as RunId,
@@ -100,11 +103,7 @@ describe('sessions', () => {
       await api
         .put('/sessions/current')
         .send({ role: 'participant' })
-        .expect(201, {
-          role: 'participant',
-          runs: [],
-          status: 'ok',
-        });
+        .expect(201, { role: 'participant', runs: [] });
     });
 
     it('should refuse to create a session for an unknown role', async ({
@@ -113,17 +112,16 @@ describe('sessions', () => {
       await api.put('/sessions/current').send({ role: 'fake' }).expect(400);
     });
 
-    it('should accept the creation of an host session if there is no host password set on the server', async ({
+    it('should accept the creation of a host session if there is no host password set on the server', async ({
       expect,
     }) => {
       await api.put('/sessions/current').send({ role: 'host' }).expect(201, {
         role: 'host',
         runs: [],
-        status: 'ok',
       });
     });
 
-    it('should accept the creation of an host role if the provided password is correct', async ({
+    it('should accept the creation of a host role if the provided password is correct', async ({
       expect,
     }) => {
       let app = LogServer({
@@ -135,10 +133,10 @@ describe('sessions', () => {
       await api
         .put('/sessions/current')
         .send({ role: 'host', password: 'host password' })
-        .expect(201, { role: 'host', runs: [], status: 'ok' });
+        .expect(201, { role: 'host', runs: [] });
     });
 
-    it('should refuse the creation of an host role if the provided password is incorrect', async ({
+    it('should refuse the creation of a host role if the provided password is incorrect', async ({
       expect,
     }) => {
       let app = LogServer({
@@ -150,10 +148,7 @@ describe('sessions', () => {
       await req
         .put('/sessions/current')
         .send({ role: 'host', password: 'not the host password' })
-        .expect(403, {
-          message: 'Forbidden role: host',
-          status: 'error',
-        });
+        .expect(403, { message: 'Invalid password for role: host' });
     });
   });
 
@@ -161,10 +156,9 @@ describe('sessions', () => {
     it('should return an error if the session does not exists', async ({
       expect,
     }) => {
-      await api.get('/sessions/current').expect(404, {
-        message: 'No session found',
-        status: 'error',
-      });
+      await api
+        .get('/sessions/current')
+        .expect(404, { message: 'No session found' });
     });
 
     it('should return the current session if it exists', async ({ expect }) => {
@@ -172,7 +166,6 @@ describe('sessions', () => {
       await api.get('/sessions/current').expect(200, {
         role: 'participant',
         runs: [],
-        status: 'ok',
       });
     });
   });
@@ -183,13 +176,12 @@ describe('sessions', () => {
     }) => {
       await api.delete('/sessions/current').expect(404, {
         message: 'No session found',
-        status: 'error',
       });
     });
 
     it('should delete the current session if it exists', async ({ expect }) => {
       await api.put('/sessions/current').send({ role: 'participant' });
-      await api.delete('/sessions/current').expect(200, { status: 'ok' });
+      await api.delete('/sessions/current').expect(200);
       await api.get('/sessions/current').expect(404);
     });
   });
@@ -198,6 +190,7 @@ describe('sessions', () => {
 describe('runs', () => {
   let store: MockStore;
   let api: request.Agent;
+
   beforeEach(async () => {
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(1234567890);
@@ -222,7 +215,6 @@ describe('runs', () => {
         .expect(201, {
           experimentName: 'addRun:experimentName',
           runName: 'addRun:runName',
-          status: 'ok',
           runStatus: 'idle',
         });
       expect(store.addRun).toHaveBeenCalledWith({
@@ -237,7 +229,6 @@ describe('runs', () => {
       await api.post('/runs').send({ runName: 'run' }).expect(201, {
         experimentName: 'addRun:experimentName',
         runName: 'addRun:runName',
-        status: 'ok',
         runStatus: 'idle',
       });
       expect(store.addRun).toHaveBeenCalledWith({
@@ -254,7 +245,6 @@ describe('runs', () => {
         .send({ experimentName: 'exp' })
         .expect(201);
       expect(resp.body).toEqual({
-        status: 'ok',
         experimentName: 'addRun:experimentName',
         runName: 'addRun:runName',
         runStatus: 'idle',
@@ -278,11 +268,9 @@ describe('runs', () => {
           {
             runName: 'getRun:runName',
             experimentName: 'getRun:experimentName',
-            runCreatedAt: '1970-01-15T06:56:07.890Z',
             runStatus: 'running',
           },
         ],
-        status: 'ok',
       });
     });
 
@@ -296,26 +284,25 @@ describe('runs', () => {
       await api
         .post('/runs')
         .send({ experimentName: 'exp-id', runName: 'run2' })
-        .expect(403, {
+        .expect(405, {
           message: 'Client already has started runs, end them first',
-          status: 'error',
         });
       expect(store.addRun).toHaveBeenCalledTimes(1);
     });
 
-    it('should refuse to create a run if the run id already exists', async ({
+    it('should refuse to create a run if a run with this name already exists for this experiment', async ({
       expect,
     }) => {
       store.addRun.mockImplementation(async ({ runName }) => {
-        throw new StoreError(`run "${runName}" already exists`, 'RUN_EXISTS');
+        throw new StoreError(
+          `run "${runName}" already exists`,
+          StoreError.RUN_EXISTS,
+        );
       });
       await api
         .post('/runs')
         .send({ experimentName: 'exp-id', runName: 'run-id' })
-        .expect(403, {
-          status: 'error',
-          message: 'run "run-id" already exists',
-        });
+        .expect(405, { message: 'run "run-id" already exists' });
     });
   });
 
@@ -324,10 +311,7 @@ describe('runs', () => {
       expect,
     }) => {
       store.getRuns.mockImplementation(async () => []);
-      await api.get('/experiments/exp/runs/not-my-run').expect(403, {
-        status: 'error',
-        message: `Client does not have permission to access run "not-my-run" of experiment "exp"`,
-      });
+      await api.get('/experiments/exp/runs/not-my-run').expect(404);
     });
 
     it('should return an error if the client does not have access to this particular run', async ({
@@ -348,10 +332,7 @@ describe('runs', () => {
         }
         return myRuns;
       });
-      await api.get('/experiments/exp/runs/not-my-run').expect(403, {
-        status: 'error',
-        message: `Client does not have permission to access run "not-my-run" of experiment "exp"`,
-      });
+      await api.get('/experiments/exp/runs/not-my-run').expect(404);
     });
 
     it('should return some run information otherwise', async ({ expect }) => {
@@ -360,16 +341,14 @@ describe('runs', () => {
         .send({ experimentName: 'exp', runName: 'my-run' })
         .expect(201);
       await api.get('/experiments/exp-id/runs/my-run').expect(200, {
-        status: 'ok',
-        run: {
-          runName: 'getRun:runName',
-          experimentName: 'getRun:experimentName',
-          runStatus: 'running',
-          logs: [
-            { type: 'summary:type-1', count: 11, lastNumber: 12, pending: 13 },
-            { type: 'summary:type-2', count: 21, lastNumber: 22, pending: 23 },
-          ],
-        },
+        runName: 'getRun:runName',
+        experimentName: 'getRun:experimentName',
+        runCreatedAt: '1970-01-15T06:56:07.890Z',
+        runStatus: 'running',
+        logs: [
+          { type: 'summary:type-1', count: 11, lastNumber: 12, pending: 13 },
+          { type: 'summary:type-2', count: 21, lastNumber: 22, pending: 23 },
+        ],
       });
     });
   });
@@ -382,10 +361,7 @@ describe('runs', () => {
       await api
         .patch('/experiments/exp/runs/not-my-run')
         .send({ runStatus: 'completed' })
-        .expect(403, {
-          status: 'error',
-          message: `Client does not have permission to access run "not-my-run" of experiment "exp"`,
-        });
+        .expect(404);
       expect(store.resumeRun).not.toHaveBeenCalled();
       expect(store.setRunStatus).not.toHaveBeenCalled();
     });
@@ -403,7 +379,10 @@ describe('runs', () => {
         },
       ];
       store.getRuns.mockImplementation(async (filter) => {
-        if (arrayify(filter?.runName, true).includes('not-my-run')) {
+        if (
+          arrayify(filter?.runName, true).includes('not-my-run') ||
+          isNoResultFilter(filter)
+        ) {
           return [];
         }
         return myRuns;
@@ -415,10 +394,7 @@ describe('runs', () => {
       await api
         .patch('/experiments/exp/runs/not-my-run')
         .send({ runStatus: 'completed' })
-        .expect(403, {
-          status: 'error',
-          message: `Client does not have permission to access run "not-my-run" of experiment "exp"`,
-        });
+        .expect(404);
       expect(store.setRunStatus).not.toHaveBeenCalled();
       expect(store.resumeRun).not.toHaveBeenCalled();
     });
@@ -430,10 +406,7 @@ describe('runs', () => {
       await api
         .patch('/experiments/exp/runs/not-my-run')
         .send({ resumeFrom: 10, runStatus: 'running' })
-        .expect(403, {
-          status: 'error',
-          message: `Client does not have permission to access run "not-my-run" of experiment "exp"`,
-        });
+        .expect(404);
       expect(store.resumeRun).not.toHaveBeenCalled();
       expect(store.setRunStatus).not.toHaveBeenCalled();
     });
@@ -451,7 +424,10 @@ describe('runs', () => {
         },
       ];
       store.getRuns.mockImplementation(async (filter) => {
-        if (arrayify(filter?.runName, true).includes('not-my-run')) {
+        if (
+          arrayify(filter?.runName, true).includes('not-my-run') ||
+          isNoResultFilter(filter)
+        ) {
           return [];
         }
         return myRuns;
@@ -463,10 +439,7 @@ describe('runs', () => {
       await api
         .patch('/experiments/exp/runs/not-my-run')
         .send({ resumeFrom: 10, runStatus: 'running' })
-        .expect(403, {
-          status: 'error',
-          message: `Client does not have permission to access run "not-my-run" of experiment "exp"`,
-        });
+        .expect(404);
       expect(store.resumeRun).not.toHaveBeenCalled();
       expect(store.setRunStatus).not.toHaveBeenCalled();
     });
@@ -482,15 +455,9 @@ describe('runs', () => {
         runCreatedAt: vi.getMockedSystemTime() ?? new Date(),
       };
       store.addRun.mockImplementation(async () => storeRun);
-      store.getRuns.mockImplementation(async (opt) => {
-        if (
-          opt?.runId === storeRun.runId ||
-          (Array.isArray(opt?.runId) && opt.runId.includes(storeRun.runId))
-        ) {
-          return [storeRun];
-        }
-        return [];
-      });
+      store.getRuns.mockImplementation(async (filter) =>
+        isNoResultFilter(filter) ? [] : [storeRun],
+      );
       await api
         .post('/runs')
         .send({ experimentName: 'my-exp', runName: 'my-run' })
@@ -498,7 +465,7 @@ describe('runs', () => {
       await api
         .patch('/experiments/my-exp/runs/my-run')
         .send({ runStatus: 'completed' })
-        .expect(200, { status: 'ok' });
+        .expect(200);
       expect(store.setRunStatus).toHaveBeenCalledWith(999, 'completed');
       expect(store.resumeRun).not.toHaveBeenCalled();
     });
@@ -513,7 +480,7 @@ describe('runs', () => {
       await api
         .patch('/experiments/my-exp/runs/my-run')
         .send({ runStatus: 'canceled' })
-        .expect(200, { status: 'ok' });
+        .expect(200);
       expect(store.setRunStatus).toHaveBeenCalledWith(1, 'canceled');
       expect(store.resumeRun).not.toHaveBeenCalled();
     });
@@ -521,16 +488,18 @@ describe('runs', () => {
     it('should refuse to change the status of a completed run', async ({
       expect,
     }) => {
-      store.getRuns.mockImplementation(async () => {
-        return [
-          {
-            runId: 1 as RunId,
-            runName: 'getRun:runName',
-            experimentName: 'getRun:experimentName',
-            runStatus: 'completed' as const,
-            runCreatedAt: vi.getMockedSystemTime() ?? new Date(),
-          },
-        ];
+      store.getRuns.mockImplementation(async (filter) => {
+        return isNoResultFilter(filter)
+          ? []
+          : [
+              {
+                runId: 1 as RunId,
+                runName: 'getRun:runName',
+                experimentName: 'getRun:experimentName',
+                runStatus: 'completed' as const,
+                runCreatedAt: vi.getMockedSystemTime() ?? new Date(),
+              },
+            ];
       });
       await api
         .post('/runs')
@@ -539,17 +508,11 @@ describe('runs', () => {
       await api
         .patch('/experiments/exp-id/runs/my-run')
         .send({ runStatus: 'canceled' })
-        .expect(400, {
-          status: 'error',
-          message: 'Cannot cancel a completed run',
-        });
+        .expect(405, { message: 'Cannot cancel a completed run' });
       await api
         .patch('/experiments/exp-id/runs/my-run')
         .send({ runStatus: 'completed' })
-        .expect(400, {
-          status: 'error',
-          message: 'Run is already completed',
-        });
+        .expect(405, { message: 'Run is already completed' });
       expect(store.setRunStatus).not.toHaveBeenCalled();
       expect(store.resumeRun).not.toHaveBeenCalled();
     });
@@ -557,16 +520,18 @@ describe('runs', () => {
     it('should refuse to change the status of a canceled run', async ({
       expect,
     }) => {
-      store.getRuns.mockImplementation(async () => {
-        return [
-          {
-            runId: 1 as RunId,
-            runName: 'getRun:runName',
-            experimentName: 'getRun:experimentName',
-            runStatus: 'canceled' as const,
-            runCreatedAt: vi.getMockedSystemTime() ?? new Date(),
-          },
-        ];
+      store.getRuns.mockImplementation(async (filter) => {
+        return isNoResultFilter(filter)
+          ? []
+          : [
+              {
+                runId: 1 as RunId,
+                runName: 'getRun:runName',
+                experimentName: 'getRun:experimentName',
+                runStatus: 'canceled' as const,
+                runCreatedAt: vi.getMockedSystemTime() ?? new Date(),
+              },
+            ];
       });
       await api
         .post('/runs')
@@ -575,15 +540,13 @@ describe('runs', () => {
       await api
         .patch('/experiments/exp-id/runs/my-run')
         .send({ runStatus: 'completed' })
-        .expect(400, {
-          status: 'error',
+        .expect(405, {
           message: 'Cannot complete a canceled run',
         });
       await api
         .patch('/experiments/exp-id/runs/my-run')
         .send({ runStatus: 'canceled' })
-        .expect(400, {
-          status: 'error',
+        .expect(405, {
           message: 'Run is already canceled',
         });
       expect(store.setRunStatus).not.toHaveBeenCalled();
@@ -600,7 +563,7 @@ describe('runs', () => {
       await api
         .patch('/experiments/exp/runs/my-run')
         .send({ runStatus: 'running', resumeFrom: 15 })
-        .expect(200, { status: 'ok' });
+        .expect(200);
       expect(store.setRunStatus).not.toHaveBeenCalled();
       expect(store.resumeRun).toHaveBeenCalledWith(1, { from: 15 });
     });
@@ -616,7 +579,9 @@ describe('runs', () => {
         runCreatedAt: vi.getMockedSystemTime() ?? new Date(),
       };
       store.addRun.mockImplementation(async () => myRun);
-      store.getRuns.mockImplementation(async () => [myRun]);
+      store.getRuns.mockImplementation(async (filter) =>
+        isNoResultFilter(filter) ? [] : [myRun],
+      );
       await api
         .post('/runs')
         .send({ experimentName: 'exp', runName: 'my-run' })
@@ -624,7 +589,7 @@ describe('runs', () => {
       await api
         .patch('/experiments/exp/runs/my-run')
         .send({ runStatus: 'running', resumeFrom: 12 })
-        .expect(200, { status: 'ok' });
+        .expect(200);
       expect(store.resumeRun).toHaveBeenCalledWith(666, { from: 12 });
     });
 
@@ -647,10 +612,7 @@ describe('runs', () => {
       await api
         .patch('/experiments/exp/runs/my-run')
         .send({ runStatus: 'running', resumeFrom: 15 })
-        .expect(400, {
-          status: 'error',
-          message: `Cannot resume a completed run`,
-        });
+        .expect(405, { message: `Cannot resume a completed run` });
       expect(store.resumeRun).not.toHaveBeenCalled();
     });
 
@@ -673,10 +635,7 @@ describe('runs', () => {
       await api
         .patch('/experiments/exp/runs/my-run')
         .send({ runStatus: 'running', resumeFrom: 15 })
-        .expect(400, {
-          status: 'error',
-          message: `Cannot resume a canceled run`,
-        });
+        .expect(405, { message: `Cannot resume a canceled run` });
       expect(store.resumeRun).not.toHaveBeenCalled();
     });
   });
@@ -705,14 +664,12 @@ describe('logs', () => {
         runCreatedAt: vi.getMockedSystemTime() ?? new Date(),
       };
       store = MockStore();
-      let app = LogServer({
-        store,
-        secret: 'secret',
-        secureCookies: false,
-      });
+      let app = LogServer({ store, secret: 'secret', secureCookies: false });
       api = request.agent(app);
       store.addRun.mockImplementation(async () => myRun);
-      store.getRuns.mockImplementation(async () => [myRun]);
+      store.getRuns.mockImplementation(async (filter) =>
+        isNoResultFilter(filter) ? [] : [myRun],
+      );
       await api.post('/sessions').send({ role: 'participant' });
       await api
         .post('/runs')
@@ -722,16 +679,14 @@ describe('logs', () => {
       vi.useRealTimers();
     });
 
-    type PostLogsBody = Body<
-      'post',
-      '/experiments/:experimentName/runs/:runName/logs'
-    >;
-
     it('should refuse to add logs if the client does not have access to the run', async ({
       expect,
     }) => {
       store.getRuns.mockImplementation(async (filter) => {
-        if (arrayify(filter?.runName, true).includes('not-my-run')) {
+        if (
+          arrayify(filter?.runName, true).includes('not-my-run') ||
+          isNoResultFilter(filter)
+        ) {
           return [];
         } else {
           return [myRun];
@@ -740,17 +695,15 @@ describe('logs', () => {
       await api
         .post('/experiments/test-exp/runs/not-my-run/logs')
         .send({
-          log: {
-            type: 'test-log',
-            values: { p1: 'v1', p2: 'v2' },
-            number: 1,
-          },
-        } satisfies PostLogsBody)
-        .expect(403, {
-          status: 'error',
-          message:
-            'Client does not have permission to add logs to run "not-my-run" of experiment "test-exp"',
-        });
+          logs: [
+            {
+              type: 'test-log',
+              values: { p1: 'v1', p2: 'v2' },
+              number: 1,
+            },
+          ],
+        })
+        .expect(404);
       expect(store.addLogs).not.toHaveBeenCalled();
     });
 
@@ -758,13 +711,11 @@ describe('logs', () => {
       await api
         .post('/experiments/test-exp/runs/test-run/logs')
         .send({
-          log: {
-            type: 'test-log',
-            values: { p1: 'v1', p2: 'v2' },
-            number: 1,
-          },
-        } satisfies PostLogsBody)
-        .expect(201, { status: 'ok' });
+          logs: [
+            { type: 'test-log', values: { p1: 'v1', p2: 'v2' }, number: 1 },
+          ],
+        })
+        .expect(201);
       expect(store.addLogs).toHaveBeenCalledWith(myRun.runId, [
         {
           type: 'test-log',
@@ -782,17 +733,15 @@ describe('logs', () => {
             { type: 'test-log', values: { p1: 'v1', p2: 'v2' }, number: 1 },
             { type: 'test-log', values: { p3: 'v3', p4: 'v4' }, number: 2 },
           ],
-        } satisfies PostLogsBody)
-        .expect(201, { status: 'ok' });
+        })
+        .expect(201);
       expect(store.addLogs).toHaveBeenCalledWith(myRun.runId, [
         { type: 'test-log', values: { p1: 'v1', p2: 'v2' }, number: 1 },
         { type: 'test-log', values: { p3: 'v3', p4: 'v4' }, number: 2 },
       ]);
     });
 
-    it('should refuse to add logs if the store says that their number is already used', async ({
-      expect,
-    }) => {
+    it('should refuse to add logs if the store says that their number is already used', async () => {
       store.addLogs.mockImplementation(async () => {
         throw new StoreError(
           'Log number 2 is already used',
@@ -806,11 +755,8 @@ describe('logs', () => {
             { type: 'test-log', values: { p1: 'v4', p2: 'v5' }, number: 2 },
             { type: 'test-log', values: { p3: 'v3', p4: 'v4' }, number: 3 },
           ],
-        } satisfies PostLogsBody)
-        .expect(403, {
-          status: 'error',
-          message: 'Log number 2 is already used',
-        });
+        })
+        .expect(405, { message: 'Log number 2 is already used' });
     });
   });
 
@@ -827,7 +773,7 @@ describe('logs', () => {
       vi.useRealTimers();
     });
 
-    it('should refuse to fetch logs if the client is not logged as an host', async ({
+    it('should refuse to fetch logs if the client is not logged as host', async ({
       expect,
     }) => {
       await api.delete('/sessions/current').expect(200);
@@ -835,10 +781,9 @@ describe('logs', () => {
         .put('/sessions/current')
         .send({ role: 'participant' })
         .expect(201);
-      await api.get('/experiments/exp/logs').expect(403, {
-        status: 'error',
-        message: 'Access restricted.',
-      });
+      await api
+        .get('/experiments/exp/logs')
+        .expect(404, { message: 'Experiment not found' });
       expect(store.getLogs).not.toHaveBeenCalled();
     });
 
@@ -896,3 +841,21 @@ describe('logs', () => {
     });
   });
 });
+
+function isEmptyArray(value: unknown): value is [] {
+  return Array.isArray(value) && value.length === 0;
+}
+
+const keys: Array<keyof LogFilter | keyof RunFilter> = [
+  'experimentName',
+  'runId',
+  'runName',
+  'runStatus',
+  'type',
+];
+function isNoResultFilter<Filter extends LogFilter | RunFilter>(
+  filter?: Filter,
+) {
+  if (filter == null) return false;
+  return keys.some((key) => isEmptyArray(filter[key as keyof Filter]));
+}

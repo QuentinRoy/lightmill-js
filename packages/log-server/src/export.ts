@@ -94,9 +94,9 @@ async function* stringifyLogs(logs: AsyncIterable<Log>) {
   yield '[';
   let started = false;
   for await (let log of logs) {
-    yield started ? ',' : '';
+    let prefix = started ? ',\n' : '\n';
     started = true;
-    yield JSON.stringify(
+    let content = JSON.stringify(
       pipe(
         log,
         pickBy((v, k) => jsonLogColumns.includes(k)),
@@ -104,8 +104,9 @@ async function* stringifyLogs(logs: AsyncIterable<Log>) {
       ),
       stringifyDateSerializer,
     );
+    yield `${prefix}${content}`;
   }
-  yield ']';
+  yield '\n]';
 }
 
 function stringifyDateSerializer(key: string, value: unknown) {

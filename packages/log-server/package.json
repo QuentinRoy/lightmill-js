@@ -46,6 +46,8 @@
   "dependencies": {
     "@lightmill/log-api": "workspace:*",
     "@paralleldrive/cuid2": "^2.2.2",
+    "@ts-rest/core": "^3.52.0",
+    "@ts-rest/express": "^3.52.0",
     "@zodios/core": "^10.9.6",
     "@zodios/express": "^10.6.1",
     "axios": "^1.6.5",

@@ -379,6 +379,7 @@ describe('SQLiteStore#getRuns', () => {
     await expect(store.getRuns({ runStatus: [] })).resolves.toEqual([]);
     await expect(store.getRuns({ runName: [] })).resolves.toEqual([]);
     await expect(store.getRuns({ experimentName: [] })).resolves.toEqual([]);
+    await expect(store.getRuns({ runId: [] })).resolves.toEqual([]);
     await expect(
       store.getRuns({ experimentName: [], runStatus: 'completed' }),
     ).resolves.toEqual([]);
