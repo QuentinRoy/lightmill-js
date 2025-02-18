@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { afterAll, afterEach, beforeAll } from 'vitest';
 import { setupServer } from 'msw/node';
 import { getServerHandlers } from '../__mocks__/handlers.js';
-import { paths } from '../src/api.js';
+import { paths } from '../generated/api.js';
 
 type Method = 'get' | 'post' | 'delete' | 'patch';
 

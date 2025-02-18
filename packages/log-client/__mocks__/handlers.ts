@@ -1,11 +1,3 @@
-import type {
-  Error as ApiErrorResponse,
-  Response as ApiOkResponse,
-  Path,
-  Body as ApiBody,
-  Method,
-  PathParams,
-} from '@lightmill/log-api';
 import {
   HttpHandler,
   HttpResponse,
@@ -57,14 +49,12 @@ export function getServerHandlers({
   return [
     get('/sessions/current', () =>
       HttpResponse.json({
-        status: 'ok',
         role: 'participant',
         runs: runs.map((run) => ({ runStatus: 'running' as const, ...run })),
       }),
     ),
     put('/sessions/current', () =>
       HttpResponse.json({
-        status: 'ok',
         role: 'participant',
         runs: runs.map((run) => ({ runStatus: 'running', ...run })),
       }),
@@ -72,8 +62,10 @@ export function getServerHandlers({
     del('/sessions/current', () => HttpResponse.json({ status: 'ok' })),
     post('/runs', async ({ request }) => {
       let body = await request.json();
+      if (typeof body !== 'object') {
+        throw new Error('Unexpected body type');
+      }
       return HttpResponse.json({
-        status: 'ok',
         runStatus: 'running',
         runName: body?.runName ?? 'default-run-id',
         experimentName: body?.experimentName ?? 'default-experiment-id',
@@ -82,35 +74,27 @@ export function getServerHandlers({
     get('/experiments/:experimentName/runs/:runName', ({ params }) => {
       const run = getRun(params);
       if (run == null) {
-        return HttpResponse.json(
-          { status: 'error', message: 'Run not found' },
-          { status: 404 },
-        );
+        return HttpResponse.json({ message: 'Run not found' }, { status: 404 });
       }
       return HttpResponse.json({
-        status: 'ok',
-        run: { runStatus: 'running', logs: [], ...run },
+        runStatus: 'running',
+        logs: [],
+        ...run,
       });
     }),
     patch('/experiments/:experimentName/runs/:runName', ({ params }) => {
       const run = getRun(params);
       if (run == null) {
-        return HttpResponse.json(
-          { status: 'error', message: 'Run not found' },
-          { status: 404 },
-        );
+        return HttpResponse.json({ message: 'Run not found' }, { status: 404 });
       }
-      return HttpResponse.json({ status: 'ok' });
+      return HttpResponse.json();
     }),
     post('/experiments/:experimentName/runs/:runName/logs', ({ params }) => {
       const run = getRun(params);
       if (run == null) {
-        return HttpResponse.json(
-          { status: 'error', message: 'Run not found' },
-          { status: 404 },
-        );
+        return HttpResponse.json({ message: 'Run not found' }, { status: 404 });
       }
-      return HttpResponse.json({ status: 'ok' });
+      return HttpResponse.json();
     }),
   ];
 }
@@ -125,22 +109,5 @@ function createMethods(baseUrl: string) {
       http[method](`${baseUrl}${path}`, handler);
   }
 
-  return result as {
-    [K in Method]: <P extends Path<K>>(
-      path: P,
-      handler: HttpResponseResolver<
-        // PathParams allow stuff like number or booleans, but msw does not.
-        {
-          [Key in keyof PathParams<K, P>]: PathParams<
-            K,
-            P
-          >[Key] extends unknown[]
-            ? string[]
-            : string;
-        },
-        ApiBody<K, P>,
-        ApiOkResponse<K, P> | ApiErrorResponse<K, P>
-      >,
-    ) => HttpHandler;
-  };
+  return result;
 }
