@@ -110,7 +110,7 @@ export class LogClient<ClientLog extends Typed & OptionallyDated = AnyLog> {
         if (answer.error) {
           throw new RequestError(answer.response, answer.error.message);
         }
-        return answer.data.run;
+        return answer.data;
       }),
     );
     return matchingRunInfos
@@ -178,7 +178,7 @@ export class LogClient<ClientLog extends Typed & OptionallyDated = AnyLog> {
       this.#runStatus = 'error';
       throw new RequestError(answer.response, answer.error.message);
     }
-    let { run: runInfo } = answer.data;
+    let runInfo = answer.data;
     let resumeAfterLastSet = new Set<string>(
       Array.isArray(resumeAfterLast) ? resumeAfterLast : [resumeAfterLast],
     );
