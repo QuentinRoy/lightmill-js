@@ -21,12 +21,13 @@
     "openapi.json"
   ],
   "scripts": {
-    "build": "tsc -b tsconfig.build.json",
+    "build": "tsc -b tsconfig.build.json && pnpm run generate-openapi",
     "generate-openapi": "tsx ./scripts/generate-openapi.ts > ./openapi.json",
-    "prepublish": "pnpm run build && pnpm run generate-openapi"
+    "prepublish": "pnpm run build"
   },
   "devDependencies": {
     "@types/node": "catalog:",
+    "tsx": "^4.19.2",
     "typescript": "catalog:",
     "vite": "catalog:",
     "vitest": "catalog:"
