@@ -58,7 +58,7 @@ export function csvExportStream(
           ...baseLog,
           ...pipe(
             log,
-            pickBy((v, k) => logColumnFilter(k)),
+            pickBy((_v, k) => logColumnFilter(k)),
             mapKeys((key) => renamedLogColumns[key] ?? key),
           ),
           ...log.values,
@@ -99,7 +99,7 @@ async function* stringifyLogs(logs: AsyncIterable<Log>) {
     let content = JSON.stringify(
       pipe(
         log,
-        pickBy((v, k) => jsonLogColumns.includes(k)),
+        pickBy((_v, k) => jsonLogColumns.includes(k)),
         mapKeys((key) => renamedLogColumns[key] ?? key),
       ),
       stringifyDateSerializer,
@@ -109,7 +109,7 @@ async function* stringifyLogs(logs: AsyncIterable<Log>) {
   yield '\n]';
 }
 
-function stringifyDateSerializer(key: string, value: unknown) {
+function stringifyDateSerializer(_key: string, value: unknown) {
   if (value instanceof Date) {
     return value.toISOString();
   }

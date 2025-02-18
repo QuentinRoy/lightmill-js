@@ -131,7 +131,7 @@ async function exportLogs({
     .pipe(
       new Transform({
         writableObjectMode: true,
-        transform(chunk, encoding, callback) {
+        transform(chunk, _encoding, callback) {
           process.stdout.cursorTo(0);
           logCount += 1;
           process.stdout.write(
@@ -182,7 +182,7 @@ async function migrateDatabase({ database }: MigrateDatabaseParameter) {
 // Command line interface
 // ----------------------
 
-yargs(process.argv.slice(2))
+const _a = yargs(process.argv.slice(2))
   .command(
     'start',
     'Start the server',

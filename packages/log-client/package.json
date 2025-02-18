@@ -18,6 +18,7 @@
     }
   },
   "devDependencies": {
+    "@lightmill/log-api": "workspace:*",
     "@types/throttle-debounce": "^5.0.2",
     "cross-env": "^7.0.3",
     "msw": "^2.0.13",
@@ -26,16 +27,15 @@
     "vitest": "catalog:"
   },
   "dependencies": {
-    "@lightmill/log-api": "workspace:*",
     "openapi-fetch": "^0.13.4",
     "openapi-typescript": "^7.6.1",
     "throttle-debounce": "^5.0.0"
   },
   "scripts": {
     "test": "cross-env NODE_ENV=test vitest",
-    "build": "tsc -b tsconfig.build.json",
-    "postinstall": "openapi-typescript node_modules/@lightmill/log-api/openapi.json --output ./generated/api.d.ts",
-    "prepublish": "pnpm run build"
+    "generate-openapi-types": "openapi-typescript node_modules/@lightmill/log-api/openapi.json --output ./generated/api.d.ts",
+    "build": "pnpm run generate-openapi-types && tsc -b tsconfig.build.json",
+    "prepublish": " pnpm run build"
   },
   "keywords": [
     "logger",

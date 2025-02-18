@@ -1,3 +1,4 @@
+/* eslint-disable react/display-name */
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import userEventPackage from '@testing-library/user-event';
 import { Run, RunElements, useTask } from '../src/main.js';
@@ -25,7 +26,7 @@ describe('run', () => {
   };
 
   beforeEach(() => {
-    Task = ({ type, dataProp }) => {
+    Task = ({ type, dataProp }: { type: string; dataProp: string }) => {
       let { task, onTaskCompleted } = useTask(type);
       return (
         <div>
@@ -283,7 +284,9 @@ describe('run', () => {
             expect(() => f()).toThrowErrorMatchingInlineSnapshot(
               `[Error: Task already completed]`,
             );
-          } catch (e) {}
+          } catch (_e) {
+            // Nothing to do.
+          }
         } else {
           f();
         }

@@ -62,10 +62,10 @@ export function Run<const T extends RegisteredTask>({
           {elements.loading}
         </loggerContext.Provider>
       );
-    default:
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    default: {
       let _exhaustiveCheck: never = state;
       throw new Error('Unhandled timeline state');
+    }
   }
 }
 

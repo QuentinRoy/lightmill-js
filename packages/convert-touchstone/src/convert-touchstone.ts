@@ -60,7 +60,7 @@ type DefinedMapperOptions<T> = {
 
 /**
  * @param touchStoneXML The XML to parse.
- * @param [options] Options
+ * @param [options] Options for mapping tasks to different stages of the experiment
  * @return The experimental design converted into a format
  * supported by @lightmill/static-design.
  *

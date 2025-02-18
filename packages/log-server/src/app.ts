@@ -10,6 +10,7 @@ import { createExpressEndpoints, initServer } from '@ts-rest/express';
 import { pick } from 'remeda';
 
 declare global {
+  // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace CookieSessionInterfaces {
     interface CookieSessionObject {
       role: 'participant' | 'host';
