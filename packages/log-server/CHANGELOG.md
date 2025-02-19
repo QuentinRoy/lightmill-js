@@ -1,5 +1,16 @@
 # @lightmill/log-server
 
+## 3.0.0-beta.33
+
+### Major Changes
+
+- 41c5314: Update to new API.
+
+### Patch Changes
+
+- Updated dependencies [07e75b4]
+  - @lightmill/log-api@3.0.0-beta.33
+
 ## 3.0.0-beta.32
 
 ### Minor Changes

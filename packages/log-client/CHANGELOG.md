@@ -1,5 +1,11 @@
 # @lightmill/log-client
 
+## 3.0.0-beta.33
+
+### Major Changes
+
+- 12752c2: Drop support to older log-server versions
+
 ## 3.0.0-beta.28
 
 ### Patch Changes
