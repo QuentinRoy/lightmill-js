@@ -40,10 +40,7 @@ export const runStatus: z.ZodType<RunStatus> = z.enum([
 ]);
 
 export const run = z
-  .object({
-    experimentName: z.string(),
-    runName: z.string(),
-  })
+  .object({ experimentName: z.string(), runName: z.string() })
   .strict();
 export type Run = z.output<typeof run>;
 

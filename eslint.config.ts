@@ -48,16 +48,11 @@ export default tseslint.config(
   },
   {
     files: ['packages/**/src/**/*@(.mjs|.js|.ts|.cjs|.jsx|.tsx)'],
-    rules: {
-      'no-console': 'error',
-    },
+    rules: { 'no-console': 'error' },
   },
   {
     files: ['*.cjs'],
-    languageOptions: {
-      sourceType: 'script',
-      globals: { ...globals.node },
-    },
+    languageOptions: { sourceType: 'script', globals: { ...globals.node } },
   },
   {
     files: [
@@ -65,8 +60,6 @@ export default tseslint.config(
       'scripts/**/*@(.mjs|.js|.ts|.cjs)',
       'packages/**/scripts/**/*@(.mjs|.js|.ts|.cjs)',
     ],
-    languageOptions: {
-      globals: { ...globals.node },
-    },
+    languageOptions: { globals: { ...globals.node } },
   },
 ) as Linter.Config[];

@@ -83,9 +83,7 @@ export const contract = c.router(
       path: '/experiments/:experimentName/logs',
       pathParams: z.object({ experimentName: z.string() }),
       query: z
-        .object({
-          type: z.union([z.string(), z.array(z.string())]).optional(),
-        })
+        .object({ type: z.union([z.string(), z.array(z.string())]).optional() })
         .strict(),
       headers: z.object({
         Accept: z.enum(['text/csv', 'application/json']).optional(),
@@ -97,9 +95,7 @@ export const contract = c.router(
         // In generate-openapi.ts, we will use a custom mapper to specify the response for
         // the CSV content type.
         // 200: c.otherResponse({ contentType: 'text/csv', body: z.string() }),
-        200: schemas.okResponse.extend({
-          logs: z.array(schemas.log),
-        }),
+        200: schemas.okResponse.extend({ logs: z.array(schemas.log) }),
         404: schemas.errorResponse,
       },
       strictStatusCodes: false,

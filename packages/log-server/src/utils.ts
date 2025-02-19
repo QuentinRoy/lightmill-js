@@ -32,9 +32,7 @@ export function toSnakeCase<
 >(input: R) {
   return mapKeys(input, (key) =>
     typeof key === 'string' ? snakeCase(key) : key,
-  ) as unknown as {
-    [K in keyof R as SnakeCase<K>]: R[K];
-  };
+  ) as unknown as { [K in keyof R as SnakeCase<K>]: R[K] };
 }
 
 export function startsWith<S extends string, T extends string>(

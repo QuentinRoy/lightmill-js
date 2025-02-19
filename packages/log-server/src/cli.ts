@@ -157,9 +157,7 @@ async function exportLogs({
     });
 }
 
-type MigrateDatabaseParameter = {
-  database: string;
-};
+type MigrateDatabaseParameter = { database: string };
 async function migrateDatabase({ database }: MigrateDatabaseParameter) {
   let store = new SQLiteStore(database);
   let { error, results } = await store.migrateDatabase();
@@ -259,14 +257,8 @@ const _a = yargs(process.argv.slice(2))
           normalize: true,
           default: dbPath,
         })
-        .option('logType', {
-          alias: 't',
-          type: 'string',
-        })
-        .option('experimentName', {
-          alias: 'e',
-          type: 'string',
-        })
+        .option('logType', { alias: 't', type: 'string' })
+        .option('experimentName', { alias: 'e', type: 'string' })
         .strict()
         .help()
         .alias('help', 'h');

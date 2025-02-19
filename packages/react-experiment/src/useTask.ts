@@ -28,9 +28,6 @@ export function useTask(
     );
   }
   return React.useMemo(() => {
-    return {
-      task: state.task,
-      onTaskCompleted: state.onTaskCompleted,
-    };
+    return { task: state.task, onTaskCompleted: state.onTaskCompleted };
   }, [state]);
 }

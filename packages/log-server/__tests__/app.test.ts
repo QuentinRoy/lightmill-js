@@ -115,10 +115,10 @@ describe('sessions', () => {
     it('should accept the creation of a host session if there is no host password set on the server', async ({
       expect,
     }) => {
-      await api.put('/sessions/current').send({ role: 'host' }).expect(201, {
-        role: 'host',
-        runs: [],
-      });
+      await api
+        .put('/sessions/current')
+        .send({ role: 'host' })
+        .expect(201, { role: 'host', runs: [] });
     });
 
     it('should accept the creation of a host role if the provided password is correct', async ({
@@ -163,10 +163,9 @@ describe('sessions', () => {
 
     it('should return the current session if it exists', async ({ expect }) => {
       await api.put('/sessions/current').send({ role: 'participant' });
-      await api.get('/sessions/current').expect(200, {
-        role: 'participant',
-        runs: [],
-      });
+      await api
+        .get('/sessions/current')
+        .expect(200, { role: 'participant', runs: [] });
     });
   });
 
@@ -174,9 +173,9 @@ describe('sessions', () => {
     it('should return an error if the session does not exists', async ({
       expect,
     }) => {
-      await api.delete('/sessions/current').expect(404, {
-        message: 'No session found',
-      });
+      await api
+        .delete('/sessions/current')
+        .expect(404, { message: 'No session found' });
     });
 
     it('should delete the current session if it exists', async ({ expect }) => {
@@ -195,11 +194,7 @@ describe('runs', () => {
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(1234567890);
     store = MockStore();
-    let app = LogServer({
-      store,
-      secret: 'secret',
-      secureCookies: false,
-    });
+    let app = LogServer({ store, secret: 'secret', secureCookies: false });
     api = request.agent(app);
     await api.post('/sessions').send({ role: 'participant' });
   });
@@ -226,11 +221,14 @@ describe('runs', () => {
     it('should use the default experiment if the experiment is not named', async ({
       expect,
     }) => {
-      await api.post('/runs').send({ runName: 'run' }).expect(201, {
-        experimentName: 'addRun:experimentName',
-        runName: 'addRun:runName',
-        runStatus: 'idle',
-      });
+      await api
+        .post('/runs')
+        .send({ runName: 'run' })
+        .expect(201, {
+          experimentName: 'addRun:experimentName',
+          runName: 'addRun:runName',
+          runStatus: 'idle',
+        });
       expect(store.addRun).toHaveBeenCalledWith({
         experimentName: 'default',
         runName: 'run',
@@ -262,16 +260,18 @@ describe('runs', () => {
         .post('/runs')
         .send({ experimentName: 'exp-id', runName: 'run-id' })
         .expect(201);
-      await api.get('/sessions/current').expect(200, {
-        role: 'participant',
-        runs: [
-          {
-            runName: 'getRun:runName',
-            experimentName: 'getRun:experimentName',
-            runStatus: 'running',
-          },
-        ],
-      });
+      await api
+        .get('/sessions/current')
+        .expect(200, {
+          role: 'participant',
+          runs: [
+            {
+              runName: 'getRun:runName',
+              experimentName: 'getRun:experimentName',
+              runStatus: 'running',
+            },
+          ],
+        });
     });
 
     it('should refuse to create a run if participant already has one running', async ({
@@ -540,15 +540,11 @@ describe('runs', () => {
       await api
         .patch('/experiments/exp-id/runs/my-run')
         .send({ runStatus: 'completed' })
-        .expect(405, {
-          message: 'Cannot complete a canceled run',
-        });
+        .expect(405, { message: 'Cannot complete a canceled run' });
       await api
         .patch('/experiments/exp-id/runs/my-run')
         .send({ runStatus: 'canceled' })
-        .expect(405, {
-          message: 'Run is already canceled',
-        });
+        .expect(405, { message: 'Run is already canceled' });
       expect(store.setRunStatus).not.toHaveBeenCalled();
       expect(store.resumeRun).not.toHaveBeenCalled();
     });
@@ -696,11 +692,7 @@ describe('logs', () => {
         .post('/experiments/test-exp/runs/not-my-run/logs')
         .send({
           logs: [
-            {
-              type: 'test-log',
-              values: { p1: 'v1', p2: 'v2' },
-              number: 1,
-            },
+            { type: 'test-log', values: { p1: 'v1', p2: 'v2' }, number: 1 },
           ],
         })
         .expect(404);
@@ -717,11 +709,7 @@ describe('logs', () => {
         })
         .expect(201);
       expect(store.addLogs).toHaveBeenCalledWith(myRun.runId, [
-        {
-          type: 'test-log',
-          values: { p1: 'v1', p2: 'v2' },
-          number: 1,
-        },
+        { type: 'test-log', values: { p1: 'v1', p2: 'v2' }, number: 1 },
       ]);
     });
 

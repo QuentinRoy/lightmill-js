@@ -4,9 +4,7 @@ export interface RegisterExperiment {
   // log: Log;
 }
 
-export type Typed<T extends string = string> = {
-  type: T;
-};
+export type Typed<T extends string = string> = { type: T };
 
 export type AnyTask = Typed & { [key: PropertyKey]: unknown };
 

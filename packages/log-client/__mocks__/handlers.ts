@@ -76,11 +76,7 @@ export function getServerHandlers({
       if (run == null) {
         return HttpResponse.json({ message: 'Run not found' }, { status: 404 });
       }
-      return HttpResponse.json({
-        runStatus: 'running',
-        logs: [],
-        ...run,
-      });
+      return HttpResponse.json({ runStatus: 'running', logs: [], ...run });
     }),
     patch('/experiments/:experimentName/runs/:runName', ({ params }) => {
       const run = getRun(params);

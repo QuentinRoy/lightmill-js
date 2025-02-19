@@ -1,16 +1,9 @@
 import * as sax from 'sax';
 import type StaticDesign from '@lightmill/static-design';
 
-export type Experiment = {
-  author: string;
-  description: string;
-  id: string;
-};
+export type Experiment = { author: string; description: string; id: string };
 export type WithId = { id: string };
-export type Run<T extends MinimalTask> = {
-  id: string;
-  timeline: Array<T>;
-};
+export type Run<T extends MinimalTask> = { id: string; timeline: Array<T> };
 export type Trial = (
   | { practice: false; number: number; blockNumber: number }
   | { practice: true }
@@ -213,10 +206,7 @@ export default function convertTouchstone(
             ? {}
             : parseValues(trialNode.attributes.values, valueParsers);
         let trial: Trial = currentBlock.practice
-          ? {
-              ...currentBlock,
-              ...values,
-            }
+          ? { ...currentBlock, ...values }
           : {
               ...currentBlock,
               ...values,
@@ -418,11 +408,7 @@ function createTaskGetter<FArgs extends MapperArgs, T extends MinimalTask>(
     }
     return value.map((task) => {
       if (typeof task === 'string') {
-        return {
-          ...args[0],
-          type: task,
-          id: getId(task, undefined),
-        };
+        return { ...args[0], type: task, id: getId(task, undefined) };
       }
       let requestedId: string | undefined = undefined;
       if ('id' in task) {

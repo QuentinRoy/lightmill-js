@@ -79,9 +79,7 @@ export function LogServer({
       ) {
         return {
           status: 403,
-          body: {
-            message: `Invalid password for role: ${role}`,
-          },
+          body: { message: `Invalid password for role: ${role}` },
         };
       }
       const session = { role, runs: req.session?.runs ?? [] };
@@ -182,10 +180,7 @@ export function LogServer({
         runStatus: '-canceled',
       });
       if (matchingSessionRuns.length === 0) {
-        return {
-          status: 404,
-          body: { message: 'Run not found.' },
-        };
+        return { status: 404, body: { message: 'Run not found.' } };
       }
       if (matchingSessionRuns.length > 1) {
         throw new Error(
@@ -358,9 +353,7 @@ export function LogServer({
     },
   });
 
-  createExpressEndpoints(contract, router, app, {
-    logInitialization: false,
-  });
+  createExpressEndpoints(contract, router, app, { logInitialization: false });
   return app;
 }
 

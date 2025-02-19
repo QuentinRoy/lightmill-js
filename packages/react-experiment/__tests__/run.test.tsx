@@ -309,10 +309,7 @@ describe('run', () => {
       );
     };
     let config = {
-      tasks: {
-        bad: <BadTask />,
-        ok: <Task type="ok" dataProp="prop" />,
-      },
+      tasks: { bad: <BadTask />, ok: <Task type="ok" dataProp="prop" /> },
     };
     render(
       <Run

@@ -635,11 +635,7 @@ describe('SQLiteStore#addLogs', () => {
   it('should add non empty logs without error', async ({ expect }) => {
     await expect(
       store.addLogs(exp1run1, [
-        {
-          type: 'log',
-          number: 1,
-          values: { message: 'hello', bar: null },
-        },
+        { type: 'log', number: 1, values: { message: 'hello', bar: null } },
         {
           type: 'log',
           number: 2,
@@ -649,16 +645,8 @@ describe('SQLiteStore#addLogs', () => {
     ).resolves.toBeUndefined();
     await expect(
       store.addLogs(exp2run1, [
-        {
-          number: 3,
-          type: 'other-log',
-          values: { x: 12, foo: false },
-        },
-        {
-          number: 4,
-          type: 'log',
-          values: { message: 'hola' },
-        },
+        { number: 3, type: 'other-log', values: { x: 12, foo: false } },
+        { number: 4, type: 'log', values: { message: 'hola' } },
       ]),
     ).resolves.toBeUndefined();
   });
@@ -1020,23 +1008,11 @@ describe('SQLiteStore#getLogValueNames', () => {
       },
     ]);
     await store.addLogs(exp1run2, [
-      {
-        type: 'log2',
-        values: { x: 12, foo: false },
-        number: 3,
-      },
-      {
-        type: 'log1',
-        values: { message: 'hola', bar: null },
-        number: 4,
-      },
+      { type: 'log2', values: { x: 12, foo: false }, number: 3 },
+      { type: 'log1', values: { message: 'hola', bar: null }, number: 4 },
     ]);
     await store.addLogs(exp2run1, [
-      {
-        type: 'log2',
-        values: { x: 25, y: 0, foo: true },
-        number: 5,
-      },
+      { type: 'log2', values: { x: 25, y: 0, foo: true }, number: 5 },
     ]);
   });
   afterEach(async () => {
@@ -1274,10 +1250,7 @@ for (const limit of [10000, 2]) {
           runName: 'run2',
           runStatus: 'running',
           type: 'log2',
-          values: {
-            foo: false,
-            x: 12,
-          },
+          values: { foo: false, x: 12 },
         },
       ]);
       await expect(
@@ -1372,10 +1345,7 @@ for (const limit of [10000, 2]) {
           runName: 'run2',
           runStatus: 'running',
           type: 'log1',
-          values: {
-            bar: null,
-            message: 'hola',
-          },
+          values: { bar: null, message: 'hola' },
         },
       ]);
       await store.resumeRun(exp1Run2Id, { from: 1 });

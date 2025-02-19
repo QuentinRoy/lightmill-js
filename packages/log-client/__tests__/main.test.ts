@@ -8,9 +8,7 @@ import { paths } from '../generated/api.js';
 type Method = 'get' | 'post' | 'delete' | 'patch';
 
 type ApiBody<M extends Method, P extends keyof paths> = paths[P] extends {
-  [K in M]: {
-    requestBody: { content: { 'application/json': infer B } };
-  };
+  [K in M]: { requestBody: { content: { 'application/json': infer B } } };
 }
   ? B
   : paths[P] extends {
@@ -91,9 +89,7 @@ afterAll(() => {
 
 describe('LogClient#startRun', () => {
   it('should send a start request', async () => {
-    const logger = new LogClient({
-      apiRoot: 'https://server.test/api',
-    });
+    const logger = new LogClient({ apiRoot: 'https://server.test/api' });
     await logger.startRun();
     await expect(waitForChangeRequests()).resolves.toEqual([
       {
@@ -268,9 +264,7 @@ describe('LogClient#resumeRun', () => {
         ],
       },
     ]);
-    const logger = new LogClient({
-      apiRoot: 'https://server.test/api',
-    });
+    const logger = new LogClient({ apiRoot: 'https://server.test/api' });
     await expect(
       logger.resumeRun({
         resumeAfterLast: ['test-type1', 'test-type2'],
@@ -699,9 +693,7 @@ describe('LogClient#cancelRun', () => {
 
 describe('LogClient#logout', () => {
   it('should close the session', async () => {
-    const logger = new LogClient({
-      apiRoot: 'https://server.test/api',
-    });
+    const logger = new LogClient({ apiRoot: 'https://server.test/api' });
     await logger.startRun();
     clearRequests();
     await logger.logout();

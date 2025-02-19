@@ -49,9 +49,7 @@ export type RunFilter = ReadonlyDeep<{
 }>;
 
 export type LogFilter = RunFilter &
-  ReadonlyDeep<{
-    type?: string | string[] | undefined;
-  }>;
+  ReadonlyDeep<{ type?: string | string[] | undefined }>;
 
 export const RunId = z.number().brand('RunId');
 export type RunId = z.output<typeof RunId>;
@@ -222,11 +220,7 @@ export class SQLiteStore {
       }
       await trx
         .insertInto('logSequence')
-        .values({
-          runId,
-          sequenceNumber: lastSeqNumber + 1,
-          start: resumeFrom,
-        })
+        .values({ runId, sequenceNumber: lastSeqNumber + 1, start: resumeFrom })
         .returning(['runId'])
         .executeTakeFirstOrThrow();
     });
@@ -292,11 +286,7 @@ export class SQLiteStore {
 
   async addLogs(
     runId: RunId,
-    logs: Array<{
-      type: string;
-      number: number;
-      values: JsonObject;
-    }>,
+    logs: Array<{ type: string; number: number; values: JsonObject }>,
   ) {
     if (logs.length === 0) return;
     await this.#db.transaction().execute(async (trx) => {
@@ -626,11 +616,7 @@ export class SQLiteStore {
   async migrateDatabase() {
     let migrator = new Migrator({
       db: this.#db,
-      provider: new FileMigrationProvider({
-        fs,
-        path,
-        migrationFolder,
-      }),
+      provider: new FileMigrationProvider({ fs, path, migrationFolder }),
     });
     return migrator.migrateToLatest();
   }
