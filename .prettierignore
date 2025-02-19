@@ -1,6 +1,8 @@
 *.DS_Store
 **/node_modules
 packages/**/dist
+packages/**/generated
+packages/log-api/openapi.json
 **/coverage
 **/CHANGELOG.md
 pnpm-lock.yaml

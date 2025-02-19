@@ -13,12 +13,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: corepack enable
-      - name: Install Node.js 20.x.x
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+      - name: Install Node.js 22.x.x
         uses: actions/setup-node@v4
         with:
           cache: 'pnpm'
-          node-version: 20.x.x
+          node-version: 22.x.x
       - name: Install dependencies
         run: pnpm install
       - name: Create Release Pull Request or Publish to npm

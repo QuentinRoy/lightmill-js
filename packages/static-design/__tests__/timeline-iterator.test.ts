@@ -45,14 +45,8 @@ describe('RunIterator#next', () => {
       done: false,
       value: { id: 's05', type: 'mock-type-2', testData: 'trial-1-1' },
     });
-    expect(iterator.next()).toEqual({
-      done: true,
-      value: undefined,
-    });
-    expect(iterator.next()).toEqual({
-      done: true,
-      value: undefined,
-    });
+    expect(iterator.next()).toEqual({ done: true, value: undefined });
+    expect(iterator.next()).toEqual({ done: true, value: undefined });
   });
 
   it("resumes just after resumeAfter' s task", async () => {

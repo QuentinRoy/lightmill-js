@@ -50,8 +50,8 @@ const log = loglevel.getLogger('main');
 type StartParameter = {
   database: string;
   port: number;
-  secret?: string;
-  hostPassword?: string;
+  secret?: string | undefined;
+  hostPassword?: string | undefined;
 };
 async function start({
   database: dbPath,
@@ -103,18 +103,18 @@ async function start({
 type ExportLogsParameter = {
   database: string;
   format: 'json' | 'csv';
-  output?: string;
-  logType?: string;
-  experimentId?: string;
+  output?: string | undefined;
+  logType?: string | undefined;
+  experimentName?: string | undefined;
 };
 async function exportLogs({
   database,
   format,
   logType,
-  experimentId,
+  experimentName,
   output = undefined,
 }: ExportLogsParameter) {
-  let filter = { type: logType, experimentId };
+  let filter = { type: logType, experimentName };
   let store = new SQLiteStore(database);
   let stream =
     format === 'csv'
@@ -131,7 +131,7 @@ async function exportLogs({
     .pipe(
       new Transform({
         writableObjectMode: true,
-        transform(chunk, encoding, callback) {
+        transform(chunk, _encoding, callback) {
           process.stdout.cursorTo(0);
           logCount += 1;
           process.stdout.write(
@@ -157,9 +157,7 @@ async function exportLogs({
     });
 }
 
-type MigrateDatabaseParameter = {
-  database: string;
-};
+type MigrateDatabaseParameter = { database: string };
 async function migrateDatabase({ database }: MigrateDatabaseParameter) {
   let store = new SQLiteStore(database);
   let { error, results } = await store.migrateDatabase();
@@ -182,7 +180,7 @@ async function migrateDatabase({ database }: MigrateDatabaseParameter) {
 // Command line interface
 // ----------------------
 
-yargs(process.argv.slice(2))
+const _a = yargs(process.argv.slice(2))
   .command(
     'start',
     'Start the server',
@@ -259,14 +257,8 @@ yargs(process.argv.slice(2))
           normalize: true,
           default: dbPath,
         })
-        .option('logType', {
-          alias: 't',
-          type: 'string',
-        })
-        .option('experimentId', {
-          alias: 'e',
-          type: 'string',
-        })
+        .option('logType', { alias: 't', type: 'string' })
+        .option('experimentName', { alias: 'e', type: 'string' })
         .strict()
         .help()
         .alias('help', 'h');

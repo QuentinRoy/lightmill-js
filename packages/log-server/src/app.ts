@@ -1,38 +1,30 @@
-/* eslint-disable @typescript-eslint/no-namespace */
-import express from 'express';
-import { zodiosContext } from '@zodios/express';
-import { LogFilter, Store, StoreError } from './store.js';
+import express, { Application } from 'express';
+import type { ServerInferResponses } from '@ts-rest/core';
+import { LogFilter, RunId, RunStatus, Store, StoreError } from './store.js';
 import session from 'cookie-session';
-import { NextFunction, Request, RequestHandler, Response } from 'express';
-import { api } from '@lightmill/log-api';
 import { csvExportStream, jsonExportStream } from './export.js';
-import { pipeline } from 'stream/promises';
-import log from 'loglevel';
-import z from 'zod';
 import { createId } from '@paralleldrive/cuid2';
+import { contract } from '@lightmill/log-api';
+import bodyParser from 'body-parser';
+import { createExpressEndpoints, initServer } from '@ts-rest/express';
+import { pick } from 'remeda';
 
-const ctx = zodiosContext(
-  z.object({
-    session: z.union([
-      z.null(),
-      z
-        .object({
-          role: z.union([z.literal('host'), z.literal('participant')]),
-          runs: z.array(
-            z.object({ runId: z.string(), experimentId: z.string() }),
-          ),
-        })
-        .strict(),
-    ]),
-  }),
-);
+declare global {
+  // eslint-disable-next-line @typescript-eslint/no-namespace
+  namespace CookieSessionInterfaces {
+    interface CookieSessionObject {
+      role: 'participant' | 'host';
+      runs: RunId[];
+    }
+  }
+}
 
 type CreateLogServerOptions = {
   store: Store;
   secret: string;
-  hostPassword?: string;
-  allowCrossOrigin?: boolean;
-  secureCookies?: boolean;
+  hostPassword?: string | undefined;
+  allowCrossOrigin?: boolean | undefined;
+  secureCookies?: boolean | undefined;
 };
 export function LogServer({
   store,
@@ -40,277 +32,264 @@ export function LogServer({
   hostPassword,
   allowCrossOrigin = true,
   secureCookies = allowCrossOrigin,
-}: CreateLogServerOptions): RequestHandler {
-  if (secret == null) {
-    throw new Error('Cannot create log server: secret parameter is required');
-  }
-  if (store == null) {
-    throw new Error('Cannot create log server: store parameter is required');
-  }
-
-  let app = express();
-  const router = ctx.app(api, { express: app });
-
-  router.use(
+}: CreateLogServerOptions): Application {
+  const app = express();
+  app.use(bodyParser.urlencoded({ extended: false }));
+  app.use(bodyParser.json());
+  app.use(
     session({
       secret,
       sameSite: allowCrossOrigin ? 'none' : 'strict',
       secure: secureCookies,
       httpOnly: true,
+      name: 'session',
     }),
   );
 
-  router.post('/sessions', (req, res) => {
-    if (req.session?.role != null) {
-      res
-        .status(400)
-        .json({ status: 'error', message: 'Client already has a session' });
-      return;
-    }
-    const { role, password } = req.body;
-    if (role === 'host' && hostPassword != null && password !== hostPassword) {
-      res
-        .status(403)
-        .json({ status: 'error', message: `Forbidden role: ${role}` });
-    }
-    req.session = { role, runs: [] };
-    res.status(201).json({ status: 'ok', role, runs: [] });
-  });
+  const server = initServer();
+  const router = server.router(contract, {
+    /**
+     * Get the current session.
+     */
+    async getSession({ req }) {
+      if (!req.session?.isPopulated) {
+        return { status: 404, body: { message: 'No session found' } };
+      }
+      let runs = await store.getRuns({ runId: req.session.runs });
+      return {
+        status: 200,
+        body: {
+          role: req.session.role,
+          runs: runs.map(pick(['runName', 'experimentName', 'runStatus'])),
+        },
+      };
+    },
 
-  router.get('/sessions/current', (req, res) => {
-    if (!req.session?.isPopulated) {
-      res.status(404).json({ status: 'error', message: 'No session found' });
-      return;
-    }
-    res.status(200).json({
-      status: 'ok',
-      role: req.session.role,
-      runs: req.session.runs,
-    });
-  });
+    /**
+     * Update (change the role) or create the current session.
+     * This can be used to login as a host or participant.
+     */
+    async putSession({ req, body = {} }) {
+      const hadSession = req.session?.isPopulated;
+      const { role = req.session?.role ?? 'participant', password } = body;
+      if (
+        role === 'host' &&
+        hostPassword != null &&
+        password !== hostPassword
+      ) {
+        return {
+          status: 403,
+          body: { message: `Invalid password for role: ${role}` },
+        };
+      }
+      const session = { role, runs: req.session?.runs ?? [] };
+      req.session = session;
+      const runs = await store.getRuns({ runId: req.session.runs });
+      return {
+        status: hadSession ? 200 : 201,
+        body: {
+          role,
+          runs: runs.map(pick(['runName', 'experimentName', 'runStatus'])),
+        },
+      };
+    },
 
-  router.delete('/sessions/current', (req, res) => {
-    if (req.session?.role == null) {
-      res.status(404).json({ status: 'error', message: 'No session found' });
-      return;
-    }
-    req.session = null;
-    res.status(200).json({ status: 'ok' });
-  });
-
-  router.post('/runs', async (req, res, next) => {
-    try {
+    /**
+     * Delete the current session. This can be used to logout.
+     */
+    async deleteSession({ req }) {
       if (req.session?.role == null) {
-        req.session = { role: 'participant', runs: [] };
+        return { status: 404, body: { message: 'No session found' } };
       }
-      if (req.session.runs.length > 0) {
-        const clientRuns = await Promise.all(
-          req.session.runs.map((r) => store.getRun(r.experimentId, r.runId)),
-        );
-        if (clientRuns.some((r) => r?.status === 'running')) {
-          res.status(403).json({
-            status: 'error',
-            message: 'Client already has started runs, end them first',
-          });
-          return;
-        }
-      }
-      let runId = req.body?.runId ?? createId();
-      let experimentId = req.body?.experimentId ?? 'default';
-      const run = { experimentId, runId, createdAt: new Date() };
-      await store.addRun(run);
-      req.session.runs.push({ runId, experimentId });
-      res.status(201).json({ status: 'ok', runId, experimentId });
-    } catch (e) {
-      if (e instanceof StoreError && e.code === 'RUN_EXISTS') {
-        res.status(403).json({ status: 'error', message: e.message });
-        return;
-      }
-      next(e);
-    }
-  });
+      req.session = null;
+      return { status: 200, body: undefined };
+    },
 
-  router.get(
-    '/experiments/:experimentId/runs/:runId',
-    async (req, res, next) => {
+    /**
+     * Create a new run. `runName`, `experimentName`, and `runStatus`
+     * can be provided in the body of the request.
+     */
+    async createNewRun({ req, body }) {
       try {
-        let { experimentId, runId } = req.params;
-        experimentId = String(experimentId);
-        runId = String(runId);
-        if (
-          req.session?.runs?.find(
-            (r) => r.runId === runId && r.experimentId === experimentId,
-          ) == null
-        ) {
-          res.status(403).json({
-            status: 'error',
-            message: `Client does not have permission to access run "${runId}" of experiment "${experimentId}"`,
-          });
-          return;
+        if (req.session?.role == null) {
+          req.session = { role: 'participant', runs: [] };
         }
-        let [run, logCounts] = await Promise.all([
-          store.getRun(experimentId, runId),
-          store.getLogSummary({ experimentId, runId }),
-        ]);
-        if (run == null) {
-          // This will cause an internal server error. It should not happen
-          // in normal use, except if the participant's session is corrupted,
-          // or the database is corrupted, or removed.
-          throw new Error(`Session run not found: ${runId}`);
-        }
-        res.status(200).json({
-          status: 'ok',
-          run: {
-            runId: run.runId,
-            experimentId: run.experimentId,
-            status: run.status,
-            logs: logCounts,
-          },
+        const onGoingRuns = await store.getRuns({
+          runId: req.session.runs,
+          runStatus: ['running', 'interrupted'],
         });
+        if (onGoingRuns.length > 0) {
+          const message = 'Client already has started runs, end them first';
+          return { status: 405, body: { message } };
+        }
+        const run = await store.addRun({
+          runStatus: body.runStatus,
+          experimentName: body.experimentName ?? 'default',
+          runName: body.runName ?? createId(),
+        });
+        req.session.runs = [...req.session.runs, run.runId];
+        return {
+          status: 201,
+          body: {
+            runName: run.runName,
+            experimentName: run.experimentName,
+            runStatus: run.runStatus,
+          },
+        };
       } catch (e) {
-        next(e);
+        if (e instanceof StoreError && e.code === StoreError.RUN_EXISTS) {
+          return { status: 405, body: { message: e.message } };
+        }
+        throw e;
       }
     },
-  );
 
-  router.patch(
-    '/experiments/:experimentId/runs/:runId',
-    async (req, res, next) => {
-      let { experimentId, runId } = req.params;
-      experimentId = String(experimentId);
-      runId = String(runId);
-      try {
-        if (
-          req.session?.runs?.find(
-            (r) => r.runId === runId && r.experimentId === experimentId,
-          ) == null
-        ) {
-          res.status(403).json({
-            status: 'error',
-            message: `Client does not have permission to update run "${runId}" of experiment "${experimentId}"`,
-          });
-          return;
-        }
-
-        const targetRun = await store.getRun(experimentId, runId);
-
-        if (targetRun == null) {
-          // This will cause an internal server error. It should not happen
-          // in normal use, except if the participant's session is corrupted,
-          // or the database is corrupted, or removed.
-          throw new Error(`Session run not found: ${runId}`);
-        }
-
-        // Case: resume run.
-        if ('resumeFrom' in req.body) {
-          let otherRuns = await Promise.all(
-            req.session.runs
-              .filter((r) => r.experimentId != experimentId || r.runId != runId)
-              .map((r) => store.getRun(r.experimentId, r.runId)),
-          );
-          if (otherRuns.some((r) => r?.status === 'running')) {
-            res.status(403).json({
-              status: 'error',
-              message: 'Client already has other running runs, end them first',
-            });
-            return;
-          }
-
-          if (targetRun.status === 'completed') {
-            res.status(400).json({
-              status: 'error',
-              message: 'Run has already been completed',
-            });
-            return;
-          }
-          await store.resumeRun({
-            experimentId,
-            runId,
-            resumeFrom: req.body.resumeFrom,
-          });
-          res.status(200).json({ status: 'ok' });
-          return;
-        }
-
-        // Case: end run.
-        if (targetRun.status != 'running') {
-          // This should not happen in normal use since the client should lose
-          // access to the run once it is ended.
-          res
-            .status(400)
-            .json({ status: 'error', message: 'Run has already ended' });
-          return;
-        }
-        await store.setRunStatus(experimentId, runId, req.body.status);
-        res.status(200).json({ status: 'ok' });
-      } catch (e) {
-        next(e);
+    /**
+     * Get runs for a given experiment.
+     */
+    async getExperimentRuns({ params, req: { session } }) {
+      let runs = await store.getRuns({ experimentName: params.experimentName });
+      let isHost = session?.role === 'host';
+      let isPartOfExperiment = runs.some((run) => run.runId === session?.runId);
+      let thereAreRuns = runs.length > 0;
+      if (isHost && thereAreRuns) {
+        return {
+          status: 200,
+          body: {
+            runs: runs.map(pick(['experimentName', 'runName', 'runStatus'])),
+          },
+        };
       }
-    },
-  );
-
-  router.post(
-    '/experiments/:experimentId/runs/:runId/logs',
-    async (req, res, next) => {
-      let { experimentId, runId } = req.params;
-      experimentId = String(experimentId);
-      runId = String(runId);
-      try {
-        if (
-          req.session?.runs?.find(
-            (r) => r.runId === runId && r.experimentId === experimentId,
-          ) == null
-        ) {
-          res.status(403).json({
-            status: 'error',
-            message: `Client does not have permission to add logs to run "${runId}" of experiment "${experimentId}"`,
-          });
-          return;
-        }
-        let sessionRun = await store.getRun(experimentId, runId);
-        if (sessionRun == null) {
-          // This will cause an internal server error. It should not happen
-          // in normal use, except if the participant's session is corrupted,
-          // or the database is corrupted, or removed.
-          throw new Error(`Session run not found: ${runId}`);
-        }
-        if (sessionRun.status != 'running') {
-          // This should not happen either because a client should lose
-          // access to the run once it is ended.
-          res.status(403).json({
-            status: 'error',
-            message: 'Cannot add logs to an ended run',
-          });
-          return;
-        }
-        let logs = 'logs' in req.body ? req.body.logs : [req.body.log];
-        await store.addLogs(experimentId, runId, logs);
-        res.status(201).json({ status: 'ok' });
-      } catch (e) {
-        if (
-          e instanceof StoreError &&
-          e.code === 'LOG_NUMBER_EXISTS_IN_SEQUENCE'
-        ) {
-          res.status(403).json({ status: 'error', message: e.message });
-          return;
-        }
-        next(e);
+      if (isPartOfExperiment) {
+        // If the participant is not the host, but is involved in the experiment
+        // (which means it exists), we don't 'hide' that the experiment exists,
+        // but we refuse access.
+        return { status: 403, body: { message: 'Not authorized.' } };
       }
+      // If the participant is not the host and not involved in the experiment,
+      // we always return a 404, effectively "hiding" the experiment if it
+      // exists.
+      return { status: 404, body: { message: 'Experiment not found.' } };
     },
-  );
 
-  router.get('/experiments/:experimentId/logs', async (req, res, next) => {
-    try {
-      if (req.session?.role !== 'host') {
-        res
-          .status(403)
-          .json({ status: 'error', message: 'Access restricted.' });
-        return;
+    async getRun({ params: { experimentName, runName }, req: { session } }) {
+      let matchingSessionRuns = await store.getRuns({
+        runName,
+        experimentName,
+        runId: session?.role === 'host' ? undefined : (session?.runs ?? []),
+        runStatus: '-canceled',
+      });
+      if (matchingSessionRuns.length === 0) {
+        return { status: 404, body: { message: 'Run not found.' } };
+      }
+      if (matchingSessionRuns.length > 1) {
+        throw new Error(
+          `Multiple non canceled runs (${matchingSessionRuns.length}) with run name ${runName} were unexpectedly found for experiment ${experimentName} `,
+        );
+      }
+      let run = matchingSessionRuns[0];
+      return {
+        status: 200,
+        body: {
+          runName: run.runName,
+          runStatus: run.runStatus,
+          experimentName: run.experimentName,
+          runCreatedAt: run.runCreatedAt.toISOString(),
+          logs: await store.getLogSummary(run.runId),
+        },
+      };
+    },
+
+    async updateRun({
+      params: { experimentName, runName },
+      body,
+      req: { session },
+    }) {
+      let matchingRuns = await store.getRuns({ runName, experimentName });
+      if (matchingRuns.length === 0) {
+        return { status: 404, body: { message: `Run not found` } };
+      }
+      if (matchingRuns.length > 0 && session?.role === 'host') {
+        return { status: 403, body: { message: `Only hosts can add logs` } };
+      }
+      let matchingSessionRuns = matchingRuns.filter(
+        (run) => session?.runs.includes(run.runId) ?? false,
+      );
+      let targetRun = matchingSessionRuns[matchingSessionRuns.length - 1];
+      const oldRunStatus = targetRun.runStatus;
+      const newRunStatus = body.runStatus;
+      if (
+        !allowedStatusTransitions.some(
+          (t) => t.from === oldRunStatus && t.to === newRunStatus,
+        )
+      ) {
+        let message = `Run is already ${oldRunStatus}`;
+        if (newRunStatus !== oldRunStatus) {
+          let verb = getTransitionVerb(oldRunStatus, newRunStatus);
+          message = `Cannot ${verb} a ${oldRunStatus} run`;
+        }
+        return { status: 405, body: { message } };
+      }
+
+      if (newRunStatus !== 'canceled') {
+        let otherOngoingRuns = await store.getRuns({
+          runStatus: ['running', 'interrupted'],
+          runId: (session?.runs ?? []).filter((r) => r !== targetRun.runId),
+        });
+        if (otherOngoingRuns.length > 0) {
+          return {
+            status: 405,
+            body: {
+              message: 'Client already has other ongoing runs, end them first',
+            },
+          };
+        }
+      }
+
+      // Case: resume run, target run status should necessarily be 'running'.
+      if ('resumeFrom' in body && body.resumeFrom != null) {
+        const logSummary = await store.getLogSummary(targetRun.runId);
+        let logCount = Math.max(...logSummary.map((l) => l.lastNumber));
+        if (logCount < body.resumeFrom) {
+          return {
+            status: 405,
+            body: {
+              message: `Cannot resume from ${body.resumeFrom}, run has only ${logCount} logs`,
+            },
+          };
+        }
+        await store.resumeRun(targetRun.runId, { from: body.resumeFrom });
+      } else if (newRunStatus === oldRunStatus) {
+        return {
+          status: 405,
+          body: { message: 'Run status is already up to date' },
+        };
+      } else {
+        // Case: update status.
+        await store.setRunStatus(targetRun.runId, body.runStatus);
+      }
+      return { status: 200, body: undefined };
+    },
+
+    async getLogs({
+      params: { experimentName },
+      query,
+      req: { session },
+      headers,
+      res,
+    }): Promise<ServerInferResponses<typeof contract.getLogs>> {
+      let runs = await store.getRuns({ experimentName });
+      let isHost = session?.role === 'host';
+      let isPartOfExperiment = runs.some((run) => run.runId === session?.runId);
+      if (!isHost && !isPartOfExperiment) {
+        return { status: 404, body: { message: 'Experiment not found' } };
+      }
+      if (!isHost) {
+        return { status: 403, body: { message: 'Permission denied' } };
       }
       let format = 'json';
-      let acceptHeader = req.header('Accept');
-      if (acceptHeader != null) {
-        for (let accept of acceptHeader.split(',')) {
+      if (headers.accept != null) {
+        for (let accept of headers.accept.split(',')) {
           if (accept.includes('csv')) {
             format = 'csv';
             break;
@@ -320,36 +299,96 @@ export function LogServer({
           }
         }
       }
-      let filter: LogFilter = {
-        experimentId: String(req.params.experimentId),
-        type: req.query.type,
-      };
+      let filter: LogFilter = { experimentName, ...query };
       if (format === 'csv') {
-        res.setHeader('Content-Type', 'text/csv');
-        await pipeline(csvExportStream(store, filter), res);
-      } else {
-        res.setHeader('Content-Type', 'application/json');
-        await pipeline(jsonExportStream(store, filter), res);
+        res.setHeader('content-type', 'text/csv');
+        // @ts-expect-error there is currently no way to specify
+        // multiple reponse types in the contract so we are forced to
+        // violate it here, see https://github.com/ts-rest/ts-rest/issues/758.
+        return { status: 200, body: csvExportStream(store, filter) };
       }
-    } catch (e) {
-      next(e);
-    }
+      res.setHeader('content-type', 'application/json');
+      // @ts-expect-error I am not sure how to specify streams in
+      // the contract, but this works.
+      return { status: 200, body: jsonExportStream(store, filter) };
+    },
+
+    async postLogs({
+      params: { experimentName, runName },
+      body,
+      req: { session },
+    }) {
+      let matchingRuns = await store.getRuns({ runName, experimentName });
+      if (matchingRuns.length === 0) {
+        return { status: 404, body: { message: `Run not found` } };
+      }
+      if (matchingRuns.length > 0 && session?.role === 'host') {
+        return { status: 403, body: { message: `Only hosts can add logs` } };
+      }
+      let matchingSessionRuns = matchingRuns.filter(
+        (run) => session?.runs.includes(run.runId) ?? false,
+      );
+      if (matchingSessionRuns.length == 0) {
+        return { status: 404, body: { message: `Run not found` } };
+      }
+      let run = matchingSessionRuns[matchingSessionRuns.length - 1];
+      if (run.runStatus != 'running') {
+        return {
+          status: 405,
+          body: { message: `Cannot add logs to run, run is ${run.runStatus}` },
+        };
+      }
+      try {
+        await store.addLogs(run.runId, body.logs);
+        return { status: 201, body: undefined };
+      } catch (e) {
+        if (
+          e instanceof StoreError &&
+          e.code === 'LOG_NUMBER_EXISTS_IN_SEQUENCE'
+        ) {
+          return { status: 405, body: { message: e.message } };
+        }
+        throw e;
+      }
+    },
   });
 
-  router.use('*', (req, res) => {
-    res.status(404).json({ status: 'error', message: 'Not found' });
-  });
-
-  app.use((error: unknown, req: Request, res: Response, next: NextFunction) => {
-    if (res.headersSent) {
-      next(error);
-    } else if (error instanceof Error) {
-      res.status(500).json({ status: 'error', message: error.message });
-    } else {
-      log.error('error', error);
-      next(error);
-    }
-  });
-
+  createExpressEndpoints(contract, router, app, { logInitialization: false });
   return app;
+}
+
+const allowedStatusTransitions = [
+  { from: 'interrupted', to: 'running' },
+  { from: 'interrupted', to: 'canceled' },
+  { from: 'running', to: 'interrupted' },
+  { from: 'running', to: 'canceled' },
+  { from: 'running', to: 'completed' },
+  // This is only allowed if the run is resumed from a specific log number.
+  { from: 'running', to: 'running' },
+  { from: 'idle', to: 'running' },
+  { from: 'idle', to: 'canceled' },
+  { from: 'idle', to: 'interrupted' },
+] as const satisfies Array<{ from: RunStatus; to: RunStatus }>;
+const transitionVerbs: Record<
+  RunStatus,
+  string | Record<RunStatus, string | null> | null
+> = {
+  interrupted: 'interrupt',
+  canceled: 'cancel',
+  running: {
+    idle: 'start',
+    interrupted: 'resume',
+    canceled: 'resume',
+    completed: 'resume',
+    running: 'resume',
+  },
+  completed: 'complete',
+  idle: null,
+};
+function getTransitionVerb(from: RunStatus, to: RunStatus): string | null {
+  let verb = transitionVerbs[to];
+  if (typeof verb === 'string') {
+    return verb;
+  }
+  return verb?.[from] ?? null;
 }

@@ -1,12 +1,10 @@
-// eslint-disable-next-line @typescript-eslint/no-empty-interface
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface RegisterExperiment {
   // task: Task;
   // log: Log;
 }
 
-export type Typed<T extends string = string> = {
-  type: T;
-};
+export type Typed<T extends string = string> = { type: T };
 
 export type AnyTask = Typed & { [key: PropertyKey]: unknown };
 

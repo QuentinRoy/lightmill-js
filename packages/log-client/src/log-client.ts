@@ -1,7 +1,8 @@
 import { throttle } from 'throttle-debounce';
 import type { JsonValue } from 'type-fest';
-import * as Interface from './log-server-interface.js';
-import { RequestError } from './fetch.js';
+import createClient from 'openapi-fetch';
+import type { paths } from '../generated/api.js';
+import { RequestError } from './utils.js';
 
 interface Typed<Type extends string = string> {
   type: Type;
@@ -30,9 +31,8 @@ export class LogClient<ClientLog extends Typed & OptionallyDated = AnyLog> {
   #rejectLogQueue: ((error: unknown) => void) | null = null;
   #serializeValues: ValuesSerializer<ClientLog>;
   #logQueuePromise: Promise<void> | null = null;
-  #runId?: string;
-  #experimentId?: string;
-  #apiRoot: string;
+  #runName?: string;
+  #experimentName?: string;
   #postLogs: throttle<() => void>;
   #runStatus:
     | 'idle'
@@ -40,18 +40,20 @@ export class LogClient<ClientLog extends Typed & OptionallyDated = AnyLog> {
     | 'running'
     | 'completed'
     | 'canceled'
-    | 'error' = 'idle';
+    | 'error'
+    | 'interrupted' = 'idle';
   #logCount = 0;
+  #client;
 
   constructor({
-    experimentId,
-    runId,
+    experimentName,
+    runName,
     apiRoot,
     serializeLog,
     requestThrottle = 500,
   }: {
-    experimentId?: string;
-    runId?: string;
+    experimentName?: string;
+    runName?: string;
     apiRoot: string;
     requestThrottle?: number;
   } & (Exclude<ClientLog, AnyLog> extends never
@@ -73,49 +75,63 @@ export class LogClient<ClientLog extends Typed & OptionallyDated = AnyLog> {
       this.#unthrottledPostLogs.bind(this),
       { noTrailing: false, noLeading: true },
     );
-    this.#experimentId = experimentId;
-    this.#runId = runId;
-    this.#apiRoot = apiRoot.endsWith('/') ? apiRoot.slice(0, -1) : apiRoot;
+    this.#experimentName = experimentName;
+    this.#runName = runName;
+    this.#client = createClient<paths>({ baseUrl: apiRoot });
   }
 
   async getResumableRuns() {
-    let sessionInfo = await Interface.getSessionInfo({
-      apiRoot: this.#apiRoot,
-    }).catch((error) => {
-      if (error instanceof RequestError && error.status === 404) {
-        return { runs: [] };
-      }
-      throw error;
+    let answer = await this.#client.GET('/sessions/current', {
+      credentials: 'include',
     });
-
-    let matchingRuns = (sessionInfo?.runs ?? []).filter(
+    if (answer.response.status === 404) {
+      return { runs: [] };
+    }
+    if (answer.error) {
+      throw new RequestError(answer.response, answer.error.message);
+    }
+    let matchingRuns = (answer.data.runs ?? []).filter(
       (r) =>
-        (this.#runId == null || r.runId === this.#runId) &&
-        (this.#experimentId == null || r.experimentId === this.#experimentId),
+        (this.#runName == null || r.runName === this.#runName) &&
+        (this.#experimentName == null ||
+          r.experimentName === this.#experimentName),
     );
     let matchingRunInfos = await Promise.all(
-      matchingRuns.map((r) =>
-        Interface.getRunInfo({ apiRoot: this.#apiRoot, ...r }).then(
-          (r) => r.run,
-        ),
-      ),
+      matchingRuns.map(async (r) => {
+        let answer = await this.#client.GET(
+          '/experiments/{experimentName}/runs/{runName}',
+          {
+            credentials: 'include',
+            params: {
+              path: { experimentName: r.experimentName, runName: r.runName },
+            },
+          },
+        );
+        if (answer.error) {
+          throw new RequestError(answer.response, answer.error.message);
+        }
+        return answer.data;
+      }),
     );
     return matchingRunInfos
-      .filter((r) => r.status === 'running' || r.status === 'canceled')
+      .filter(
+        (r): r is typeof r & { runStatus: 'running' | 'interrupted' } =>
+          r.runStatus === 'running' || r.runStatus === 'interrupted',
+      )
       .map((r) => ({
-        runId: r.runId,
-        experimentId: r.experimentId,
-        status: r.status as 'running' | 'canceled',
+        runName: r.runName,
+        experimentName: r.experimentName,
+        status: r.runStatus,
       }));
   }
 
   async resumeRun<T extends ClientLog['type']>({
-    runId,
-    experimentId,
+    runName,
+    experimentName,
     resumeAfterLast,
   }: {
-    runId?: string;
-    experimentId?: string;
+    runName?: string;
+    experimentName?: string;
     resumeAfterLast: T | T[];
   }) {
     if (this.#runStatus !== 'idle') {
@@ -123,108 +139,122 @@ export class LogClient<ClientLog extends Typed & OptionallyDated = AnyLog> {
         `Can only resume a run when the logger is idle. Logger is ${this.#runStatus}`,
       );
     }
-    if (this.#runStatus !== 'idle') {
+    if (this.#runName != null && runName != null && this.#runName !== runName) {
       throw new Error(
-        `Can only start a run when the logger is idle. Logger is ${this.#runStatus}`,
-      );
-    }
-    if (this.#runId != null && runId != null && this.#runId !== runId) {
-      throw new Error(
-        `Trying to start a run with a different runId. Current runId is ${this.#runId} and new runId is ${runId}`,
+        `Trying to start a run with a different runName. Current runName is ${this.#runName} and new runName is ${runName}`,
       );
     }
     if (
-      this.#experimentId != null &&
-      experimentId != null &&
-      this.#experimentId !== experimentId
+      this.#experimentName != null &&
+      experimentName != null &&
+      this.#experimentName !== experimentName
     ) {
       throw new Error(
-        `Trying to start a run with a different experimentId. Current experimentId is ${this.#experimentId} and new experimentId is ${experimentId}`,
+        `Trying to start a run with a different experimentName. Current experimentName is ${this.#experimentName} and new experimentName is ${experimentName}`,
       );
     }
-    let runIdToResume = runId ?? this.#runId;
-    let experimentIdToResume = experimentId ?? this.#experimentId;
-    if (runIdToResume == null) {
-      throw new Error('Cannot resume a run without a runId');
+    let runNameToResume = runName ?? this.#runName;
+    let experimentNameToResume = experimentName ?? this.#experimentName;
+    if (runNameToResume == null) {
+      throw new Error('Cannot resume a run without a runName');
     }
-    if (experimentIdToResume == null) {
-      throw new Error('Cannot resume a run without an experimentId');
+    if (experimentNameToResume == null) {
+      throw new Error('Cannot resume a run without an experimentName');
     }
-    try {
-      this.#runStatus = 'starting';
-      let { run: runInfo } = await Interface.getRunInfo({
-        apiRoot: this.#apiRoot,
-        runId: runIdToResume,
-        experimentId: experimentIdToResume,
-      });
-      let resumeAfterLastSet = new Set<string>(
-        Array.isArray(resumeAfterLast) ? resumeAfterLast : [resumeAfterLast],
-      );
-      let lastLog = runInfo.logs
-        .filter((l): l is { type: T } & typeof l =>
-          resumeAfterLastSet.has(l.type),
-        )
-        .reduce(
-          (maxLog, log) => (maxLog.lastNumber > log.lastNumber ? maxLog : log),
-          { lastNumber: 0, count: 0, type: null as null | T },
-        );
-      await Interface.resumeRun({
-        apiRoot: this.#apiRoot,
-        runId: runIdToResume,
-        experimentId: experimentIdToResume,
-        resumeFrom: lastLog.lastNumber + 1,
-      });
-      this.#runId = runId;
-      this.#experimentId = experimentId;
-      this.#runStatus = 'running';
-      this.#logCount = lastLog.lastNumber;
-      return lastLog.type == null
-        ? null
-        : { type: lastLog.type, number: lastLog.count };
-    } catch (err) {
+    this.#runStatus = 'starting';
+    let answer = await this.#client.GET(
+      '/experiments/{experimentName}/runs/{runName}',
+      {
+        credentials: 'include',
+        params: {
+          path: {
+            experimentName: experimentNameToResume,
+            runName: runNameToResume,
+          },
+        },
+      },
+    );
+    if (answer.error) {
       this.#runStatus = 'error';
-      throw err;
+      throw new RequestError(answer.response, answer.error.message);
     }
+    let runInfo = answer.data;
+    let resumeAfterLastSet = new Set<string>(
+      Array.isArray(resumeAfterLast) ? resumeAfterLast : [resumeAfterLast],
+    );
+    let lastLog = runInfo.logs
+      .filter((l): l is { type: T } & typeof l =>
+        resumeAfterLastSet.has(l.type),
+      )
+      .reduce(
+        (maxLog, log) => (maxLog.lastNumber > log.lastNumber ? maxLog : log),
+        { lastNumber: 0, count: 0, type: null as null | T },
+      );
+    let response = await this.#client.PATCH(
+      '/experiments/{experimentName}/runs/{runName}',
+      {
+        credentials: 'include',
+        params: {
+          path: {
+            experimentName: experimentNameToResume,
+            runName: runNameToResume,
+          },
+        },
+        body: { resumeFrom: lastLog.lastNumber + 1, runStatus: 'running' },
+      },
+    );
+    if (response.error) {
+      this.#runStatus = 'error';
+      throw new RequestError(response.response, response.error.message);
+    }
+
+    this.#runName = runName;
+    this.#experimentName = experimentName;
+    this.#runStatus = 'running';
+    this.#logCount = lastLog.lastNumber;
+    return lastLog.type == null
+      ? null
+      : { type: lastLog.type, number: lastLog.count };
   }
 
   async startRun({
-    runId,
-    experimentId,
-  }: { runId?: string; experimentId?: string } = {}) {
+    runName,
+    experimentName,
+  }: { runName?: string; experimentName?: string } = {}) {
     if (this.#runStatus !== 'idle') {
       throw new Error(
         `Can only start a run when the logger is idle. Logger is ${this.#runStatus}`,
       );
     }
-    if (this.#runId != null && runId != null && this.#runId !== runId) {
+    if (this.#runName != null && runName != null && this.#runName !== runName) {
       throw new Error(
-        `Trying to start a run with a different runId. Current runId is ${this.#runId} and new runId is ${runId}`,
+        `Trying to start a run with a different runName. Current runName is ${this.#runName} and new runName is ${runName}`,
       );
     }
     if (
-      this.#experimentId != null &&
-      experimentId != null &&
-      this.#experimentId !== experimentId
+      this.#experimentName != null &&
+      experimentName != null &&
+      this.#experimentName !== experimentName
     ) {
       throw new Error(
-        `Trying to start a run with a different experimentId. Current experimentId is ${this.#experimentId} and new experimentId is ${experimentId}`,
+        `Trying to start a run with a different experimentName. Current experimentName is ${this.#experimentName} and new experimentName is ${experimentName}`,
       );
     }
-    try {
-      this.#runStatus = 'starting';
-      // We trust the server to return the correct type.
-      let createRunResponse = await Interface.createNewRun({
-        apiRoot: this.#apiRoot,
-        experimentId: experimentId ?? this.#experimentId,
-        runId: runId ?? this.#runId,
-      });
-      this.#runId = createRunResponse.runId;
-      this.#experimentId = createRunResponse.experimentId;
-      this.#runStatus = 'running';
-    } catch (err) {
+    this.#runStatus = 'starting';
+    let response = await this.#client.POST('/runs', {
+      credentials: 'include',
+      body: {
+        experimentName: experimentName ?? this.#experimentName,
+        runName: runName ?? this.#runName,
+      },
+    });
+    if (response.error) {
       this.#runStatus = 'error';
-      throw err;
+      throw new RequestError(response.response, response.error.message);
     }
+    this.#runName = response.data.runName;
+    this.#experimentName = response.data.experimentName;
+    this.#runStatus = 'running';
   }
 
   async addLog({ type, ...values }: ClientLog) {
@@ -269,31 +299,48 @@ export class LogClient<ClientLog extends Typed & OptionallyDated = AnyLog> {
     this.#rejectLogQueue = null;
     this.#logQueue = [];
 
-    if (this.#runId == null) {
+    if (this.#runName == null) {
       reject(
-        new Error('Internal RunLogger error: runId is null but run is started'),
+        new Error(
+          'Internal RunLogger error: runName is null but run is started',
+        ),
       );
       return;
     }
-    if (this.#experimentId == null) {
+    if (this.#experimentName == null) {
       reject(
         new Error(
-          'Internal RunLogger error: experimentId is null but run is started',
+          'Internal RunLogger error: experimentName is null but run is started',
         ),
       );
       return;
     }
 
-    await Interface.postLog({
-      apiRoot: this.#apiRoot,
-      runId: this.#runId,
-      experimentId: this.#experimentId,
-      logs: logQueue.map((log) => ({
-        type: log.type,
-        number: log.number,
-        values: this.#serializeValues(log.values),
-      })),
-    }).then(resolve, reject);
+    let answer = await this.#client.POST(
+      '/experiments/{experimentName}/runs/{runName}/logs',
+      {
+        credentials: 'include',
+        params: {
+          path: {
+            experimentName: this.#experimentName,
+            runName: this.#runName,
+          },
+        },
+        body: {
+          logs: logQueue.map((log) => ({
+            type: log.type,
+            number: log.number,
+            values: this.#serializeValues(log.values),
+          })),
+        },
+      },
+    );
+
+    if (answer.error) {
+      reject(new RequestError(answer.response, answer.error.message));
+      return;
+    }
+    resolve();
   }
 
   async flush() {
@@ -311,46 +358,65 @@ export class LogClient<ClientLog extends Typed & OptionallyDated = AnyLog> {
     await this.#endRun('canceled');
   }
 
-  async logout() {
-    await this.flush();
-    await Interface.deleteSession({ apiRoot: this.#apiRoot });
+  async interruptRun() {
+    await this.#endRun('interrupted');
   }
 
-  async #endRun(status: 'canceled' | 'completed') {
-    if (this.#runStatus !== 'running') {
-      throw new Error(`Cannot end a run that is not running. Run is ${status}`);
-    }
-    if (this.#runId == null) {
-      throw new Error(
-        'Internal RunLogger error: runId is null but run is started',
-      );
-    }
-    if (this.#experimentId == null) {
-      throw new Error(
-        'Internal RunLogger error: experimentId is null but run is started',
-      );
-    }
-    this.#runStatus = status;
+  async logout() {
     await this.flush();
-    await Interface.updateRunStatus({
-      runId: this.#runId,
-      experimentId: this.#experimentId,
-      apiRoot: this.#apiRoot,
-      status,
+    let response = await this.#client.DELETE('/sessions/current', {
+      credentials: 'include',
     });
+    if (response.error) {
+      throw new RequestError(response.response, response.error.message);
+    }
+  }
+
+  async #endRun(runStatus: 'canceled' | 'completed' | 'interrupted') {
+    if (this.#runStatus !== 'running') {
+      throw new Error(
+        `Cannot end a run that is not running. Run is ${runStatus}`,
+      );
+    }
+    if (this.#runName == null) {
+      throw new Error(
+        'Internal RunLogger error: runName is null but run is started',
+      );
+    }
+    if (this.#experimentName == null) {
+      throw new Error(
+        'Internal RunLogger error: experimentName is null but run is started',
+      );
+    }
+    this.#runStatus = runStatus;
+    await this.flush();
+    let response = await this.#client.PATCH(
+      '/experiments/{experimentName}/runs/{runName}',
+      {
+        credentials: 'include',
+        params: {
+          path: {
+            experimentName: this.#experimentName,
+            runName: this.#runName,
+          },
+        },
+        body: { runStatus },
+      },
+    );
+    if (response.error) {
+      throw new RequestError(response.response, response.error.message);
+    }
   }
 }
 
 const anyLogSerializer: ValuesSerializer<AnyLog> = (obj) => {
   let result: Record<string | number | symbol, JsonValue> = {};
-  // I am not using for ... of to avoid the need for the regenerator
-  // runtime in older browsers.
-  Object.entries(obj).forEach(([key, value]) => {
+  for (const [key, value] of Object.entries(obj)) {
     if (value instanceof Date) {
       result[key] = value.toISOString();
     } else if (value !== undefined) {
       result[key] = value;
     }
-  });
+  }
   return result;
 };

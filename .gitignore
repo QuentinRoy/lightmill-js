@@ -92,3 +92,6 @@ tsconfig.tsbuildinfo
 
 # Vitest temp files
 tsconfig.vitest-temp.json
+
+# Typescript build files
+tsconfig.?*.tsbuildinfo

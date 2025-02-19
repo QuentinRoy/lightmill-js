@@ -27,10 +27,7 @@ describe('useLogger', () => {
     const onLog = vi.fn(() => Promise.resolve());
     render(<Run elements={config} timeline={[{ type: 't' }]} onLog={onLog} />);
     await user.click(screen.getByRole('button'));
-    expect(onLog).toHaveBeenCalledWith({
-      type: 'task',
-      value: 'value',
-    });
+    expect(onLog).toHaveBeenCalledWith({ type: 'task', value: 'value' });
   });
 
   it('can be used without providing a type', async () => {
@@ -54,9 +51,6 @@ describe('useLogger', () => {
     const onLog = vi.fn(() => Promise.resolve());
     render(<Run elements={config} timeline={[{ type: 't' }]} onLog={onLog} />);
     await user.click(screen.getByRole('button'));
-    expect(onLog).toHaveBeenCalledWith({
-      type: 'task',
-      value: 'value',
-    });
+    expect(onLog).toHaveBeenCalledWith({ type: 'task', value: 'value' });
   });
 });

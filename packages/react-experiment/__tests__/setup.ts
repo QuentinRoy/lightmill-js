@@ -1,8 +1,5 @@
-import { afterEach } from 'vitest';
-import '@testing-library/jest-dom/vitest';
-import { cleanup } from '@testing-library/react';
+import * as matchersPkg from '@testing-library/jest-dom/matchers';
 
-// runs a cleanup after each test case (e.g. clearing jsdom)
-afterEach(() => {
-  cleanup();
-});
+const matchers = matchersPkg as (typeof matchersPkg)['default'];
+
+expect.extend(matchers);

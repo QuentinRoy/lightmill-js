@@ -10,6 +10,8 @@
     "strict": true,
     "sourceMap": true,
     "declaration": true,
-    "forceConsistentCasingInFileNames": true
+    "forceConsistentCasingInFileNames": true,
+    "strictNullChecks": true,
+    "exactOptionalPropertyTypes": true
   }
 }

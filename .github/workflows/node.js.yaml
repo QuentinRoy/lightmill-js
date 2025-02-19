@@ -14,14 +14,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: corepack enable
-      - name: Install Node.js 20.x.x
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
+      - name: Install Node.js 22.x.x
         uses: actions/setup-node@v4
         with:
           cache: 'pnpm'
-          node-version: 20.x.x
-      - run: pnpm install --frozen-lockfile
+          node-version: 22.x.x
+
+      - run: pnpm install
+
       - run: pnpm run build-all
+
       - uses: actions/upload-artifact@v4
         with:
           name: 'build'
@@ -32,31 +40,42 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: corepack enable
-      - name: Install Node.js 20.x.x
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
+      - name: Install Node.js 22.x.x
         uses: actions/setup-node@v4
         with:
           cache: 'pnpm'
-          node-version: 20.x.x
-      - run: pnpm install --frozen-lockfile
+          node-version: 22.x.x
+
+      - run: pnpm install
+
       - uses: actions/download-artifact@v4
         id: download
         with:
           name: 'build'
           path: 'packages'
-      - run: pnpm run test-all
+
+      - run: pnpm test
 
   lint:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: corepack enable
-      - name: Install Node.js 20.x.x
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+      - name: Install Node.js 22.x.x
         uses: actions/setup-node@v4
         with:
           cache: 'pnpm'
-          node-version: 20.x.x
-      - run: pnpm install --frozen-lockfile
+          node-version: 22.x.x
+      - run: pnpm install
       - run: pnpm run lint
 
   publint:
@@ -64,13 +83,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: corepack enable
-      - name: Install Node.js 20.x.x
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+      - name: Install Node.js 22.x.x
         uses: actions/setup-node@v4
         with:
           cache: 'pnpm'
-          node-version: 20.x.x
-      - run: pnpm install --frozen-lockfile
+          node-version: 22.x.x
+      - run: pnpm install
+      - run: pnpm run build-all
       - uses: actions/download-artifact@v4
         id: download
         with:
