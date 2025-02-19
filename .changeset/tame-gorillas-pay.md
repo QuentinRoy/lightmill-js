@@ -1,6 +1,5 @@
 ---
-'@lightmill/log-server': minor
-'@lightmill/log-api': minor
+'@lightmill/log-api': major
 ---
 
-Add get /experiments/:experimentId/runs endpoint to fetch the list of recorded runs for an experiment
+Entirely revise the rest API and exported types.
