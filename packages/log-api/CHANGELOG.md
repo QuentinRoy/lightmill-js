@@ -1,5 +1,11 @@
 # @lightmill/log-api
 
+## 3.0.0-beta.33
+
+### Major Changes
+
+- 07e75b4: Entirely revise the rest API and exported types.
+
 ## 3.0.0-beta.25
 
 ### Patch Changes
