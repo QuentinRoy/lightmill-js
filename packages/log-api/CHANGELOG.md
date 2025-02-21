@@ -1,5 +1,11 @@
 # @lightmill/log-api
 
+## 3.0.0-beta.34
+
+### Major Changes
+
+- 0f22dda: narrow types of runStatus prop in createNewRun endpoint's answer
+
 ## 3.0.0-beta.33
 
 ### Major Changes

@@ -1,5 +1,11 @@
 # @lightmill/log-client
 
+## 3.0.0-beta.34
+
+### Major Changes
+
+- adccc07: new api
+
 ## 3.0.0-beta.33
 
 ### Major Changes
