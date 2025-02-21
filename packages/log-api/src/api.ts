@@ -18,7 +18,7 @@ export const contract = c.router(
         201: schemas.okResponse.extend({
           experimentName: z.string(),
           runName: z.string(),
-          runStatus: z.string(),
+          runStatus: schemas.runStatus,
         }),
         400: schemas.errorResponse,
         403: schemas.errorResponse,
