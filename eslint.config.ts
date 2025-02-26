@@ -1,10 +1,10 @@
 import js from '@eslint/js';
+import { Linter } from 'eslint';
+import eslintConfigPrettier from 'eslint-config-prettier';
+import jsdoc from 'eslint-plugin-jsdoc';
+import reactPlugin from 'eslint-plugin-react';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
-import jsdoc from 'eslint-plugin-jsdoc';
-import eslintConfigPrettier from 'eslint-config-prettier';
-import reactPlugin from 'eslint-plugin-react';
-import { Linter } from 'eslint';
 
 export default tseslint.config(
   {
@@ -31,7 +31,7 @@ export default tseslint.config(
     },
     rules: {
       '@typescript-eslint/no-unused-vars': [
-        'warn',
+        'error',
         {
           args: 'all',
           argsIgnorePattern: '^_',

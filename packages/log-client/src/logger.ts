@@ -1,6 +1,6 @@
 import { Client as FetchClient } from 'openapi-fetch';
 import type { JsonValue } from 'type-fest';
-import { paths } from '../generated/api.js';
+import type { paths } from '../generated/api.js';
 import { throttle } from 'throttle-debounce';
 import { RequestError } from './utils.js';
 import { ServerLog, LogValuesSerializer } from './types.js';
@@ -189,3 +189,5 @@ export class LightmillLogger<
     this.#runStatus = runStatus;
   }
 }
+
+export type Logger = LightmillLogger;

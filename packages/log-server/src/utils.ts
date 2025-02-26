@@ -1,6 +1,14 @@
-import { mapKeys } from 'remeda';
-import { SnakeCase, UnionToIntersection } from 'type-fest';
 import { snakeCase } from 'change-case';
+import { mapKeys } from 'remeda';
+import {
+  ArrayIndices,
+  IsNever,
+  Merge,
+  SnakeCase,
+  UnionToIntersection,
+  WritableKeysOf,
+} from 'type-fest';
+
 /**
  * Converts a value to an array. If the value is already an array, it returns a copy of the array.
  * If the value is undefined and `isEmptyWithUndefined` is true, it returns an empty array.
@@ -24,7 +32,7 @@ export function arrayify<T>(
   isEmptyWithUndefined = false,
 ): T[] {
   if (value === undefined && isEmptyWithUndefined) return [];
-  return Array.isArray(value) ? [...value] : [value];
+  return Array.isArray(value) ? [...value] : [value as T];
 }
 
 export function toSnakeCase<
@@ -72,3 +80,59 @@ type StringEnd<T extends string> = T extends `${string}${infer R}`
   : never;
 
 export type IsUnion<T> = [T] extends [UnionToIntersection<T>] ? false : true;
+
+/**
+ * Deeply remove properties that are readonly
+ **/
+export type RemoveReadonlyPropsDeep<T> =
+  T extends Record<PropertyKey, unknown>
+    ? { [K in WritableKeysOf<T>]: RemoveReadonlyPropsDeep<T[K]> }
+    : T;
+
+/**
+ * Create an union of object types with two properties, one for the key and one
+ * for the value of each property in the original object.
+ **/
+export type EntryAsObject<
+  T,
+  Options extends { key: PropertyKey; value: PropertyKey } = {
+    key: 'key';
+    value: 'value';
+  },
+> = T extends unknown
+  ? {
+      [K in keyof T]-?: Merge<
+        { [Key in Options['key']]: K },
+        { [Value in Options['value']]: T[K] }
+      >;
+    }[keyof T]
+  : never;
+
+export function first<T extends readonly unknown[]>(array: T): T[0] {
+  return get(array, 0);
+}
+
+export function get<const T extends readonly unknown[], const N extends number>(
+  array: T,
+  n: N,
+): number extends N
+  ? T[N]
+  : IsNever<ArrayIndices<T>> extends true
+    ? T[N]
+    : { [K in Extract<N, ArrayIndices<T>>]: T[N] }[Extract<
+        N,
+        ArrayIndices<T>
+      >] {
+  if (array.length <= n) {
+    throw new Error('Array is out of bounds');
+  }
+  return array[n];
+}
+
+export function decodeBase64(content: string): string {
+  try {
+    return Buffer.from(content, 'base64').toString('utf8');
+  } catch (_error) {
+    throw new Error('Invalid base64 string');
+  }
+}

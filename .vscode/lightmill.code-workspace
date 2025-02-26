@@ -38,6 +38,7 @@
       "node_modules/": true,
       "packages/": true
     },
-    "typescript.tsdk": "ROOT/node_modules/typescript/lib",
+	"typescript.tsdk": "ROOT/node_modules/typescript/lib",
+	"typespec.tsp-server.path": "${workspaceFolder}/packages/log-api/node_modules/@typespec/compiler",
   }
 }

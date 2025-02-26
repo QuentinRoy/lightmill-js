@@ -1,2 +1,4 @@
 singleQuote: true
-objectWrap: collapse
+objectWrap: "collapse"
+organizeImportsSkipDestructiveCodeActions: true
+plugins: ["prettier-plugin-organize-imports"]

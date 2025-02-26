@@ -1,5 +1,5 @@
-import { JsonValue } from 'type-fest';
-import { AnyLog, AnyLogValue, LogValuesSerializer } from './types.js';
+import type { JsonValue } from 'type-fest';
+import type { AnyLog, AnyLogValue, LogValuesSerializer } from './types.js';
 
 type IsoDateString =
   | `${number}-${number}-${number}T${number}:${number}:${number}.${number}Z`

@@ -1,6 +1,8 @@
 import { describe, it, expectTypeOf } from 'vitest';
 import {
-  IsUnion,
+  type IsUnion,
+  EntryAsObject,
+  type RemoveReadonlyPropsDeep,
   removePrefix,
   startsWith,
   toSnakeCase,
@@ -95,5 +97,115 @@ describe('IsUnion', () => {
     expectTypeOf<IsUnion<1 | 2 | number>>().toEqualTypeOf<false>();
     expectTypeOf<IsUnion<4 | never>>().toEqualTypeOf<false>();
     expectTypeOf<IsUnion<4 | 'bar' | unknown>>().toEqualTypeOf<false>();
+  });
+});
+
+describe('RemoveReadonlyPropsDeep', () => {
+  it('removes readonly properties from a simple object', () => {
+    type Input = { readonly a: 'thing'; b: 'hello' };
+    type Expected = { b: 'hello' };
+    type Actual = RemoveReadonlyPropsDeep<Input>;
+    expectTypeOf<Actual>().toEqualTypeOf<Expected>();
+  });
+  it('removes readonly properties from a nested object', () => {
+    type Input = { a: { readonly b: 'thing'; c: 'hello' } };
+    type Expected = { a: { c: 'hello' } };
+    type Actual = RemoveReadonlyPropsDeep<Input>;
+    expectTypeOf<Actual>().toEqualTypeOf<Expected>();
+  });
+  it('removes readonly properties from a deeply nested object', () => {
+    type Input = { a: { readonly b: 'thing'; c: 'hello' }; x: 'world' };
+    type Expected = { x: 'world'; a: { c: 'hello' } };
+    type Actual = RemoveReadonlyPropsDeep<Input>;
+    expectTypeOf<Actual>().toEqualTypeOf<Expected>();
+  });
+  it('removes readonly properties from a deeply nested object with multiple readonly properties', () => {
+    type Input = {
+      readonly a: { readonly b: 'thing'; c: 'hello' };
+      x: 'world';
+      y: { readonly z: 'foo'; w: 'bar' };
+    };
+    type Expected = { x: 'world'; y: { w: 'bar' } };
+    type Actual = RemoveReadonlyPropsDeep<Input>;
+    expectTypeOf<Actual>().toEqualTypeOf<Expected>();
+  });
+});
+
+describe('EntryAsObject', () => {
+  it('creates object entries with key and value properties', () => {
+    type TestObject = { a: number; b: string };
+
+    expectTypeOf<EntryAsObject<TestObject>>().toEqualTypeOf<
+      { key: 'a'; value: number } | { key: 'b'; value: string }
+    >();
+  });
+
+  it('handles custom property names', () => {
+    type TestObject = { a: number; b: string };
+
+    expectTypeOf<
+      EntryAsObject<TestObject, { key: 'prop'; value: 'val' }>
+    >().toEqualTypeOf<
+      { prop: 'a'; val: number } | { prop: 'b'; val: string }
+    >();
+  });
+
+  it('handles nested object types', () => {
+    type Nested = { user: { name: string; id: number } };
+
+    expectTypeOf<EntryAsObject<Nested>>().toEqualTypeOf<{
+      key: 'user';
+      value: { name: string; id: number };
+    }>();
+  });
+
+  it('handles readonly properties', () => {
+    type WithReadonly = { readonly id: string; name: string };
+
+    expectTypeOf<EntryAsObject<WithReadonly>>().toEqualTypeOf<
+      { key: 'id'; value: string } | { key: 'name'; value: string }
+    >();
+  });
+
+  it('handles optional properties', () => {
+    type WithOptional = { id: number; name?: string };
+    type Expected =
+      | { key: 'id'; value: number }
+      | { key: 'name'; value: string | undefined };
+    type Actual = EntryAsObject<WithOptional>;
+    expectTypeOf<Actual>().toEqualTypeOf<Expected>();
+  });
+
+  it('handles interfaces', () => {
+    interface TestInterface {
+      id: number;
+      value: string;
+    }
+    expectTypeOf<EntryAsObject<TestInterface>>().toEqualTypeOf<
+      { key: 'id'; value: number } | { key: 'value'; value: string }
+    >();
+  });
+
+  it('handles records', () => {
+    type TestRecord = Record<'a' | 'b', boolean>;
+    expectTypeOf<EntryAsObject<TestRecord>>().toEqualTypeOf<
+      { key: 'a'; value: boolean } | { key: 'b'; value: boolean }
+    >();
+  });
+
+  it('handles empty objects', () => {
+    expectTypeOf<
+      EntryAsObject<Record<never, unknown>>
+    >().toEqualTypeOf<never>();
+  });
+
+  it('handles unions', () => {
+    type Input = { a: 'a1' | 'a2' } | { b: 'b1' | 'b2'; c: 'c' };
+    type Expected =
+      | { key: 'a'; value: 'a1' | 'a2' }
+      | { key: 'b'; value: 'b1' | 'b2' }
+      | { key: 'c'; value: 'c' };
+    type Actual = EntryAsObject<Input>;
+    expectTypeOf<Actual>().toEqualTypeOf<Expected>();
   });
 });

@@ -20,9 +20,10 @@
     "log-server": "./dist/cli.js"
   },
   "scripts": {
-    "build": "rm -rf dist/db-migrations && tsc -b tsconfig.build.json",
+    "build": "pnpm run generate-api-types && rm -rf dist && tsc -b tsconfig.build.json",
     "prepublish": "pnpm run build",
     "test": "cross-env NODE_ENV=test vitest --typecheck",
+    "generate-api-types": "openapi-typescript node_modules/@lightmill/log-api/openapi.yaml --output ./generated/api.d.ts",
     "cli": "tsx ./src/cli.ts",
     "cli-watch": "tsx --watch ./src/cli.ts"
   },
@@ -36,6 +37,7 @@
     "@types/supertest": "^6.0.2",
     "@types/yargs": "^17.0.32",
     "cross-env": "^7.0.3",
+    "openapi-typescript": "^7.6.1",
     "string-dedent": "^3.0.1",
     "supertest": "^6.3.3",
     "tsx": "catalog:",
@@ -46,10 +48,8 @@
   "dependencies": {
     "@lightmill/log-api": "workspace:*",
     "@paralleldrive/cuid2": "^2.2.2",
-    "@ts-rest/core": "^3.52.0",
-    "@ts-rest/express": "^3.52.0",
+    "@standard-schema/spec": "npm:@jsr/standard-schema__spec@1.0.0-rc.0",
     "better-sqlite3": "^9.2.2",
-    "body-parser": "^1.20.2",
     "change-case": "^5.4.1",
     "cookie-session": "^2.0.0",
     "cors": "^2.8.5",
@@ -59,8 +59,7 @@
     "kysely": "^0.27.2",
     "loglevel": "^1.8.1",
     "remeda": "^1.36.0",
-    "yargs": "17.7.2",
-    "zod": "^3.22.4"
+    "yargs": "17.7.2"
   },
   "engines": {
     "node": "^22.x.x"
