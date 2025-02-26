@@ -5,39 +5,22 @@
   "author": "Quentin Roy <contact@quentinroy.fr>",
   "license": "MIT",
   "type": "module",
-  "main": "./dist/api.js",
-  "types": "./dist/api.d.ts",
   "exports": {
-    ".": {
-      "import": {
-        "types": "./dist/api.d.ts",
-        "default": "./dist/api.js"
-      }
-    },
-    "./openapi.json": "./openapi.json"
+    "./openapi.json": "./tsp-output/schema/openapi.json"
   },
   "files": [
-    "dist",
-    "openapi.json"
+    "tsp-output"
   ],
   "scripts": {
-    "build": "tsc -b tsconfig.build.json && pnpm run generate-openapi",
-    "generate-openapi": "tsx ./scripts/generate-openapi.ts > ./openapi.json",
+    "build": "tsp compile src",
+    "watch:build": "tsp compile src --watch",
     "prepublish": "pnpm run build"
   },
   "devDependencies": {
-    "@types/node": "catalog:",
-    "tsx": "^4.19.2",
-    "typescript": "catalog:",
-    "vite": "catalog:",
-    "vitest": "catalog:"
-  },
-  "dependencies": {
-    "@anatine/zod-openapi": "^2.2.7",
-    "@ts-rest/core": "^3.52.0",
-    "@ts-rest/open-api": "^3.52.0",
-    "@zodios/core": "^10.9.2",
-    "openapi3-ts": "^4.4.0",
-    "zod": "^3.24.2"
+    "@typespec/compiler": "1.0.0-rc.0",
+    "@typespec/http": "1.0.0-rc.0",
+    "@typespec/openapi": "1.0.0-rc.0",
+    "@typespec/openapi3": "1.0.0-rc.0",
+    "@typespec/rest": "^0.68.0"
   }
 }

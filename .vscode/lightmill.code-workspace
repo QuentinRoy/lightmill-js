@@ -35,9 +35,12 @@
 ],
   "settings": {
     "files.exclude": {
-      "node_modules/": true,
       "packages/": true
     },
-    "typescript.tsdk": "ROOT/node_modules/typescript/lib",
+		"files.readonlyInclude": {
+			"**/node_modules/**": true
+		},
+	"typescript.tsdk": "ROOT/node_modules/typescript/lib",
+	"typespec.tsp-server.path": "${workspaceFolder}/packages/log-api/node_modules/@typespec/compiler",
   }
 }
