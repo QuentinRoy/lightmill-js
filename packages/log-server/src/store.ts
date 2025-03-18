@@ -24,11 +24,10 @@ import {
   UnionToIntersection,
 } from 'type-fest';
 import { arrayify, firstStrict, removePrefix, startsWith } from './utils.js';
+const __dirname = url.fileURLToPath(new URL('.', import.meta.url));
 
 const DEFAULT_SELECT_QUERY_LIMIT = 1_000_000;
-
-const __dirname = url.fileURLToPath(new URL('.', import.meta.url));
-const migrationFolder = path.join(__dirname, 'db-migrations');
+const MIGRATION_FOLDER = path.join(__dirname, 'db-migrations');
 
 export type Store = Omit<SQLiteStore, 'migrateDatabase' | 'close'>;
 
@@ -677,7 +676,11 @@ export class SQLiteStore {
   async migrateDatabase() {
     let migrator = new Migrator({
       db: this.#db,
-      provider: new FileMigrationProvider({ fs, path, migrationFolder }),
+      provider: new FileMigrationProvider({
+        fs,
+        path,
+        migrationFolder: MIGRATION_FOLDER,
+      }),
     });
     return migrator.migrateToLatest();
   }
