@@ -1,18 +1,18 @@
 #!/usr/bin/env node
 
-import path from 'node:path';
-import fs from 'node:fs/promises';
-import { readFileSync, createWriteStream } from 'node:fs';
-import * as url from 'node:url';
-import express from 'express';
-import { z } from 'zod';
-import dotenv from 'dotenv';
 import cors from 'cors';
+import dotenv from 'dotenv';
+import express from 'express';
 import loglevel from 'loglevel';
-import yargs from 'yargs';
-import { SQLiteStore, LogServer } from './index.js';
-import { csvExportStream, jsonExportStream } from './export.js';
+import { createWriteStream, readFileSync } from 'node:fs';
+import fs from 'node:fs/promises';
+import path from 'node:path';
 import { Transform } from 'node:stream';
+import * as url from 'node:url';
+import yargs from 'yargs';
+import { z } from 'zod';
+import { csvExportStream, jsonExportStream } from './export.js';
+import { LogServer, SQLiteStore } from './index.js';
 
 // Constants and setup
 // -------------------

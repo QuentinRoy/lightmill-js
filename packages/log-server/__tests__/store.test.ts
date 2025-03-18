@@ -936,10 +936,15 @@ describe('SQLiteStore#addLogs', () => {
       ]),
     ).resolves.toBeUndefined();
     await expect(
-      store.addLogs(e1run2, [
-        { number: 3, type: 'other-log', values: { x: 12, foo: false } },
-        { number: 4, type: 'log', values: { message: 'hola' } },
-      ]),
+      store
+        .addLogs(e1run2, [
+          { number: 3, type: 'other-log', values: { x: 12, foo: false } },
+          { number: 4, type: 'log', values: { message: 'hola' } },
+        ])
+        .catch((e) => {
+          console.error(e);
+          throw e;
+        }),
     ).resolves.toBeUndefined();
   });
 
@@ -1411,50 +1416,84 @@ describe('SQLiteStore#getLogValueNames', () => {
   });
 });
 
-for (const limit of [10000, 2]) {
-  describe(`SQLiteStore#getLogs (selectQueryLimit: ${limit})`, () => {
-    beforeEach<Fixture>(
-      async ({ store, runningRuns: [e1run1, e1run2, e2run1] }) => {
-        await store.addLogs(e1run1, [
-          {
-            type: 'log1',
-            number: 1,
-            values: { msg: 'hello', recipient: 'Anna' },
-          },
-          {
-            type: 'log1',
-            number: 2,
-            values: { msg: 'bonjour', recipient: 'Jo' },
-          },
+describe.for([{ queryLimit: 10000 }, { queryLimit: 2 }])(
+  `SQLiteStore#getLogs (selectQueryLimit: $queryLimit)`,
+  ({ queryLimit }) => {
+    type NewFixture = {
+      queryLimit: number;
+      context: {
+        store: SQLiteStore;
+        experiment1: ExperimentId;
+        experiment2: ExperimentId;
+        e1run1: RunId;
+        e1run2: RunId;
+        e2run1: RunId;
+      };
+    };
+
+    const it = baseIt.extend<NewFixture>({
+      queryLimit: async ({}, use) => use(queryLimit),
+      context: async ({ queryLimit }, use) => {
+        vi.useFakeTimers({ now: new Date('2025-01-01T00:00:01Z') });
+        let store = new SQLiteStore(':memory:', {
+          selectQueryLimit: queryLimit,
+        });
+        await store.migrateDatabase();
+        let e1 = await store.addExperiment({ experimentName: 'experiment-1' });
+        let e2 = await store.addExperiment({ experimentName: 'experiment-2' });
+        let e1r1 = await store.addRun({
+          runName: 'run1',
+          runStatus: 'running',
+          experimentId: e1.experimentId,
+        });
+        let e1r2 = await store.addRun({
+          runName: 'run2',
+          runStatus: 'running',
+          experimentId: e1.experimentId,
+        });
+        let e2r1 = await store.addRun({
+          runName: 'run1',
+          runStatus: 'running',
+          experimentId: e2.experimentId,
+        });
+        await store.addLogs(e1r1.runId, [
+          { type: 'log1', number: 1, values: { data: [1, 'a'] } },
+          { type: 'log1', number: 2, values: { data: [2, 'b'] } },
         ]);
-        await store.addLogs(e1run2, [
+        await store.addLogs(e1r2.runId, [
           { type: 'log1', number: 1, values: { message: 'hola', bar: null } },
           { type: 'log2', number: 2, values: { x: 12, foo: false } },
         ]);
-        await store.addLogs(e2run1, [
-          { type: 'log2', number: 1, values: { x: 25, y: 0, foo: true } },
+        await store.addLogs(e2r1.runId, [
+          { type: 'log2', number: 1, values: { x: 20, y: 2, foo: true } },
         ]);
-        await store.addLogs(e1run1, [
-          { type: 'log3', number: 3, values: { x: 25, y: 0, foo: true } },
+        await store.addLogs(e1r1.runId, [
+          { type: 'log3', number: 3, values: { x: 25, y: 0, bar: '' } },
         ]);
+        vi.useRealTimers();
+        await use({
+          store,
+          experiment1: e1.experimentId,
+          experiment2: e2.experimentId,
+          e1run1: e1r1.runId,
+          e1run2: e1r2.runId,
+          e2run1: e2r1.runId,
+        });
+        store.close();
       },
-    );
-
-    it('should return the logs in order of experimentName, runName, and ascending number', async ({
-      expect,
-      store,
-    }) => {
-      await expect(fromAsync(store.getLogs())).resolves.toMatchSnapshot();
     });
 
     it('should return the logs in order of experimentName, runName, and ascending number', async ({
       expect,
-      store,
+      context: { store },
     }) => {
       await expect(fromAsync(store.getLogs())).resolves.toMatchSnapshot();
     });
 
-    it('should ignore missing logs', async ({ expect, store, e2run1 }) => {
+    it('should ignore missing logs', async ({
+      expect,
+      context: { e2run1, store },
+    }) => {
       await store.addLogs(e2run1, [
         {
           type: 'log1',
@@ -1484,7 +1523,7 @@ for (const limit of [10000, 2]) {
 
     it('should be able to filter logs of a particular type', async ({
       expect,
-      store,
+      context: { store },
     }) => {
       await expect(
         fromAsync(store.getLogs({ type: 'log1' })),
@@ -1496,9 +1535,7 @@ for (const limit of [10000, 2]) {
 
     it('should be able to filter logs from a particular experiment', async ({
       expect,
-      store,
-      experiment1,
-      experiment2,
+      context: { store, experiment1, experiment2 },
     }) => {
       await expect(
         fromAsync(store.getLogs({ experimentId: experiment1 })),
@@ -1510,7 +1547,7 @@ for (const limit of [10000, 2]) {
 
     it('should be able to filter logs from a particular run', async ({
       expect,
-      store,
+      context: { store },
     }) => {
       await expect(
         fromAsync(store.getLogs({ runName: 'run1' })),
@@ -1522,9 +1559,7 @@ for (const limit of [10000, 2]) {
 
     it('should be able to filter logs by run, experiment, and type all at once', async ({
       expect,
-      store,
-      experiment1,
-      e1run2,
+      context: { experiment1, store, e1run2 },
     }) => {
       await expect(
         fromAsync(store.getLogs({ experimentId: experiment1, type: 'log2' })),
@@ -1532,6 +1567,7 @@ for (const limit of [10000, 2]) {
         {
           experimentId: experiment1,
           experimentName: 'experiment-1',
+          logId: '4',
           number: 2,
           runId: e1run2,
           runName: 'run2',
@@ -1553,8 +1589,7 @@ for (const limit of [10000, 2]) {
 
     it('should resolve with an empty array if no log matches the filter', async ({
       expect,
-      store,
-      experiment2,
+      context: { experiment2, store },
     }) => {
       await expect(
         fromAsync(store.getLogs({ experimentId: experiment2, type: 'log1' })),
@@ -1572,8 +1607,7 @@ for (const limit of [10000, 2]) {
 
     it('should resolve with an empty array if the filter includes an empty array', async ({
       expect,
-      store,
-      experiment1,
+      context: { experiment1, store },
     }) => {
       await expect(
         fromAsync(store.getLogs({ experimentName: [] })),
@@ -1610,9 +1644,7 @@ for (const limit of [10000, 2]) {
 
     it('should return logs added after resuming', async ({
       expect,
-      store,
-      e2run1,
-      experiment2,
+      context: { store, experiment2, e2run1 },
     }) => {
       await store.resumeRun(e2run1, { from: 2 });
       await store.addLogs(e2run1, [
@@ -1627,9 +1659,7 @@ for (const limit of [10000, 2]) {
 
     it('should not return logs canceled from resuming', async ({
       expect,
-      store,
-      e1run2,
-      experiment1,
+      context: { experiment1, e1run2, store },
     }) => {
       await store.resumeRun(e1run2, { from: 2 });
       await expect(
@@ -1639,6 +1669,7 @@ for (const limit of [10000, 2]) {
           experimentId: experiment1,
           experimentName: 'experiment-1',
           number: 1,
+          logId: '3',
           runId: e1run2,
           runName: 'run2',
           runStatus: 'running',
@@ -1654,9 +1685,7 @@ for (const limit of [10000, 2]) {
 
     it('should return logs overwriting other logs after resuming', async ({
       expect,
-      store,
-      e1run2,
-      experiment1,
+      context: { store, e1run2, experiment1 },
     }) => {
       await store.addLogs(e1run2, [
         { type: 'log1', number: 3, values: { x: 5 } },
@@ -1679,8 +1708,8 @@ for (const limit of [10000, 2]) {
         ),
       ).resolves.toMatchSnapshot();
     });
-  });
-}
+  },
+);
 
 async function fromAsync<T, O>(
   iterable: AsyncIterable<T>,

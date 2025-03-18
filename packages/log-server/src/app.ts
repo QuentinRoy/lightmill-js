@@ -1,5 +1,5 @@
 import session from 'cookie-session';
-import express from 'express';
+import express, { Application } from 'express';
 import { Simplify } from 'kysely';
 import { groupBy } from 'remeda';
 import { ConditionalKeys, Merge } from 'type-fest';
@@ -35,7 +35,7 @@ export function LogServer({
   hostUser = 'host',
   allowCrossOrigin = true,
   secureCookies = allowCrossOrigin,
-}: CreateLogServerOptions) {
+}: CreateLogServerOptions): Application {
   const app = express();
   app.use(express.json());
   app.use(
@@ -203,7 +203,39 @@ export function LogServer({
     },
 
     '/runs': {
-      async get() {
+      async get({ parameters }) {
+        const statusFilter = parameters.query['filter[status]'];
+        const experimentIdFilter = parameters.query[
+          'filter[relationships.experiment.id]'
+        ] as ExperimentId[] | undefined;
+        const runs = await store.getRuns({
+          runStatus: statusFilter,
+          experimentId: experimentIdFilter,
+        });
+
+        // lastLog: { data: { type: "logs"; id: string; }; };
+        // lastLogForTypes: { data: { type: "logs"; id: string; }[]; }; }'
+        const result = {
+          status: 200,
+          body: {
+            data: runs.map((run) => ({
+              id: run.runId,
+              type: 'runs',
+              attributes: { status: run.runStatus, name: run.runName },
+              relationships: {
+                experiment: {
+                  data: { id: run.experimentId, type: 'experiments' },
+                },
+              },
+            })),
+
+            included: runs.map((run) => ({
+              id: run.experimentId,
+              type: 'experiments',
+              attributes: { name: 'run.experimentName' },
+            })),
+          },
+        };
         throw new Error('Not implemented');
       },
 
@@ -273,6 +305,7 @@ export function LogServer({
     },
   });
   app.use(s);
+  return app;
 }
 
 async function getSessionResource(req: express.Request, store: Store) {

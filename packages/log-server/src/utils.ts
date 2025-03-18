@@ -108,11 +108,14 @@ export type EntryAsObject<
     }[keyof T]
   : never;
 
-export function first<T extends readonly unknown[]>(array: T): T[0] {
-  return get(array, 0);
+export function firstStrict<T extends readonly unknown[]>(array: T): T[0] {
+  return getStrict(array, 0);
 }
 
-export function get<const T extends readonly unknown[], const N extends number>(
+export function getStrict<
+  const T extends readonly unknown[],
+  const N extends number,
+>(
   array: T,
   n: N,
 ): number extends N

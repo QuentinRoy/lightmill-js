@@ -3,6 +3,10 @@
   "license": "MIT",
   "type": "module",
   "private": false,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/QuentinRoy/lightmill-js.git"
+  },
   "scripts": {
     "lint": "eslint . && prettier --check .",
     "build-all": "pnpm -r build",

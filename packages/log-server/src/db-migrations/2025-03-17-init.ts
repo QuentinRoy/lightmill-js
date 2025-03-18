@@ -1,12 +1,14 @@
 import { ColumnType, GeneratedAlways, Kysely, sql } from 'kysely';
-import { Tagged } from 'type-fest';
+import { JsonObject, Tagged } from 'type-fest';
 
-export type RunId = Tagged<number, 'RunId'>;
-export type ExperimentId = Tagged<number, 'ExperimentId'>;
+type DbRunId = Tagged<number, 'RunId'>;
+type DbExperimentId = Tagged<number, 'ExperimentId'>;
+type DbLogId = Tagged<number, 'LogId'>;
+type DbLogSequenceId = Tagged<number, 'LogSequenceId'>;
 
 type ExperimentTable = {
-  experimentId: GeneratedAlways<ExperimentId>;
-  experimentName: ColumnType<string, string | null, never>;
+  experimentId: GeneratedAlways<DbExperimentId>;
+  experimentName: ColumnType<string, string, never>;
   // We use ColumnType to indicate that the column cannot be updated.
   experimentCreatedAt: ColumnType<string, string, never>;
 };
@@ -19,40 +21,41 @@ const runStatuses = [
 ] as const;
 export type RunStatus = (typeof runStatuses)[number];
 type RunTable = {
-  runId: GeneratedAlways<RunId>;
-  experimentId: ColumnType<ExperimentId, ExperimentId, never>;
+  runId: GeneratedAlways<DbRunId>;
+  experimentId: ColumnType<DbExperimentId, DbExperimentId, never>;
   runName?: ColumnType<string, string, never>;
   runStatus: RunStatus;
   runCreatedAt: ColumnType<string, string, never>;
 };
 type LogSequenceTable = {
-  sequenceId: GeneratedAlways<number>;
-  runId: ColumnType<RunId, RunId, never>;
+  sequenceId: GeneratedAlways<DbLogSequenceId>;
+  runId: ColumnType<DbRunId, number, never>;
   sequenceNumber: ColumnType<number, number, never>;
   start: ColumnType<number, number, never>;
 };
 type LogTable = {
-  logId: GeneratedAlways<number>;
-  sequenceId: ColumnType<number, number, never>;
+  logId: GeneratedAlways<DbLogId>;
+  sequenceId: ColumnType<DbLogSequenceId, DbLogSequenceId, never>;
   logNumber: ColumnType<number, number, never>;
   // Logs with no types are used to fill in missing log numbers.
-  logType?: string;
   canceledBy?: ColumnType<number, never, never>;
+  logType?: string;
+  logValues?: JsonObject;
 };
 type RunLogView = {
-  experimentId: ColumnType<ExperimentId, never, never>;
+  experimentId: ColumnType<DbExperimentId, never, never>;
   experimentName: ColumnType<string, never, never>;
-  runId: ColumnType<RunId, never, never>;
+  runId: ColumnType<DbRunId, never, never>;
   runName: ColumnType<string, never, never>;
   runStatus: ColumnType<RunStatus, never, never>;
-  logId: ColumnType<number, never, never>;
+  logId: ColumnType<DbLogId, never, never>;
   logNumber: ColumnType<number, never, never>;
   logType?: ColumnType<string, never, never>;
+  logValues?: ColumnType<JsonObject, never, never>;
 };
-type LogValueTable = {
-  logId: ColumnType<number, number, never>;
-  name: ColumnType<string, string, never>;
-  value: ColumnType<string, string, never>;
+type LogPropertyNameTable = {
+  logId: ColumnType<DbLogId, number, never>;
+  logPropertyName: ColumnType<string, string, never>;
 };
 type Database = {
   experiment: ExperimentTable;
@@ -60,7 +63,7 @@ type Database = {
   logSequence: LogSequenceTable;
   log: LogTable;
   runLogView: RunLogView;
-  logValue: LogValueTable;
+  logPropertyName: LogPropertyNameTable;
 };
 
 export async function up(db: Kysely<Database>) {
@@ -176,6 +179,7 @@ export async function up(db: Kysely<Database>) {
       .addColumn('logNumber', 'integer', (column) => column.notNull())
       // Empty means missing log.
       .addColumn('logType', 'text')
+      .addColumn('logValues', 'blob')
       .addColumn('canceledBy', 'integer')
       // This creates an index on the columns (so no need to create another) and
       // prevents duplicate rows.
@@ -207,13 +211,25 @@ export async function up(db: Kysely<Database>) {
           CREATE TRIGGER prevent_log_update
           BEFORE UPDATE ON log
           WHEN (
-            OLD.canceled_by IS NOT NULL
-            OR (
-              OLD.log_type <> NEW.log_type AND
-              OLD.log_type IS NOT NULL
-            )
-            OR OLD.log_number <> NEW.log_number
+            -- Whatever happens, log_number and log_id cannot change.
+            OLD.log_number <> NEW.log_number
             OR OLD.log_id <> NEW.log_id
+            OR NOT (
+              (
+                -- acceptable update 1: canceling a log, but in this case,
+                -- the log type and value must remain unchanged.
+                NEW.canceled_by IS NOT NULL
+                AND OLD.canceled_by IS NULL
+                AND OLD.log_type = NEW.log_type
+                AND OLD.log_values = NEW.log_values
+              ) OR (
+                -- acceptable update 2: setting the value of an empty log
+                OLD.log_type IS NULL
+                AND NEW.log_type IS NOT NULL
+                AND NEW.log_values IS NOT NULL
+                AND NEW.canceled_by = OLD.canceled_by
+              )
+            )
           )
           BEGIN
             SELECT RAISE(ABORT, 'Cannot update a log whose type is not null');
@@ -297,32 +313,35 @@ export async function up(db: Kysely<Database>) {
             'log.logId',
             'log.logNumber',
             'log.logType',
+            'log.logValues',
           ]),
       )
       .execute();
 
     await trx.schema
-      .createTable('logValue')
+      .createTable('logPropertyName')
       .addColumn('logId', 'integer', (column) => column.notNull())
-      .addColumn('name', 'text', (column) => column.notNull())
-      .addColumn('value', 'text', (column) => column.notNull())
-      .addForeignKeyConstraint('ForeignLogValuelogId', ['logId'], 'log', [
+      .addColumn('logPropertyName', 'text', (column) => column.notNull())
+      .addForeignKeyConstraint('ForeignLogValueslogId', ['logId'], 'log', [
         'logId',
       ])
-      .addPrimaryKeyConstraint('logValuePrimaryKey', ['logId', 'name'])
+      .addPrimaryKeyConstraint('logValuesPrimaryKey', [
+        'logId',
+        'logPropertyName',
+      ])
       .modifyEnd(sql`strict`)
       .execute();
 
     await sql`
-          CREATE TRIGGER prevent_log_value_update
-          BEFORE UPDATE ON log_value
+          CREATE TRIGGER prevent_log_property_name_update
+          BEFORE UPDATE ON log_property_name
           BEGIN
             SELECT RAISE(ABORT, 'Cannot update existing log value');
           END;
         `.execute(trx);
     await sql`
-          CREATE TRIGGER prevent_log_value_delete
-          BEFORE DELETE ON log_value
+          CREATE TRIGGER prevent_log_property_name_delete
+          BEFORE DELETE ON log_property_name
           BEGIN
             SELECT RAISE(ABORT, 'Cannot delete existing log value');
           END;

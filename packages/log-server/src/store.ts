@@ -8,13 +8,14 @@ import {
   InsertObject,
   Kysely,
   Migrator,
+  sql,
   SqliteDialect,
 } from 'kysely';
 import loglevel, { LogLevelDesc } from 'loglevel';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import * as url from 'node:url';
-import { groupBy, last } from 'remeda';
+import { groupBy, last, pick } from 'remeda';
 import {
   JsonObject,
   ReadonlyDeep,
@@ -22,7 +23,7 @@ import {
   Tagged,
   UnionToIntersection,
 } from 'type-fest';
-import { arrayify, first, get, removePrefix, startsWith } from './utils.js';
+import { arrayify, firstStrict, removePrefix, startsWith } from './utils.js';
 
 const DEFAULT_SELECT_QUERY_LIMIT = 1_000_000;
 
@@ -72,8 +73,9 @@ type LogTable = {
   sequenceId: ColumnType<DbLogSequenceId, DbLogSequenceId, never>;
   logNumber: ColumnType<number, number, never>;
   // Logs with no types are used to fill in missing log numbers.
-  logType?: string;
   canceledBy?: ColumnType<number, never, never>;
+  logType?: string;
+  logValues?: ColumnType<JsonObject, JsonObject, never>;
 };
 type RunLogView = {
   experimentId: ColumnType<DbExperimentId, never, never>;
@@ -84,11 +86,11 @@ type RunLogView = {
   logId: ColumnType<DbLogId, never, never>;
   logNumber: ColumnType<number, never, never>;
   logType?: ColumnType<string, never, never>;
+  logValues?: ColumnType<JsonObject, never, never>;
 };
-type LogValueTable = {
+type LogPropertyNameTable = {
   logId: ColumnType<DbLogId, number, never>;
-  name: ColumnType<string, string, never>;
-  value: ColumnType<string, string, never>;
+  logPropertyName: ColumnType<string, string, never>;
 };
 type Database = {
   experiment: ExperimentTable;
@@ -96,7 +98,7 @@ type Database = {
   logSequence: LogSequenceTable;
   log: LogTable;
   runLogView: RunLogView;
-  logValue: LogValueTable;
+  logPropertyName: LogPropertyNameTable;
 };
 
 export class SQLiteStore {
@@ -393,9 +395,10 @@ export class SQLiteStore {
           // It is forbidden for two logs to have the same number, but if that
           // happens, the database should be the one to complain.
           logRows.push(
-            ...logs.map(({ type, number }) => ({
+            ...logs.map(({ type, number, values }) => ({
               sequenceId,
               logType: type,
+              logValues: json(values),
               logNumber: number,
             })),
           );
@@ -448,11 +451,14 @@ export class SQLiteStore {
           if (logsForNumber == null) {
             throw new Error('Unexpected log number');
           }
-          let values = first(logsForNumber).values;
-          return deconstructValues(values, { logId: dbLog.logId });
+          let values = firstStrict(logsForNumber).values;
+          return Object.keys(values).map((logPropertyName) => ({
+            logId: dbLog.logId,
+            logPropertyName,
+          }));
         });
       if (logValues.length > 0) {
-        await trx.insertInto('logValue').values(logValues).execute();
+        await trx.insertInto('logPropertyName').values(logValues).execute();
       }
     });
   }
@@ -461,44 +467,44 @@ export class SQLiteStore {
     const { experimentName, runName, type, runStatus, runId, experimentId } =
       parseLogFilter(filter);
     let result = await this.#db
-      .selectFrom('logValue')
-      .innerJoin('runLogView as log', 'log.logId', 'logValue.logId')
+      .selectFrom('logPropertyName as lpn')
+      .innerJoin('runLogView as l', 'l.logId', 'lpn.logId')
       .$if(experimentName != null, (qb) =>
         qb.where(
-          'log.experimentName',
+          'l.experimentName',
           'in',
           experimentName as NonNullable<typeof experimentName>,
         ),
       )
       .$if(experimentId != null, (qb) =>
         qb.where(
-          'log.experimentId',
+          'l.experimentId',
           'in',
           experimentId as NonNullable<typeof experimentId>,
         ),
       )
       .$if(runName != null, (qb) =>
-        qb.where('log.runName', 'in', runName as NonNullable<typeof runName>),
+        qb.where('l.runName', 'in', runName as NonNullable<typeof runName>),
       )
-      .where('log.logType', 'is not', null)
+      .where('l.logType', 'is not', null)
       .$if(type != null, (qb) =>
-        qb.where('log.logType', 'in', type as NonNullable<typeof type>),
+        qb.where('l.logType', 'in', type as NonNullable<typeof type>),
       )
       .$if(runStatus != null, (qb) =>
         qb.where(
-          'log.runStatus',
+          'l.runStatus',
           'in',
           runStatus as NonNullable<typeof runStatus>,
         ),
       )
       .$if(runId != null, (qb) =>
-        qb.where('log.runId', 'in', runId as NonNullable<typeof runId>),
+        qb.where('l.runId', 'in', runId as NonNullable<typeof runId>),
       )
-      .select('logValue.name')
-      .orderBy('name')
+      .select('lpn.logPropertyName')
+      .orderBy('logPropertyName')
       .distinct()
       .execute();
-    return result.map((it) => it.name);
+    return result.map((it) => it.logPropertyName);
   }
 
   async getLogSummary(
@@ -576,22 +582,18 @@ export class SQLiteStore {
       };
     });
   }
-
-  async *#getLogValues(filter: LogFilter = {}) {
+  async *getLogs(filter: LogFilter = {}): AsyncGenerator<Log> {
     let parsedFilter = parseLogFilter(filter);
     let lastRow: {
-      logNumber: number;
+      number: number;
       logId: number;
       experimentName: string;
       runName: string;
-      name: string;
     } | null = null;
     let isFirst = true;
-    let isDone = false;
-    while (!isDone) {
-      let query = this.#db
+    while (isFirst || lastRow != null) {
+      let result = await this.#db
         .selectFrom('runLogView as l')
-        .innerJoin('logValue as v', 'l.logId', 'v.logId')
         .$if(parsedFilter.runStatus != null, (qb) =>
           qb.where('l.runStatus', 'in', parsedFilter.runStatus!),
         )
@@ -610,12 +612,13 @@ export class SQLiteStore {
         .$if(parsedFilter.type != null, (qb) =>
           qb.where('l.logType', 'in', parsedFilter.type!),
         )
-        .where('l.logType', 'is not', null)
-        .select([
-          // This might be a lot to be sent with each value.
-          // Maybe we should only get the values here, and
-          // the log data separately. I'm not sure how to do this
-          // in practice.
+        .where((wb) =>
+          wb.and([
+            wb('l.logType', 'is not', null),
+            wb('l.logValues', 'is not', null),
+          ]),
+        )
+        .select((eb) => [
           'l.experimentId as experimentId',
           'l.experimentName as experimentName',
           'l.runId as runId',
@@ -623,9 +626,8 @@ export class SQLiteStore {
           'l.runStatus as runStatus',
           'l.logId as logId',
           'l.logType as type',
-          'l.logNumber as logNumber',
-          'v.name as name',
-          'v.value as value',
+          'l.logNumber as number',
+          eb.ref('l.logValues', '->').key('$').$castTo<string>().as('values'),
         ])
         // We filtered out logs with no type, so we can safely narrow the type.
         // This needs to come after the select or it will not work.
@@ -633,7 +635,6 @@ export class SQLiteStore {
         .orderBy('experimentName')
         .orderBy('runName')
         .orderBy('logNumber')
-        .orderBy('name')
         .limit(this.#selectQueryLimit)
         .$if(!isFirst, (qb) =>
           qb.where((eb) => {
@@ -647,72 +648,30 @@ export class SQLiteStore {
               eb.and([
                 eb('experimentName', '=', lastRow.experimentName),
                 eb('runName', '=', lastRow.runName),
-                eb('logNumber', '>', lastRow.logNumber),
-              ]),
-              eb.and([
-                eb('experimentName', '=', lastRow.experimentName),
-                eb('runName', '=', lastRow.runName),
-                eb('logNumber', '=', lastRow.logNumber),
-                eb('name', '>', lastRow.name),
+                eb('logNumber', '>', lastRow.number),
               ]),
             ]);
           }),
-        );
-      let result = await query.execute();
+        )
+        .execute();
       isFirst = false;
       lastRow = last(result) ?? null;
-      isDone = lastRow == null;
       for (const logResult of result) {
         yield {
-          ...logResult,
+          ...pick(logResult, [
+            'experimentName',
+            'runName',
+            'runStatus',
+            'number',
+            'type',
+          ]),
+          values: JSON.parse(logResult.values),
           experimentId: fromDbId(logResult.experimentId),
           runId: fromDbId(logResult.runId),
           logId: fromDbId(logResult.logId),
         };
       }
     }
-  }
-
-  async *getLogs(filter?: LogFilter): AsyncGenerator<Log> {
-    const logValuesIterator = this.#getLogValues(filter);
-
-    function getLogFromCurrentValues(): Log {
-      let {
-        experimentName,
-        experimentId,
-        runName,
-        logNumber,
-        type,
-        runId,
-        runStatus,
-      } = get(currentValues, 0);
-      return {
-        experimentId,
-        experimentName,
-        runId,
-        runName,
-        runStatus,
-        number: logNumber,
-        type,
-        values: reconstructValues(currentValues),
-      };
-    }
-
-    let first = await logValuesIterator.next();
-    if (first.done) return;
-    let currentValues = [first.value];
-
-    for await (let logValue of logValuesIterator) {
-      let logFirst = get(currentValues, 0);
-      if (logValue.logId !== logFirst.logId) {
-        yield getLogFromCurrentValues();
-        currentValues = [logValue];
-      } else {
-        currentValues.push(logValue);
-      }
-    }
-
-    yield getLogFromCurrentValues();
   }
 
   async migrateDatabase() {
@@ -726,34 +685,6 @@ export class SQLiteStore {
   async close() {
     await this.#db.destroy();
   }
-}
-
-function deconstructValues(
-  data: JsonObject,
-): Array<{ name: string; value: string }>;
-function deconstructValues<P extends Record<string, unknown>>(
-  data: JsonObject,
-  patch: P,
-): Array<P & { name: string; value: string }>;
-function deconstructValues(
-  data: JsonObject,
-  patch?: Record<string, unknown>,
-): Array<JsonObject & { name: string; value: string }> {
-  return Object.entries(data).map(([name, value]) => ({
-    ...patch,
-    name,
-    value: JSON.stringify(value),
-  }));
-}
-
-function reconstructValues(
-  data: Array<{ name: string; value: string }>,
-): JsonObject {
-  let values: JsonObject = {};
-  for (let { name, value } of data) {
-    values[name] = JSON.parse(value);
-  }
-  return values;
 }
 
 type IdsMap = Record<DbExperimentId, ExperimentId> &
@@ -836,7 +767,7 @@ function parseRunStatusFilter(runStatusFilter: RunFilter['runStatus']) {
   const runStatusFilterArray = arrayify(runStatusFilter, true);
   if (runStatusFilterArray.length === 0) return [];
   const include = new Set<RunStatus>(
-    first(runStatusFilterArray).startsWith('-') ? runStatuses : undefined,
+    firstStrict(runStatusFilterArray).startsWith('-') ? runStatuses : undefined,
   );
   for (let status of runStatusFilterArray) {
     if (startsWith(status, '-')) {
@@ -872,6 +803,7 @@ export type Log = {
   runId: RunId;
   runName: string;
   runStatus: RunStatus;
+  logId: LogId;
   number: number;
   type: string;
   values: JsonObject;
@@ -925,3 +857,7 @@ export type RunFilter = Simplify<
 
 export type LogFilter = RunFilter &
   ReadonlyDeep<{ type?: string | string[] | undefined }>;
+
+function json<T>(value: T) {
+  return sql<T>`jsonb(${JSON.stringify(value)})`;
+}
