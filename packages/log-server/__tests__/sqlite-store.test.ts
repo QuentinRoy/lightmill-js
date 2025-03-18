@@ -7,10 +7,7 @@ import {
   vi,
 } from 'vitest';
 import loglevel from 'loglevel';
-// These tests must run on the compiled code, not the source code, because
-// kysely does not support typescript migration files.
-import { SQLiteStore } from '../dist/store.js';
-import type { RunId } from '../src/store.js';
+import { type RunId, SQLiteStore } from '../src/store.js';
 
 // Prevent kysely from logging anything.
 loglevel.setDefaultLevel('silent');
