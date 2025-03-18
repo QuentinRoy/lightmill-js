@@ -1,11 +1,11 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
 import request from 'supertest';
-import { afterEach, describe, beforeEach, it, vi, Mock } from 'vitest';
-import { Log, RunId, RunStatus, Store, StoreError } from '../src/store.js';
-import { LogServer } from '../src/app.js';
-import { arrayify } from '../src/utils.js';
+import { afterEach, beforeEach, describe, it, Mock, vi } from 'vitest';
 import { LogFilter, RunFilter } from '../dist/store.js';
+import { LogServer } from '../src/app.js';
+import { Log, RunId, RunStatus, Store, StoreError } from '../src/store.js';
+import { arrayify } from '../src/utils.js';
 
 type MockStore = {
   [K in keyof Store]: Store[K] extends infer C extends (
@@ -47,7 +47,7 @@ function MockStore(): MockStore {
     getLogValueNames: vi.fn(() =>
       Promise.resolve(['mock-col1', 'mock-col2', 'mock-col3']),
     ),
-    getLogSummary: vi.fn((...args) =>
+    getLastLogsSummary: vi.fn((...args) =>
       Promise.resolve([
         { type: 'summary:type-1', count: 11, lastNumber: 12, pending: 13 },
         { type: 'summary:type-2', count: 21, lastNumber: 22, pending: 23 },

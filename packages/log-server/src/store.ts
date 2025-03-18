@@ -506,13 +506,12 @@ export class SQLiteStore {
     return result.map((it) => it.logPropertyName);
   }
 
-  async getLogSummary(
-    runId: RunId,
-    // It does not make sense to get the summary of multiple experiments or
-    // runs, so we do not allow it.
-    { type }: Pick<LogFilter, 'type'> = {},
-  ): Promise<
-    Array<{ type: string; count: number; pending: number; lastNumber: number }>
+  async getLastLogsSummary({
+    type,
+    runId,
+    experimentId,
+  }: LogFilter = {}): Promise<
+    Array<{ type: string; id: LogId; runId: RunId }>
   > {
     const dbRunId = toDbId(runId);
     let typeFilter = parseLogFilter({ type }).type;
@@ -581,6 +580,7 @@ export class SQLiteStore {
       };
     });
   }
+
   async *getLogs(filter: LogFilter = {}): AsyncGenerator<Log> {
     let parsedFilter = parseLogFilter(filter);
     let lastRow: {
