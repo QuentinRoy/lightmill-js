@@ -1,11 +1,17 @@
 import session from 'cookie-session';
 import express, { Application } from 'express';
 import { Simplify } from 'kysely';
+import { LogLevelDesc } from 'loglevel';
 import { groupBy } from 'remeda';
 import { ConditionalKeys, Merge } from 'type-fest';
 import type { components, paths } from '../generated/api.js';
 import { httpStatuses, type HttpStatusMap } from './api-utils.js';
-import { Store, StoreError, type ExperimentId, type RunId } from './store.js';
+import {
+  SQLiteStore,
+  StoreError,
+  type ExperimentId,
+  type RunId,
+} from './store.js';
 import { createTypedExpressServer } from './typed-server.js';
 import { decodeBase64 } from './utils.js';
 
@@ -20,27 +26,32 @@ declare global {
 }
 
 type CreateLogServerOptions = {
-  store: Store;
-  secret: string;
-  hostPassword?: string | undefined;
+  databasePath: string;
+  sessionKeys: string[];
+  logLevel?: LogLevelDesc;
+  selectQueryLimit?: number;
   hostUser?: string | undefined;
+  hostPassword?: string | undefined;
   allowCrossOrigin?: boolean | undefined;
   secureCookies?: boolean | undefined;
 };
 
 export function LogServer({
-  store,
-  secret,
+  databasePath,
+  logLevel,
+  selectQueryLimit,
+  sessionKeys,
   hostPassword,
   hostUser = 'host',
   allowCrossOrigin = true,
   secureCookies = allowCrossOrigin,
 }: CreateLogServerOptions): Application {
+  const store = new SQLiteStore(databasePath, { logLevel, selectQueryLimit });
   const app = express();
   app.use(express.json());
   app.use(
     session({
-      secret,
+      keys: sessionKeys,
       sameSite: allowCrossOrigin ? 'none' : 'strict',
       secure: secureCookies,
       httpOnly: true,

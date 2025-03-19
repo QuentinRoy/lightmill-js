@@ -681,15 +681,17 @@ describe('SQLiteStore#getRuns', () => {
     ]);
   });
 
-  it('should return an empty array if part of the first is an empty array', async ({
+  it('should return an empty array if part of the filter is an empty array', async ({
     expect,
     store,
     experiment1,
     runs: _r,
   }) => {
+    // Add a run without a name to ensure runName is null does not match.
+    await store.addRun({ experimentId: experiment1 });
     // Check that the runs are actually created first (vitest fixtures can be a bit tricky, e.g.
     // if comments are added in the test arguments, I've had issues).
-    await expect(store.getRuns()).resolves.toHaveLength(3);
+    await expect(store.getRuns()).resolves.toHaveLength(4);
     await expect(store.getRuns({ runStatus: [] })).resolves.toEqual([]);
     await expect(store.getRuns({ runName: [] })).resolves.toEqual([]);
     await expect(store.getRuns({ experimentName: [] })).resolves.toEqual([]);
