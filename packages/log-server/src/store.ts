@@ -13,7 +13,7 @@ import loglevel, { LogLevelDesc } from 'loglevel';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import * as url from 'node:url';
-import { last, pick } from 'remeda';
+import { firstBy, last, pick } from 'remeda';
 import { JsonObject, JsonValue } from 'type-fest';
 import { StoreError } from './store-errors.js';
 import {
@@ -27,6 +27,7 @@ import {
 } from './store-filters.js';
 import {
   Database,
+  DbLogId,
   ExperimentId,
   fromDbId,
   Log,
@@ -36,6 +37,7 @@ import {
   toDbId,
 } from './store-types.js';
 import { getStrict } from './utils.js';
+
 const __dirname = url.fileURLToPath(new URL('.', import.meta.url));
 
 export {
@@ -167,19 +169,37 @@ export class SQLiteStore {
     });
   }
 
-  async resumeRun(runId: RunId, { after: afterId }: { after: LogId }) {
-    const dbRunId = toDbId(runId);
+  async resumeRun(
+    runId: RunId,
+    options: { after?: LogId } | { fromStart: boolean } = {},
+  ) {
     return this.#db.transaction().execute(async (trx) => {
-      let logToResumeAfter = await trx
-        .selectFrom('log')
-        .where('logId', '=', toDbId(afterId))
-        .select(['logNumber', 'logId'])
-        .executeTakeFirstOrThrow(() => {
-          return new StoreError(
-            `Log ${afterId} does not exist`,
-            StoreError.LOG_NOT_FOUND,
-          );
-        });
+      const dbRunId = toDbId(runId);
+      let logToResumeAfter: { number: number; id?: DbLogId };
+      if ('after' in options && options.after != null) {
+        logToResumeAfter = await trx
+          .selectFrom('log')
+          .where('logId', '=', toDbId(options.after))
+          .select(['logNumber as number', 'logId as id'])
+          .executeTakeFirstOrThrow(() => {
+            return new StoreError(
+              `Log ${options.after} does not exist`,
+              StoreError.LOG_NOT_FOUND,
+            );
+          });
+      } else {
+        let lastLog =
+          'fromStart' in options && options.fromStart
+            ? null
+            : firstBy(await this.#getLastLogs({ runId }, trx), [
+                (log) => log.number,
+                'desc',
+              ]);
+        logToResumeAfter =
+          lastLog == null
+            ? { number: 0 }
+            : { ...lastLog, id: toDbId(lastLog.id) };
+      }
       let { lastSeqNumber, firstMissingLogNumber, lastLogNumber } = await trx
         .selectFrom('logSequence as seq')
         .leftJoin('runLogView as log', (join) =>
@@ -206,9 +226,9 @@ export class SQLiteStore {
       } else if (lastLogNumber != null) {
         minResumeFrom = lastLogNumber + 1;
       }
-      if (minResumeFrom < logToResumeAfter.logNumber + 1) {
+      if (minResumeFrom < logToResumeAfter.number + 1) {
         throw new StoreError(
-          `Cannot resume run ${runId} after log ${logToResumeAfter.logId} (number ${logToResumeAfter.logNumber}) because the minimum is ${minResumeFrom}.`,
+          `Cannot resume run ${runId} after log ${logToResumeAfter.id} (number ${logToResumeAfter.number}) because it would leave log number ${minResumeFrom} missing.`,
           StoreError.INVALID_LOG_NUMBER,
         );
       }
@@ -216,6 +236,8 @@ export class SQLiteStore {
         .updateTable('run')
         .set({ runStatus: 'running' })
         .where('runId', '=', dbRunId)
+        // We need to return something to ensure the request fails if the run does not exist
+        .returningAll()
         .executeTakeFirstOrThrow(() => {
           return new StoreError(
             `Run ${runId} does not exist`,
@@ -227,9 +249,9 @@ export class SQLiteStore {
         .values({
           runId: dbRunId,
           sequenceNumber: lastSeqNumber + 1,
-          start: logToResumeAfter.logNumber + 1,
+          start: logToResumeAfter.number + 1,
         })
-        .executeTakeFirstOrThrow();
+        .execute();
     });
   }
 
@@ -435,13 +457,25 @@ export class SQLiteStore {
     return result.map((it) => it.logPropertyName);
   }
 
-  async getLastLogs(
+  async getLastLogs(filter: AllFilter = {}) {
+    return this.#getLastLogs(filter, this.#db);
+  }
+
+  // I want to be able to internally run this with a custom transation.
+  async #getLastLogs(
     filter: AllFilter = {},
+    db: Kysely<Database>,
   ): Promise<
-    Array<{ type: string; id: LogId; runId: RunId; values: JsonObject }>
+    Array<{
+      type: string;
+      id: LogId;
+      runId: RunId;
+      values: JsonObject;
+      number: number;
+    }>
   > {
-    let result = await this.#db
-      .with('noPendingLogs', (db) =>
+    let result = await db
+      .with('lastConfirmedLog', (db) =>
         db
           .selectFrom('runLogView as lv')
           .$call(createQueryFilterAll(filter, 'lv'))
@@ -488,13 +522,13 @@ export class SQLiteStore {
           .groupBy(['lv.runId', 'lv.logType']),
       )
       .selectFrom('log')
-      .innerJoin('noPendingLogs as npl', (join) =>
+      .innerJoin('lastConfirmedLog as last', (join) =>
         join
-          .onRef('log.sequenceId', '=', 'npl.sequenceId')
-          .onRef('log.logNumber', '=', 'npl.lastNumber'),
+          .onRef('log.sequenceId', '=', 'last.sequenceId')
+          .onRef('log.logNumber', '=', 'last.lastNumber'),
       )
       .select((eb) => [
-        'npl.runId',
+        'last.runId',
         'log.logId as id',
         'log.logType as type',
         'log.logNumber as number',
