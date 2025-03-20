@@ -157,7 +157,7 @@ export class SQLiteStore {
             throw new StoreError(
               `run "${runName}" already exists for experiment "${experimentName}".`,
               'RUN_EXISTS',
-              e,
+              { cause: e },
             );
           }
           throw e;
@@ -277,7 +277,7 @@ export class SQLiteStore {
           throw new StoreError(
             `Cannot update status of run "run1" for experiment "experiment" because the run is completed or canceled`,
             'RUN_HAS_ENDED',
-            e,
+            { cause: e },
           );
         }
         throw e;
@@ -362,7 +362,7 @@ export class SQLiteStore {
             throw new StoreError(
               `Cannot add log: duplicated log number in the sequence.`,
               'LOG_NUMBER_EXISTS_IN_SEQUENCE',
-              e,
+              { cause: e },
             );
           }
           throw e;
@@ -737,28 +737,33 @@ export type Log = {
   values: JsonObject;
 };
 
-const storeErrorCodes = [
+const storeErrorCodeList = [
   'RUN_EXISTS',
   'LOG_NUMBER_EXISTS_IN_SEQUENCE',
   'INVALID_LOG_NUMBER',
   'RUN_NOT_FOUND',
   'RUN_HAS_ENDED',
 ] as const;
-type StoreErrorCode = (typeof storeErrorCodes)[number];
-class StoreError extends Error {
-  code: StoreErrorCode;
-  cause?: Error;
-  constructor(message: string, code: StoreErrorCode, cause?: Error) {
-    super(message);
+type StoreErrorCode = (typeof storeErrorCodeList)[number];
+
+export class StoreError extends ErrorWithCodes(storeErrorCodeList) {
+  constructor(message: string, code: StoreErrorCode, options?: ErrorOptions) {
+    super(message, code, options);
     this.name = 'StoreError';
-    this.code = code;
-    if (cause != null) {
-      this.cause = cause;
-    }
   }
 }
-const ExtendedStoreError = StoreError as typeof StoreError & {
-  [key in StoreErrorCode]: key;
-};
-Object.assign(ExtendedStoreError, storeErrorCodes);
-export { ExtendedStoreError as StoreError };
+
+function ErrorWithCodes<const Code extends string>(codes: readonly Code[]) {
+  class ErrorWithCodes extends Error {
+    code: Code;
+    constructor(message: string, code: Code, options?: ErrorOptions) {
+      super(message, options);
+      this.code = code;
+    }
+  }
+  const storeErrorCodeMap = Object.fromEntries(
+    codes.map((code) => [code, code] as const),
+  );
+  Object.assign(ErrorWithCodes, storeErrorCodeMap);
+  return ErrorWithCodes as typeof ErrorWithCodes & { [K in Code]: K };
+}
