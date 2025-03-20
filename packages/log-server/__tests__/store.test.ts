@@ -1586,20 +1586,17 @@ describe('SQLiteStore#getLogValueNames', () => {
     ).resolves.toEqual([]);
   });
 
-  it('igores values from canceled logs', async ({ store }) => {
+  it('ignores values from canceled logs', async ({ store }) => {
     let { experimentId } = await store.addExperiment({ experimentName: 'exp' });
-    let { runId } = await store.addRun({ experimentId });
+    let { runId } = await store.addRun({ experimentId, runStatus: 'running' });
     let logs = await store.addLogs(runId, [
-      { type: 'log', number: 0, values: { x: 'x' } },
       { type: 'log', number: 1, values: { x: 'x' } },
-      { type: 'log', number: 2, values: { y: 'x' } },
+      { type: 'log', number: 2, values: { x: 'x' } },
+      { type: 'log', number: 3, values: { nope: 'nope' } },
     ]);
-    await store.setRunStatus(runId, 'canceled');
+    await store.setRunStatus(runId, 'interrupted');
     await store.resumeRun(runId, { after: logs[1].logId });
-    await expect(store.getLogValueNames({ runId })).resolves.toEqual([
-      { logId: logs[0].logId },
-      { logId: logs[2].logId },
-    ]);
+    await expect(store.getLogValueNames({ runId })).resolves.toEqual(['x']);
   });
 });
 
@@ -1880,10 +1877,9 @@ describe.for([{ queryLimit: 10000 }, { queryLimit: 2 }])(
         { type: 'log1', number: 3, values: { x: 5 } },
         { type: 'log1', number: 4, values: { x: 6 } },
       ]);
-      await expect(
-        fromAsync(store.getLogs({ runId: e1run2 })),
-      ).resolves.toHaveLength(4);
-      await store.resumeRun(e1run2, { from: 2 });
+      let logs = await fromAsync(store.getLogs({ runId: e1run2 }));
+      expect(logs).toHaveLength(4);
+      await store.resumeRun(e1run2, { after: logs[0].logId });
       await expect(
         fromAsync(store.getLogs({ runId: e1run2 })),
       ).resolves.toHaveLength(1);
