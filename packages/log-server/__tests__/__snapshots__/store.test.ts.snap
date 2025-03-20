@@ -1,6 +1,6 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`SQLiteStore#getLogs (selectQueryLimit: 2) > should be able to filter logs by run, experiment, and type all at once 1`] = `
+exports[`SQLiteStore#getLogs (selectQueryLimit: 2) > can filter logs by run, experiment, and type all at once 1`] = `
 [
   {
     "experimentId": "1",
@@ -37,655 +37,7 @@ exports[`SQLiteStore#getLogs (selectQueryLimit: 2) > should be able to filter lo
 ]
 `;
 
-exports[`SQLiteStore#getLogs (selectQueryLimit: 2) > should be able to filter logs from a particular experiment 1`] = `
-[
-  {
-    "experimentId": "1",
-    "experimentName": "experiment-1",
-    "logId": "1",
-    "number": 1,
-    "runId": "1",
-    "runName": "run1",
-    "runStatus": "running",
-    "type": "log1",
-    "values": {
-      "data": [
-        1,
-        "a",
-      ],
-    },
-  },
-  {
-    "experimentId": "1",
-    "experimentName": "experiment-1",
-    "logId": "2",
-    "number": 2,
-    "runId": "1",
-    "runName": "run1",
-    "runStatus": "running",
-    "type": "log1",
-    "values": {
-      "data": [
-        2,
-        "b",
-      ],
-    },
-  },
-  {
-    "experimentId": "1",
-    "experimentName": "experiment-1",
-    "logId": "6",
-    "number": 3,
-    "runId": "1",
-    "runName": "run1",
-    "runStatus": "running",
-    "type": "log3",
-    "values": {
-      "bar": "",
-      "x": 25,
-      "y": 0,
-    },
-  },
-  {
-    "experimentId": "1",
-    "experimentName": "experiment-1",
-    "logId": "3",
-    "number": 1,
-    "runId": "2",
-    "runName": "run2",
-    "runStatus": "running",
-    "type": "log1",
-    "values": {
-      "bar": null,
-      "message": "hola",
-    },
-  },
-  {
-    "experimentId": "1",
-    "experimentName": "experiment-1",
-    "logId": "4",
-    "number": 2,
-    "runId": "2",
-    "runName": "run2",
-    "runStatus": "running",
-    "type": "log2",
-    "values": {
-      "foo": false,
-      "x": 12,
-    },
-  },
-]
-`;
-
-exports[`SQLiteStore#getLogs (selectQueryLimit: 2) > should be able to filter logs from a particular experiment 2`] = `
-[
-  {
-    "experimentId": "2",
-    "experimentName": "experiment-2",
-    "logId": "5",
-    "number": 1,
-    "runId": "3",
-    "runName": "run1",
-    "runStatus": "running",
-    "type": "log2",
-    "values": {
-      "foo": true,
-      "x": 20,
-      "y": 2,
-    },
-  },
-]
-`;
-
-exports[`SQLiteStore#getLogs (selectQueryLimit: 2) > should be able to filter logs from a particular run 1`] = `
-[
-  {
-    "experimentId": "1",
-    "experimentName": "experiment-1",
-    "logId": "1",
-    "number": 1,
-    "runId": "1",
-    "runName": "run1",
-    "runStatus": "running",
-    "type": "log1",
-    "values": {
-      "data": [
-        1,
-        "a",
-      ],
-    },
-  },
-  {
-    "experimentId": "1",
-    "experimentName": "experiment-1",
-    "logId": "2",
-    "number": 2,
-    "runId": "1",
-    "runName": "run1",
-    "runStatus": "running",
-    "type": "log1",
-    "values": {
-      "data": [
-        2,
-        "b",
-      ],
-    },
-  },
-  {
-    "experimentId": "1",
-    "experimentName": "experiment-1",
-    "logId": "6",
-    "number": 3,
-    "runId": "1",
-    "runName": "run1",
-    "runStatus": "running",
-    "type": "log3",
-    "values": {
-      "bar": "",
-      "x": 25,
-      "y": 0,
-    },
-  },
-  {
-    "experimentId": "2",
-    "experimentName": "experiment-2",
-    "logId": "5",
-    "number": 1,
-    "runId": "3",
-    "runName": "run1",
-    "runStatus": "running",
-    "type": "log2",
-    "values": {
-      "foo": true,
-      "x": 20,
-      "y": 2,
-    },
-  },
-]
-`;
-
-exports[`SQLiteStore#getLogs (selectQueryLimit: 2) > should be able to filter logs from a particular run 2`] = `
-[
-  {
-    "experimentId": "1",
-    "experimentName": "experiment-1",
-    "logId": "3",
-    "number": 1,
-    "runId": "2",
-    "runName": "run2",
-    "runStatus": "running",
-    "type": "log1",
-    "values": {
-      "bar": null,
-      "message": "hola",
-    },
-  },
-  {
-    "experimentId": "1",
-    "experimentName": "experiment-1",
-    "logId": "4",
-    "number": 2,
-    "runId": "2",
-    "runName": "run2",
-    "runStatus": "running",
-    "type": "log2",
-    "values": {
-      "foo": false,
-      "x": 12,
-    },
-  },
-]
-`;
-
-exports[`SQLiteStore#getLogs (selectQueryLimit: 2) > should be able to filter logs of a particular type 1`] = `
-[
-  {
-    "experimentId": "1",
-    "experimentName": "experiment-1",
-    "logId": "1",
-    "number": 1,
-    "runId": "1",
-    "runName": "run1",
-    "runStatus": "running",
-    "type": "log1",
-    "values": {
-      "data": [
-        1,
-        "a",
-      ],
-    },
-  },
-  {
-    "experimentId": "1",
-    "experimentName": "experiment-1",
-    "logId": "2",
-    "number": 2,
-    "runId": "1",
-    "runName": "run1",
-    "runStatus": "running",
-    "type": "log1",
-    "values": {
-      "data": [
-        2,
-        "b",
-      ],
-    },
-  },
-  {
-    "experimentId": "1",
-    "experimentName": "experiment-1",
-    "logId": "3",
-    "number": 1,
-    "runId": "2",
-    "runName": "run2",
-    "runStatus": "running",
-    "type": "log1",
-    "values": {
-      "bar": null,
-      "message": "hola",
-    },
-  },
-]
-`;
-
-exports[`SQLiteStore#getLogs (selectQueryLimit: 2) > should be able to filter logs of a particular type 2`] = `
-[
-  {
-    "experimentId": "1",
-    "experimentName": "experiment-1",
-    "logId": "4",
-    "number": 2,
-    "runId": "2",
-    "runName": "run2",
-    "runStatus": "running",
-    "type": "log2",
-    "values": {
-      "foo": false,
-      "x": 12,
-    },
-  },
-  {
-    "experimentId": "2",
-    "experimentName": "experiment-2",
-    "logId": "5",
-    "number": 1,
-    "runId": "3",
-    "runName": "run1",
-    "runStatus": "running",
-    "type": "log2",
-    "values": {
-      "foo": true,
-      "x": 20,
-      "y": 2,
-    },
-  },
-]
-`;
-
-exports[`SQLiteStore#getLogs (selectQueryLimit: 2) > should ignore missing logs 1`] = `
-[
-  {
-    "experimentId": "1",
-    "experimentName": "experiment-1",
-    "logId": "1",
-    "number": 1,
-    "runId": "1",
-    "runName": "run1",
-    "runStatus": "running",
-    "type": "log1",
-    "values": {
-      "data": [
-        1,
-        "a",
-      ],
-    },
-  },
-  {
-    "experimentId": "1",
-    "experimentName": "experiment-1",
-    "logId": "2",
-    "number": 2,
-    "runId": "1",
-    "runName": "run1",
-    "runStatus": "running",
-    "type": "log1",
-    "values": {
-      "data": [
-        2,
-        "b",
-      ],
-    },
-  },
-  {
-    "experimentId": "1",
-    "experimentName": "experiment-1",
-    "logId": "6",
-    "number": 3,
-    "runId": "1",
-    "runName": "run1",
-    "runStatus": "running",
-    "type": "log3",
-    "values": {
-      "bar": "",
-      "x": 25,
-      "y": 0,
-    },
-  },
-  {
-    "experimentId": "1",
-    "experimentName": "experiment-1",
-    "logId": "3",
-    "number": 1,
-    "runId": "2",
-    "runName": "run2",
-    "runStatus": "running",
-    "type": "log1",
-    "values": {
-      "bar": null,
-      "message": "hola",
-    },
-  },
-  {
-    "experimentId": "1",
-    "experimentName": "experiment-1",
-    "logId": "4",
-    "number": 2,
-    "runId": "2",
-    "runName": "run2",
-    "runStatus": "running",
-    "type": "log2",
-    "values": {
-      "foo": false,
-      "x": 12,
-    },
-  },
-  {
-    "experimentId": "2",
-    "experimentName": "experiment-2",
-    "logId": "5",
-    "number": 1,
-    "runId": "3",
-    "runName": "run1",
-    "runStatus": "running",
-    "type": "log2",
-    "values": {
-      "foo": true,
-      "x": 20,
-      "y": 2,
-    },
-  },
-  {
-    "experimentId": "2",
-    "experimentName": "experiment-2",
-    "logId": "16",
-    "number": 11,
-    "runId": "3",
-    "runName": "run1",
-    "runStatus": "running",
-    "type": "log1",
-    "values": {
-      "msg": "hello",
-      "recipient": "Anna",
-    },
-  },
-  {
-    "experimentId": "2",
-    "experimentName": "experiment-2",
-    "logId": "39",
-    "number": 22,
-    "runId": "3",
-    "runName": "run1",
-    "runStatus": "running",
-    "type": "log1",
-    "values": {
-      "msg": "hello",
-      "recipient": "Anna",
-    },
-  },
-  {
-    "experimentId": "2",
-    "experimentName": "experiment-2",
-    "logId": "38",
-    "number": 33,
-    "runId": "3",
-    "runName": "run1",
-    "runStatus": "running",
-    "type": "log1",
-    "values": {
-      "msg": "bonjour",
-      "recipient": "Jo",
-    },
-  },
-  {
-    "experimentId": "2",
-    "experimentName": "experiment-2",
-    "logId": "50",
-    "number": 44,
-    "runId": "3",
-    "runName": "run1",
-    "runStatus": "running",
-    "type": "log1",
-    "values": {
-      "msg": "bonjour",
-      "recipient": "Jo",
-    },
-  },
-]
-`;
-
-exports[`SQLiteStore#getLogs (selectQueryLimit: 2) > should return logs added after resuming 1`] = `
-[
-  {
-    "experimentId": "2",
-    "experimentName": "experiment-2",
-    "logId": "5",
-    "number": 1,
-    "runId": "3",
-    "runName": "run1",
-    "runStatus": "running",
-    "type": "log2",
-    "values": {
-      "foo": true,
-      "x": 20,
-      "y": 2,
-    },
-  },
-  {
-    "experimentId": "2",
-    "experimentName": "experiment-2",
-    "logId": "7",
-    "number": 2,
-    "runId": "3",
-    "runName": "run1",
-    "runStatus": "running",
-    "type": "log3",
-    "values": {
-      "foo": true,
-      "x": 25,
-      "y": 0,
-    },
-  },
-]
-`;
-
-exports[`SQLiteStore#getLogs (selectQueryLimit: 2) > should return logs overwriting other logs after resuming 1`] = `
-[
-  {
-    "experimentId": "1",
-    "experimentName": "experiment-1",
-    "logId": "3",
-    "number": 1,
-    "runId": "2",
-    "runName": "run2",
-    "runStatus": "running",
-    "type": "log1",
-    "values": {
-      "bar": null,
-      "message": "hola",
-    },
-  },
-  {
-    "experimentId": "1",
-    "experimentName": "experiment-1",
-    "logId": "9",
-    "number": 2,
-    "runId": "2",
-    "runName": "run2",
-    "runStatus": "running",
-    "type": "overwriting",
-    "values": {
-      "x": 1,
-    },
-  },
-  {
-    "experimentId": "1",
-    "experimentName": "experiment-1",
-    "logId": "10",
-    "number": 3,
-    "runId": "2",
-    "runName": "run2",
-    "runStatus": "running",
-    "type": "overwriting",
-    "values": {
-      "x": 2,
-    },
-  },
-]
-`;
-
-exports[`SQLiteStore#getLogs (selectQueryLimit: 2) > should return the logs in order of experimentName, runName, and ascending number 1`] = `
-[
-  {
-    "experimentId": "1",
-    "experimentName": "experiment-1",
-    "logId": "1",
-    "number": 1,
-    "runId": "1",
-    "runName": "run1",
-    "runStatus": "running",
-    "type": "log1",
-    "values": {
-      "data": [
-        1,
-        "a",
-      ],
-    },
-  },
-  {
-    "experimentId": "1",
-    "experimentName": "experiment-1",
-    "logId": "2",
-    "number": 2,
-    "runId": "1",
-    "runName": "run1",
-    "runStatus": "running",
-    "type": "log1",
-    "values": {
-      "data": [
-        2,
-        "b",
-      ],
-    },
-  },
-  {
-    "experimentId": "1",
-    "experimentName": "experiment-1",
-    "logId": "6",
-    "number": 3,
-    "runId": "1",
-    "runName": "run1",
-    "runStatus": "running",
-    "type": "log3",
-    "values": {
-      "bar": "",
-      "x": 25,
-      "y": 0,
-    },
-  },
-  {
-    "experimentId": "1",
-    "experimentName": "experiment-1",
-    "logId": "3",
-    "number": 1,
-    "runId": "2",
-    "runName": "run2",
-    "runStatus": "running",
-    "type": "log1",
-    "values": {
-      "bar": null,
-      "message": "hola",
-    },
-  },
-  {
-    "experimentId": "1",
-    "experimentName": "experiment-1",
-    "logId": "4",
-    "number": 2,
-    "runId": "2",
-    "runName": "run2",
-    "runStatus": "running",
-    "type": "log2",
-    "values": {
-      "foo": false,
-      "x": 12,
-    },
-  },
-  {
-    "experimentId": "2",
-    "experimentName": "experiment-2",
-    "logId": "5",
-    "number": 1,
-    "runId": "3",
-    "runName": "run1",
-    "runStatus": "running",
-    "type": "log2",
-    "values": {
-      "foo": true,
-      "x": 20,
-      "y": 2,
-    },
-  },
-]
-`;
-
-exports[`SQLiteStore#getLogs (selectQueryLimit: 10000) > should be able to filter logs by run, experiment, and type all at once 1`] = `
-[
-  {
-    "experimentId": "1",
-    "experimentName": "experiment-1",
-    "logId": "1",
-    "number": 1,
-    "runId": "1",
-    "runName": "run1",
-    "runStatus": "running",
-    "type": "log1",
-    "values": {
-      "data": [
-        1,
-        "a",
-      ],
-    },
-  },
-  {
-    "experimentId": "1",
-    "experimentName": "experiment-1",
-    "logId": "2",
-    "number": 2,
-    "runId": "1",
-    "runName": "run1",
-    "runStatus": "running",
-    "type": "log1",
-    "values": {
-      "data": [
-        2,
-        "b",
-      ],
-    },
-  },
-]
-`;
-
-exports[`SQLiteStore#getLogs (selectQueryLimit: 10000) > should be able to filter logs from a particular experiment 1`] = `
+exports[`SQLiteStore#getLogs (selectQueryLimit: 2) > can filter logs from a particular experiment 1`] = `
 [
   {
     "experimentId": "1",
@@ -765,7 +117,7 @@ exports[`SQLiteStore#getLogs (selectQueryLimit: 10000) > should be able to filte
 ]
 `;
 
-exports[`SQLiteStore#getLogs (selectQueryLimit: 10000) > should be able to filter logs from a particular experiment 2`] = `
+exports[`SQLiteStore#getLogs (selectQueryLimit: 2) > can filter logs from a particular experiment 2`] = `
 [
   {
     "experimentId": "2",
@@ -785,7 +137,7 @@ exports[`SQLiteStore#getLogs (selectQueryLimit: 10000) > should be able to filte
 ]
 `;
 
-exports[`SQLiteStore#getLogs (selectQueryLimit: 10000) > should be able to filter logs from a particular run 1`] = `
+exports[`SQLiteStore#getLogs (selectQueryLimit: 2) > can filter logs from a particular run 1`] = `
 [
   {
     "experimentId": "1",
@@ -852,7 +204,7 @@ exports[`SQLiteStore#getLogs (selectQueryLimit: 10000) > should be able to filte
 ]
 `;
 
-exports[`SQLiteStore#getLogs (selectQueryLimit: 10000) > should be able to filter logs from a particular run 2`] = `
+exports[`SQLiteStore#getLogs (selectQueryLimit: 2) > can filter logs from a particular run 2`] = `
 [
   {
     "experimentId": "1",
@@ -885,7 +237,7 @@ exports[`SQLiteStore#getLogs (selectQueryLimit: 10000) > should be able to filte
 ]
 `;
 
-exports[`SQLiteStore#getLogs (selectQueryLimit: 10000) > should be able to filter logs of a particular type 1`] = `
+exports[`SQLiteStore#getLogs (selectQueryLimit: 2) > can filter logs of a particular type 1`] = `
 [
   {
     "experimentId": "1",
@@ -936,7 +288,7 @@ exports[`SQLiteStore#getLogs (selectQueryLimit: 10000) > should be able to filte
 ]
 `;
 
-exports[`SQLiteStore#getLogs (selectQueryLimit: 10000) > should be able to filter logs of a particular type 2`] = `
+exports[`SQLiteStore#getLogs (selectQueryLimit: 2) > can filter logs of a particular type 2`] = `
 [
   {
     "experimentId": "1",
@@ -970,7 +322,7 @@ exports[`SQLiteStore#getLogs (selectQueryLimit: 10000) > should be able to filte
 ]
 `;
 
-exports[`SQLiteStore#getLogs (selectQueryLimit: 10000) > should ignore missing logs 1`] = `
+exports[`SQLiteStore#getLogs (selectQueryLimit: 2) > ignores missing logs 1`] = `
 [
   {
     "experimentId": "1",
@@ -1121,7 +473,7 @@ exports[`SQLiteStore#getLogs (selectQueryLimit: 10000) > should ignore missing l
 ]
 `;
 
-exports[`SQLiteStore#getLogs (selectQueryLimit: 10000) > should return logs added after resuming 1`] = `
+exports[`SQLiteStore#getLogs (selectQueryLimit: 2) > returns logs added after resuming 1`] = `
 [
   {
     "experimentId": "2",
@@ -1156,7 +508,7 @@ exports[`SQLiteStore#getLogs (selectQueryLimit: 10000) > should return logs adde
 ]
 `;
 
-exports[`SQLiteStore#getLogs (selectQueryLimit: 10000) > should return logs overwriting other logs after resuming 1`] = `
+exports[`SQLiteStore#getLogs (selectQueryLimit: 2) > returns logs overwriting other logs after resuming 1`] = `
 [
   {
     "experimentId": "1",
@@ -1201,7 +553,655 @@ exports[`SQLiteStore#getLogs (selectQueryLimit: 10000) > should return logs over
 ]
 `;
 
-exports[`SQLiteStore#getLogs (selectQueryLimit: 10000) > should return the logs in order of experimentName, runName, and ascending number 1`] = `
+exports[`SQLiteStore#getLogs (selectQueryLimit: 2) > returns the logs in order of experimentName, runName, and ascending number 1`] = `
+[
+  {
+    "experimentId": "1",
+    "experimentName": "experiment-1",
+    "logId": "1",
+    "number": 1,
+    "runId": "1",
+    "runName": "run1",
+    "runStatus": "running",
+    "type": "log1",
+    "values": {
+      "data": [
+        1,
+        "a",
+      ],
+    },
+  },
+  {
+    "experimentId": "1",
+    "experimentName": "experiment-1",
+    "logId": "2",
+    "number": 2,
+    "runId": "1",
+    "runName": "run1",
+    "runStatus": "running",
+    "type": "log1",
+    "values": {
+      "data": [
+        2,
+        "b",
+      ],
+    },
+  },
+  {
+    "experimentId": "1",
+    "experimentName": "experiment-1",
+    "logId": "6",
+    "number": 3,
+    "runId": "1",
+    "runName": "run1",
+    "runStatus": "running",
+    "type": "log3",
+    "values": {
+      "bar": "",
+      "x": 25,
+      "y": 0,
+    },
+  },
+  {
+    "experimentId": "1",
+    "experimentName": "experiment-1",
+    "logId": "3",
+    "number": 1,
+    "runId": "2",
+    "runName": "run2",
+    "runStatus": "running",
+    "type": "log1",
+    "values": {
+      "bar": null,
+      "message": "hola",
+    },
+  },
+  {
+    "experimentId": "1",
+    "experimentName": "experiment-1",
+    "logId": "4",
+    "number": 2,
+    "runId": "2",
+    "runName": "run2",
+    "runStatus": "running",
+    "type": "log2",
+    "values": {
+      "foo": false,
+      "x": 12,
+    },
+  },
+  {
+    "experimentId": "2",
+    "experimentName": "experiment-2",
+    "logId": "5",
+    "number": 1,
+    "runId": "3",
+    "runName": "run1",
+    "runStatus": "running",
+    "type": "log2",
+    "values": {
+      "foo": true,
+      "x": 20,
+      "y": 2,
+    },
+  },
+]
+`;
+
+exports[`SQLiteStore#getLogs (selectQueryLimit: 10000) > can filter logs by run, experiment, and type all at once 1`] = `
+[
+  {
+    "experimentId": "1",
+    "experimentName": "experiment-1",
+    "logId": "1",
+    "number": 1,
+    "runId": "1",
+    "runName": "run1",
+    "runStatus": "running",
+    "type": "log1",
+    "values": {
+      "data": [
+        1,
+        "a",
+      ],
+    },
+  },
+  {
+    "experimentId": "1",
+    "experimentName": "experiment-1",
+    "logId": "2",
+    "number": 2,
+    "runId": "1",
+    "runName": "run1",
+    "runStatus": "running",
+    "type": "log1",
+    "values": {
+      "data": [
+        2,
+        "b",
+      ],
+    },
+  },
+]
+`;
+
+exports[`SQLiteStore#getLogs (selectQueryLimit: 10000) > can filter logs from a particular experiment 1`] = `
+[
+  {
+    "experimentId": "1",
+    "experimentName": "experiment-1",
+    "logId": "1",
+    "number": 1,
+    "runId": "1",
+    "runName": "run1",
+    "runStatus": "running",
+    "type": "log1",
+    "values": {
+      "data": [
+        1,
+        "a",
+      ],
+    },
+  },
+  {
+    "experimentId": "1",
+    "experimentName": "experiment-1",
+    "logId": "2",
+    "number": 2,
+    "runId": "1",
+    "runName": "run1",
+    "runStatus": "running",
+    "type": "log1",
+    "values": {
+      "data": [
+        2,
+        "b",
+      ],
+    },
+  },
+  {
+    "experimentId": "1",
+    "experimentName": "experiment-1",
+    "logId": "6",
+    "number": 3,
+    "runId": "1",
+    "runName": "run1",
+    "runStatus": "running",
+    "type": "log3",
+    "values": {
+      "bar": "",
+      "x": 25,
+      "y": 0,
+    },
+  },
+  {
+    "experimentId": "1",
+    "experimentName": "experiment-1",
+    "logId": "3",
+    "number": 1,
+    "runId": "2",
+    "runName": "run2",
+    "runStatus": "running",
+    "type": "log1",
+    "values": {
+      "bar": null,
+      "message": "hola",
+    },
+  },
+  {
+    "experimentId": "1",
+    "experimentName": "experiment-1",
+    "logId": "4",
+    "number": 2,
+    "runId": "2",
+    "runName": "run2",
+    "runStatus": "running",
+    "type": "log2",
+    "values": {
+      "foo": false,
+      "x": 12,
+    },
+  },
+]
+`;
+
+exports[`SQLiteStore#getLogs (selectQueryLimit: 10000) > can filter logs from a particular experiment 2`] = `
+[
+  {
+    "experimentId": "2",
+    "experimentName": "experiment-2",
+    "logId": "5",
+    "number": 1,
+    "runId": "3",
+    "runName": "run1",
+    "runStatus": "running",
+    "type": "log2",
+    "values": {
+      "foo": true,
+      "x": 20,
+      "y": 2,
+    },
+  },
+]
+`;
+
+exports[`SQLiteStore#getLogs (selectQueryLimit: 10000) > can filter logs from a particular run 1`] = `
+[
+  {
+    "experimentId": "1",
+    "experimentName": "experiment-1",
+    "logId": "1",
+    "number": 1,
+    "runId": "1",
+    "runName": "run1",
+    "runStatus": "running",
+    "type": "log1",
+    "values": {
+      "data": [
+        1,
+        "a",
+      ],
+    },
+  },
+  {
+    "experimentId": "1",
+    "experimentName": "experiment-1",
+    "logId": "2",
+    "number": 2,
+    "runId": "1",
+    "runName": "run1",
+    "runStatus": "running",
+    "type": "log1",
+    "values": {
+      "data": [
+        2,
+        "b",
+      ],
+    },
+  },
+  {
+    "experimentId": "1",
+    "experimentName": "experiment-1",
+    "logId": "6",
+    "number": 3,
+    "runId": "1",
+    "runName": "run1",
+    "runStatus": "running",
+    "type": "log3",
+    "values": {
+      "bar": "",
+      "x": 25,
+      "y": 0,
+    },
+  },
+  {
+    "experimentId": "2",
+    "experimentName": "experiment-2",
+    "logId": "5",
+    "number": 1,
+    "runId": "3",
+    "runName": "run1",
+    "runStatus": "running",
+    "type": "log2",
+    "values": {
+      "foo": true,
+      "x": 20,
+      "y": 2,
+    },
+  },
+]
+`;
+
+exports[`SQLiteStore#getLogs (selectQueryLimit: 10000) > can filter logs from a particular run 2`] = `
+[
+  {
+    "experimentId": "1",
+    "experimentName": "experiment-1",
+    "logId": "3",
+    "number": 1,
+    "runId": "2",
+    "runName": "run2",
+    "runStatus": "running",
+    "type": "log1",
+    "values": {
+      "bar": null,
+      "message": "hola",
+    },
+  },
+  {
+    "experimentId": "1",
+    "experimentName": "experiment-1",
+    "logId": "4",
+    "number": 2,
+    "runId": "2",
+    "runName": "run2",
+    "runStatus": "running",
+    "type": "log2",
+    "values": {
+      "foo": false,
+      "x": 12,
+    },
+  },
+]
+`;
+
+exports[`SQLiteStore#getLogs (selectQueryLimit: 10000) > can filter logs of a particular type 1`] = `
+[
+  {
+    "experimentId": "1",
+    "experimentName": "experiment-1",
+    "logId": "1",
+    "number": 1,
+    "runId": "1",
+    "runName": "run1",
+    "runStatus": "running",
+    "type": "log1",
+    "values": {
+      "data": [
+        1,
+        "a",
+      ],
+    },
+  },
+  {
+    "experimentId": "1",
+    "experimentName": "experiment-1",
+    "logId": "2",
+    "number": 2,
+    "runId": "1",
+    "runName": "run1",
+    "runStatus": "running",
+    "type": "log1",
+    "values": {
+      "data": [
+        2,
+        "b",
+      ],
+    },
+  },
+  {
+    "experimentId": "1",
+    "experimentName": "experiment-1",
+    "logId": "3",
+    "number": 1,
+    "runId": "2",
+    "runName": "run2",
+    "runStatus": "running",
+    "type": "log1",
+    "values": {
+      "bar": null,
+      "message": "hola",
+    },
+  },
+]
+`;
+
+exports[`SQLiteStore#getLogs (selectQueryLimit: 10000) > can filter logs of a particular type 2`] = `
+[
+  {
+    "experimentId": "1",
+    "experimentName": "experiment-1",
+    "logId": "4",
+    "number": 2,
+    "runId": "2",
+    "runName": "run2",
+    "runStatus": "running",
+    "type": "log2",
+    "values": {
+      "foo": false,
+      "x": 12,
+    },
+  },
+  {
+    "experimentId": "2",
+    "experimentName": "experiment-2",
+    "logId": "5",
+    "number": 1,
+    "runId": "3",
+    "runName": "run1",
+    "runStatus": "running",
+    "type": "log2",
+    "values": {
+      "foo": true,
+      "x": 20,
+      "y": 2,
+    },
+  },
+]
+`;
+
+exports[`SQLiteStore#getLogs (selectQueryLimit: 10000) > ignores missing logs 1`] = `
+[
+  {
+    "experimentId": "1",
+    "experimentName": "experiment-1",
+    "logId": "1",
+    "number": 1,
+    "runId": "1",
+    "runName": "run1",
+    "runStatus": "running",
+    "type": "log1",
+    "values": {
+      "data": [
+        1,
+        "a",
+      ],
+    },
+  },
+  {
+    "experimentId": "1",
+    "experimentName": "experiment-1",
+    "logId": "2",
+    "number": 2,
+    "runId": "1",
+    "runName": "run1",
+    "runStatus": "running",
+    "type": "log1",
+    "values": {
+      "data": [
+        2,
+        "b",
+      ],
+    },
+  },
+  {
+    "experimentId": "1",
+    "experimentName": "experiment-1",
+    "logId": "6",
+    "number": 3,
+    "runId": "1",
+    "runName": "run1",
+    "runStatus": "running",
+    "type": "log3",
+    "values": {
+      "bar": "",
+      "x": 25,
+      "y": 0,
+    },
+  },
+  {
+    "experimentId": "1",
+    "experimentName": "experiment-1",
+    "logId": "3",
+    "number": 1,
+    "runId": "2",
+    "runName": "run2",
+    "runStatus": "running",
+    "type": "log1",
+    "values": {
+      "bar": null,
+      "message": "hola",
+    },
+  },
+  {
+    "experimentId": "1",
+    "experimentName": "experiment-1",
+    "logId": "4",
+    "number": 2,
+    "runId": "2",
+    "runName": "run2",
+    "runStatus": "running",
+    "type": "log2",
+    "values": {
+      "foo": false,
+      "x": 12,
+    },
+  },
+  {
+    "experimentId": "2",
+    "experimentName": "experiment-2",
+    "logId": "5",
+    "number": 1,
+    "runId": "3",
+    "runName": "run1",
+    "runStatus": "running",
+    "type": "log2",
+    "values": {
+      "foo": true,
+      "x": 20,
+      "y": 2,
+    },
+  },
+  {
+    "experimentId": "2",
+    "experimentName": "experiment-2",
+    "logId": "16",
+    "number": 11,
+    "runId": "3",
+    "runName": "run1",
+    "runStatus": "running",
+    "type": "log1",
+    "values": {
+      "msg": "hello",
+      "recipient": "Anna",
+    },
+  },
+  {
+    "experimentId": "2",
+    "experimentName": "experiment-2",
+    "logId": "39",
+    "number": 22,
+    "runId": "3",
+    "runName": "run1",
+    "runStatus": "running",
+    "type": "log1",
+    "values": {
+      "msg": "hello",
+      "recipient": "Anna",
+    },
+  },
+  {
+    "experimentId": "2",
+    "experimentName": "experiment-2",
+    "logId": "38",
+    "number": 33,
+    "runId": "3",
+    "runName": "run1",
+    "runStatus": "running",
+    "type": "log1",
+    "values": {
+      "msg": "bonjour",
+      "recipient": "Jo",
+    },
+  },
+  {
+    "experimentId": "2",
+    "experimentName": "experiment-2",
+    "logId": "50",
+    "number": 44,
+    "runId": "3",
+    "runName": "run1",
+    "runStatus": "running",
+    "type": "log1",
+    "values": {
+      "msg": "bonjour",
+      "recipient": "Jo",
+    },
+  },
+]
+`;
+
+exports[`SQLiteStore#getLogs (selectQueryLimit: 10000) > returns logs added after resuming 1`] = `
+[
+  {
+    "experimentId": "2",
+    "experimentName": "experiment-2",
+    "logId": "5",
+    "number": 1,
+    "runId": "3",
+    "runName": "run1",
+    "runStatus": "running",
+    "type": "log2",
+    "values": {
+      "foo": true,
+      "x": 20,
+      "y": 2,
+    },
+  },
+  {
+    "experimentId": "2",
+    "experimentName": "experiment-2",
+    "logId": "7",
+    "number": 2,
+    "runId": "3",
+    "runName": "run1",
+    "runStatus": "running",
+    "type": "log3",
+    "values": {
+      "foo": true,
+      "x": 25,
+      "y": 0,
+    },
+  },
+]
+`;
+
+exports[`SQLiteStore#getLogs (selectQueryLimit: 10000) > returns logs overwriting other logs after resuming 1`] = `
+[
+  {
+    "experimentId": "1",
+    "experimentName": "experiment-1",
+    "logId": "3",
+    "number": 1,
+    "runId": "2",
+    "runName": "run2",
+    "runStatus": "running",
+    "type": "log1",
+    "values": {
+      "bar": null,
+      "message": "hola",
+    },
+  },
+  {
+    "experimentId": "1",
+    "experimentName": "experiment-1",
+    "logId": "9",
+    "number": 2,
+    "runId": "2",
+    "runName": "run2",
+    "runStatus": "running",
+    "type": "overwriting",
+    "values": {
+      "x": 1,
+    },
+  },
+  {
+    "experimentId": "1",
+    "experimentName": "experiment-1",
+    "logId": "10",
+    "number": 3,
+    "runId": "2",
+    "runName": "run2",
+    "runStatus": "running",
+    "type": "overwriting",
+    "values": {
+      "x": 2,
+    },
+  },
+]
+`;
+
+exports[`SQLiteStore#getLogs (selectQueryLimit: 10000) > returns the logs in order of experimentName, runName, and ascending number 1`] = `
 [
   {
     "experimentId": "1",

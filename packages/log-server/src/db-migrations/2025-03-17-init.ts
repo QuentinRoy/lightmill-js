@@ -1,18 +1,18 @@
 import { ColumnType, GeneratedAlways, Kysely, sql } from 'kysely';
 import { JsonObject, Tagged } from 'type-fest';
 
-type DbRunId = Tagged<number, 'RunId'>;
-type DbExperimentId = Tagged<number, 'ExperimentId'>;
-type DbLogId = Tagged<number, 'LogId'>;
-type DbLogSequenceId = Tagged<number, 'LogSequenceId'>;
+export type DbRunId = Tagged<number, 'RunId'>;
+export type DbExperimentId = Tagged<number, 'ExperimentId'>;
+export type DbLogId = Tagged<number, 'LogId'>;
+export type DbLogSequenceId = Tagged<number, 'LogSequenceId'>;
 
-type ExperimentTable = {
+export type ExperimentTable = {
   experimentId: GeneratedAlways<DbExperimentId>;
   experimentName: ColumnType<string, string, never>;
   // We use ColumnType to indicate that the column cannot be updated.
   experimentCreatedAt: ColumnType<string, string, never>;
 };
-const runStatuses = [
+export const runStatuses = [
   'idle',
   'running',
   'completed',
@@ -20,20 +20,20 @@ const runStatuses = [
   'interrupted',
 ] as const;
 export type RunStatus = (typeof runStatuses)[number];
-type RunTable = {
+export type RunTable = {
   runId: GeneratedAlways<DbRunId>;
   experimentId: ColumnType<DbExperimentId, DbExperimentId, never>;
   runName?: ColumnType<string, string, never>;
   runStatus: RunStatus;
   runCreatedAt: ColumnType<string, string, never>;
 };
-type LogSequenceTable = {
+export type LogSequenceTable = {
   sequenceId: GeneratedAlways<DbLogSequenceId>;
   runId: ColumnType<DbRunId, number, never>;
   sequenceNumber: ColumnType<number, number, never>;
   start: ColumnType<number, number, never>;
 };
-type LogTable = {
+export type LogTable = {
   logId: GeneratedAlways<DbLogId>;
   sequenceId: ColumnType<DbLogSequenceId, DbLogSequenceId, never>;
   logNumber: ColumnType<number, number, never>;
@@ -42,22 +42,23 @@ type LogTable = {
   logType?: string;
   logValues?: JsonObject;
 };
-type RunLogView = {
+export type RunLogView = {
   experimentId: ColumnType<DbExperimentId, never, never>;
   experimentName: ColumnType<string, never, never>;
   runId: ColumnType<DbRunId, never, never>;
   runName: ColumnType<string, never, never>;
   runStatus: ColumnType<RunStatus, never, never>;
+  sequenceId: ColumnType<DbLogSequenceId, never, never>;
   logId: ColumnType<DbLogId, never, never>;
   logNumber: ColumnType<number, never, never>;
   logType?: ColumnType<string, never, never>;
   logValues?: ColumnType<JsonObject, never, never>;
 };
-type LogPropertyNameTable = {
+export type LogPropertyNameTable = {
   logId: ColumnType<DbLogId, number, never>;
   logPropertyName: ColumnType<string, string, never>;
 };
-type Database = {
+export type Database = {
   experiment: ExperimentTable;
   run: RunTable;
   logSequence: LogSequenceTable;
@@ -310,6 +311,7 @@ export async function up(db: Kysely<Database>) {
             'run.runId',
             'run.runName',
             'run.runStatus',
+            'seq.sequenceId',
             'log.logId',
             'log.logNumber',
             'log.logType',

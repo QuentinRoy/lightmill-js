@@ -1,9 +1,14 @@
 /* eslint-disable no-empty-pattern -- Empty objects are required with vitest's fixtures */
 
 import loglevel from 'loglevel';
-import { afterEach, it as baseIt, beforeEach, describe, vi } from 'vitest';
-// These tests must run on the compiled code, not the source code, because
-// kysely does not support typescript migration files.
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  TestAPI,
+  vi,
+  it as vitestIt,
+} from 'vitest';
 import { type ExperimentId, type RunId, SQLiteStore } from '../src/store.js';
 
 // Prevent kysely from logging anything.
@@ -29,7 +34,7 @@ interface Fixture {
   mockTime: Date;
 }
 
-const it = baseIt.extend<Fixture>({
+let baseIt = vitestIt.extend<Fixture>({
   store: async ({}, use) => {
     let store = new SQLiteStore(':memory:');
     await store.migrateDatabase();
@@ -138,6 +143,8 @@ const it = baseIt.extend<Fixture>({
     await use(runs);
   },
 });
+
+let it = baseIt;
 
 describe('SQLiteStore', () => {
   it('should create and close a new Store instance without error', async () => {
@@ -381,7 +388,7 @@ describe('SQLiteStore#addRun', () => {
 });
 
 describe('SQLiteStore#getRuns', () => {
-  it('should return the run corresponding to a runId', async ({
+  it('returns the run corresponding to a runId', async ({
     expect,
     store,
     experiment1,
@@ -417,7 +424,7 @@ describe('SQLiteStore#getRuns', () => {
     ]);
   });
 
-  it('should return an empty array if no corresponding runs are found', async ({
+  it('returns an empty array if no corresponding runs are found', async ({
     expect,
     store,
     unknownRun,
@@ -425,7 +432,7 @@ describe('SQLiteStore#getRuns', () => {
     await expect(store.getRuns({ runId: unknownRun })).resolves.toEqual([]);
   });
 
-  it('should return all runs if no filter is provided', async ({
+  it('returns all runs if no filter is provided', async ({
     store,
     experiment1,
     experiment2,
@@ -457,7 +464,7 @@ describe('SQLiteStore#getRuns', () => {
     ]);
   });
 
-  it('should return all runs corresponding to an experiment name', async ({
+  it('returns all runs corresponding to an experiment name', async ({
     expect,
     store,
     experiment1,
@@ -520,7 +527,7 @@ describe('SQLiteStore#getRuns', () => {
     ]);
   });
 
-  it('should return all runs corresponding to a run name', async ({
+  it('returns all runs corresponding to a run name', async ({
     expect,
     store,
     experiment1,
@@ -579,7 +586,7 @@ describe('SQLiteStore#getRuns', () => {
     );
   });
 
-  it('should return all runs with a specific status', async ({
+  it('returns all runs with a specific status', async ({
     expect,
     store,
     runs,
@@ -649,7 +656,7 @@ describe('SQLiteStore#getRuns', () => {
     ]);
   });
 
-  it('should return all runs if no filter is provided', async ({
+  it('returns all runs if no filter is provided', async ({
     expect,
     store,
     experiment1,
@@ -681,7 +688,7 @@ describe('SQLiteStore#getRuns', () => {
     ]);
   });
 
-  it('should return an empty array if part of the filter is an empty array', async ({
+  it('returns an empty array if part of the filter is an empty array', async ({
     expect,
     store,
     experiment1,
@@ -774,7 +781,7 @@ describe('SQLiteStore#setRunStatus', () => {
     );
   });
 
-  it('should be able to complete a resumed run even if it was interrupted', async ({
+  it('can complete a resumed run even if it was interrupted', async ({
     expect,
     store,
     runWith2Logs: runId,
@@ -786,7 +793,7 @@ describe('SQLiteStore#setRunStatus', () => {
     ).resolves.toBeUndefined();
   });
 
-  it('should be able to cancel a resumed run even if it was interrupted before', async ({
+  it('can cancel a resumed run even if it was interrupted before', async ({
     expect,
     store,
     runWith2Logs: runId,
@@ -1199,98 +1206,246 @@ describe('SQLiteStore#addLogs', () => {
   });
 });
 
-describe('SQLiteStore#getLogSummary', () => {
-  let exp1run1: RunId;
-  let exp1run2: RunId;
-  let exp2run1: RunId;
-  let unknownRun: RunId;
-
-  beforeEach<Fixture>(async ({ store, experiment1, experiment2 }) => {
-    ({ runId: exp1run1 } = await store.addRun({
-      runName: 'run1',
-      experimentId: experiment1,
-      runStatus: 'running',
-    }));
-    ({ runId: exp1run2 } = await store.addRun({
-      runName: 'run2',
-      experimentId: experiment1,
-      runStatus: 'running',
-    }));
-    ({ runId: exp2run1 } = await store.addRun({
-      runName: 'run1',
-      experimentId: experiment2,
-      runStatus: 'running',
-    }));
-    unknownRun = [1, 2, 3, 4]
-      .map((x) => x.toString())
-      .filter(
-        (x) => x !== exp1run1 && x !== exp1run2 && x !== exp2run1,
-      )[0] as RunId;
-
-    await store.addLogs(exp1run1, [
-      { number: 2, type: 'log1', values: { x: 10 } },
-      { number: 3, type: 'log1', values: { x: 11 } },
-    ]);
-    await store.addLogs(exp1run1, [
-      { number: 8, type: 'log1', values: { x: 20 } },
-      { number: 5, type: 'log1', values: { x: 21 } },
-    ]);
-    await store.addLogs(exp1run1, [
-      { number: 1, type: 'log2', values: { x: 30 } },
-    ]);
-    await store.addLogs(exp1run2, [
-      { number: 1, type: 'log2', values: { x: 40 } },
-      { number: 3, type: 'log1', values: { x: 41 } },
-    ]);
-    await store.addLogs(exp2run1, [
-      { number: 3, type: 'log3', values: { x: 51 } },
-      { number: 2, type: 'log2', values: { x: 50 } },
-      { number: 5, type: 'log3', values: { x: 52 } },
-    ]);
+describe('SQLiteStore#getLastLogs', () => {
+  type Fixture = {
+    context: {
+      store: SQLiteStore;
+      exp1run1: RunId;
+      exp1run2: RunId;
+      exp2run1: RunId;
+      unknownRun: RunId;
+      exp1: ExperimentId;
+      exp2: ExperimentId;
+      logBases: { any: object; e1r1: object; e1r2: object; e2r1: object };
+    };
+  };
+  // I am intentionnally hiding from the fixture every props from
+  // baseIt's fixture.
+  const it: TestAPI<Fixture> = baseIt.extend<Fixture>({
+    context: async ({ store, experiment1, experiment2, expect }, use) => {
+      let { runId: exp1run1 } = await store.addRun({
+        runName: 'run1',
+        experimentId: experiment1,
+        runStatus: 'running',
+      });
+      let { runId: exp1run2 } = await store.addRun({
+        runName: 'run2',
+        experimentId: experiment1,
+        runStatus: 'running',
+      });
+      let { runId: exp2run1 } = await store.addRun({
+        runName: 'run1',
+        experimentId: experiment2,
+        runStatus: 'running',
+      });
+      let unknownRun = [1, 2, 3, 4]
+        .map((x) => x.toString())
+        .filter(
+          (x) => x !== exp1run1 && x !== exp1run2 && x !== exp2run1,
+        )[0] as RunId;
+      await store.addLogs(exp1run1, [
+        { number: 2, type: 'log1', values: { x: 10 } },
+        { number: 3, type: 'log1', values: { x: 11 } },
+      ]);
+      await store.addLogs(exp1run1, [
+        { number: 8, type: 'log1', values: { x: 20 } },
+        { number: 5, type: 'log1', values: { x: 21 } },
+      ]);
+      await store.addLogs(exp1run1, [
+        { number: 1, type: 'log2', values: { x: 30 } },
+      ]);
+      await store.addLogs(exp1run2, [
+        { number: 1, type: 'log2', values: { x: 40 } },
+        { number: 2, type: 'log1', values: { x: 41 } },
+        { number: 3, type: 'log1', values: { x: 42 } },
+      ]);
+      // Not logs from this run are actually confirmed since
+      // log number 1 and 2 are missing.
+      await store.addLogs(exp2run1, [
+        { number: 3, type: 'log3', values: { x: 51 } },
+        { number: 4, type: 'log2', values: { x: 50 } },
+        { number: 6, type: 'log3', values: { x: 52 } },
+      ]);
+      let anyLogBase = { id: expect.any(String), runId: expect.any(String) };
+      await use({
+        exp1run1,
+        exp1run2,
+        exp2run1,
+        unknownRun,
+        store,
+        exp1: experiment1,
+        exp2: experiment2,
+        logBases: {
+          any: anyLogBase,
+          e1r1: { ...anyLogBase, runId: exp1run1 },
+          e1r2: { ...anyLogBase, runId: exp1run2 },
+          e2r1: { ...anyLogBase, runId: exp2run1 },
+        },
+      });
+    },
   });
 
-  it('should be able to return a summary for a particular run', async ({
+  it('can return all last logs', async ({
     expect,
-    store,
+    context: { store, logBases },
   }) => {
-    await expect(store.getLogSummary(exp1run1)).resolves.toEqual([
-      { type: 'log1', count: 2, pending: 2, lastNumber: 3 },
-      { type: 'log2', count: 1, pending: 0, lastNumber: 1 },
-    ]);
-    await expect(store.getLogSummary(exp1run2)).resolves.toEqual([
-      { type: 'log1', count: 0, pending: 1, lastNumber: null },
-      { type: 'log2', count: 1, pending: 0, lastNumber: 1 },
-    ]);
-    await expect(store.getLogSummary(exp2run1)).resolves.toEqual([
-      { type: 'log2', count: 0, pending: 1, lastNumber: null },
-      { type: 'log3', count: 0, pending: 2, lastNumber: null },
+    await expect(store.getLastLogs()).resolves.toEqual([
+      { ...logBases.e1r1, type: 'log1', number: 3, values: { x: 11 } },
+      { ...logBases.e1r1, type: 'log2', number: 1, values: { x: 30 } },
+      { ...logBases.e1r2, type: 'log1', number: 3, values: { x: 42 } },
+      { ...logBases.e1r2, type: 'log2', number: 1, values: { x: 40 } },
     ]);
   });
 
-  it('should be able to filter logs by type', async ({ expect, store }) => {
+  it('can filter logs by run ids', async ({
+    expect,
+    context: { store, exp1run1, exp1run2, exp2run1, logBases },
+  }) => {
+    await expect(store.getLastLogs({ runId: exp1run1 })).resolves.toEqual([
+      { ...logBases.e1r1, type: 'log1', number: 3, values: { x: 11 } },
+      { ...logBases.e1r1, type: 'log2', number: 1, values: { x: 30 } },
+    ]);
+    await expect(store.getLastLogs({ runId: exp1run2 })).resolves.toEqual([
+      { ...logBases.e1r2, type: 'log1', number: 3, values: { x: 42 } },
+      { ...logBases.e1r2, type: 'log2', number: 1, values: { x: 40 } },
+    ]);
+    await expect(store.getLastLogs({ runId: exp2run1 })).resolves.toEqual([]);
     await expect(
-      store.getLogSummary(exp1run1, { type: 'log2' }),
-    ).resolves.toEqual([{ type: 'log2', count: 1, pending: 0, lastNumber: 1 }]);
-    await expect(
-      store.getLogSummary(exp1run2, { type: ['log1', 'log2'] }),
+      store.getLastLogs({ runId: [exp1run1, exp1run2] }),
     ).resolves.toEqual([
-      { type: 'log1', count: 0, pending: 1, lastNumber: null },
-      { type: 'log2', count: 1, pending: 0, lastNumber: 1 },
+      { ...logBases.e1r1, type: 'log1', number: 3, values: { x: 11 } },
+      { ...logBases.e1r1, type: 'log2', number: 1, values: { x: 30 } },
+      { ...logBases.e1r2, type: 'log1', number: 3, values: { x: 42 } },
+      { ...logBases.e1r2, type: 'log2', number: 1, values: { x: 40 } },
+    ]);
+  });
+
+  it('can filter logs by run names', async ({
+    expect,
+    context: { store, exp2, exp2run1, logBases },
+  }) => {
+    // I want a confirmed log in exp2run1.
+    await store.addLogs(exp2run1, [
+      { number: 1, type: 'log5', values: { x: 60 } },
+    ]);
+    // I also want a run with a name that's not run1 or run2
+    let { runId: runx } = await store.addRun({
+      runName: 'runx',
+      runStatus: 'running',
+      experimentId: exp2,
+    });
+    await store.addLogs(runx, [
+      { number: 1, type: 'log5', values: { x: 70 } },
+      { number: 2, type: 'log5', values: { x: 71 } },
+    ]);
+    await expect(store.getLastLogs({ runName: 'run1' })).resolves.toEqual([
+      { ...logBases.e1r1, type: 'log1', number: 3, values: { x: 11 } },
+      { ...logBases.e1r1, type: 'log2', number: 1, values: { x: 30 } },
+      { ...logBases.e2r1, number: 1, type: 'log5', values: { x: 60 } },
+    ]);
+    await expect(store.getLastLogs({ runName: 'run2' })).resolves.toEqual([
+      { ...logBases.e1r2, type: 'log1', number: 3, values: { x: 42 } },
+      { ...logBases.e1r2, type: 'log2', number: 1, values: { x: 40 } },
     ]);
     await expect(
-      store.getLogSummary(exp2run1, { type: ['log1', 'log2'] }),
+      store.getLastLogs({ runName: ['run1', 'run2'] }),
     ).resolves.toEqual([
-      { type: 'log2', count: 0, pending: 1, lastNumber: null },
+      { ...logBases.e1r1, type: 'log1', number: 3, values: { x: 11 } },
+      { ...logBases.e1r1, type: 'log2', number: 1, values: { x: 30 } },
+      { ...logBases.e1r2, type: 'log1', number: 3, values: { x: 42 } },
+      { ...logBases.e1r2, type: 'log2', number: 1, values: { x: 40 } },
+      { ...logBases.e2r1, number: 1, type: 'log5', values: { x: 60 } },
+    ]);
+  });
+
+  it('can filter logs by experiment name', async ({
+    expect,
+    context: { store, logBases, exp2run1 },
+  }) => {
+    // I want a confirmed log in experiment-2.
+    await store.addLogs(exp2run1, [
+      { number: 1, type: 'log5', values: { x: 60 } },
+    ]);
+    await expect(
+      store.getLastLogs({ experimentName: 'experiment-1' }),
+    ).resolves.toEqual([
+      { ...logBases.e1r1, type: 'log1', number: 3, values: { x: 11 } },
+      { ...logBases.e1r1, type: 'log2', number: 1, values: { x: 30 } },
+      { ...logBases.e1r2, type: 'log1', number: 3, values: { x: 42 } },
+      { ...logBases.e1r2, type: 'log2', number: 1, values: { x: 40 } },
+    ]);
+    await expect(
+      store.getLastLogs({ experimentName: 'experiment-2' }),
+    ).resolves.toEqual([
+      { ...logBases.e2r1, type: 'log5', number: 1, values: { x: 60 } },
+    ]);
+    await expect(
+      store.getLastLogs({ experimentName: ['experiment-1', 'experiment-2'] }),
+    ).resolves.toEqual([
+      { ...logBases.e1r1, type: 'log1', number: 3, values: { x: 11 } },
+      { ...logBases.e1r1, type: 'log2', number: 1, values: { x: 30 } },
+      { ...logBases.e1r2, type: 'log1', number: 3, values: { x: 42 } },
+      { ...logBases.e1r2, type: 'log2', number: 1, values: { x: 40 } },
+      { ...logBases.e2r1, type: 'log5', number: 1, values: { x: 60 } },
+    ]);
+  });
+
+  it('can filter logs by experiment id', async ({
+    expect,
+    context: { store, logBases, exp2run1, exp1, exp2 },
+  }) => {
+    // I want a log in experiment-2.
+    await store.addLogs(exp2run1, [
+      { number: 1, type: 'log5', values: { x: 60 } },
+    ]);
+    await expect(store.getLastLogs({ experimentId: exp1 })).resolves.toEqual([
+      { ...logBases.e1r1, type: 'log1', number: 3, values: { x: 11 } },
+      { ...logBases.e1r1, type: 'log2', number: 1, values: { x: 30 } },
+      { ...logBases.e1r2, type: 'log1', number: 3, values: { x: 42 } },
+      { ...logBases.e1r2, type: 'log2', number: 1, values: { x: 40 } },
+    ]);
+    await expect(store.getLastLogs({ experimentId: exp2 })).resolves.toEqual([
+      { ...logBases.e2r1, type: 'log5', number: 1, values: { x: 60 } },
+    ]);
+    await expect(
+      store.getLastLogs({ experimentId: [exp2, exp1] }),
+    ).resolves.toEqual([
+      { ...logBases.e1r1, type: 'log1', number: 3, values: { x: 11 } },
+      { ...logBases.e1r1, type: 'log2', number: 1, values: { x: 30 } },
+      { ...logBases.e1r2, type: 'log1', number: 3, values: { x: 42 } },
+      { ...logBases.e1r2, type: 'log2', number: 1, values: { x: 40 } },
+      { ...logBases.e2r1, type: 'log5', number: 1, values: { x: 60 } },
+    ]);
+  });
+
+  it('can filter logs by type', async ({
+    expect,
+    context: { store, logBases },
+  }) => {
+    await expect(store.getLastLogs({ type: 'log2' })).resolves.toEqual([
+      { ...logBases.e1r1, number: 1, type: 'log2', values: { x: 30 } },
+      { ...logBases.e1r2, number: 1, type: 'log2', values: { x: 40 } },
+    ]);
+    await expect(
+      store.getLastLogs({ type: ['log1', 'log2'] }),
+    ).resolves.toEqual([
+      { ...logBases.e1r1, type: 'log1', number: 3, values: { x: 11 } },
+      { ...logBases.e1r1, type: 'log2', number: 1, values: { x: 30 } },
+      { ...logBases.e1r2, type: 'log1', number: 3, values: { x: 42 } },
+      { ...logBases.e1r2, type: 'log2', number: 1, values: { x: 40 } },
     ]);
   });
 
   it('should resolve with an empty array if no log matches the filter', async ({
     expect,
-    store,
+    context: { store, unknownRun },
   }) => {
-    await expect(store.getLogSummary(unknownRun)).resolves.toEqual([]);
+    await expect(store.getLastLogs({ runId: unknownRun })).resolves.toEqual([]);
     await expect(
-      store.getLogSummary(exp1run1, { type: 'do not exist' }),
+      store.getLastLogs({ type: ['do not exist', 'do no existe either'] }),
+    ).resolves.toEqual([]);
+    await expect(
+      store.getLastLogs({ experimentName: 'unknown' }),
     ).resolves.toEqual([]);
   });
 });
@@ -1320,7 +1475,7 @@ describe('SQLiteStore#getLogValueNames', () => {
     },
   );
 
-  it('should return the names of all log values in alphabetical order', async ({
+  it('returns the names of all log values in alphabetical order', async ({
     expect,
     store,
   }) => {
@@ -1334,10 +1489,7 @@ describe('SQLiteStore#getLogValueNames', () => {
     ]);
   });
 
-  it('should be able to filter logs of a particular type', async ({
-    expect,
-    store,
-  }) => {
+  it('can filter logs of a particular type', async ({ expect, store }) => {
     await expect(store.getLogValueNames({ type: 'log1' })).resolves.toEqual([
       'bar',
       'message',
@@ -1350,7 +1502,7 @@ describe('SQLiteStore#getLogValueNames', () => {
     ]);
   });
 
-  it('should be able to filter logs from a particular experiment', async ({
+  it('can filter logs from a particular experiment', async ({
     expect,
     store,
     experiment1,
@@ -1364,10 +1516,7 @@ describe('SQLiteStore#getLogValueNames', () => {
     ).resolves.toEqual(['foo', 'x', 'y']);
   });
 
-  it('should be able to filter logs from a particular run', async ({
-    expect,
-    store,
-  }) => {
+  it('can filter logs from a particular run', async ({ expect, store }) => {
     await expect(store.getLogValueNames({ runName: 'run1' })).resolves.toEqual([
       'foo',
       'message',
@@ -1383,7 +1532,7 @@ describe('SQLiteStore#getLogValueNames', () => {
     ]);
   });
 
-  it('should be able to filter logs by run, experiment, and type all at once', async ({
+  it('can filter logs by run, experiment, and type all at once', async ({
     expect,
     store,
     experiment1,
@@ -1487,14 +1636,14 @@ describe.for([{ queryLimit: 10000 }, { queryLimit: 2 }])(
       },
     });
 
-    it('should return the logs in order of experimentName, runName, and ascending number', async ({
+    it('returns the logs in order of experimentName, runName, and ascending number', async ({
       expect,
       context: { store },
     }) => {
       await expect(fromAsync(store.getLogs())).resolves.toMatchSnapshot();
     });
 
-    it('should ignore missing logs', async ({
+    it('ignores missing logs', async ({
       expect,
       context: { e2run1, store },
     }) => {
@@ -1525,7 +1674,7 @@ describe.for([{ queryLimit: 10000 }, { queryLimit: 2 }])(
       await expect(fromAsync(store.getLogs())).resolves.toMatchSnapshot();
     });
 
-    it('should be able to filter logs of a particular type', async ({
+    it('can filter logs of a particular type', async ({
       expect,
       context: { store },
     }) => {
@@ -1537,7 +1686,7 @@ describe.for([{ queryLimit: 10000 }, { queryLimit: 2 }])(
       ).resolves.toMatchSnapshot();
     });
 
-    it('should be able to filter logs from a particular experiment', async ({
+    it('can filter logs from a particular experiment', async ({
       expect,
       context: { store, experiment1, experiment2 },
     }) => {
@@ -1549,7 +1698,7 @@ describe.for([{ queryLimit: 10000 }, { queryLimit: 2 }])(
       ).resolves.toMatchSnapshot();
     });
 
-    it('should be able to filter logs from a particular run', async ({
+    it('can filter logs from a particular run', async ({
       expect,
       context: { store },
     }) => {
@@ -1561,7 +1710,7 @@ describe.for([{ queryLimit: 10000 }, { queryLimit: 2 }])(
       ).resolves.toMatchSnapshot();
     });
 
-    it('should be able to filter logs by run, experiment, and type all at once', async ({
+    it('can filter logs by run, experiment, and type all at once', async ({
       expect,
       context: { experiment1, store, e1run2 },
     }) => {
@@ -1591,7 +1740,7 @@ describe.for([{ queryLimit: 10000 }, { queryLimit: 2 }])(
       ).resolves.toMatchSnapshot();
     });
 
-    it('should resolve with an empty array if no log matches the filter', async ({
+    it('returns an empty array when no log matches the filter', async ({
       expect,
       context: { experiment2, store },
     }) => {
@@ -1609,7 +1758,7 @@ describe.for([{ queryLimit: 10000 }, { queryLimit: 2 }])(
       ).resolves.toEqual([]);
     });
 
-    it('should resolve with an empty array if the filter includes an empty array', async ({
+    it('returns an empty array when the filter includes an empty array', async ({
       expect,
       context: { experiment1, store },
     }) => {
@@ -1646,7 +1795,7 @@ describe.for([{ queryLimit: 10000 }, { queryLimit: 2 }])(
       ).resolves.toEqual([]);
     });
 
-    it('should return logs added after resuming', async ({
+    it('returns logs added after resuming', async ({
       expect,
       context: { store, experiment2, e2run1 },
     }) => {
@@ -1661,7 +1810,7 @@ describe.for([{ queryLimit: 10000 }, { queryLimit: 2 }])(
       ).resolves.toMatchSnapshot();
     });
 
-    it('should not return logs canceled from resuming', async ({
+    it('does not return logs canceled from resuming', async ({
       expect,
       context: { experiment1, e1run2, store },
     }) => {
@@ -1687,7 +1836,7 @@ describe.for([{ queryLimit: 10000 }, { queryLimit: 2 }])(
       ).resolves.toEqual([]);
     });
 
-    it('should return logs overwriting other logs after resuming', async ({
+    it('returns logs overwriting other logs after resuming', async ({
       expect,
       context: { store, e1run2, experiment1 },
     }) => {

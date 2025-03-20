@@ -14,7 +14,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import * as url from 'node:url';
 import { groupBy, last, pick } from 'remeda';
-import { JsonObject } from 'type-fest';
+import { JsonObject, JsonValue } from 'type-fest';
 import { StoreError } from './store-errors.js';
 import {
   AllFilter,
@@ -42,6 +42,7 @@ export {
   AllFilter,
   ExperimentFilter,
   ExperimentId,
+  Log,
   LogFilter,
   LogId,
   RunFilter,
@@ -423,71 +424,81 @@ export class SQLiteStore {
   }
 
   async getLastLogs(
-    filter: LogFilter = {},
-  ): Promise<Array<{ type: string; id: LogId; runId: RunId }>> {
+    filter: AllFilter = {},
+  ): Promise<
+    Array<{ type: string; id: LogId; runId: RunId; values: JsonObject }>
+  > {
     let result = await this.#db
-      .selectFrom('runLogView as lv')
-      .$call(createQueryFilterAll(filter, 'lv'))
-      .leftJoin(
-        ({ selectFrom }) =>
-          selectFrom('runLogView')
-            .where('logType', 'is', null)
-            .select((eb) => [eb.fn.min('logNumber').as('logNumber'), 'runId'])
-            .groupBy('runId')
-            .as('firstMissing'),
-        (join) => join.onRef('lv.runId', '=', 'firstMissing.runId'),
+      .with('noPendingLogs', (db) =>
+        db
+          .selectFrom('runLogView as lv')
+          .$call(createQueryFilterAll(filter, 'lv'))
+          .leftJoin(
+            ({ selectFrom }) =>
+              selectFrom('log')
+                .where('logType', 'is', null)
+                .select((eb) => [
+                  eb.fn.min('logNumber').as('logNumber'),
+                  'sequenceId',
+                ])
+                .groupBy('sequenceId')
+                .as('firstMissing'),
+            (join) =>
+              join.onRef('lv.sequenceId', '=', 'firstMissing.sequenceId'),
+          )
+          .where((eb) =>
+            eb.and([
+              eb('lv.logType', 'is not', null),
+              eb.or([
+                eb('firstMissing.logNumber', 'is', null),
+                eb('lv.logNumber', '<', eb.ref('firstMissing.logNumber')),
+              ]),
+            ]),
+          )
+          .select((eb) => [
+            'lv.logType',
+            'lv.sequenceId',
+            'lv.runId',
+            eb.fn
+              .max('lv.logNumber')
+              .filterWhere(
+                eb.or([
+                  eb('firstMissing.logNumber', 'is', null),
+                  eb('lv.logNumber', '<', eb.ref('firstMissing.logNumber')),
+                ]),
+              )
+              .as('lastNumber'),
+          ])
+          .groupBy(['lv.runId', 'lv.logType']),
       )
-      .where((eb) =>
-        eb.and([
-          eb('lv.logType', 'is not', null),
-          eb.or([
-            eb('firstMissing.logNumber', 'is', null),
-            eb('lv.logNumber', '<', eb.ref('firstMissing.logNumber')),
-          ]),
-        ]),
+      .selectFrom('log')
+      .innerJoin('noPendingLogs as npl', (join) =>
+        join
+          .onRef('log.sequenceId', '=', 'npl.sequenceId')
+          .onRef('log.logNumber', '=', 'npl.lastNumber'),
       )
       .select((eb) => [
-        'lv.logType',
-        eb.fn
-          .countAll()
-          .filterWhere(
-            eb.or([
-              eb('firstMissing.logNumber', 'is', null),
-              eb('lv.logNumber', '<', eb.ref('firstMissing.logNumber')),
-            ]),
-          )
-          .as('count'),
-        // In theory any logs from a run with no missing logs should not
-        // be counted because missing.first will be null so the filter will
-        // be unknown, so the log will not be included.
-        eb.fn
-          .countAll()
-          .filterWhere('lv.logNumber', '>', eb.ref('firstMissing.logNumber'))
-          .as('pending'),
-        eb.fn
-          .max('lv.logNumber')
-          .filterWhere(
-            eb.or([
-              eb('firstMissing.logNumber', 'is', null),
-              eb('lv.logNumber', '<', eb.ref('firstMissing.logNumber')),
-            ]),
-          )
-          .as('lastNumber'),
+        'npl.runId',
+        'log.logId as id',
+        'log.logType as type',
+        'log.logNumber as number',
+        eb
+          .ref('log.logValues', '->')
+          .key('$')
+          .$castTo<string>()
+          .as('jsonValues'),
       ])
-      .groupBy('logType')
-      .orderBy('logType')
-      .$narrowType<{ logType: string }>()
+      .$narrowType<{ type: string }>()
       .execute();
 
-    throw new Error('Not implemented');
-    // return result.map(({ pending, count, lastNumber, logType }) => {
-    //   return {
-    //     type: logType,
-    //     pending: Number(pending),
-    //     count: Number(count),
-    //     lastNumber,
-    //   };
-    // });
+    return result.map(({ jsonValues, runId, id, ...rest }) => {
+      return {
+        ...rest,
+        runId: fromDbId(runId),
+        id: fromDbId(id),
+        values: parseJsonObject(jsonValues),
+      };
+    });
   }
 
   async *getLogs(filter: AllFilter = {}): AsyncGenerator<Log> {
@@ -555,7 +566,7 @@ export class SQLiteStore {
             'number',
             'type',
           ]),
-          values: JSON.parse(logResult.values),
+          values: parseJsonObject(logResult.values),
           experimentId: fromDbId(logResult.experimentId),
           runId: fromDbId(logResult.runId),
           logId: fromDbId(logResult.logId),
@@ -583,4 +594,15 @@ export class SQLiteStore {
 
 function json<T>(value: T) {
   return sql<T>`jsonb(${JSON.stringify(value)})`;
+}
+
+function parseJsonObject(jsonString: string): JsonObject {
+  let result: JsonValue = JSON.parse(jsonString);
+  if (typeof result !== 'object' || result === null) {
+    throw new Error('JSON is not an object');
+  }
+  if (result instanceof Array) {
+    throw new Error('JSON is an array');
+  }
+  return result;
 }
