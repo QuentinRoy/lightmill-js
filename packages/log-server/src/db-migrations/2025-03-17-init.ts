@@ -209,40 +209,48 @@ export async function up(db: Kysely<Database>) {
     // Prevent updates of log rows, except for log_type when
     // it is null, and canceled_by when it is null.
     await sql`
-          CREATE TRIGGER prevent_log_update
+          CREATE TRIGGER prevent_update_log_info
           BEFORE UPDATE ON log
           WHEN (
             -- Whatever happens, log_number and log_id cannot change.
             OLD.log_number <> NEW.log_number
             OR OLD.log_id <> NEW.log_id
-            OR NOT (
-              (
-                -- acceptable update 1: canceling a log, but in this case,
-                -- the log type and value must remain unchanged.
-                NEW.canceled_by IS NOT NULL
-                AND OLD.canceled_by IS NULL
-                AND OLD.log_type = NEW.log_type
-                AND OLD.log_values = NEW.log_values
-              ) OR (
-                -- acceptable update 2: setting the value of an empty log
-                OLD.log_type IS NULL
-                AND NEW.log_type IS NOT NULL
-                AND NEW.log_values IS NOT NULL
-                AND NEW.canceled_by = OLD.canceled_by
-              )
-            )
           )
           BEGIN
-            SELECT RAISE(ABORT, 'Cannot update a log whose type is not null');
+            SELECT RAISE(ABORT, 'Cannot change log number or log id');
           END;
         `.execute(trx);
-    // Prevent deletion of log rows whose current type column is not null.
+    await sql`
+          CREATE TRIGGER prevent_changing_log_canceled_by
+          BEFORE UPDATE ON log
+          WHEN OLD.canceled_by IS NOT NULL and NEW.canceled_by <> OLD.canceled_by
+          BEGIN
+            SELECT RAISE(ABORT, 'Cannot change log canceled_by once set');
+          END;
+        `.execute(trx);
+    await sql`
+          CREATE TRIGGER prevent_changing_log_value
+          BEFORE UPDATE ON log
+          -- Note: this may be rather expensive, fortunately it shouldn't happen often.
+          WHEN OLD.log_values IS NOT NULL AND NEW.log_values <> OLD.log_values
+          BEGIN
+            SELECT RAISE(ABORT, 'Cannot change log values once set');
+          END;
+        `.execute(trx);
+    await sql`
+          CREATE TRIGGER prevent_changing_log_type
+          BEFORE UPDATE ON log
+          WHEN OLD.log_type IS NOT NULL AND NEW.log_type <> OLD.log_type
+          BEGIN
+            SELECT RAISE(ABORT, 'Cannot change log type once set');
+          END;
+        `.execute(trx);
+    // Prevent deletion of logs.
     await sql`
           CREATE TRIGGER prevent_log_delete
           BEFORE DELETE ON log
-          WHEN OLD.log_type IS NOT NULL
           BEGIN
-            SELECT RAISE(ABORT, 'Cannot delete a log whose type is not null');
+            SELECT RAISE(ABORT, 'Cannot delete logs');
           END;
         `.execute(trx);
     // Prevent inserts of log whose number is smaller than its sequence start.

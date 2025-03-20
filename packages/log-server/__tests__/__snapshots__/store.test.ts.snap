@@ -431,7 +431,7 @@ exports[`SQLiteStore#getLogs (selectQueryLimit: 2) > ignores missing logs 1`] = 
   {
     "experimentId": "2",
     "experimentName": "experiment-2",
-    "logId": "39",
+    "logId": "27",
     "number": 22,
     "runId": "3",
     "runName": "run1",
@@ -445,21 +445,7 @@ exports[`SQLiteStore#getLogs (selectQueryLimit: 2) > ignores missing logs 1`] = 
   {
     "experimentId": "2",
     "experimentName": "experiment-2",
-    "logId": "38",
-    "number": 33,
-    "runId": "3",
-    "runName": "run1",
-    "runStatus": "running",
-    "type": "log1",
-    "values": {
-      "msg": "bonjour",
-      "recipient": "Jo",
-    },
-  },
-  {
-    "experimentId": "2",
-    "experimentName": "experiment-2",
-    "logId": "50",
+    "logId": "49",
     "number": 44,
     "runId": "3",
     "runName": "run1",
@@ -1079,7 +1065,7 @@ exports[`SQLiteStore#getLogs (selectQueryLimit: 10000) > ignores missing logs 1`
   {
     "experimentId": "2",
     "experimentName": "experiment-2",
-    "logId": "39",
+    "logId": "27",
     "number": 22,
     "runId": "3",
     "runName": "run1",
@@ -1093,21 +1079,7 @@ exports[`SQLiteStore#getLogs (selectQueryLimit: 10000) > ignores missing logs 1`
   {
     "experimentId": "2",
     "experimentName": "experiment-2",
-    "logId": "38",
-    "number": 33,
-    "runId": "3",
-    "runName": "run1",
-    "runStatus": "running",
-    "type": "log1",
-    "values": {
-      "msg": "bonjour",
-      "recipient": "Jo",
-    },
-  },
-  {
-    "experimentId": "2",
-    "experimentName": "experiment-2",
-    "logId": "50",
+    "logId": "49",
     "number": 44,
     "runId": "3",
     "runName": "run1",

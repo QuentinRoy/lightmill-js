@@ -2,9 +2,16 @@
 
 import request from 'supertest';
 import { afterEach, beforeEach, describe, it, Mock, vi } from 'vitest';
-import { LogFilter, RunFilter } from '../dist/store.js';
 import { LogServer } from '../src/app.js';
-import { Log, RunId, RunStatus, Store, StoreError } from '../src/store.js';
+import {
+  Log,
+  LogFilter,
+  RunFilter,
+  RunId,
+  RunStatus,
+  Store,
+  StoreError,
+} from '../src/store.js';
 import { arrayify } from '../src/utils.js';
 
 type MockStore = {

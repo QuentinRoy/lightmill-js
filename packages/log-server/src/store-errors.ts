@@ -3,7 +3,9 @@ const storeErrorCodeList = [
   'RUN_EXISTS',
   'LOG_NUMBER_EXISTS_IN_SEQUENCE',
   'INVALID_LOG_NUMBER',
+  'EXPERIMENT_NOT_FOUND',
   'RUN_NOT_FOUND',
+  'LOG_NOT_FOUND',
   'RUN_HAS_ENDED',
 ] as const;
 type StoreErrorCode = (typeof storeErrorCodeList)[number];

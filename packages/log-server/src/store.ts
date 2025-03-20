@@ -13,7 +13,7 @@ import loglevel, { LogLevelDesc } from 'loglevel';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import * as url from 'node:url';
-import { groupBy, last, pick } from 'remeda';
+import { last, pick } from 'remeda';
 import { JsonObject, JsonValue } from 'type-fest';
 import { StoreError } from './store-errors.js';
 import {
@@ -35,7 +35,7 @@ import {
   RunStatus,
   toDbId,
 } from './store-types.js';
-import { firstStrict } from './utils.js';
+import { getStrict } from './utils.js';
 const __dirname = url.fileURLToPath(new URL('.', import.meta.url));
 
 export {
@@ -94,6 +94,7 @@ export class SQLiteStore {
           throw new StoreError(
             `Experiment ${experimentName} already exists`,
             StoreError.EXPERIMENT_EXISTS,
+            { cause: e },
           );
         }
         throw e;
@@ -166,17 +167,17 @@ export class SQLiteStore {
     });
   }
 
-  async resumeRun(runId: RunId, { from: resumeFrom }: { from: number }) {
+  async resumeRun(runId: RunId, { after: afterId }: { after: LogId }) {
     const dbRunId = toDbId(runId);
     return this.#db.transaction().execute(async (trx) => {
-      await trx
-        .updateTable('run')
-        .set({ runStatus: 'running' })
-        .where('runId', '=', dbRunId)
+      let logToResumeAfter = await trx
+        .selectFrom('log')
+        .where('logId', '=', toDbId(afterId))
+        .select(['logNumber', 'logId'])
         .executeTakeFirstOrThrow(() => {
           return new StoreError(
-            `No run found for id ${runId}`,
-            StoreError.RUN_NOT_FOUND,
+            `Log ${afterId} does not exist`,
+            StoreError.LOG_NOT_FOUND,
           );
         });
       let { lastSeqNumber, firstMissingLogNumber, lastLogNumber } = await trx
@@ -205,20 +206,29 @@ export class SQLiteStore {
       } else if (lastLogNumber != null) {
         minResumeFrom = lastLogNumber + 1;
       }
-      if (minResumeFrom < resumeFrom) {
+      if (minResumeFrom < logToResumeAfter.logNumber + 1) {
         throw new StoreError(
-          `Cannot resume run ${runId} from log number ${resumeFrom} because the minimum is ${minResumeFrom}.`,
+          `Cannot resume run ${runId} after log ${logToResumeAfter.logId} (number ${logToResumeAfter.logNumber}) because the minimum is ${minResumeFrom}.`,
           StoreError.INVALID_LOG_NUMBER,
         );
       }
+      await trx
+        .updateTable('run')
+        .set({ runStatus: 'running' })
+        .where('runId', '=', dbRunId)
+        .executeTakeFirstOrThrow(() => {
+          return new StoreError(
+            `Run ${runId} does not exist`,
+            StoreError.RUN_NOT_FOUND,
+          );
+        });
       await trx
         .insertInto('logSequence')
         .values({
           runId: dbRunId,
           sequenceNumber: lastSeqNumber + 1,
-          start: resumeFrom,
+          start: logToResumeAfter.logNumber + 1,
         })
-        .returning(['runId'])
         .executeTakeFirstOrThrow();
     });
   }
@@ -300,11 +310,11 @@ export class SQLiteStore {
   async addLogs(
     runId: RunId,
     logs: Array<{ type: string; number: number; values: JsonObject }>,
-  ) {
+  ): Promise<{ logId: LogId }[]> {
     const dbRunId = toDbId(runId);
-    if (logs.length === 0) return;
-    await this.#db.transaction().execute(async (trx) => {
-      let { start, sequenceId, maxLogNumber } = await trx
+    if (logs.length === 0) return [];
+    return this.#db.transaction().execute(async (trx) => {
+      let { start, sequenceId, lastLogNumber } = await trx
         .selectFrom('logSequence as seq')
         .having((eb) =>
           eb.and([
@@ -317,7 +327,7 @@ export class SQLiteStore {
         .select((eb) => [
           'seq.sequenceId',
           'seq.start',
-          eb.fn.max('log.logNumber').as('maxLogNumber'),
+          eb.fn.max('log.logNumber').as('lastLogNumber'),
         ])
         .executeTakeFirstOrThrow(
           () =>
@@ -326,49 +336,46 @@ export class SQLiteStore {
               StoreError.RUN_NOT_FOUND,
             ),
         );
-      let indexedNewLogs = groupBy(logs, (log) => log.number);
       let newLogNumbers = logs.map((log) => log.number);
       let insertStartNumber = Math.min(
         ...newLogNumbers,
-        maxLogNumber == null ? start : maxLogNumber + 1,
+        lastLogNumber == null ? start : lastLogNumber + 1,
       );
       let insertEndNumber = Math.max(...newLogNumbers);
 
-      // Start by updating existing logs.
-      let logRows = new Array<InsertObject<Database, 'log'>>();
-      // Add new logs and fill in missing logs.
-      for (let nb = insertStartNumber; nb <= insertEndNumber; nb++) {
-        let logs = indexedNewLogs[nb] ?? [];
-        if (logs.length > 0) {
-          // It is forbidden for two logs to have the same number, but if that
-          // happens, the database should be the one to complain.
-          logRows.push(
-            ...logs.map(({ type, number, values }) => ({
-              sequenceId,
-              logType: type,
-              logValues: json(values),
-              logNumber: number,
-            })),
+      // Prepopulating the array to insert with missing logs.
+      let logRows: Array<InsertObject<Database, 'log'>> = Array.from(
+        { length: insertEndNumber - insertStartNumber + 1 },
+        (_v, i) => ({ sequenceId, logNumber: i + insertStartNumber }),
+      );
+      for (const log of logs) {
+        let logToInsert = getStrict(logRows, log.number - insertStartNumber);
+        // Sanity check.
+        if (logToInsert.logNumber !== log.number) {
+          throw new Error(
+            `Log number mismatch: expected ${log.number}, got ${logToInsert.logNumber}`,
           );
-        } else if (maxLogNumber == null || nb > maxLogNumber) {
-          // If the log number is greater than maxLogNumber, there is a missing
-          // log. We need to add it to the database.
-          logRows.push({ sequenceId, logNumber: nb });
         }
+        if (logToInsert.logType != null) {
+          throw new StoreError(
+            `Cannot add log: duplicated log number in the sequence.`,
+            StoreError.LOG_NUMBER_EXISTS_IN_SEQUENCE,
+          );
+        }
+        logToInsert.logType = log.type;
+        logToInsert.logValues = json(log.values);
       }
-      await trx
-        .deleteFrom('log')
-        .where((eb) =>
-          eb.and([
-            eb('sequenceId', '=', sequenceId),
-            eb('logNumber', 'in', newLogNumbers),
-            eb('logType', 'is', null),
-          ]),
-        )
-        .execute();
       let dbLogs = await trx
         .insertInto('log')
         .values(logRows)
+        .onConflict((cb) =>
+          cb
+            .columns(['sequenceId', 'logNumber'])
+            .doUpdateSet((ub) => ({
+              logType: ub.ref('excluded.logType'),
+              logValues: ub.ref('excluded.logValues'),
+            })),
+        )
         .returning(['logId', 'logNumber', 'logType'])
         .execute()
         .catch((e) => {
@@ -376,7 +383,10 @@ export class SQLiteStore {
             e instanceof Error &&
             'code' in e &&
             (e.code === 'SQLITE_CONSTRAINT_PRIMARYKEY' ||
-              e.code === 'SQLITE_CONSTRAINT_UNIQUE')
+              e.code === 'SQLITE_CONSTRAINT_UNIQUE' ||
+              (e.code === 'SQLITE_CONSTRAINT_TRIGGER' &&
+                (e.message === 'Cannot change log values once set' ||
+                  e.message === 'Cannot change log type once set')))
           ) {
             throw new StoreError(
               `Cannot add log: duplicated log number in the sequence.`,
@@ -386,28 +396,30 @@ export class SQLiteStore {
           }
           throw e;
         });
-
-      // Map the log values to the log ids. We cannot rely on the order of
+      // We are working on a single run and log sequence, so all lognumbers should be unique.
+      const logMap = new Map(dbLogs.map((log) => [log.logNumber, log.logId]));
+      // Map input logs to logs ids. We cannot rely on the order of
       // dbLogs because it is not guaranteed to be the same as the order of
       // the logs we inserted.
-      let logValues = dbLogs
-        .filter((l) => l.logType != null)
-        .flatMap((dbLog) => {
-          // We know there is only one log with this number because of the
-          // loop above.
-          let logsForNumber = indexedNewLogs[dbLog.logNumber];
-          if (logsForNumber == null) {
-            throw new Error('Unexpected log number');
-          }
-          let values = firstStrict(logsForNumber).values;
-          return Object.keys(values).map((logPropertyName) => ({
-            logId: dbLog.logId,
-            logPropertyName,
-          }));
-        });
+      const result = logs.map((log, index) => {
+        const logId = logMap.get(log.number);
+        if (logId == null) {
+          throw new Error(
+            `Log with number ${log.number} at index ${index} wasn't inserted`,
+          );
+        }
+        return { logId, values: log.values };
+      });
+      const logValues = result.flatMap(({ logId, values }) => {
+        return Object.keys(values).map((logPropertyName) => ({
+          logId,
+          logPropertyName,
+        }));
+      });
       if (logValues.length > 0) {
         await trx.insertInto('logPropertyName').values(logValues).execute();
       }
+      return result.map((l) => ({ logId: fromDbId(l.logId) }));
     });
   }
 
@@ -434,12 +446,16 @@ export class SQLiteStore {
           .selectFrom('runLogView as lv')
           .$call(createQueryFilterAll(filter, 'lv'))
           .leftJoin(
+            // Grouping by sequence instead of run should
+            // be fine because non canceled missing logs
+            // should all be on the last sequence
             ({ selectFrom }) =>
-              selectFrom('log')
-                .where('logType', 'is', null)
+              selectFrom('log as l')
+                .where('l.logType', 'is', null)
+                .where('canceledBy', 'is', null)
                 .select((eb) => [
-                  eb.fn.min('logNumber').as('logNumber'),
                   'sequenceId',
+                  eb.fn.min('l.logNumber').as('logNumber'),
                 ])
                 .groupBy('sequenceId')
                 .as('firstMissing'),

@@ -1567,6 +1567,22 @@ describe('SQLiteStore#getLogValueNames', () => {
       store.getLogValueNames({ type: 'do not exist' }),
     ).resolves.toEqual([]);
   });
+
+  it('igores values from canceled logs', async ({ store }) => {
+    let { experimentId } = await store.addExperiment({ experimentName: 'exp' });
+    let { runId } = await store.addRun({ experimentId });
+    let logs = await store.addLogs(runId, [
+      { type: 'log', number: 0, values: { x: 'x' } },
+      { type: 'log', number: 1, values: { x: 'x' } },
+      { type: 'log', number: 2, values: { y: 'x' } },
+    ]);
+    await store.setRunStatus(runId, 'canceled');
+    await store.resumeRun(runId, { from: logs[1] });
+    await expect(store.getLogValueNames({ runId })).resolves.toEqual([
+      { logId: logs[0].logId },
+      { logId: logs[2].logId },
+    ]);
+  });
 });
 
 describe.for([{ queryLimit: 10000 }, { queryLimit: 2 }])(
