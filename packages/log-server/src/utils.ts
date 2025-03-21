@@ -1,10 +1,8 @@
-import { snakeCase } from 'change-case';
-import { mapKeys } from 'remeda';
+import { mapKeys, toSnakeCase as snakeCase } from 'remeda';
 import {
   ArrayIndices,
   IsNever,
   Merge,
-  SnakeCase,
   UnionToIntersection,
   WritableKeysOf,
 } from 'type-fest';
@@ -35,12 +33,16 @@ export function arrayify<T>(
   return Array.isArray(value) ? [...value] : [value as T];
 }
 
-export function toSnakeCase<
-  R extends Record<string | number | symbol, unknown>,
->(input: R) {
+export function toSnakeCase<const R extends Record<PropertyKey, unknown>>(
+  input: R,
+) {
   return mapKeys(input, (key) =>
     typeof key === 'string' ? snakeCase(key) : key,
-  ) as unknown as { [K in keyof R as SnakeCase<K>]: R[K] };
+  ) as unknown as {
+    -readonly [K in keyof R as K extends string
+      ? ReturnType<typeof snakeCase<K>>
+      : K]: R[K];
+  };
 }
 
 export function startsWith<S extends string, T extends string>(
