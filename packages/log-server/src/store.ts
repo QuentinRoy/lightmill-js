@@ -49,6 +49,7 @@ export {
   LogId,
   RunFilter,
   RunId,
+  RunStatus,
   StoreError,
 };
 
@@ -163,6 +164,7 @@ export class SQLiteStore {
         .execute();
       return {
         ...result,
+        experimentId: fromDbId(result.experimentId),
         runId: fromDbId(result.runId),
         runCreatedAt: new Date(result.runCreatedAt),
       };
@@ -198,7 +200,7 @@ export class SQLiteStore {
         logToResumeAfter =
           lastLog == null
             ? { number: 0 }
-            : { ...lastLog, id: toDbId(lastLog.id) };
+            : { ...lastLog, id: toDbId(lastLog.logId) };
       }
       let { lastSeqNumber, firstMissingLogNumber, lastLogNumber } = await trx
         .selectFrom('logSequence as seq')
@@ -467,9 +469,9 @@ export class SQLiteStore {
     db: Kysely<Database>,
   ): Promise<
     Array<{
-      type: string;
-      id: LogId;
       runId: RunId;
+      logId: LogId;
+      type: string;
       values: JsonObject;
       number: number;
     }>
@@ -529,7 +531,7 @@ export class SQLiteStore {
       )
       .select((eb) => [
         'last.runId',
-        'log.logId as id',
+        'log.logId',
         'log.logType as type',
         'log.logNumber as number',
         eb
@@ -541,11 +543,11 @@ export class SQLiteStore {
       .$narrowType<{ type: string }>()
       .execute();
 
-    return result.map(({ jsonValues, runId, id, ...rest }) => {
+    return result.map(({ jsonValues, runId, logId, ...rest }) => {
       return {
         ...rest,
         runId: fromDbId(runId),
-        id: fromDbId(id),
+        logId: fromDbId(logId),
         values: parseJsonObject(jsonValues),
       };
     });

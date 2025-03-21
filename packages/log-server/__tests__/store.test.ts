@@ -1272,7 +1272,7 @@ describe('SQLiteStore#getLastLogs', () => {
         { number: 4, type: 'log2', values: { x: 50 } },
         { number: 6, type: 'log3', values: { x: 52 } },
       ]);
-      let anyLogBase = { id: expect.any(String), runId: expect.any(String) };
+      let anyLogBase = { logId: expect.any(String), runId: expect.any(String) };
       await use({
         exp1run1,
         exp1run2,

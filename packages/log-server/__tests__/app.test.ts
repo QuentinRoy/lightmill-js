@@ -1,15 +1,19 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
+import { StandardSchemaV1 as Schema } from '@standard-schema/spec';
 import request from 'supertest';
+import { JsonObject } from 'type-fest';
 import { afterEach, beforeEach, describe, it, Mock, vi } from 'vitest';
 import { LogServer } from '../src/app.js';
 import {
+  ExperimentId,
   Log,
   LogFilter,
+  LogId,
   RunFilter,
   RunId,
   RunStatus,
-  Store,
+  SQLiteStore as Store,
   StoreError,
 } from '../src/store.js';
 import { arrayify } from '../src/utils.js';
@@ -24,12 +28,20 @@ type MockStore = {
 
 function MockStore(): MockStore {
   return {
+    addExperiment: vi.fn(async () => {
+      throw new Error('Not implemented');
+    }),
+    getExperiments: vi.fn(async () => {
+      throw new Error('Not implemented');
+    }),
     addRun: vi.fn(async (...args) => {
       return {
-        runId: 1 as RunId,
+        experimentId: '1' as ExperimentId,
+        runId: '1' as RunId,
         runName: 'addRun:runName',
         experimentName: 'addRun:experimentName',
         runStatus: 'idle' satisfies RunStatus as RunStatus,
+        runCreatedAt: new Date('2022-11-01T00:00:00Z'),
       };
     }),
     resumeRun: vi.fn(async (...args) => {
@@ -41,7 +53,8 @@ function MockStore(): MockStore {
       }
       return [
         {
-          runId: 1 as RunId,
+          experimentId: 'exp-id' as ExperimentId,
+          runId: 'run-id' as RunId,
           runName: 'getRun:runName',
           experimentName: 'getRun:experimentName',
           runCreatedAt: vi.getMockedSystemTime() ?? new Date(),
@@ -50,19 +63,35 @@ function MockStore(): MockStore {
       ];
     }),
     setRunStatus: vi.fn((...args) => Promise.resolve()),
-    addLogs: vi.fn((...args) => Promise.resolve()),
+    addLogs: vi.fn((...args) =>
+      Promise.resolve([{ logId: 'l1' }, { logId: 'l2' }]),
+    ),
     getLogValueNames: vi.fn(() =>
       Promise.resolve(['mock-col1', 'mock-col2', 'mock-col3']),
     ),
-    getLastLogsSummary: vi.fn((...args) =>
+    getLastLogs: vi.fn((...args) =>
       Promise.resolve([
-        { type: 'summary:type-1', count: 11, lastNumber: 12, pending: 13 },
-        { type: 'summary:type-2', count: 21, lastNumber: 22, pending: 23 },
+        {
+          runId: 'getLastLogs:run-id' as RunId,
+          type: 'getLastLogs:type-1',
+          logId: 'getLastLogs:id-1' as LogId,
+          number: 12,
+          values: { 'mock-col1': 'log1-mock-value1' } as JsonObject,
+        },
+        {
+          runId: 'getLastLogs:run-id' as RunId,
+          type: 'getLastLogs:type-2',
+          logId: 'getLastLogs:id-2' as LogId,
+          number: 3,
+          values: { 'mock-col2': 'log2-mock-value1' } as JsonObject,
+        },
       ]),
     ),
     getLogs: vi.fn(async function* (): AsyncGenerator<Log> {
       yield {
-        runId: 1,
+        experimentId: 'getLogs:exp-id-1' as ExperimentId,
+        runId: 'getLogs:run-id-1' as RunId,
+        logId: 'getLogs:id-1' as LogId,
         runStatus: 'running',
         experimentName: 'getLogs:experimentName-1',
         runName: 'getLogs:runName-1',
@@ -74,7 +103,9 @@ function MockStore(): MockStore {
         },
       };
       yield {
-        runId: 2,
+        experimentId: 'getLogs:exp-id-2' as ExperimentId,
+        runId: 'getLogs:run-id-2' as RunId,
+        logId: 'getLogs:id-2' as LogId,
         runStatus: 'completed',
         experimentName: 'getLogs:experimentName-2',
         runName: 'getLogs:runName-2',
@@ -86,6 +117,12 @@ function MockStore(): MockStore {
           'mock-col3': 'log2-mock-value3',
         },
       };
+    }),
+    migrateDatabase: vi.fn(async () => {
+      throw new Error('Not implemented');
+    }),
+    close: vi.fn(async () => {
+      throw new Error('Not implemented');
     }),
   };
 }

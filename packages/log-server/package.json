@@ -39,7 +39,7 @@
     "cross-env": "^7.0.3",
     "openapi-typescript": "^7.6.1",
     "string-dedent": "^3.0.1",
-    "supertest": "^6.3.3",
+    "supertest": "^7.1.0",
     "tsx": "catalog:",
     "type-fest": "^4.9.0",
     "typescript": "catalog:",
@@ -48,7 +48,6 @@
   "dependencies": {
     "@lightmill/log-api": "workspace:*",
     "@paralleldrive/cuid2": "^2.2.2",
-    "@standard-schema/spec": "npm:@jsr/standard-schema__spec@1.0.0-rc.0",
     "better-sqlite3": "^11.9.1",
     "change-case": "^5.4.1",
     "cookie-session": "^2.0.0",
@@ -59,8 +58,7 @@
     "kysely": "^0.27.6",
     "loglevel": "^1.8.1",
     "remeda": "^2.21.2",
-    "yargs": "17.7.2",
-    "zod": "^3.24.2"
+    "yargs": "17.7.2"
   },
   "engines": {
     "node": "^22.x.x"
