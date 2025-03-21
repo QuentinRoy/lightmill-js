@@ -1,11 +1,11 @@
-import { describe, it, expectTypeOf } from 'vitest';
+import { describe, expectTypeOf, it } from 'vitest';
 import {
-  type IsUnion,
   EntryAsObject,
+  type IsUnion,
   type RemoveReadonlyPropsDeep,
   removePrefix,
   startsWith,
-  toSnakeCase,
+  withSnakeCaseProps,
 } from '../src/utils.js';
 
 describe('startsWith', () => {
@@ -73,10 +73,10 @@ describe('removePrefix', () => {
   });
 });
 
-describe('toSnakeCase', () => {
+describe('withSnakeCaseProps', () => {
   it('provides correct types', () => {
     expectTypeOf(
-      toSnakeCase<{ foo: number; barBaz: 'hello'; quxQuux: string }>,
+      withSnakeCaseProps<{ foo: number; barBaz: 'hello'; quxQuux: string }>,
     ).returns.toEqualTypeOf<{
       foo: number;
       bar_baz: 'hello';

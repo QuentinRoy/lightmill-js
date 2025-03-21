@@ -3,8 +3,14 @@ import bodyParser from 'body-parser';
 import session from 'cookie-session';
 import express, { Application } from 'express';
 import { pick } from 'remeda';
-import { csvExportStream, jsonExportStream } from './export.js';
-import { LogFilter, RunId, RunStatus, Store, StoreError } from './store.js';
+import { csvExportStream, jsonExportStream } from './src/export.js';
+import {
+  LogFilter,
+  RunId,
+  RunStatus,
+  SQLiteStore as Store,
+  StoreError,
+} from './src/store.js';
 
 type CreateLogServerOptions = {
   store: Store;
@@ -290,14 +296,10 @@ export function LogServer({
       let filter: LogFilter = { experimentName, ...query };
       if (format === 'csv') {
         res.setHeader('content-type', 'text/csv');
-        // @ts-expect-error there is currently no way to specify
-        // multiple reponse types in the contract so we are forced to
-        // violate it here, see https://github.com/ts-rest/ts-rest/issues/758.
         return { status: 200, body: csvExportStream(store, filter) };
       }
       res.setHeader('content-type', 'application/json');
-      // @ts-expect-error I am not sure how to specify streams in
-      // the contract, but this works.
+
       return { status: 200, body: jsonExportStream(store, filter) };
     },
 

@@ -33,9 +33,9 @@ export function arrayify<T>(
   return Array.isArray(value) ? [...value] : [value as T];
 }
 
-export function toSnakeCase<const R extends Record<PropertyKey, unknown>>(
-  input: R,
-) {
+export function withSnakeCaseProps<
+  const R extends Record<PropertyKey, unknown>,
+>(input: R) {
   return mapKeys(input, (key) =>
     typeof key === 'string' ? snakeCase(key) : key,
   ) as unknown as {

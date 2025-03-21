@@ -1,9 +1,9 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
   arrayify,
   removePrefix,
   startsWith,
-  toSnakeCase,
+  withSnakeCaseProps,
 } from '../src/utils.js';
 
 describe.concurrent('arrayify', () => {
@@ -30,16 +30,16 @@ describe.concurrent('arrayify', () => {
   });
 });
 
-describe.concurrent('toSnakeCase', () => {
-  it('converts an objects key to snake case', () => {
-    expect(toSnakeCase({ foo: 'bar', barBaz: 'qux', quxQuux: 'quuz' })).toEqual(
-      { foo: 'bar', bar_baz: 'qux', qux_quux: 'quuz' },
-    );
+describe.concurrent('withSnakeCaseProps', () => {
+  it("converts an object's properties to snake case", () => {
+    expect(
+      withSnakeCaseProps({ foo: 'bar', barBaz: 'qux', quxQuux: 'quuz' }),
+    ).toEqual({ foo: 'bar', bar_baz: 'qux', qux_quux: 'quuz' });
   });
 });
 
 describe.concurrent('removePrefix', () => {
-  it('remove prefix from a target starts with prefix', () => {
+  it('remove prefix from the start of a string', () => {
     expect(removePrefix('foobar', 'foo')).toBe('bar');
     expect(removePrefix('foo', 'foo')).toBe('');
     expect(removePrefix('foo', '')).toBe('foo');
