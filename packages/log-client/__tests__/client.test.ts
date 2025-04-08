@@ -30,23 +30,23 @@ const it = serverTest.extend<{ client: LightmillClient; timer: void }>({
 
 describe('LogClient#getResumableRuns', () => {
   it('should fetch resumable runs', async ({ expect, server, client }) => {
-    server.setRuns([
+    server.set([
       {
-        runName: 'test-run1',
-        experimentName: 'test-experiment',
+        runId: 'test-run1',
+        experimentId: 'test-experiment',
         runStatus: 'running',
         logs: [
           { type: 'test-type', count: 4, lastNumber: 5, pending: 1 },
-          { type: 'other-type', count: 3, lastNumber: 7, pending: 4 },
+          { type: 'other-type', count: 3, lastNumber: 8, pending: 4 },
         ],
       },
       {
-        runName: 'test-run2',
-        experimentName: 'test-experiment',
+        runId: 'test-run2',
+        experimentId: 'test-experiment',
         runStatus: 'interrupted',
         logs: [
           { type: 'test-type', count: 6, lastNumber: 7, pending: 0 },
-          { type: 'other-type', count: 3, lastNumber: 9, pending: 1 },
+          { type: 'other-type', count: 3, lastNumber: 2, pending: 1 },
         ],
       },
     ]);
@@ -54,37 +54,41 @@ describe('LogClient#getResumableRuns', () => {
       client.getResumableRuns({ resumableLogTypes: ['test-type'] }),
     ).resolves.toEqual([
       {
-        runName: 'test-run1',
-        experimentName: 'test-experiment',
+        runId: 'test-run1',
+        runName: 'test-run1-name',
+        experimentId: 'test-experiment',
+        experimentName: 'test-experiment-name',
         runStatus: 'running',
-        resumesAfter: { logType: 'test-type', logNumber: 5 },
+        from: { logType: 'test-type', logNumber: 5 },
       },
       {
-        runName: 'test-run2',
-        experimentName: 'test-experiment',
+        runId: 'test-run2',
+        runName: 'test-run2-name',
+        experimentId: 'test-experiment',
+        experimentName: 'test-experiment-name',
         runStatus: 'interrupted',
-        resumesAfter: { logType: 'test-type', logNumber: 7 },
+        from: { logType: 'test-type', logNumber: 7 },
       },
     ]);
   });
 
   it('should ignore ended runs', async ({ expect, server, client }) => {
-    server.setRuns([
+    server.set([
       {
-        runName: 'test-run1',
-        experimentName: 'test-experiment',
+        runId: 'test-run1',
+        experimentId: 'test-experiment',
         runStatus: 'canceled',
         logs: [{ type: 'test-type', count: 5, lastNumber: 5, pending: 1 }],
       },
       {
-        runName: 'test-run2',
-        experimentName: 'test-experiment',
+        runId: 'test-run2',
+        experimentId: 'test-experiment',
         runStatus: 'interrupted',
         logs: [{ type: 'test-type', count: 2, lastNumber: 2, pending: 0 }],
       },
       {
-        runName: 'test-run3',
-        experimentName: 'test-experiment',
+        runId: 'test-run3',
+        experimentId: 'test-experiment',
         runStatus: 'completed',
         logs: [{ type: 'test-type', count: 5, lastNumber: 5, pending: 1 }],
       },
@@ -93,21 +97,25 @@ describe('LogClient#getResumableRuns', () => {
       client.getResumableRuns({ resumableLogTypes: ['test-type'] }),
     ).resolves.toEqual([
       {
-        runName: 'test-run2',
-        experimentName: 'test-experiment',
+        runName: 'test-run2-name',
+        runId: 'test-run2',
+        experimentName: 'test-experiment-name',
+        experimentId: 'test-experiment',
         runStatus: 'interrupted',
-        resumesAfter: { logType: 'test-type', logNumber: 2 },
+        from: { logType: 'test-type', logNumber: 2 },
       },
     ]);
   });
 
   it('should find the latest log type', async ({ expect, server, client }) => {
     const run = {
-      runName: 'test-run',
-      experimentName: 'test-experiment',
+      runId: 'run-id',
+      runName: 'run-name',
+      experimentId: 'exp-id',
+      experimentName: 'exp-name',
       runStatus: 'running',
     } as const;
-    server.setRuns([
+    server.set([
       {
         ...run,
         logs: [
@@ -122,7 +130,7 @@ describe('LogClient#getResumableRuns', () => {
         resumableLogTypes: ['test-type-1', 'test-type-2'],
       }),
     ).resolves.toEqual([
-      { ...run, resumesAfter: { logType: 'test-type-1', logNumber: 10 } },
+      { ...run, from: { logType: 'test-type-1', logNumber: 10 } },
     ]);
   });
 
@@ -131,10 +139,10 @@ describe('LogClient#getResumableRuns', () => {
     server,
     client,
   }) => {
-    server.setRuns([
+    server.set([
       {
-        runName: 'test-run',
-        experimentName: 'test-experiment',
+        runId: 'test-run',
+        experimentId: 'test-experiment',
         runStatus: 'completed',
         logs: [{ type: 'test-type', count: 5, lastNumber: 5, pending: 0 }],
       },
@@ -149,10 +157,10 @@ describe('LogClient#getResumableRuns', () => {
     server,
     client,
   }) => {
-    server.setRuns([
+    server.set([
       {
-        runName: 'test-run',
-        experimentName: 'test-experiment',
+        runId: 'test-run',
+        experimentId: 'test-experiment',
         runStatus: 'running',
         logs: [{ type: 'other-type', count: 5, lastNumber: 5, pending: 0 }],
       },
@@ -161,10 +169,12 @@ describe('LogClient#getResumableRuns', () => {
       client.getResumableRuns({ resumableLogTypes: ['test-type'] }),
     ).resolves.toEqual([
       {
-        runName: 'test-run',
-        experimentName: 'test-experiment',
+        runId: 'test-run',
+        runName: 'test-run-name',
+        experimentId: 'test-experiment',
+        experimentName: 'test-experiment-name',
         runStatus: 'running',
-        resumesAfter: { logType: null, logNumber: 0 },
+        from: { logType: null, logNumber: 0 },
       },
     ]);
   });
@@ -172,13 +182,26 @@ describe('LogClient#getResumableRuns', () => {
 
 describe('LogClient#startRun', () => {
   it('should send a start request', async ({ expect, server, client }) => {
-    let logger = await client.startRun();
+    server.set([{ experimentId: 'test-experiment' }]);
+    let logger = await client.startRun({
+      experimentName: 'test-experiment-name',
+    });
     expect(logger).toBeInstanceOf(LightmillLogger);
     await expect(server.waitForChangeRequests()).resolves.toEqual([
       {
         url: 'https://server.test/api/runs',
         method: 'POST',
-        body: {} satisfies ApiBody<'post', '/runs'>,
+        body: {
+          data: {
+            type: 'runs',
+            attributes: { status: 'running' },
+            relationships: {
+              experiment: {
+                data: { type: 'experiments', id: 'test-experiment' },
+              },
+            },
+          },
+        } satisfies ApiBody<'post', '/runs'>,
       },
     ]);
   });
@@ -188,9 +211,10 @@ describe('LogClient#startRun', () => {
     server,
     client,
   }) => {
+    server.set([{ experimentId: 'test-experiment' }]);
     let logger = await client.startRun({
       runName: 'test-run',
-      experimentName: 'test-experiment',
+      experimentName: 'test-experiment-name',
     });
     expect(logger).toBeInstanceOf(LightmillLogger);
     await expect(server.waitForChangeRequests()).resolves.toEqual([
@@ -198,38 +222,48 @@ describe('LogClient#startRun', () => {
         url: 'https://server.test/api/runs',
         method: 'POST',
         body: {
-          runName: 'test-run',
-          experimentName: 'test-experiment',
+          data: {
+            type: 'runs',
+            attributes: { name: 'test-run', status: 'running' },
+            relationships: {
+              experiment: {
+                data: { id: 'test-experiment', type: 'experiments' },
+              },
+            },
+          },
         } satisfies ApiBody<'post', '/runs'>,
       },
     ]);
   });
 
-  it('should resume an existing run if resumesAfter is provided', async ({
+  it('should resume an existing run if from is provided', async ({
     server,
     client,
   }) => {
-    server.setRuns([
+    server.set([
       {
-        experimentName: 'test-experiment',
-        runName: 'test-run',
+        experimentId: 'test-experiment',
+        runId: 'test-run',
         runStatus: 'interrupted',
       },
     ]);
     let logger = await client.startRun({
       runName: 'test-run',
       experimentName: 'test-experiment',
-      resumesAfter: { logNumber: 4 },
+      from: { logNumber: 4 },
     });
     expect(logger).toBeInstanceOf(LightmillLogger);
     await expect(server.waitForChangeRequests()).resolves.toEqual([
       {
-        url: 'https://server.test/api/experiments/test-experiment/runs/test-run',
+        url: 'https://server.test/api/runs/test-run',
         method: 'PATCH',
-        body: { resumeFrom: 5, runStatus: 'running' } satisfies ApiBody<
-          'patch',
-          '/experiments/{experimentName}/runs/{runName}'
-        >,
+        body: {
+          data: {
+            type: 'runs',
+            id: 'test-run',
+            attributes: { status: 'running', lastLogNumber: 4 },
+          },
+        } satisfies ApiBody<'patch', '/runs/{id}'>,
       },
     ]);
   });
@@ -238,27 +272,30 @@ describe('LogClient#startRun', () => {
     server,
     client,
   }) => {
-    server.setRuns([
+    server.set([
       {
-        experimentName: 'test-experiment',
-        runName: 'test-run',
+        experimentId: 'test-experiment',
+        runId: 'test-run',
         runStatus: 'interrupted',
       },
     ]);
     let logger = await client.startRun({
       runName: 'test-run',
       experimentName: 'test-experiment',
-      resumesAfter: { logNumber: 0 },
+      from: { logNumber: 0 },
     });
     expect(logger).toBeInstanceOf(LightmillLogger);
     await expect(server.waitForChangeRequests()).resolves.toEqual([
       {
-        url: 'https://server.test/api/experiments/test-experiment/runs/test-run',
+        url: 'https://server.test/api/runs/test-run',
         method: 'PATCH',
-        body: { resumeFrom: 1, runStatus: 'running' } satisfies ApiBody<
-          'patch',
-          '/experiments/{experimentName}/runs/{runName}'
-        >,
+        body: {
+          data: {
+            type: 'runs',
+            id: 'test-run',
+            attributes: { status: 'running', lastLogNumber: 0 },
+          },
+        } satisfies ApiBody<'patch', '/runs/{id}'>,
       },
     ]);
   });

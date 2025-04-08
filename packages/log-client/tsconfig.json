@@ -4,13 +4,6 @@
   "compilerOptions": {
     "lib": ["DOM", "ES2022"],
     "noEmit": true,
-    "moduleResolution": "Node16",
-    "noImplicitAny": true,
-    "strict": true,
-    "sourceMap": true,
-    "declaration": true,
-    "allowSyntheticDefaultImports": true,
-    "forceConsistentCasingInFileNames": true,
     "erasableSyntaxOnly": true
   }
 }

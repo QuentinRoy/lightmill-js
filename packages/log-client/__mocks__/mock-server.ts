@@ -1,16 +1,57 @@
 import {
+  http,
   HttpHandler,
   HttpResponse,
   HttpResponseResolver,
   RequestHandler,
-  http,
 } from 'msw';
 import { setupServer, SetupServerApi } from 'msw/node';
+import { RequiredKeysOf } from 'type-fest';
 import { test } from 'vitest';
+import { paths } from '../generated/api.js';
+
+type ApiReponseCode<
+  Path extends keyof paths,
+  Method extends Exclude<RequiredKeysOf<paths[Path]>, 'parameters'>,
+> = paths extends {
+  [P in Path]: { [M in Method]: { responses: infer Responses } };
+}
+  ? keyof Responses
+  : never;
+
+type ApiResponse<
+  Path extends keyof paths,
+  Method extends Exclude<RequiredKeysOf<paths[Path]>, 'parameters'>,
+  Status extends ApiReponseCode<Path, Method> = ApiReponseCode<Path, Method>,
+> = paths extends {
+  [P in Path]: {
+    [M in Method]: {
+      responses: {
+        [S in Status]: { content: { 'application/json': infer R } };
+      };
+    };
+  };
+}
+  ? R
+  : never;
+
+type ApiRequestBody<
+  Path extends keyof paths,
+  Method extends Exclude<RequiredKeysOf<paths[Path]>, 'parameters'>,
+> = paths extends {
+  [P in Path]: {
+    [M in Method]: {
+      requestBody: { content: { 'application/json': infer R } };
+    };
+  };
+}
+  ? R
+  : never;
 
 export class MockServer {
   #baseUrl = 'https://server.test/api';
-  #runs: Array<Run> = [];
+  #runs = new Map<string, Run>();
+  #experiments = new Map<string, Experiment>();
   #server: SetupServerApi;
   #requests: Array<Request> = [];
 
@@ -28,87 +69,260 @@ export class MockServer {
   }
 
   #getHandlers(): RequestHandler[] {
-    const { get, delete: del, put, post, patch } = createMethods(this.#baseUrl);
+    const { get, delete: del, post, patch } = createMethods(this.#baseUrl);
     return [
+      get('/experiments/:experimentId', ({ params }) => {
+        const experiment = this.#experiments.get(params.experimentId as string);
+        if (experiment == null) {
+          return HttpResponse.json(
+            { errors: [] } satisfies ApiResponse<
+              '/experiments/{id}',
+              'get',
+              404
+            >,
+            { status: 404 },
+          );
+        }
+        return HttpResponse.json(
+          {
+            data: {
+              id: experiment.id,
+              type: 'experiments',
+              attributes: { name: experiment.name },
+            },
+          } satisfies ApiResponse<'/experiments/{id}', 'get', 200>,
+          { status: 200 },
+        );
+      }),
+
+      get('/experiments', ({ request }) => {
+        const queryParams = parseUrlQuery(request.url);
+        return HttpResponse.json(
+          {
+            data: Array.from(this.#experiments.values())
+              .filter((e) => {
+                let nameFilter = queryParams['filter[name]'];
+                if (nameFilter == null) {
+                  return true;
+                }
+                return nameFilter.includes(e.name);
+              })
+              .map((experiment) => ({
+                id: experiment.id,
+                type: 'experiments',
+                attributes: { name: experiment.name },
+              })),
+          } satisfies ApiResponse<'/experiments', 'get', 200>,
+          { status: 200 },
+        );
+      }),
+
       get('/sessions/current', () =>
         HttpResponse.json({
-          role: 'participant',
-          runs: this.#runs.map((run) => ({
-            runStatus: 'running' as const,
-            ...run,
-          })),
-        }),
+          data: {
+            type: 'sessions',
+            id: 'current',
+            attributes: { role: 'participant' },
+            relationships: {
+              runs: {
+                data: Array.from(this.#runs.values(), (r) => ({
+                  type: 'runs',
+                  id: r.runId,
+                })),
+              },
+            },
+          },
+        } satisfies ApiResponse<'/sessions/{id}', 'get', 200>),
       ),
-      put('/sessions/current', () =>
-        HttpResponse.json({
-          role: 'participant',
-          runs: this.#runs.map((run) => ({ runStatus: 'running', ...run })),
-        }),
+
+      del('/sessions/current', () =>
+        HttpResponse.json({ data: null } satisfies ApiResponse<
+          '/sessions/{id}',
+          'delete',
+          200
+        >),
       ),
-      del('/sessions/current', () => HttpResponse.json({ status: 'ok' })),
-      post('/runs', async ({ request }) => {
-        let body = await request.json();
-        if (typeof body !== 'object') {
-          throw new Error('Unexpected body type');
+
+      get('/runs', async ({ request }) => {
+        const queryParams = parseUrlQuery(request.url);
+        return HttpResponse.json(
+          {
+            data: Array.from(this.#runs.values())
+              .filter((r) => {
+                let statusFilter = queryParams['filter[status]'];
+                if (statusFilter == null) {
+                  return true;
+                }
+                return statusFilter.includes(r.runStatus);
+              })
+              .map((r) => ({
+                type: 'runs',
+                id: r.runId,
+                attributes: {
+                  status: r.runStatus,
+                  name: r.runName,
+                  lastLogNumber: Math.max(
+                    0,
+                    ...r.lastLogs.map((log) => log.number),
+                  ),
+                },
+                relationships: {
+                  experiment: {
+                    data: { type: 'experiments', id: r.experimentId },
+                  },
+                  lastLogs: {
+                    data: r.lastLogs.map((log) => ({
+                      type: 'logs',
+                      id: log.id,
+                    })),
+                  },
+                },
+              })),
+            included: [
+              ...Array.from(this.#runs.values()).flatMap((r) =>
+                r.lastLogs.map((log) => ({
+                  type: 'logs' as const,
+                  id: log.id,
+                  attributes: {
+                    logType: log.type,
+                    number: log.number,
+                    values: {},
+                  },
+                  relationships: {
+                    run: { data: { type: 'runs' as const, id: r.runId } },
+                  },
+                })),
+              ),
+              ...Array.from(this.#experiments.values()).map((e) => {
+                return {
+                  type: 'experiments' as const,
+                  id: e.id,
+                  attributes: { name: e.name },
+                };
+              }),
+            ],
+          } satisfies ApiResponse<'/runs', 'get', 200>,
+          { status: 200 },
+        );
+      }),
+
+      post('/runs', async () => {
+        return HttpResponse.json(
+          {
+            data: { type: 'runs', id: 'default-run-id' },
+          } satisfies ApiResponse<'/runs', 'post', 201>,
+          { status: 201 },
+        );
+      }),
+
+      get('/runs/:runId', ({ params, request }) => {
+        const run = this.#runs.get(params.runId as string);
+        if (run == null) {
+          return HttpResponse.json(
+            { errors: [] } satisfies ApiResponse<'/runs/{id}', 'get', 404>,
+            { status: 404 },
+          );
+        }
+        let included: ApiResponse<'/runs/{id}', 'get', 200>['included'];
+        let urlParams = parseUrlQuery(request.url);
+        if (urlParams.include?.includes('experiment')) {
+          included = included ?? [];
+          included.push({
+            type: 'experiments',
+            id: run.experimentId,
+            attributes: {
+              name:
+                this.#experiments.get(run.experimentId)?.name ??
+                'Unknown Experiment',
+            },
+          });
+        }
+        if (urlParams.include?.includes('lastLogs')) {
+          included = included ?? [];
+          included.push(
+            ...run.lastLogs.map((log) => ({
+              type: 'logs' as const,
+              id: log.id,
+              attributes: { logType: log.type, number: log.number, values: {} },
+              relationships: {
+                run: { data: { type: 'runs' as const, id: run.runId } },
+              },
+            })),
+          );
         }
         return HttpResponse.json({
-          runStatus: 'running',
-          runName: body?.runName ?? 'default-run-id',
-          experimentName: body?.experimentName ?? 'default-experiment-id',
-        });
+          data: {
+            type: 'runs',
+            id: run.runId,
+            attributes: {
+              name: run.runName,
+              status: run.runStatus,
+              lastLogNumber: Math.max(...run.lastLogs.map((l) => l.number)),
+            },
+            relationships: {
+              experiment: {
+                data: { type: 'experiments', id: run.experimentId },
+              },
+              lastLogs: {
+                data: run.lastLogs.map((log) => ({ type: 'logs', id: log.id })),
+              },
+            },
+          },
+          included,
+        } satisfies ApiResponse<'/runs/{id}', 'get', 200>);
       }),
-      get('/experiments/:experimentName/runs/:runName', ({ params }) => {
-        const run = this.#getRun(params);
+
+      patch('/runs/:id', async ({ params, request }) => {
+        const body = (await request.json()) as ApiRequestBody<
+          '/runs/{id}',
+          'patch'
+        >;
+        const run = this.#runs.get(params.id as string);
         if (run == null) {
           return HttpResponse.json(
-            { message: 'Run not found' },
+            { errors: [] } satisfies ApiResponse<'/runs/{id}', 'patch', 404>,
             { status: 404 },
           );
         }
-        return HttpResponse.json({ runStatus: 'running', logs: [], ...run });
-      }),
-      patch('/experiments/:experimentName/runs/:runName', ({ params }) => {
-        const run = this.#getRun(params);
-        if (run == null) {
-          return HttpResponse.json(
-            { message: 'Run not found' },
-            { status: 404 },
-          );
+        run.runStatus = body.data.attributes?.status ?? run.runStatus;
+        const lastLogNumber = body.data.attributes?.lastLogNumber;
+        if (lastLogNumber != null) {
+          run.lastLogs.filter((l) => l.number <= lastLogNumber);
+          if (run.lastLogs.every((l) => l.number !== lastLogNumber)) {
+            run.lastLogs.push({
+              id: 'new-last-log-id',
+              type: 'new-last-log',
+              number: lastLogNumber,
+            });
+          }
         }
-        return HttpResponse.json();
+
+        return HttpResponse.json({
+          data: {
+            id: run.runId,
+            type: 'runs' as const,
+            attributes: {
+              status: run.runStatus,
+              lastLogNumber: Math.max(0, ...run.lastLogs.map((l) => l.number)),
+            },
+            relationships: {
+              experiment: {
+                data: { id: run.experimentId, type: 'experiments' },
+              },
+              lastLogs: {
+                data: run.lastLogs.map((l) => ({ id: l.id, type: 'logs' })),
+              },
+            },
+          },
+        } satisfies ApiResponse<'/runs/{id}', 'patch', 200>);
       }),
-      post('/experiments/:experimentName/runs/:runName/logs', ({ params }) => {
-        const run = this.#getRun(params);
-        if (run == null) {
-          return HttpResponse.json(
-            { message: 'Run not found' },
-            { status: 404 },
-          );
-        }
-        return HttpResponse.json();
+
+      post('/logs', () => {
+        return HttpResponse.json({
+          data: { id: 'log-id', type: 'logs' },
+        } satisfies ApiResponse<'/logs', 'post', 201>);
       }),
     ];
-  }
-
-  #getRun(params: {
-    experimentName?: string | string[];
-    runName?: string | string[];
-  }) {
-    let runNames = Array.isArray(params.runName)
-      ? params.runName
-      : params.runName == null
-        ? []
-        : [params.runName];
-    let experimentNames = Array.isArray(params.experimentName)
-      ? params.experimentName
-      : params.experimentName == null
-        ? []
-        : [params.experimentName];
-    return this.#runs.find(
-      (r) =>
-        runNames.includes(r.runName) &&
-        experimentNames.includes(r.experimentName),
-    );
   }
 
   async waitForRequests() {
@@ -130,13 +344,60 @@ export class MockServer {
     );
   }
 
-  setRuns(runs: Run[]) {
-    this.#runs = runs;
+  set(
+    entries: Array<
+      | (Omit<Run, 'lastLogs'> & {
+          experimentName?: string;
+          logs?: Array<{
+            type: string;
+            count: number;
+            lastNumber: number;
+            pending: number;
+          }>;
+        })
+      | { experimentName?: string; experimentId: string }
+    >,
+  ) {
+    this.#runs = new Map();
+    this.#experiments = new Map();
+    for (let i = 0; i < entries.length; i++) {
+      let entry = entries[i];
+      let experimentName: string =
+        entry.experimentName != null
+          ? entry.experimentName
+          : `${entry.experimentId}-name`;
+      if ('runId' in entry) {
+        let { logs, ...run } = entry;
+        let runName = run.runName ?? `${run.runId}-name`;
+        this.#runs.set(run.runId, {
+          ...run,
+          runName,
+          lastLogs:
+            logs?.map((log) => ({
+              type: log.type,
+              number: log.lastNumber,
+              id: `log-${log.lastNumber}`,
+            })) ?? [],
+        });
+        if (!this.#experiments.has(entry.experimentId)) {
+          this.#experiments.set(entry.experimentId, {
+            id: entry.experimentId,
+            name: experimentName,
+          });
+        }
+        continue;
+      }
+      this.#experiments.set(entry.experimentId, {
+        id: entry.experimentId,
+        name: experimentName,
+      });
+    }
   }
 
   reset() {
     this.#requests = [];
-    this.#runs = [];
+    this.#runs = new Map();
+    this.#experiments = new Map();
   }
 
   start() {
@@ -162,16 +423,14 @@ function createMethods(baseUrl: string) {
 }
 
 type Run = {
-  runName: string;
-  experimentName: string;
-  runStatus?: 'completed' | 'canceled' | 'running' | 'interrupted';
-  logs?: Array<{
-    type: string;
-    count: number;
-    lastNumber: number;
-    pending: number;
-  }>;
+  runId: string;
+  runName?: string;
+  experimentId: string;
+  runStatus: 'idle' | 'completed' | 'canceled' | 'running' | 'interrupted';
+  lastLogs: Array<{ id: string; type: string; number: number }>;
 };
+
+type Experiment = { id: string; name: string };
 
 interface Fixture {
   server: MockServer;
@@ -186,3 +445,15 @@ export const serverTest = test.extend<Fixture>({
     server.stop();
   },
 });
+
+function parseUrlQuery(url: string) {
+  let query = url.split('?')[1];
+  if (query == null) return {};
+  return query.split('&').reduce<Record<string, string[]>>((acc, pair) => {
+    let [key, value] = pair.split('=');
+    let values = acc[key] || [];
+    values.push(value);
+    acc[key] = values;
+    return acc;
+  }, {});
+}

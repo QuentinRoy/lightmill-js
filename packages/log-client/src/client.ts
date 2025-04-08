@@ -1,26 +1,24 @@
 import createClient from 'openapi-fetch';
-import type { paths } from '../generated/api.js';
-import { RequestError } from './utils.js';
+import type { components, paths } from '../generated/api.js';
+import { anyLogSerializer } from './log-serializer.js';
 import { LightmillLogger } from './logger.js';
 import {
   AnyLog,
+  LogValuesSerializer,
   OptionallyDated,
   Typed,
-  LogValuesSerializer,
 } from './types.js';
-import { anyLogSerializer } from './log-serializer.js';
+import { assertNever, RequestError } from './utils.js';
 
 export class LightmillClient<
   ClientLog extends Typed & OptionallyDated = AnyLog,
 > {
   #fetchClient;
   #serializeLog;
-  #requestThrottle;
 
   constructor({
     apiRoot,
     serializeLog,
-    requestThrottle,
   }: { apiRoot: string; requestThrottle?: number } & (Exclude<
     ClientLog,
     AnyLog
@@ -38,8 +36,21 @@ export class LightmillClient<
     // If serializeLog is not provided, we know that InputLog is a subset of
     // AnyLog, so we can use the default serializer.
     this.#serializeLog = serializeLog ?? anyLogSerializer;
-    this.#requestThrottle = requestThrottle;
     this.#fetchClient = createClient<paths>({ baseUrl: apiRoot });
+  }
+
+  async #getSession() {
+    let response = await this.#fetchClient.GET('/sessions/{id}', {
+      params: { path: { id: 'current' } },
+      credentials: 'include',
+    });
+    if (response.response.status === 404) {
+      return null;
+    }
+    if (response.error) {
+      throw new RequestError(response);
+    }
+    return response.data.data;
   }
 
   async getResumableRuns<T extends ClientLog['type']>({
@@ -51,119 +62,184 @@ export class LightmillClient<
     runName?: string;
     resumableLogTypes: T[];
   }) {
-    let answer = await this.#fetchClient.GET('/sessions/current', {
-      credentials: 'include',
-    });
-    if (answer.response.status === 404) {
+    let session = await this.#getSession();
+    if (session?.attributes.role !== 'participant') {
       return { runs: [] };
     }
-    if (answer.error) {
-      throw new RequestError(answer.response, answer.error.message);
+    let response = await this.#fetchClient.GET('/runs', {
+      credentials: 'include',
+      params: {
+        query: {
+          'filter[status]': ['running', 'interrupted'],
+          'filter[relationships.experiment.name]': experimentName,
+          'filter[name]': runName,
+          include: ['lastLogs', 'experiment'],
+        },
+      },
+    });
+    if (response.error) {
+      throw new RequestError(response);
     }
-    let matchingRuns = (answer.data.runs ?? []).filter(
-      (r) =>
-        (runName == null || r.runName === runName) &&
-        (experimentName == null || r.experimentName === experimentName),
-    );
-    let matchingRunInfos = await Promise.all(
-      matchingRuns.map(async (r) => {
-        let pathParams = {
-          experimentName: r.experimentName,
-          runName: r.runName,
-        };
-        let answer = await this.#fetchClient.GET(
-          '/experiments/{experimentName}/runs/{runName}',
-          { credentials: 'include', params: { path: pathParams } },
+    const resources = response.data.included ?? [];
+    const experiments = new Map<string, ExperimentResource>();
+    const logs = new Map<string, LogResource>();
+    for (let r of resources) {
+      switch (r.type) {
+        case 'experiments':
+          experiments.set(r.id, r);
+          break;
+        case 'logs':
+          logs.set(r.id, r);
+          break;
+        default:
+          assertNever(r);
+      }
+    }
+    return response.data.data.map((r) => {
+      let experiment = experiments.get(r.relationships.experiment.data.id);
+      if (experiment == null) {
+        throw new Error(
+          `Experiment ${r.relationships.experiment.data.id} was not included with the server's response`,
         );
-        if (answer.error) {
-          throw new RequestError(answer.response, answer.error.message);
+      }
+      let lastLogs = r.relationships.lastLogs.data.map(({ id }) => {
+        let log = logs.get(id);
+        if (log == null) {
+          throw new Error(
+            `Log ${id} was not included with the server's response`,
+          );
         }
-        return answer.data;
-      }),
-    );
-    return matchingRunInfos
-      .filter(
-        (r): r is typeof r & { runStatus: 'running' | 'interrupted' } =>
-          r.runStatus === 'running' || r.runStatus === 'interrupted',
-      )
-      .map((r) => {
-        return {
-          runName: r.runName,
-          experimentName: r.experimentName,
-          runStatus: r.runStatus,
-          resumesAfter: this.#getLastLogRecordOfType({
-            logRecords: r.logs,
-            resumableLogTypes,
-          }),
-        };
+        return { type: log.attributes.logType, number: log.attributes.number };
       });
+      return {
+        runId: r.id,
+        experimentId: experiment.id,
+        runName: r.attributes.name,
+        experimentName: experiment.attributes.name,
+        runStatus: r.attributes.status,
+        from: this.#getLastLogRecordOfType({ lastLogs, resumableLogTypes }),
+      };
+    });
   }
 
   #getLastLogRecordOfType<T extends ClientLog['type']>({
-    logRecords,
+    lastLogs: logRecords,
     resumableLogTypes,
   }: {
-    logRecords: { type: string; lastNumber: number }[];
+    lastLogs: { type: string; number: number }[];
     resumableLogTypes: T[];
   }) {
+    const isResumableLog = (l: { type: string }): l is { type: T } => {
+      return types.includes(l.type);
+    };
     let types: string[] = resumableLogTypes;
-    let lastLogRecord = { logNumber: 0, logType: null as null | T };
+    let lastLogRecord = { number: 0, type: null as null | T };
     for (let logRecord of logRecords) {
       if (
-        logRecord.lastNumber > lastLogRecord.logNumber &&
-        types.includes(logRecord.type)
+        logRecord.number > lastLogRecord.number &&
+        isResumableLog(logRecord)
       ) {
-        lastLogRecord = {
-          logType: logRecord.type as T,
-          logNumber: logRecord.lastNumber,
-        };
+        lastLogRecord = logRecord;
       }
     }
-    return lastLogRecord;
+    return { logNumber: lastLogRecord.number, logType: lastLogRecord.type };
   }
 
   async startRun(
     options:
+      | { runName?: string; experimentName: string }
       | {
           runName: string;
           experimentName: string;
-          resumesAfter: { logNumber: number };
-        }
-      | { runName?: string; experimentName?: string } = {},
+          from: { logNumber: number };
+        },
   ) {
-    if (!('resumesAfter' in options) || options.resumesAfter == null) {
-      return this.#startNewRun(options);
+    if ('from' in options) {
+      return this.#resumeRun({ ...options, from: options.from?.logNumber });
     }
-    return this.#resumeRun({
-      ...options,
-      resumeAfter: options.resumesAfter.logNumber,
+    return this.#startNewRun(options);
+  }
+
+  async #getExperimentFromName(experimentName: string) {
+    let response = await this.#fetchClient.GET('/experiments', {
+      params: { query: { 'filter[name]': experimentName } },
     });
+    if (response.data != null) return response.data.data[0];
+    if (response.response.status === 404) return null;
+    let error = response.error.errors[0];
+    throw new Error(
+      error.detail ??
+        `Could not fetch experiment: server returned ${error.code}`,
+    );
+  }
+
+  async #getRunFromName(
+    options: { runName: string } & (
+      | { experimentName: string; experimentId?: string }
+      | { experimentName?: string; experimentId: string }
+    ),
+  ) {
+    let response = await this.#fetchClient.GET('/runs', {
+      params: {
+        query: {
+          'filter[experiment.id]': options.experimentId,
+          'filter[experiment.name]': options.experimentName,
+          'filter[name]': options.runName,
+        },
+      },
+    });
+    if (response.data != null) return response.data.data[0];
+    if (response.response.status === 404) return null;
+    let error = response.error.errors[0];
+    throw new Error(
+      error.detail ?? `Could not fetch run: server returned ${error.code}`,
+    );
+  }
+
+  async #getRunIdFromName(
+    options: { runName: string } & (
+      | { experimentName: string; experimentId?: string }
+      | { experimentName?: string; experimentId: string }
+    ),
+  ) {
+    let run = await this.#getRunFromName(options);
+    if (run == null) {
+      throw new Error(
+        `Could not find run ${options.runName} for experiment ${options.experimentName ?? options.experimentId}`,
+      );
+    }
+    return run.id;
   }
 
   async #resumeRun({
-    runName,
-    experimentName,
-    resumeAfter,
-  }: {
-    runName: string;
-    experimentName: string;
-    resumeAfter: number;
-  }) {
-    let response = await this.#fetchClient.PATCH(
-      '/experiments/{experimentName}/runs/{runName}',
-      {
-        credentials: 'include',
-        params: { path: { experimentName: experimentName, runName: runName } },
-        body: { resumeFrom: resumeAfter + 1, runStatus: 'running' },
+    from,
+    ...options
+  }: (
+    | { runName: string; experimentName: string }
+    | { runName: string; experimentId: string }
+    | { runId: string }
+  ) & { from?: number }) {
+    let runId: string =
+      'runId' in options
+        ? options.runId
+        : await this.#getRunIdFromName(options);
+    let response = await this.#fetchClient.PATCH('/runs/{id}', {
+      credentials: 'include',
+      params: { path: { id: runId } },
+      body: {
+        data: {
+          type: 'runs',
+          id: runId,
+          attributes: { status: 'running', lastLogNumber: from },
+        },
       },
-    );
+    });
     if (response.error) {
-      throw new RequestError(response.response, response.error.message);
+      throw new RequestError(response);
     }
     return this.#createLogger({
-      runName,
-      experimentName,
-      logCount: resumeAfter,
+      runId,
+      lastLogNumber: response.data.data.attributes.lastLogNumber,
     });
   }
 
@@ -172,47 +248,72 @@ export class LightmillClient<
     experimentName,
   }: {
     runName?: string;
-    experimentName?: string;
+    experimentName: string;
   }) {
+    await this.#getOrCreateParticipantSession();
+    let experiment = await this.#getExperimentFromName(experimentName);
+    if (experiment == null) {
+      throw new Error(`Couldn't find experiment ${experimentName}`);
+    }
     let response = await this.#fetchClient.POST('/runs', {
       credentials: 'include',
-      body: { experimentName: experimentName, runName: runName },
+      body: {
+        data: {
+          type: 'runs',
+          attributes: { name: runName, status: 'running' },
+          relationships: {
+            experiment: { data: { id: experiment.id, type: 'experiments' } },
+          },
+        },
+      },
     });
     if (response.error) {
-      throw new RequestError(response.response, response.error.message);
+      throw new RequestError(response);
     }
-    const { runStatus, ...loggerParams } = response.data;
-    if (runStatus !== 'running') {
-      throw new Error('Unexpected run status: run status is not running');
-    }
-    return this.#createLogger({ ...loggerParams, logCount: 0 });
+    const { id: runId } = response.data.data;
+    return this.#createLogger({ runId, lastLogNumber: 0 });
   }
 
   #createLogger({
-    runName,
-    experimentName,
-    logCount,
+    runId,
+    lastLogNumber: lastLogNumber,
   }: {
-    runName: string;
-    experimentName: string;
-    logCount: number;
+    runId: string;
+    lastLogNumber: number;
   }) {
     return new LightmillLogger<ClientLog>({
       serializeLog: this.#serializeLog,
-      requestThrottle: this.#requestThrottle,
       fetchClient: this.#fetchClient,
-      runName,
-      experimentName,
-      logCount,
+      runId,
+      lastLogNumber: lastLogNumber,
     });
   }
 
+  async #getOrCreateParticipantSession() {
+    let session = await this.#getSession();
+    if (session?.attributes.role !== 'participant') {
+      await this.logout();
+      session = null;
+    }
+    if (session == null) {
+      await this.#fetchClient.POST('/sessions', {
+        body: {
+          data: { type: 'sessions', attributes: { role: 'participant' } },
+        },
+      });
+    }
+  }
+
   async logout() {
-    let response = await this.#fetchClient.DELETE('/sessions/current', {
+    let response = await this.#fetchClient.DELETE('/sessions/{id}', {
+      params: { path: { id: 'current' } },
       credentials: 'include',
     });
     if (response.error) {
-      throw new RequestError(response.response, response.error.message);
+      throw new RequestError(response);
     }
   }
 }
+
+type ExperimentResource = components['schemas']['Experiment.Resource'];
+type LogResource = components['schemas']['Log.Resource'];

@@ -1,13 +1,18 @@
+import createClient from 'openapi-fetch';
 import { describe, expect, vi } from 'vitest';
 import { serverTest } from '../__mocks__/mock-server.js';
-import { LightmillLogger } from '../src/logger.js';
 import { paths } from '../generated/api.js';
-import createClient from 'openapi-fetch';
+import { LightmillLogger } from '../src/logger.js';
 
 const it = serverTest.extend<{
   timer: void;
   logger: LightmillLogger;
-  run: { experimentName: string; runName: string };
+  run: {
+    experimentName: string;
+    runName: string;
+    experimentId: string;
+    runId: string;
+  };
   resumedLogger: LightmillLogger;
   resumedLogCount: number;
 }>({
@@ -28,18 +33,23 @@ const it = serverTest.extend<{
     },
     { auto: true },
   ],
-  run: Object.freeze({ experimentName: 'exp-name', runName: 'run-name' }),
+  run: Object.freeze({
+    experimentName: 'exp-name',
+    experimentId: 'exp-id',
+    runName: 'run-name',
+    runId: 'run-id',
+  }),
   logger: async ({ server, run }, use) => {
     const fetchClient = createClient<paths>({ baseUrl: server.getBaseUrl() });
     const logger = new LightmillLogger({
       fetchClient,
       ...run,
-      logCount: 0,
+      lastLogNumber: 0,
       serializeLog: (x) => JSON.parse(JSON.stringify(x)),
     });
-    server.reset();
-    server.setRuns([run]);
+    server.set([run]);
     await use(logger);
+    server.reset();
   },
   resumedLogCount: 100,
   resumedLogger: async ({ server, resumedLogCount, run }, use) => {
@@ -47,183 +57,123 @@ const it = serverTest.extend<{
     const logger = new LightmillLogger({
       fetchClient,
       ...run,
-      logCount: resumedLogCount,
+      lastLogNumber: resumedLogCount,
       serializeLog: (x) => JSON.parse(JSON.stringify(x)),
     });
-    server.reset();
-    server.setRuns([run]);
+    server.set([run]);
     await use(logger);
+    server.reset();
   },
 });
 
-describe('LogClient#addLog (after start)', () => {
+describe('LogClient#addLog', () => {
   it('should send one log', async ({ logger, server, expect }) => {
-    let p = logger.addLog({
+    await logger.addLog({
       type: 'mock-log',
       val: 1,
       date: new Date('2021-06-03T02:00:00.000Z'),
     });
-    vi.runAllTimers();
-    await p;
-    await expect(server.waitForChangeRequests()).resolves.toEqual([
-      {
-        url: 'https://server.test/api/experiments/exp-name/runs/run-name/logs',
-        method: 'POST',
-        body: {
-          logs: [
-            {
-              type: 'mock-log',
-              values: { val: 1, date: '2021-06-03T02:00:00.000Z' },
-              number: 1,
+    await expect(server.waitForChangeRequests()).resolves
+      .toMatchInlineSnapshot(`
+      [
+        {
+          "body": {
+            "data": {
+              "attributes": {
+                "logType": "mock-log",
+                "number": 1,
+                "values": {
+                  "date": "2021-06-03T02:00:00.000Z",
+                  "val": 1,
+                },
+              },
+              "relationships": {
+                "run": {
+                  "data": {
+                    "id": "run-id",
+                    "type": "runs",
+                  },
+                },
+              },
+              "type": "logs",
             },
-          ],
-        } satisfies ApiBody<
-          'post',
-          '/experiments/{experimentName}/runs/{runName}/logs'
-        >,
-      },
-    ]);
+          },
+          "method": "POST",
+          "url": "https://server.test/api/logs",
+        },
+      ]
+    `);
   });
 
-  it('should batch send multiple logs', async ({ logger, server }) => {
-    let p = Promise.all([
-      logger.addLog({
-        type: 'mock-log',
-        val: 1,
-        date: new Date('2021-06-03T02:00:00.000Z'),
-      }),
-      logger.addLog({
-        type: 'mock-log',
-        val: 2,
-        date: new Date('2021-06-03T02:00:10.000Z'),
-      }),
-      logger.addLog({
-        type: 'mock-log',
-        val: 3,
-        date: new Date('2021-06-03T02:00:20.000Z'),
-      }),
-    ]);
-    vi.runAllTimers();
-    await p;
-    await expect(server.waitForChangeRequests()).resolves.toEqual([
-      {
-        url: 'https://server.test/api/experiments/exp-name/runs/run-name/logs',
-        method: 'POST',
-        body: {
-          logs: [
-            {
-              type: 'mock-log',
-              number: 1,
-              values: { val: 1, date: '2021-06-03T02:00:00.000Z' },
-            },
-            {
-              type: 'mock-log',
-              number: 2,
-              values: { val: 2, date: '2021-06-03T02:00:10.000Z' },
-            },
-            {
-              type: 'mock-log',
-              number: 3,
-              values: { val: 3, date: '2021-06-03T02:00:20.000Z' },
-            },
-          ],
-        } satisfies ApiBody<
-          'post',
-          '/experiments/{experimentName}/runs/{runName}/logs'
-        >,
-      },
-    ]);
-  });
-
-  it('should add a default date to logs sent alone', async ({
-    logger,
-    server,
-  }) => {
+  it('should add a default date to logs ', async ({ logger, server }) => {
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime('2019-06-03T02:00:00.000Z');
-    let p = logger.addLog({ type: 'mock-log', val: 1 });
-    vi.runAllTimers();
-    await p;
-    await expect(server.waitForChangeRequests()).resolves.toEqual([
-      {
-        url: 'https://server.test/api/experiments/exp-name/runs/run-name/logs',
-        method: 'POST',
-        body: {
-          logs: [
-            {
-              type: 'mock-log',
-              values: { val: 1, date: '2019-06-03T02:00:00.000Z' },
-              number: 1,
+    await logger.addLog({ type: 'mock-log', val: 'xxx' });
+    await expect(server.waitForChangeRequests()).resolves
+      .toMatchInlineSnapshot(`
+        [
+          {
+            "body": {
+              "data": {
+                "attributes": {
+                  "logType": "mock-log",
+                  "number": 1,
+                  "values": {
+                    "date": "2019-06-03T02:00:00.000Z",
+                    "val": "xxx",
+                  },
+                },
+                "relationships": {
+                  "run": {
+                    "data": {
+                      "id": "run-id",
+                      "type": "runs",
+                    },
+                  },
+                },
+                "type": "logs",
+              },
             },
-          ],
-        } satisfies ApiBody<
-          'post',
-          '/experiments/{experimentName}/runs/{runName}/logs'
-        >,
-      },
-    ]);
-  });
-
-  it('should add a default date to logs sent in a batch', async ({
-    logger,
-    server,
-  }) => {
-    vi.useFakeTimers({ toFake: ['Date'] });
-    vi.setSystemTime('2019-06-03T02:00:00.000Z');
-    let p = logger.addLog({ type: 'mock-log', val: 1 });
-    vi.setSystemTime('2019-06-03T02:00:00.100Z');
-    p = logger.addLog({ type: 'mock-log', val: 2 });
-    vi.runAllTimers();
-    await p;
-    await expect(server.waitForChangeRequests()).resolves.toEqual([
-      {
-        url: 'https://server.test/api/experiments/exp-name/runs/run-name/logs',
-        method: 'POST',
-        body: {
-          logs: [
-            {
-              type: 'mock-log',
-              values: { val: 1, date: '2019-06-03T02:00:00.000Z' },
-              number: 1,
-            },
-            {
-              type: 'mock-log',
-              values: { val: 2, date: '2019-06-03T02:00:00.100Z' },
-              number: 2,
-            },
-          ],
-        } satisfies ApiBody<
-          'post',
-          '/experiments/{experimentName}/runs/{runName}/logs'
-        >,
-      },
-    ]);
+            "method": "POST",
+            "url": "https://server.test/api/logs",
+          },
+        ]
+    `);
   });
 
   it('should send logs with no provided values', async ({ logger, server }) => {
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime('2019-06-03T02:00:00.000Z');
-    let p = logger.addLog({ type: 'mock-log' });
-    vi.runAllTimers();
-    await p;
-    await expect(server.waitForChangeRequests()).resolves.toEqual([
-      {
-        url: 'https://server.test/api/experiments/exp-name/runs/run-name/logs',
-        method: 'POST',
-        body: {
-          logs: [
-            {
-              type: 'mock-log',
-              values: { date: '2019-06-03T02:00:00.000Z' },
-              number: 1,
+    await logger.addLog({ type: 'mock-log' });
+    await expect(server.waitForChangeRequests()).resolves
+      .toMatchInlineSnapshot(`
+      [
+        {
+          "body": {
+            "data": {
+              "attributes": {
+                "logType": "mock-log",
+                "number": 1,
+                "values": {
+                  "date": "2019-06-03T02:00:00.000Z",
+                },
+              },
+              "relationships": {
+                "run": {
+                  "data": {
+                    "id": "run-id",
+                    "type": "runs",
+                  },
+                },
+              },
+              "type": "logs",
             },
-          ],
-        } satisfies ApiBody<
-          'post',
-          '/experiments/{experimentName}/runs/{runName}/logs'
-        >,
-      },
-    ]);
+          },
+          "method": "POST",
+          "url": "https://server.test/api/logs",
+        },
+      ]
+    `);
   });
 });
 
@@ -231,10 +181,10 @@ describe('LogClient#addLog (after resume)', () => {
   it('should properly start numbering after a run has been resumed', async ({
     server,
   }) => {
-    server.setRuns([
+    server.set([
       {
-        experimentName: 'test-experiment',
-        runName: 'test-run',
+        experimentId: 'test-experiment',
+        runId: 'test-run',
         runStatus: 'running',
         logs: [
           { type: 'test-type', count: 3, lastNumber: 4, pending: 2 },
@@ -244,59 +194,28 @@ describe('LogClient#addLog (after resume)', () => {
     ]);
     const logger = new LightmillLogger({
       fetchClient: createClient({ baseUrl: 'https://server.test/api' }),
-      experimentName: 'test-experiment',
-      runName: 'test-run',
-      logCount: 4,
-      requestThrottle: 4000,
+      runId: 'test-run',
+      lastLogNumber: 4,
       serializeLog: (log) => JSON.parse(JSON.stringify(log)),
     });
-    let p = Promise.all([
+    await Promise.all([
       logger.addLog({
         type: 'mock-log',
-        val: 1,
+        val: 'a',
         date: new Date('2021-06-03T02:00:00.000Z'),
       }),
       logger.addLog({
         type: 'mock-log',
-        val: 2,
+        val: 'b',
         date: new Date('2021-06-03T02:00:10.000Z'),
       }),
       logger.addLog({
         type: 'mock-log',
-        val: 3,
+        val: 'c',
         date: new Date('2021-06-03T02:00:20.000Z'),
       }),
     ]);
-    vi.runAllTimers();
-    await p;
-    await expect(server.waitForChangeRequests()).resolves.toEqual([
-      {
-        url: 'https://server.test/api/experiments/test-experiment/runs/test-run/logs',
-        method: 'POST',
-        body: {
-          logs: [
-            {
-              type: 'mock-log',
-              number: 5,
-              values: { val: 1, date: '2021-06-03T02:00:00.000Z' },
-            },
-            {
-              type: 'mock-log',
-              number: 6,
-              values: { val: 2, date: '2021-06-03T02:00:10.000Z' },
-            },
-            {
-              type: 'mock-log',
-              number: 7,
-              values: { val: 3, date: '2021-06-03T02:00:20.000Z' },
-            },
-          ],
-        } satisfies ApiBody<
-          'post',
-          '/experiments/{experimentName}/runs/{runName}/logs'
-        >,
-      },
-    ]);
+    await expect(server.waitForChangeRequests()).resolves.toMatchSnapshot();
   });
 });
 
@@ -317,75 +236,55 @@ describe('LogClient#flush', () => {
       val: 3,
       date: new Date('2021-06-03T04:00:00.000Z'),
     });
-    // No timer this time, flush should send the request immediately.
     await logger.flush();
-    await expect(server.waitForChangeRequests()).resolves.toEqual([
-      {
-        url: 'https://server.test/api/experiments/exp-name/runs/run-name/logs',
-        method: 'POST',
-        body: {
-          logs: [
-            {
-              type: 'mock-log',
-              number: 1,
-              values: { val: 1, date: '2021-06-03T02:00:00.000Z' },
-            },
-            {
-              type: 'mock-log',
-              number: 2,
-              values: { val: 2, date: '2021-06-03T03:00:00.000Z' },
-            },
-            {
-              type: 'mock-log',
-              number: 3,
-              values: { val: 3, date: '2021-06-03T04:00:00.000Z' },
-            },
-          ],
-        } satisfies ApiBody<
-          'post',
-          '/experiments/{experimentName}/runs/{runName}/logs'
-        >,
-      },
-    ]);
+    await expect(server.waitForChangeRequests()).resolves.toMatchSnapshot();
   });
 });
 
 describe('LogClient#completeRun', () => {
   it('should complete', async ({ server, logger }) => {
     await logger.completeRun();
-    await expect(server.waitForChangeRequests()).resolves.toEqual([
-      {
-        method: 'PATCH',
-        url: 'https://server.test/api/experiments/exp-name/runs/run-name',
-        body: { runStatus: 'completed' },
-      },
-    ]);
+    await expect(server.waitForChangeRequests()).resolves
+      .toMatchInlineSnapshot(`
+      [
+        {
+          "body": {
+            "data": {
+              "attributes": {
+                "status": "completed",
+              },
+              "id": "run-id",
+              "type": "runs",
+            },
+          },
+          "method": "PATCH",
+          "url": "https://server.test/api/runs/run-id",
+        },
+      ]
+    `);
   });
 });
 
 describe('LogClient#cancelRun', () => {
   it('should cancel', async ({ server, logger }) => {
     await logger.cancelRun();
-    await expect(server.waitForChangeRequests()).resolves.toEqual([
-      {
-        method: 'PATCH',
-        url: 'https://server.test/api/experiments/exp-name/runs/run-name',
-        body: { runStatus: 'canceled' },
-      },
-    ]);
+    await expect(server.waitForChangeRequests()).resolves
+      .toMatchInlineSnapshot(`
+      [
+        {
+          "body": {
+            "data": {
+              "attributes": {
+                "status": "canceled",
+              },
+              "id": "run-id",
+              "type": "runs",
+            },
+          },
+          "method": "PATCH",
+          "url": "https://server.test/api/runs/run-id",
+        },
+      ]
+    `);
   });
 });
-
-type Method = 'get' | 'post' | 'delete' | 'patch';
-
-type ApiBody<M extends Method, P extends keyof paths> = paths[P] extends {
-  [K in M]: { requestBody: { content: { 'application/json': infer B } } };
-}
-  ? B
-  : paths[P] extends {
-        [K in M]: {
-          requestBody?: { content: { 'application/json': infer B } };
-        };
-      }
-    ? B | undefined
-    : never;
