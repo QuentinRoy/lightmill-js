@@ -20,21 +20,21 @@
   "devDependencies": {
     "@lightmill/log-api": "workspace:*",
     "@types/throttle-debounce": "^5.0.2",
-    "@vitest/ui": "3.0.6",
+    "@vitest/ui": "catalog:",
     "cross-env": "^7.0.3",
     "msw": "^2.0.13",
+    "openapi-typescript": "^7.6.1",
     "type-fest": "^4.9.0",
     "typescript": "catalog:",
     "vitest": "catalog:"
   },
   "dependencies": {
     "openapi-fetch": "^0.13.4",
-    "openapi-typescript": "^7.6.1",
     "throttle-debounce": "^5.0.0"
   },
   "scripts": {
     "test": "cross-env NODE_ENV=test vitest",
-    "generate-api-types": "openapi-typescript node_modules/@lightmill/log-api/openapi.json --output ./generated/api.d.ts",
+    "generate-api-types": "openapi-typescript node_modules/@lightmill/log-api/openapi.yaml --empty-objects-unknown --output ./generated/api.d.ts",
     "build": "pnpm run generate-api-types && tsc -b tsconfig.build.json",
     "prepublish": " pnpm run build"
   },
