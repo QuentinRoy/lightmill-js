@@ -1,103 +1,59 @@
+import SQLiteDB from 'better-sqlite3';
+import {
+  CamelCasePlugin,
+  DeduplicateJoinsPlugin,
+  FileMigrationProvider,
+  InsertObject,
+  Kysely,
+  Migrator,
+  sql,
+  SqliteDialect,
+} from 'kysely';
+import loglevel, { LogLevelDesc } from 'loglevel';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import * as url from 'node:url';
-import SQLiteDB from 'better-sqlite3';
+import { last, pick } from 'remeda';
+import { JsonObject, JsonValue } from 'type-fest';
+import { StoreError } from './store-errors.js';
 import {
-  Kysely,
-  FileMigrationProvider,
-  Migrator,
-  SqliteDialect,
-  CamelCasePlugin,
-  DeduplicateJoinsPlugin,
-  InsertObject,
-  GeneratedAlways,
-  ColumnType,
-} from 'kysely';
-import { JsonObject, ReadonlyDeep } from 'type-fest';
-import loglevel, { LogLevelDesc } from 'loglevel';
-import { groupBy, last } from 'remeda';
-import { z } from 'zod';
-import { arrayify, removePrefix, startsWith } from './utils.js';
-
-const DEFAULT_SELECT_QUERY_LIMIT = 1000000;
+  AllFilter,
+  createQueryFilterAll,
+  createQueryFilterExperiment,
+  createQueryFilterRun,
+  ExperimentFilter,
+  LogFilter,
+  RunFilter,
+} from './store-filters.js';
+import {
+  Database,
+  ExperimentId,
+  fromDbId,
+  Log,
+  LogId,
+  RunId,
+  RunStatus,
+  toDbId,
+} from './store-types.js';
+import { getStrict } from './utils.js';
 
 const __dirname = url.fileURLToPath(new URL('.', import.meta.url));
-const migrationFolder = path.join(__dirname, 'db-migrations');
 
-export type Store = Omit<SQLiteStore, 'migrateDatabase' | 'close'>;
-
-const runStatuses = [
-  'idle',
-  'running',
-  'completed',
-  'canceled',
-  'interrupted',
-] as const;
-
-export type RunStatus = (typeof runStatuses)[number];
-
-export type RunFilter = ReadonlyDeep<{
-  runName?: string | string[] | undefined;
-  experimentName?: string | string[] | undefined;
-  runStatus?:
-    | RunStatus
-    | RunStatus[]
-    | `-${RunStatus}`
-    | `-${RunStatus}`[]
-    | undefined;
-  runId?: RunId | RunId[] | undefined;
-}>;
-
-export type LogFilter = RunFilter &
-  ReadonlyDeep<{ type?: string | string[] | undefined }>;
-
-export const RunId = z.number().brand('RunId');
-export type RunId = z.output<typeof RunId>;
-
-// We use ColumnType to indicate that the column cannot be updated.
-type RunTable = {
-  runId: GeneratedAlways<RunId>;
-  runName: ColumnType<string, string, never>;
-  experimentName: ColumnType<string, string, never>;
-  runStatus: RunStatus;
-  runCreatedAt: ColumnType<string, string, never>;
+export {
+  AllFilter,
+  ExperimentFilter,
+  ExperimentId,
+  Log,
+  LogFilter,
+  LogId,
+  RunFilter,
+  RunId,
+  RunStatus,
+  StoreError,
 };
-type LogSequenceTable = {
-  sequenceId: GeneratedAlways<number>;
-  runId: ColumnType<RunId, RunId, never>;
-  sequenceNumber: ColumnType<number, number, never>;
-  start: ColumnType<number, number, never>;
-};
-type logTable = {
-  logId: GeneratedAlways<number>;
-  sequenceId: ColumnType<number, number, never>;
-  logNumber: ColumnType<number, number, never>;
-  // Logs with no types are used to fill in missing log numbers.
-  type?: string;
-};
-type RunLogView = {
-  runId: ColumnType<number, never, never>;
-  experimentName: ColumnType<string, never, never>;
-  runName: ColumnType<string, never, never>;
-  runStatus: ColumnType<RunStatus, never, never>;
-  sequenceId: ColumnType<number, never, never>;
-  sequenceNumber: ColumnType<number, never, never>;
-  logId: ColumnType<number, never, never>;
-  logNumber: ColumnType<number, never, never>;
-  type?: ColumnType<string, never, never>;
-};
-type LogValueTable = {
-  logId: ColumnType<number, number, never>;
-  name: ColumnType<string, string, never>;
-  value: ColumnType<string, string, never>;
-};
-type Database = {
-  run: RunTable;
-  logSequence: LogSequenceTable;
-  log: logTable;
-  runLogView: RunLogView;
-  logValue: LogValueTable;
-};
+
+const DEFAULT_SELECT_QUERY_LIMIT = 1_000_000;
+const MIGRATION_FOLDER = path.join(__dirname, 'db-migrations');
 
 export class SQLiteStore {
   #db: Kysely<Database>;
@@ -126,13 +82,52 @@ export class SQLiteStore {
     });
   }
 
+  async addExperiment({ experimentName }: { experimentName: string }) {
+    let exp = await this.#db
+      .insertInto('experiment')
+      .values({ experimentName, experimentCreatedAt: new Date().toISOString() })
+      .returningAll()
+      .executeTakeFirstOrThrow()
+      .catch((e) => {
+        if (
+          e instanceof SQLiteDB.SqliteError &&
+          e.code === 'SQLITE_CONSTRAINT_UNIQUE'
+        ) {
+          throw new StoreError(
+            `Experiment ${experimentName} already exists`,
+            StoreError.EXPERIMENT_EXISTS,
+            { cause: e },
+          );
+        }
+        throw e;
+      });
+    return {
+      ...exp,
+      experimentId: fromDbId(exp.experimentId),
+      experimentCreatedAt: new Date(exp.experimentCreatedAt),
+    };
+  }
+
+  async getExperiments(filter: ExperimentFilter = {}) {
+    const result = await this.#db
+      .selectFrom('experiment')
+      .$call(createQueryFilterExperiment(filter, 'experiment'))
+      .selectAll()
+      .execute();
+    return result.map((exp) => ({
+      ...exp,
+      experimentId: fromDbId(exp.experimentId),
+      experimentCreatedAt: new Date(exp.experimentCreatedAt),
+    }));
+  }
+
   async addRun({
     runName,
-    experimentName,
+    experimentId,
     runStatus = 'idle',
   }: {
-    runName: string;
-    experimentName: string;
+    runName?: string;
+    experimentId: ExperimentId;
     runStatus?: RunStatus | undefined;
   }) {
     return this.#db.transaction().execute(async (trx) => {
@@ -140,23 +135,23 @@ export class SQLiteStore {
         .insertInto('run')
         .values({
           runName,
-          experimentName,
+          experimentId: toDbId(experimentId),
           runStatus,
           runCreatedAt: new Date().toISOString(),
         })
-        .returning(['runId', 'runName', 'experimentName', 'runStatus'])
+        .returningAll()
         .executeTakeFirstOrThrow()
         .catch((e) => {
           if (
             e instanceof SQLiteDB.SqliteError &&
             e.code === 'SQLITE_CONSTRAINT_TRIGGER' &&
             e.message.includes(
-              'Cannot insert run when another run with the same name and experiment name exists and is not canceled',
+              'another run with the same name for the same experiment exists and is not canceled',
             )
           ) {
             throw new StoreError(
-              `run "${runName}" already exists for experiment "${experimentName}".`,
-              'RUN_EXISTS',
+              `A run named "${runName}" already exists for experiment ${experimentId}.`,
+              StoreError.RUN_EXISTS,
               { cause: e },
             );
           }
@@ -166,17 +161,22 @@ export class SQLiteStore {
         .insertInto('logSequence')
         .values({ runId: result.runId, sequenceNumber: 1, start: 1 })
         .execute();
-      return result;
+      return {
+        ...result,
+        experimentId: fromDbId(result.experimentId),
+        runId: fromDbId(result.runId),
+        runCreatedAt: new Date(result.runCreatedAt),
+      };
     });
   }
 
   async resumeRun(runId: RunId, { from: resumeFrom }: { from: number }) {
+    const dbRunId = toDbId(runId);
     return this.#db.transaction().execute(async (trx) => {
-      let { runName, experimentName } = await trx
+      await trx
         .updateTable('run')
         .set({ runStatus: 'running' })
-        .where('runId', '=', runId)
-        .returning(['run.experimentName', 'run.runName'])
+        .where('runId', '=', dbRunId)
         .executeTakeFirstOrThrow(() => {
           return new StoreError(
             `No run found for id ${runId}`,
@@ -188,23 +188,20 @@ export class SQLiteStore {
         .leftJoin('runLogView as log', (join) =>
           join.onRef('log.runId', '=', 'seq.runId'),
         )
-        .where((eb) => eb('seq.runId', '=', runId))
+        .where((eb) => eb('seq.runId', '=', dbRunId))
         .select((eb) => [
           eb.fn.max('seq.sequenceNumber').as('lastSeqNumber'),
           eb.fn
             .max('log.logNumber')
-            .filterWhere('log.type', 'is not', null)
+            .filterWhere('log.logType', 'is not', null)
             .as('lastLogNumber'),
           eb.fn
             .min('log.logNumber')
-            .filterWhere('log.type', 'is', null)
+            .filterWhere('log.logType', 'is', null)
             .as('firstMissingLogNumber'),
         ])
         .executeTakeFirstOrThrow(
-          () =>
-            new Error(
-              `Could not find a sequence for run "${runName}" of experiment "${experimentName}".`,
-            ),
+          () => new Error(`Could not find a sequence for run ${runId}.`),
         );
       let minResumeFrom = 1;
       if (firstMissingLogNumber != null) {
@@ -214,58 +211,78 @@ export class SQLiteStore {
       }
       if (minResumeFrom < resumeFrom) {
         throw new StoreError(
-          `Cannot resume run "${runName}" of experiment "${experimentName}" from log number ${resumeFrom} because the minimum is ${minResumeFrom}.`,
+          `Cannot resume run ${runId} from log number ${resumeFrom} because it would leave log number ${minResumeFrom} missing.`,
           'INVALID_LOG_NUMBER',
         );
       }
       await trx
         .insertInto('logSequence')
-        .values({ runId, sequenceNumber: lastSeqNumber + 1, start: resumeFrom })
+        .values({
+          runId: dbRunId,
+          sequenceNumber: lastSeqNumber + 1,
+          start: resumeFrom,
+        })
         .returning(['runId'])
         .executeTakeFirstOrThrow();
     });
   }
 
-  async getRuns(filter: RunFilter = {}) {
-    const { experimentName, runName, runStatus, runId } =
-      parseRunFilter(filter);
+  async getRuns(
+    // We currently rely on experimentName to decide whether to join the experiment table,
+    // as it's the only ExperimentFilter property not in RunFilter. Using pick here (and below)
+    // prevents subtle bugs where some filters might be applied only when experimentName is present.
+    // If new properties are added to ExperimentFilter, this code will need updating.
+    filter: RunFilter & Pick<ExperimentFilter, 'experimentName'> = {},
+  ) {
     const runs = await this.#db
       .selectFrom('run')
-      .$if(filter.runName != null, (qb) =>
-        qb.where('runName', 'in', runName as NonNullable<typeof runName>),
-      )
-      .$if(filter.experimentName != null, (qb) =>
-        qb.where(
-          'experimentName',
-          'in',
-          experimentName as NonNullable<typeof experimentName>,
-        ),
-      )
-      .$if(filter.runStatus != null, (qb) =>
-        qb.where('runStatus', 'in', runStatus as NonNullable<typeof runStatus>),
-      )
-      .$if(filter.runId != null, (qb) =>
-        qb.where('runId', 'in', runId as NonNullable<typeof runId>),
-      )
+      // Do not join if we do not need to.
+      .$if(filter.experimentName != null, (qb) => {
+        return qb
+          .innerJoin(
+            'experiment',
+            'run.experimentId',
+            'experiment.experimentId',
+          )
+          .$call(
+            createQueryFilterExperiment(
+              pick(filter, ['experimentName']),
+              'experiment',
+            ),
+          );
+      })
+      .$call(createQueryFilterRun(filter, 'run'))
       .orderBy('runCreatedAt', 'desc')
-      .selectAll()
+      .select([
+        'run.runId',
+        'run.experimentId',
+        'run.runName',
+        'run.runStatus',
+        'run.runCreatedAt',
+      ])
       .execute();
     return runs.map((run) => ({
       ...run,
+      runId: fromDbId(run.runId),
+      experimentId: fromDbId(run.experimentId),
       runCreatedAt: new Date(run.runCreatedAt),
     }));
   }
 
-  async setRunStatus(runId: RunId, status: Exclude<RunStatus, 'idle'>) {
+  async setRunStatus(runId: RunId, status: RunStatus) {
+    const dbRunId = toDbId(runId);
     await this.#db
       .updateTable('run')
-      .where('runId', '=', runId)
+      .where('runId', '=', dbRunId)
       .set({ runStatus: status })
       // We need to return something or else the query will not fail if nothing
       // is updated.
-      .returning(['runName', 'experimentName', 'runStatus'])
+      .returning(['runName', 'experimentId', 'runStatus'])
       .executeTakeFirstOrThrow(() => {
-        return new StoreError(`No run found for id ${runId}`, 'RUN_NOT_FOUND');
+        return new StoreError(
+          `No run found for id ${runId}`,
+          StoreError.RUN_NOT_FOUND,
+        );
       })
       .catch((e) => {
         if (
@@ -275,8 +292,8 @@ export class SQLiteStore {
             'Cannot update run status when the run is completed or canceled'
         ) {
           throw new StoreError(
-            `Cannot update status of run "run1" for experiment "experiment" because the run is completed or canceled`,
-            'RUN_HAS_ENDED',
+            `Cannot update status of run ${runId} because the run is completed or canceled`,
+            StoreError.RUN_HAS_ENDED,
             { cause: e },
           );
         }
@@ -287,14 +304,15 @@ export class SQLiteStore {
   async addLogs(
     runId: RunId,
     logs: Array<{ type: string; number: number; values: JsonObject }>,
-  ) {
-    if (logs.length === 0) return;
-    await this.#db.transaction().execute(async (trx) => {
-      let { start, sequenceId, maxLogNumber } = await trx
+  ): Promise<{ logId: LogId }[]> {
+    const dbRunId = toDbId(runId);
+    if (logs.length === 0) return [];
+    return this.#db.transaction().execute(async (trx) => {
+      let { start, sequenceId, lastLogNumber } = await trx
         .selectFrom('logSequence as seq')
         .having((eb) =>
           eb.and([
-            eb('seq.runId', '=', runId),
+            eb('seq.runId', '=', dbRunId),
             eb('seq.sequenceNumber', '=', eb.fn.max('seq.sequenceNumber')),
           ]),
         )
@@ -303,242 +321,250 @@ export class SQLiteStore {
         .select((eb) => [
           'seq.sequenceId',
           'seq.start',
-          eb.fn.max('log.logNumber').as('maxLogNumber'),
+          eb.fn.max('log.logNumber').as('lastLogNumber'),
         ])
         .executeTakeFirstOrThrow(
-          () => new StoreError(`No run found for id ${runId}`, 'RUN_NOT_FOUND'),
+          () =>
+            new StoreError(
+              `No run found for id ${runId}`,
+              StoreError.RUN_NOT_FOUND,
+            ),
         );
-      let indexedNewLogs = groupBy(logs, (log) => log.number);
       let newLogNumbers = logs.map((log) => log.number);
       let insertStartNumber = Math.min(
         ...newLogNumbers,
-        maxLogNumber == null ? start : maxLogNumber + 1,
+        lastLogNumber == null ? start : lastLogNumber + 1,
       );
       let insertEndNumber = Math.max(...newLogNumbers);
 
-      // Start by updating existing logs.
-      let logRows = new Array<InsertObject<Database, 'log'>>();
-      // Add new logs and fill in missing logs.
-      for (let nb = insertStartNumber; nb <= insertEndNumber; nb++) {
-        let logs = indexedNewLogs[nb] ?? [];
-        if (logs.length > 0) {
-          // It is forbidden for two logs to have the same number, but if that
-          // happens, the database should be the one to complain.
-          logRows.push(
-            ...logs.map(({ type, number }) => ({
-              sequenceId,
-              type,
-              logNumber: number,
-            })),
+      // Prepopulating the array to insert with missing logs.
+      let logRows: Array<InsertObject<Database, 'log'>> = Array.from(
+        { length: insertEndNumber - insertStartNumber + 1 },
+        (_v, i) => ({ sequenceId, logNumber: i + insertStartNumber }),
+      );
+      for (const log of logs) {
+        let logToInsert = getStrict(logRows, log.number - insertStartNumber);
+        // Sanity check.
+        if (logToInsert.logNumber !== log.number) {
+          throw new Error(
+            `Log number mismatch: expected ${log.number}, got ${logToInsert.logNumber}`,
           );
-        } else if (maxLogNumber == null || nb > maxLogNumber) {
-          // If the log number is greater than maxLogNumber, there is a missing
-          // log. We need to add it to the database.
-          logRows.push({ sequenceId, logNumber: nb });
         }
+        if (logToInsert.logType != null) {
+          throw new StoreError(
+            `Cannot add log: duplicated log number in the sequence.`,
+            StoreError.LOG_NUMBER_EXISTS_IN_SEQUENCE,
+          );
+        }
+        logToInsert.logType = log.type;
+        logToInsert.logValues = json(log.values);
       }
-      await trx
-        .deleteFrom('log')
-        .where((eb) =>
-          eb.and([
-            eb('sequenceId', '=', sequenceId),
-            eb('logNumber', 'in', newLogNumbers),
-            eb('type', 'is', null),
-          ]),
-        )
-        .execute();
       let dbLogs = await trx
         .insertInto('log')
         .values(logRows)
-        .returning(['logId', 'logNumber', 'type'])
+        .onConflict((cb) =>
+          cb
+            .columns(['sequenceId', 'logNumber'])
+            .doUpdateSet((ub) => ({
+              logType: ub.ref('excluded.logType'),
+              logValues: ub.ref('excluded.logValues'),
+            })),
+        )
+        .returning(['logId', 'logNumber', 'logType'])
         .execute()
         .catch((e) => {
           if (
             e instanceof Error &&
             'code' in e &&
             (e.code === 'SQLITE_CONSTRAINT_PRIMARYKEY' ||
-              e.code === 'SQLITE_CONSTRAINT_UNIQUE')
+              e.code === 'SQLITE_CONSTRAINT_UNIQUE' ||
+              (e.code === 'SQLITE_CONSTRAINT_TRIGGER' &&
+                (e.message === 'Cannot change log values once set' ||
+                  e.message === 'Cannot change log type once set')))
           ) {
             throw new StoreError(
               `Cannot add log: duplicated log number in the sequence.`,
-              'LOG_NUMBER_EXISTS_IN_SEQUENCE',
+              StoreError.LOG_NUMBER_EXISTS_IN_SEQUENCE,
               { cause: e },
             );
           }
           throw e;
         });
-
-      // Map the log values to the log ids. We cannot rely on the order of
+      // We are working on a single run and log sequence, so all lognumbers should be unique.
+      const logMap = new Map(dbLogs.map((log) => [log.logNumber, log.logId]));
+      // Map input logs to logs ids. We cannot rely on the order of
       // dbLogs because it is not guaranteed to be the same as the order of
       // the logs we inserted.
-      let logValues = dbLogs
-        .filter((l) => l.type != null)
-        .flatMap((dbLog) => {
-          // We know there is only one log with this number because of the
-          // loop above.
-          let values = indexedNewLogs[dbLog.logNumber][0].values;
-          return deconstructValues(values, { logId: dbLog.logId });
-        });
+      const result = logs.map((log, index) => {
+        const logId = logMap.get(log.number);
+        if (logId == null) {
+          throw new Error(
+            `Log with number ${log.number} at index ${index} wasn't inserted`,
+          );
+        }
+        return { logId, values: log.values };
+      });
+      const logValues = result.flatMap(({ logId, values }) => {
+        return Object.keys(values).map((logPropertyName) => ({
+          logId,
+          logPropertyName,
+        }));
+      });
       if (logValues.length > 0) {
-        await trx.insertInto('logValue').values(logValues).execute();
+        await trx.insertInto('logPropertyName').values(logValues).execute();
       }
+      return result.map((l) => ({ logId: fromDbId(l.logId) }));
     });
   }
 
-  async getLogValueNames(filter: LogFilter = {}) {
-    const { experimentName, runName, type, runStatus, runId } =
-      parseLogFilter(filter);
+  async getLogValueNames(filter: AllFilter = {}) {
     let result = await this.#db
-      .selectFrom('logValue')
-      .innerJoin('runLogView as log', 'log.logId', 'logValue.logId')
-      .$if(experimentName != null, (qb) =>
-        qb.where(
-          'log.experimentName',
-          'in',
-          experimentName as NonNullable<typeof experimentName>,
-        ),
-      )
-      .$if(runName != null, (qb) =>
-        qb.where('log.runName', 'in', runName as NonNullable<typeof runName>),
-      )
-      .where('log.type', 'is not', null)
-      .$if(type != null, (qb) =>
-        qb.where('log.type', 'in', type as NonNullable<typeof type>),
-      )
-      .$if(runStatus != null, (qb) =>
-        qb.where(
-          'log.runStatus',
-          'in',
-          runStatus as NonNullable<typeof runStatus>,
-        ),
-      )
-      .$if(runId != null, (qb) =>
-        qb.where('log.runId', 'in', runId as NonNullable<typeof runId>),
-      )
-      .select('logValue.name')
-      .orderBy('name')
+      .selectFrom('logPropertyName as lpn')
+      .innerJoin('runLogView as l', 'l.logId', 'lpn.logId')
+      .$call(createQueryFilterAll(filter, 'l'))
+      .select('lpn.logPropertyName')
+      .orderBy('logPropertyName')
       .distinct()
       .execute();
-    return result.map((it) => it.name);
+    return result.map((it) => it.logPropertyName);
   }
 
-  async getLogSummary(
-    runId: RunId,
-    // It does not make sense to get the summary of multiple experiments or
-    // runs, so we do not allow it.
-    { type }: Pick<LogFilter, 'type'> = {},
-  ): Promise<
-    Array<{ type: string; count: number; pending: number; lastNumber: number }>
-  > {
-    let typeFilter = parseLogFilter({ type }).type;
+  async getNumberOfPendingLogs(filter: RunFilter & ExperimentFilter) {
     let result = await this.#db
-      .selectFrom('runLogView as log')
-      .innerJoin('logSequence as seq', 'seq.sequenceId', 'log.sequenceId')
-      .where((eb) =>
-        eb.and([eb('log.runId', '=', runId), eb('log.type', 'is not', null)]),
+      .selectFrom('log')
+      .innerJoin('logSequence', 'log.sequenceId', 'logSequence.sequenceId')
+      .innerJoin('run', 'run.runId', 'logSequence.runId')
+      .innerJoin('experiment', 'experiment.experimentId', 'run.experimentId')
+      .$call(createQueryFilterRun(filter, 'run'))
+      .$call(createQueryFilterExperiment(filter, 'experiment'))
+      .select((eb) => [
+        'run.runId as runId',
+        eb.fn.countAll().filterWhere('log.logType', 'is', null).as('count'),
+      ])
+      .groupBy('run.runId')
+      .execute();
+    return result.map((it) => ({
+      runId: fromDbId(it.runId),
+      count: Number(it.count),
+    }));
+  }
+
+  async getLastLogs(
+    filter: AllFilter = {},
+  ): Promise<
+    Array<{
+      runId: RunId;
+      logId: LogId;
+      type: string;
+      values: Record<string, unknown>;
+      number: number;
+    }>
+  > {
+    let result = await this.#db
+      .with('lastConfirmedLog', (db) =>
+        db
+          .selectFrom('runLogView as lv')
+          .$call(createQueryFilterAll(filter, 'lv'))
+          .leftJoin(
+            // Grouping by sequence instead of run should
+            // be fine because non canceled missing logs
+            // should all be on the last sequence
+            ({ selectFrom }) =>
+              selectFrom('log as l')
+                .where('l.logType', 'is', null)
+                .where('canceledBy', 'is', null)
+                .select((eb) => [
+                  'sequenceId',
+                  eb.fn.min('l.logNumber').as('logNumber'),
+                ])
+                .groupBy('sequenceId')
+                .as('firstMissing'),
+            (join) =>
+              join.onRef('lv.sequenceId', '=', 'firstMissing.sequenceId'),
+          )
+          .where((eb) =>
+            eb.and([
+              eb('lv.logType', 'is not', null),
+              eb.or([
+                eb('firstMissing.logNumber', 'is', null),
+                eb('lv.logNumber', '<', eb.ref('firstMissing.logNumber')),
+              ]),
+            ]),
+          )
+          .select((eb) => [
+            'lv.logType',
+            'lv.sequenceId',
+            'lv.runId',
+            eb.fn
+              .max('lv.logNumber')
+              .filterWhere(
+                eb.or([
+                  eb('firstMissing.logNumber', 'is', null),
+                  eb('lv.logNumber', '<', eb.ref('firstMissing.logNumber')),
+                ]),
+              )
+              .as('lastNumber'),
+          ])
+          .groupBy(['lv.runId', 'lv.logType']),
       )
-      .$if(typeFilter != null, (qb) =>
-        qb.where(
-          'log.type',
-          'in',
-          typeFilter as NonNullable<typeof typeFilter>,
-        ),
-      )
-      .leftJoin(
-        ({ selectFrom }) =>
-          selectFrom('runLogView')
-            .where('type', 'is', null)
-            .select((eb) => [
-              'sequenceId',
-              eb.fn.min('logNumber').as('logNumber'),
-            ])
-            .groupBy('sequenceId')
-            .as('firstMissing'),
-        (join) => join.onRef('log.sequenceId', '=', 'firstMissing.sequenceId'),
+      .selectFrom('log')
+      .innerJoin('lastConfirmedLog as last', (join) =>
+        join
+          .onRef('log.sequenceId', '=', 'last.sequenceId')
+          .onRef('log.logNumber', '=', 'last.lastNumber'),
       )
       .select((eb) => [
-        'log.type',
-        eb.fn
-          .countAll()
-          .filterWhere(
-            eb.or([
-              eb('firstMissing.logNumber', 'is', null),
-              eb('log.logNumber', '<', eb.ref('firstMissing.logNumber')),
-            ]),
-          )
-          .as('count'),
-        // In theory any logs from a run with no missing logs should not
-        // be counted because missing.first will be null so the filter will
-        // be unknown, so the log will not be included.
-        eb.fn
-          .countAll()
-          .filterWhere('log.logNumber', '>', eb.ref('firstMissing.logNumber'))
-          .as('pending'),
-        eb.fn
-          .max('log.logNumber')
-          .filterWhere(
-            eb.or([
-              eb('firstMissing.logNumber', 'is', null),
-              eb('log.logNumber', '<', eb.ref('firstMissing.logNumber')),
-            ]),
-          )
-          .as('lastNumber'),
+        'last.runId',
+        'log.logId',
+        'log.logType as type',
+        'log.logNumber as number',
+        eb
+          .ref('log.logValues', '->')
+          .key('$')
+          .$castTo<string>()
+          .as('jsonValues'),
       ])
-      .groupBy('type')
-      .orderBy('type')
       .$narrowType<{ type: string }>()
       .execute();
-    return result.map(({ pending, count, lastNumber, type }) => {
+
+    return result.map(({ jsonValues, runId, logId, ...rest }) => {
       return {
-        type,
-        pending: Number(pending),
-        count: Number(count),
-        lastNumber,
+        ...rest,
+        runId: fromDbId(runId),
+        logId: fromDbId(logId),
+        values: parseJsonObject(jsonValues),
       };
     });
   }
 
-  async *#getLogValues(filter: LogFilter = {}) {
-    let parsedFilter = parseLogFilter(filter);
+  async *getLogs(filter: AllFilter = {}): AsyncGenerator<Log> {
     let lastRow: {
-      logNumber: number;
+      number: number;
       logId: number;
       experimentName: string;
       runName: string;
-      name: string;
     } | null = null;
     let isFirst = true;
-    let isDone = false;
-    while (!isDone) {
-      let query = this.#db
+    while (isFirst || lastRow != null) {
+      let result = await this.#db
         .selectFrom('runLogView as l')
-        .innerJoin('logValue as v', 'l.logId', 'v.logId')
-        .$if(parsedFilter.runStatus != null, (qb) =>
-          qb.where('l.runStatus', 'in', parsedFilter.runStatus!),
+        .$call(createQueryFilterAll(filter, 'l'))
+        .where((wb) =>
+          wb.and([
+            wb('l.logType', 'is not', null),
+            wb('l.logValues', 'is not', null),
+          ]),
         )
-        .$if(parsedFilter.experimentName != null, (qb) =>
-          qb.where('l.experimentName', 'in', parsedFilter.experimentName!),
-        )
-        .$if(parsedFilter.runName != null, (qb) =>
-          qb.where('l.runName', 'in', parsedFilter.runName!),
-        )
-        .$if(parsedFilter.runId != null, (qb) =>
-          qb.where('l.runId', 'in', parsedFilter.runId!),
-        )
-        .$if(parsedFilter.type != null, (qb) =>
-          qb.where('l.type', 'in', parsedFilter.type!),
-        )
-        .where('l.type', 'is not', null)
-        .select([
+        .select((eb) => [
+          'l.experimentId as experimentId',
           'l.experimentName as experimentName',
-          'l.runName as runName',
           'l.runId as runId',
+          'l.runName as runName',
           'l.runStatus as runStatus',
           'l.logId as logId',
-          'l.type as type',
-          'l.logNumber as logNumber',
-          'v.name as name',
-          'v.value as value',
+          'l.logType as type',
+          'l.logNumber as number',
+          eb.ref('l.logValues', '->').key('$').$castTo<string>().as('values'),
         ])
         // We filtered out logs with no type, so we can safely narrow the type.
         // This needs to come after the select or it will not work.
@@ -546,7 +572,6 @@ export class SQLiteStore {
         .orderBy('experimentName')
         .orderBy('runName')
         .orderBy('logNumber')
-        .orderBy('name')
         .limit(this.#selectQueryLimit)
         .$if(!isFirst, (qb) =>
           qb.where((eb) => {
@@ -560,63 +585,40 @@ export class SQLiteStore {
               eb.and([
                 eb('experimentName', '=', lastRow.experimentName),
                 eb('runName', '=', lastRow.runName),
-                eb('logNumber', '>', lastRow.logNumber),
-              ]),
-              eb.and([
-                eb('experimentName', '=', lastRow.experimentName),
-                eb('runName', '=', lastRow.runName),
-                eb('logNumber', '=', lastRow.logNumber),
-                eb('name', '>', lastRow.name),
+                eb('logNumber', '>', lastRow.number),
               ]),
             ]);
           }),
-        );
-      let result = await query.execute();
+        )
+        .execute();
       isFirst = false;
       lastRow = last(result) ?? null;
-      isDone = lastRow == null;
-      yield* result;
-    }
-  }
-
-  async *getLogs(filter?: LogFilter): AsyncGenerator<Log> {
-    const logValuesIterator = this.#getLogValues(filter);
-
-    function getLogFromCurrentValues(): Log {
-      let { experimentName, runName, logNumber, type, runId, runStatus } =
-        currentValues[0];
-      return {
-        experimentName,
-        runName,
-        runId,
-        runStatus,
-        number: logNumber,
-        type,
-        values: reconstructValues(currentValues),
-      };
-    }
-
-    let first = await logValuesIterator.next();
-    if (first.done) return;
-    let currentValues = [first.value];
-
-    for await (let logValue of logValuesIterator) {
-      let logFirst = currentValues[0];
-      if (logValue.logId !== logFirst.logId) {
-        yield getLogFromCurrentValues();
-        currentValues = [logValue];
-      } else {
-        currentValues.push(logValue);
+      for (const logResult of result) {
+        yield {
+          ...pick(logResult, [
+            'experimentName',
+            'runName',
+            'runStatus',
+            'number',
+            'type',
+          ]),
+          values: parseJsonObject(logResult.values),
+          experimentId: fromDbId(logResult.experimentId),
+          runId: fromDbId(logResult.runId),
+          logId: fromDbId(logResult.logId),
+        };
       }
     }
-
-    yield getLogFromCurrentValues();
   }
 
   async migrateDatabase() {
     let migrator = new Migrator({
       db: this.#db,
-      provider: new FileMigrationProvider({ fs, path, migrationFolder }),
+      provider: new FileMigrationProvider({
+        fs,
+        path,
+        migrationFolder: MIGRATION_FOLDER,
+      }),
     });
     return migrator.migrateToLatest();
   }
@@ -626,144 +628,19 @@ export class SQLiteStore {
   }
 }
 
-function deconstructValues(
-  data: JsonObject,
-): Array<{ name: string; value: string }>;
-function deconstructValues<P extends Record<string, unknown>>(
-  data: JsonObject,
-  patch: P,
-): Array<P & { name: string; value: string }>;
-function deconstructValues(
-  data: JsonObject,
-  patch?: Record<string, unknown>,
-): Array<JsonObject & { name: string; value: string }> {
-  return Object.entries(data).map(([name, value]) => ({
-    ...patch,
-    name,
-    value: JSON.stringify(value),
-  }));
+function json<T>(value: T) {
+  return sql<T>`jsonb(${JSON.stringify(value)})`;
 }
 
-function reconstructValues(
-  data: Array<{ name: string; value: string }>,
-): JsonObject {
-  let values: JsonObject = {};
-  for (let { name, value } of data) {
-    values[name] = JSON.parse(value);
+function parseJsonObject(jsonString: string): Record<string, unknown> {
+  let result: JsonValue = JSON.parse(jsonString);
+  if (typeof result !== 'object' || result === null) {
+    throw new Error('JSON is not an object');
   }
-  return values;
-}
-
-/**
- * Parses a RunFilter object into its constituent parts with standardized array formats.
- *
- * Each filter field is converted to either undefined (if not provided) or an array of values.
- * The runStatus field is specially handled through parseRunStatusFilter to support inclusion/exclusion notation.
- *
- * @param runFilter - The filter criteria for runs including optional runName, experimentName, runId and runStatus
- * @returns Object containing processed versions of each filter field:
- *          - runName: Array of run names or undefined
- *          - experimentName: Array of experiment names or undefined
- *          - runId: Array of run IDs or undefined
- *          - runStatus: Array of RunStatus values after processing inclusion/exclusion rules
- */
-function parseRunFilter(runFilter: RunFilter) {
-  return {
-    runName:
-      runFilter.runName == null ? undefined : arrayify(runFilter.runName),
-    experimentName:
-      runFilter.experimentName == null
-        ? undefined
-        : arrayify(runFilter.experimentName),
-    runId: runFilter.runId == null ? undefined : arrayify(runFilter.runId),
-    runStatus: parseRunStatusFilter(runFilter.runStatus),
-  };
-}
-
-/**
- * Parses a run status filter and converts it into an array of RunStatus values.
- * The filter can be a single RunStatus, an array of RunStatus values, or strings with a '-' prefix
- * to indicate exclusion.
- *
- * If a status is prefixed with '-', it is excluded from the final set of statuses.
- * If the first status begins with '-', the initial set includes all runStatuses, then removes the excluded ones.
- * Otherwise, the initial set is empty and only includes explicitly specified statuses.
- *
- * @param runStatusFilter - A RunStatus, array of RunStatus values, or strings with '-' prefix for exclusion
- * @returns Array of RunStatus values after applying inclusions/exclusions, or undefined if input is undefined
- */
-function parseRunStatusFilter(runStatusFilter: RunFilter['runStatus']) {
-  if (runStatusFilter == null) return undefined;
-  const runStatusFilterArray = arrayify(runStatusFilter, true);
-  if (runStatusFilterArray.length === 0) return [];
-  const include = new Set<RunStatus>(
-    runStatusFilterArray[0].startsWith('-') ? runStatuses : undefined,
-  );
-  for (let status of runStatusFilterArray) {
-    if (startsWith(status, '-')) {
-      include.delete(removePrefix(status, '-'));
-    } else {
-      include.add(status);
-    }
+  if (result instanceof Array) {
+    throw new Error('JSON is an array');
   }
-  return Array.from(include);
+  return result;
 }
 
-/**
- * Parses a LogFilter object by combining run filter parsing with log type filtering.
- *
- * Extends the parseRunFilter functionality to also handle the optional 'type' field
- * specific to log filtering. The type field is converted to an array format if provided.
- *
- * @param logFilter - The filter criteria for logs, extending RunFilter with an optional type field
- * @returns Object containing all parsed RunFilter fields plus:
- *          - type: Array of log types or undefined
- * @see {@link parseRunFilter}
- */
-function parseLogFilter(logFilter: LogFilter) {
-  return {
-    ...parseRunFilter(logFilter),
-    type: logFilter.type == null ? undefined : arrayify(logFilter.type),
-  };
-}
-
-export type Log = {
-  runId: number;
-  runStatus: RunStatus;
-  experimentName: string;
-  runName: string;
-  number: number;
-  type: string;
-  values: JsonObject;
-};
-
-const storeErrorCodeList = [
-  'RUN_EXISTS',
-  'LOG_NUMBER_EXISTS_IN_SEQUENCE',
-  'INVALID_LOG_NUMBER',
-  'RUN_NOT_FOUND',
-  'RUN_HAS_ENDED',
-] as const;
-type StoreErrorCode = (typeof storeErrorCodeList)[number];
-
-export class StoreError extends ErrorWithCodes(storeErrorCodeList) {
-  constructor(message: string, code: StoreErrorCode, options?: ErrorOptions) {
-    super(message, code, options);
-    this.name = 'StoreError';
-  }
-}
-
-function ErrorWithCodes<const Code extends string>(codes: readonly Code[]) {
-  class ErrorWithCodes extends Error {
-    code: Code;
-    constructor(message: string, code: Code, options?: ErrorOptions) {
-      super(message, options);
-      this.code = code;
-    }
-  }
-  const storeErrorCodeMap = Object.fromEntries(
-    codes.map((code) => [code, code] as const),
-  );
-  Object.assign(ErrorWithCodes, storeErrorCodeMap);
-  return ErrorWithCodes as typeof ErrorWithCodes & { [K in Code]: K };
-}
+export type Store = { [K in keyof SQLiteStore]: SQLiteStore[K] };

@@ -1,18 +1,16 @@
-#!/usr/bin/env node
-
-import path from 'node:path';
-import fs from 'node:fs/promises';
-import { readFileSync, createWriteStream } from 'node:fs';
-import * as url from 'node:url';
-import express from 'express';
-import { z } from 'zod';
-import dotenv from 'dotenv';
 import cors from 'cors';
+import dotenv from 'dotenv';
+import express from 'express';
 import loglevel from 'loglevel';
-import yargs from 'yargs';
-import { SQLiteStore, LogServer } from './index.js';
-import { csvExportStream, jsonExportStream } from './export.js';
+import { createWriteStream, readFileSync } from 'node:fs';
+import fs from 'node:fs/promises';
+import path from 'node:path';
 import { Transform } from 'node:stream';
+import * as url from 'node:url';
+import yargs from 'yargs';
+import { z } from 'zod';
+import { csvExportStream } from './csv-export.js';
+import { LogServer, SQLiteStore } from './index.js';
 
 // Constants and setup
 // -------------------
@@ -23,7 +21,7 @@ const __dirname = url.fileURLToPath(new URL('.', import.meta.url));
 
 const env = z
   .object({
-    SECRET: z.string().optional(),
+    SESSION_KEY: z.string().optional(),
     HOST_PASSWORD: z.string().optional(),
     PORT: z.number().default(3000),
     DB_PATH: z.string().default('./data.sqlite'),
@@ -50,18 +48,18 @@ const log = loglevel.getLogger('main');
 type StartParameter = {
   database: string;
   port: number;
-  secret?: string | undefined;
+  sessionKey: string | undefined;
   hostPassword?: string | undefined;
 };
 async function start({
   database: dbPath,
   port,
-  secret,
+  sessionKey,
   hostPassword,
 }: StartParameter) {
-  if (secret == null) {
+  if (sessionKey == null) {
     log.error(
-      'No secret set. Set the SECRET environment variable or use the --secret option.',
+      'No session key set. Set the SESSION_KEY environment variable or use the --session-key option.',
     );
     process.exit(1);
   }
@@ -80,7 +78,7 @@ async function start({
   }
   let server = express()
     .use(cors())
-    .use(LogServer({ store, secret, hostPassword }))
+    .use(LogServer({ store, sessionKeys: [sessionKey], hostPassword }))
     .listen(port, () => {
       log.info(`Listening on port ${port}`);
     });
@@ -102,24 +100,19 @@ async function start({
 
 type ExportLogsParameter = {
   database: string;
-  format: 'json' | 'csv';
   output?: string | undefined;
   logType?: string | undefined;
   experimentName?: string | undefined;
 };
 async function exportLogs({
   database,
-  format,
   logType,
   experimentName,
   output = undefined,
 }: ExportLogsParameter) {
   let filter = { type: logType, experimentName };
   let store = new SQLiteStore(database);
-  let stream =
-    format === 'csv'
-      ? csvExportStream(store, filter)
-      : jsonExportStream(store, filter);
+  let stream = csvExportStream(store, filter);
   if (output === undefined) {
     stream.pipe(process.stdout).on('error', handleError);
     return;
@@ -199,11 +192,11 @@ const _a = yargs(process.argv.slice(2))
           type: 'number',
           default: env.PORT,
         })
-        .option('secret', {
+        .option('session-key', {
           alias: 's',
           desc: 'Secret to use for signing client cookies',
           type: 'string',
-          default: env.SECRET,
+          default: env.SESSION_KEY,
         })
         .option('host-password', {
           alias: 'w',
@@ -239,11 +232,6 @@ const _a = yargs(process.argv.slice(2))
     'Export logs',
     (yargs) => {
       return yargs
-        .option('format', {
-          alias: 'f',
-          choices: ['json', 'csv'] as const,
-          default: 'json' as const,
-        })
         .option('output', {
           alias: 'o',
           desc: 'Path to the output file',

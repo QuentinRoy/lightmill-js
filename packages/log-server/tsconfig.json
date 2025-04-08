@@ -1,17 +1,15 @@
 {
   "$schema": "https://json.schemastore.org/tsconfig",
+  "extends": "../../tsconfig.json",
   "compilerOptions": {
-    "target": "es2022",
-    "lib": ["es2022"],
-    "module": "Node16",
-    "moduleResolution": "Node16",
     "allowSyntheticDefaultImports": true,
-    "noImplicitAny": true,
-    "strict": true,
-    "sourceMap": true,
-    "declaration": true,
-    "forceConsistentCasingInFileNames": true,
-    "strictNullChecks": true,
-    "exactOptionalPropertyTypes": true
-  }
+    "noUncheckedIndexedAccess": true
+  },
+  "include": [
+    "./src/**/*.ts",
+    "./src/**/*.tsx",
+    "./src/**/*.js",
+    "./src/**/*.jsx",
+    "vitest.config.ts"
+  ]
 }

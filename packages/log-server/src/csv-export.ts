@@ -1,8 +1,8 @@
-import { pipeline, Readable } from 'node:stream';
 import { stringify } from 'csv';
+import { pipeline, Readable } from 'node:stream';
 import { mapKeys, pickBy, pipe } from 'remeda';
-import { Log, LogFilter, Store } from './store.js';
-import { toSnakeCase } from './utils.js';
+import { AllFilter, Log, SQLiteStore as Store } from './store.js';
+import { withSnakeCaseProps } from './utils.js';
 
 const csvLogColumns: Array<keyof Log> = [
   'type',
@@ -10,18 +10,11 @@ const csvLogColumns: Array<keyof Log> = [
   'runName',
   'runStatus',
 ];
-const jsonLogColumns: Array<keyof Log> = [
-  'type',
-  'experimentName',
-  'runName',
-  'values',
-  'runStatus',
-];
 const renamedLogColumns: Partial<Record<keyof Log, string>> = {};
 
 export function csvExportStream(
   store: Pick<Store, 'getLogs' | 'getLogValueNames'>,
-  filter: Omit<LogFilter, 'runStatus'> = {},
+  filter: Omit<AllFilter, 'runStatus'> = {},
 ): Readable {
   const filterWithValidRun = { ...filter, runStatus: '-canceled' } as const;
   return pipeline(
@@ -29,8 +22,8 @@ export function csvExportStream(
       let valueColumns = await store.getLogValueNames(filterWithValidRun);
       let logColumnFilter = (columnName: keyof Log) =>
         !valueColumns.includes(columnName) &&
-        (filter?.type == null ||
-          Array.isArray(filter.type) ||
+        (filter?.logType == null ||
+          Array.isArray(filter.logType) ||
           columnName !== 'type') &&
         (filter?.experimentName == null ||
           Array.isArray(filter.experimentName) ||
@@ -54,7 +47,7 @@ export function csvExportStream(
       for await (let log of store.getLogs(filterWithValidRun)) {
         // Note: the type of this appears to be completely incorrect, but it
         // does not matter since it is immediately piped to stringify anyway.
-        yield toSnakeCase({
+        yield withSnakeCaseProps({
           ...baseLog,
           ...pipe(
             log,
@@ -79,39 +72,4 @@ export function csvExportStream(
       // Nothing to do here.
     },
   );
-}
-
-export function jsonExportStream(
-  store: Pick<Store, 'getLogs'>,
-  filter: Omit<LogFilter, 'runStatus'> = {},
-) {
-  return Readable.from(
-    stringifyLogs(store.getLogs({ ...filter, runStatus: ['-canceled'] })),
-  );
-}
-
-async function* stringifyLogs(logs: AsyncIterable<Log>) {
-  yield '[';
-  let started = false;
-  for await (let log of logs) {
-    let prefix = started ? ',\n' : '\n';
-    started = true;
-    let content = JSON.stringify(
-      pipe(
-        log,
-        pickBy((_v, k) => jsonLogColumns.includes(k)),
-        mapKeys((key) => renamedLogColumns[key] ?? key),
-      ),
-      stringifyDateSerializer,
-    );
-    yield `${prefix}${content}`;
-  }
-  yield '\n]';
-}
-
-function stringifyDateSerializer(_key: string, value: unknown) {
-  if (value instanceof Date) {
-    return value.toISOString();
-  }
-  return value;
 }
