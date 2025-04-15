@@ -1,13 +1,7 @@
 /* eslint-disable no-empty-pattern */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
-import {
-  afterEach,
-  beforeEach,
-  describe,
-  vi,
-  test as vitestTest,
-} from 'vitest';
+import { describe, vi, test as vitestTest } from 'vitest';
 import { StoreError } from '../src/store.js';
 import { createFixtureWithRuns, FixtureWithRuns } from './test-utils.js';
 

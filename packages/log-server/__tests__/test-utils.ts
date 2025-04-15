@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
+import express from 'express';
 import { Store as SessionStore, type SessionData } from 'express-session';
 import supertest from 'supertest';
 import type { RequiredKeysOf, Simplify, ValueOf } from 'type-fest';
@@ -252,7 +253,7 @@ export async function createFixtureWithRuns({
   let runs: Array<Run> = [];
   const sessionStore = new MockSessionStore();
   const store = MockStore();
-  const app = LogServer({
+  const server = LogServer({
     store,
     sessionStore,
     sessionKeys: ['secret'],
@@ -260,6 +261,8 @@ export async function createFixtureWithRuns({
     hostUser: 'host user',
     secureCookies: false,
   });
+  const app = express();
+  app.use(server.middleware);
   const api = supertest.agent(app).host('lightmill-test.com');
   await api
     .post('/sessions')

@@ -1,6 +1,7 @@
 /* eslint-disable no-empty-pattern */
 
 import type { Application } from 'express';
+import express from 'express';
 import request from 'supertest';
 import { afterEach, describe, test, vi } from 'vitest';
 import { LogServer } from '../src/app.js';
@@ -32,7 +33,7 @@ const it = test.extend<Fixture>({
   // @ts-expect-error There is something weird with express' Application type
   // that messes up with vitest's fixtures, but it's not a big deal.
   app: async ({ store, sessionStore }, use) => {
-    let app = LogServer({
+    let server = LogServer({
       store,
       sessionStore,
       sessionKeys: ['secret'],
@@ -40,7 +41,8 @@ const it = test.extend<Fixture>({
       hostUser: 'host user',
       secureCookies: false,
     });
-    await use(app);
+    let app = express().use(server.middleware);
+    await use(app satisfies Application);
   },
 
   api: async ({ app }, use) => {

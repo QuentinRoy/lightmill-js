@@ -1,6 +1,6 @@
 import { match, P } from '@gabriel/ts-pattern';
 import cookieParser from 'cookie-parser';
-import express, { Application, NextFunction } from 'express';
+import express, { type NextFunction } from 'express';
 import * as OpenApiValidator from 'express-openapi-validator';
 import { ValidationErrorItem } from 'express-openapi-validator/dist/framework/types.js';
 import session, { Store as SessionStore } from 'express-session';
@@ -41,7 +41,7 @@ export function LogServer({
   secureCookies = allowCrossOrigin,
   mode = process.env.NODE_ENV ?? 'production',
   sessionStore = new MemorySessionStore({ checkPeriod: 1000 * 60 * 60 * 24 }),
-}: CreateLogServerOptions): Application {
+}: CreateLogServerOptions): { middleware: express.RequestHandler } {
   const app = express();
   app.set('query parser', (str: string | null) => {
     if (str == null) return {};
@@ -169,7 +169,7 @@ export function LogServer({
     },
   );
 
-  return app;
+  return { middleware: (...args) => app(...args) };
 }
 
 type NonRouterError =

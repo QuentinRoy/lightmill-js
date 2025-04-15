@@ -1,5 +1,6 @@
 /* eslint-disable no-empty-pattern */
 
+import express from 'express';
 import request from 'supertest';
 import { afterEach, describe, TestAPI, vi, test as vitestTest } from 'vitest';
 import { LogServer } from '../src/app.js';
@@ -39,7 +40,7 @@ const it = initialIt;
 async function createFixture() {
   let sessionStore = new MockSessionStore();
   let store = MockStore();
-  let app = LogServer({
+  let server = LogServer({
     store,
     sessionStore,
     sessionKeys: ['secret'],
@@ -47,6 +48,7 @@ async function createFixture() {
     hostUser: 'host user',
     secureCookies: false,
   });
+  let app = express().use(server.middleware);
   let api = request.agent(app).host('lightmill-test.com');
   // This request only matters to get the cookie. After that we'll mock the session anyway.
   await api

@@ -1,8 +1,8 @@
-/* eslint-disable no-empty-pattern, @typescript-eslint/no-unused-vars */
+/* eslint-disable no-empty-pattern */
 
-import type { Application } from 'express';
+import express, { type Application } from 'express';
 import request from 'supertest';
-import { describe, vi, test as vitestTest } from 'vitest';
+import { describe, test as vitestTest } from 'vitest';
 import { ServerRequestContent } from '../src/app-utils.js';
 import { LogServer } from '../src/app.js';
 import { MockSessionStore, MockStore } from './test-utils.js';
@@ -25,7 +25,7 @@ const it = vitestTest.extend<BaseFixture>({
   // @ts-expect-error There is something weird with express' Application type
   // that messes up with vitest's fixtures, but it's not a big deal.
   app: async ({ store, sessionStore }, use) => {
-    let app = LogServer({
+    let server = LogServer({
       store,
       sessionStore,
       sessionKeys: ['secret'],
@@ -33,7 +33,8 @@ const it = vitestTest.extend<BaseFixture>({
       hostUser: 'host user',
       secureCookies: false,
     });
-    await use(app);
+    let app = express().use(server.middleware);
+    await use(app satisfies Application);
   },
   api: async ({ app }, use) => {
     let api = request.agent(app);
@@ -73,11 +74,13 @@ describe('LogServer: post /sessions', () => {
   it('always creates a host role if there are no host passwords set on the server', async ({
     store,
   }) => {
-    let app = LogServer({
+    let server = LogServer({
       store,
       sessionKeys: ['secret'],
       hostUser: 'host user',
     });
+    let app = express();
+    app.use(server.middleware);
     let api = request.agent(app);
     await api
       .post('/sessions')

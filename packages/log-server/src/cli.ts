@@ -78,7 +78,10 @@ async function start({
   }
   let server = express()
     .use(cors())
-    .use(LogServer({ store, sessionKeys: [sessionKey], hostPassword }))
+    .use(
+      LogServer({ store, sessionKeys: sessionKey.split(':'), hostPassword })
+        .middleware,
+    )
     .listen(port, () => {
       log.info(`Listening on port ${port}`);
     });
