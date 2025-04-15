@@ -76,6 +76,7 @@ export function LogServer({
       },
       name: SESSION_COOKIE_NAME,
       resave: false,
+      saveUninitialized: false,
     }),
   );
 
