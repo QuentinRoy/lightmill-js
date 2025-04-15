@@ -291,7 +291,7 @@ export class LightmillClient<
 
   async #getOrCreateParticipantSession() {
     let session = await this.#getSession();
-    if (session?.attributes.role !== 'participant') {
+    if (session != null && session.attributes.role !== 'participant') {
       await this.logout();
       session = null;
     }
