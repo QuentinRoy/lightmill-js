@@ -1,11 +1,16 @@
 import { match, P } from '@gabriel/ts-pattern';
+import { parse } from '@std/yaml';
 import cookieParser from 'cookie-parser';
 import express, { type NextFunction } from 'express';
 import * as OpenApiValidator from 'express-openapi-validator';
-import { ValidationErrorItem } from 'express-openapi-validator/dist/framework/types.js';
+import {
+  OpenAPIV3,
+  ValidationErrorItem,
+} from 'express-openapi-validator/dist/framework/types.js';
 import session, { Store as SessionStore } from 'express-session';
 import log from 'loglevel';
 import MemorySessionStoreModule from 'memorystore';
+import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import type { components } from '../generated/api.js';
 import { experimentHandlers } from './app-experiments-handlers.js';
@@ -18,6 +23,10 @@ import { createTypedExpressServer } from './typed-server.js';
 import { firstStrict } from './utils.js';
 
 const SESSION_COOKIE_NAME = 'lightmill-session-id';
+const OPEN_API_SPEC = path.join(
+  import.meta.dirname,
+  '../node_modules/@lightmill/log-api/openapi.yaml',
+);
 
 const MemorySessionStore = MemorySessionStoreModule(session);
 
@@ -30,6 +39,7 @@ type CreateLogServerOptions = {
   sessionKeys: string[];
   secureCookies?: boolean | undefined;
   sessionStore?: SessionStore;
+  baseUrl?: string;
 };
 
 export function LogServer({
@@ -41,24 +51,10 @@ export function LogServer({
   secureCookies = allowCrossOrigin,
   mode = process.env.NODE_ENV ?? 'production',
   sessionStore = new MemorySessionStore({ checkPeriod: 1000 * 60 * 60 * 24 }),
+  baseUrl = '/',
 }: CreateLogServerOptions): { middleware: express.RequestHandler } {
-  const app = express();
-  app.set('query parser', (str: string | null) => {
-    if (str == null) return {};
-    let params = new URLSearchParams(decodeURIComponent(str));
-    let values: Record<string, string[] | string> = {};
-    for (const [key, value] of params.entries()) {
-      let oldValue = values[key];
-      if (oldValue == null) {
-        values[key] = value;
-      } else if (Array.isArray(oldValue)) {
-        oldValue.push(value);
-      } else {
-        values[key] = [oldValue, value];
-      }
-    }
-    return values;
-  });
+  const app = express.Router();
+
   app.use(express.json());
 
   // Required for open api validator, but be careful to use
@@ -80,12 +76,13 @@ export function LogServer({
     }),
   );
 
+  const apiSpecFile = readFileSync(OPEN_API_SPEC, 'utf8');
+  const apiSpec = parse(apiSpecFile) as OpenAPIV3.DocumentV3;
+  apiSpec.servers = [{ url: baseUrl }];
+
   app.use(
     OpenApiValidator.middleware({
-      apiSpec: path.join(
-        import.meta.dirname,
-        '../node_modules/@lightmill/log-api/openapi.yaml',
-      ),
+      apiSpec,
       validateApiSpec: mode !== 'production',
       validateRequests: { allErrors: mode !== 'production' },
       validateResponses: mode !== 'production',
@@ -98,6 +95,34 @@ export function LogServer({
         },
       },
     }),
+  );
+
+  app.use(
+    (
+      request: express.Request,
+      _res: express.Response,
+      next: NextFunction,
+    ): void => {
+      let str = request.url.split('?')[1];
+      if (str == null) {
+        next();
+        return;
+      }
+      let params = new URLSearchParams(decodeURIComponent(str));
+      let values: Record<string, string[] | string> = {};
+      for (const [key, value] of params.entries()) {
+        let oldValue = values[key];
+        if (oldValue == null) {
+          values[key] = value;
+        } else if (Array.isArray(oldValue)) {
+          oldValue.push(value);
+        } else {
+          values[key] = [oldValue, value];
+        }
+      }
+      request.query = values;
+      next();
+    },
   );
 
   createTypedExpressServer<ServerApi>(
@@ -135,6 +160,7 @@ export function LogServer({
             errorStatus: err.status,
             errorName: err.name,
             request: req,
+            baseUrl: baseUrl,
           }),
         );
         res
@@ -170,7 +196,7 @@ export function LogServer({
     },
   );
 
-  return { middleware: (...args) => app(...args) };
+  return { middleware: app };
 }
 
 type NonRouterError =
@@ -182,6 +208,7 @@ function getErrorEntry(options: {
   errorStatus: number;
   errorName: string;
   request: express.Request;
+  baseUrl: string;
 }) {
   return match(options)
     .returnType<{
@@ -262,13 +289,16 @@ function getErrorEntry(options: {
         },
       }),
     )
-    .with({ errorStatus: 401 }, () => ({
-      statusCode: 403,
-      content: {
-        status: 'Forbidden',
-        code: 'SESSION_REQUIRED',
-        detail: 'session required, post to /sessions',
-      },
-    }))
+    .with({ errorStatus: 401 }, () => {
+      let postPath = `${options.baseUrl}${options.baseUrl.endsWith('/') ? '' : '/'}sessions`;
+      return {
+        statusCode: 403,
+        content: {
+          status: 'Forbidden',
+          code: 'SESSION_REQUIRED',
+          detail: `session required, post to ${postPath}`,
+        },
+      };
+    })
     .run();
 }
