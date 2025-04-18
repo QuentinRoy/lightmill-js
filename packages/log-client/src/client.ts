@@ -63,7 +63,7 @@ export class LightmillClient<
     resumableLogTypes: T[];
   }) {
     let session = await this.#getSession();
-    if (session?.attributes.role !== 'participant') {
+    if (session == null) {
       return { runs: [] };
     }
     let response = await this.#fetchClient.GET('/runs', {
@@ -250,7 +250,7 @@ export class LightmillClient<
     runName?: string;
     experimentName: string;
   }) {
-    await this.#getOrCreateParticipantSession();
+    await this.#getOrCreateSession();
     let experiment = await this.#getExperimentFromName(experimentName);
     if (experiment == null) {
       throw new Error(`Couldn't find experiment ${experimentName}`);
@@ -289,12 +289,8 @@ export class LightmillClient<
     });
   }
 
-  async #getOrCreateParticipantSession() {
+  async #getOrCreateSession() {
     let session = await this.#getSession();
-    if (session != null && session.attributes.role !== 'participant') {
-      await this.logout();
-      session = null;
-    }
     if (session == null) {
       await this.#fetchClient.POST('/sessions', {
         body: {
