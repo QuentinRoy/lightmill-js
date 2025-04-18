@@ -21,8 +21,24 @@ namespace Session {
 
     @visibility(Lifecycle.Read)
     relationships: {
+      /*
+       * The runs that session has access to. A session does not need to
+       * have access the experiment a run belongs to in order to have access to
+       * the run.
+       */
       runs: {
         data: Run.ResourceIdentifier[];
+      };
+
+      /*
+       * The experiments that session can create runs for. This is disconnected
+       * from the runs that session has access to: sessions may have access to
+       * runs for experiments that they cannot create runs for, and having
+       * access to an experiment does not mean the session has access to the
+       * runs of that experiment.
+       */
+      experiments: {
+        data: Experiment.ResourceIdentifier[];
       };
     };
   }
@@ -274,6 +290,65 @@ namespace Run {
     | OngoingRunsErrorResponse
     | NotFoundErrorResponse
     | SessionRequiredErrorResponse;
+}
+
+@route("/access-keys")
+namespace AccessKey {
+  model ResourceIdentifier is JsonApi.ResourceIdentifier<"access-keys">;
+  model Attributes {
+    @visibility(Lifecycle.Read)
+    value: string;
+
+    expiresOn: utcDateTime;
+  }
+  model Resource is JsonApi.Resource<"access-keys", Attributes> {
+    @visibility(Lifecycle.Read, Lifecycle.Create)
+    relationships: {
+      target: {
+        data: {
+          type: "runs" | "experiments";
+          id: string;
+        };
+      };
+    };
+  }
+
+  @post
+  @useAuth(CookieSessionAuth)
+  op post(@body log: JsonApi.DataDocument<Resource>): {
+    @statusCode statusCode: 201;
+    @body doc: JsonApi.DataDocument<Resource>;
+    @header("Location") location: string;
+  } | SessionRequiredErrorResponse | ForbiddenErrorResponse;
+
+  @get
+  @useAuth(CookieSessionAuth)
+  op getCollection(
+    @query `filter[target.id]`?: string | string[],
+    @query `filter[target.name]`?: string | string[],
+  ): {
+    @body doc: JsonApi.DataDocument<Resource[]>;
+  } | SessionRequiredErrorResponse | ForbiddenErrorResponse;
+
+  @get
+  @useAuth(CookieSessionAuth)
+  op getSingle(@path id: string):
+    | {
+        @body doc: JsonApi.DataDocument<Resource>;
+      }
+    | SessionRequiredErrorResponse
+    | ForbiddenErrorResponse
+    | NotFoundErrorResponse;
+
+  @delete
+  @useAuth(CookieSessionAuth)
+  op delete(@path id: string):
+    | {
+        @body doc: JsonApi.EmptyDataDocument;
+      }
+    | SessionRequiredErrorResponse
+    | ForbiddenErrorResponse
+    | NotFoundErrorResponse;
 }
 
 @route("/logs")
