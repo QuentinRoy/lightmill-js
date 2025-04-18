@@ -43,8 +43,11 @@ export function createAllRoute() {
       get: { requireAuth: false },
       delete: { requireAuth: false },
     },
-    '/experiments': { get: {}, post: {} },
-    '/experiments/{id}': { get: {} },
+    '/experiments': {
+      get: { requireAuth: false },
+      post: { requireAuth: false },
+    },
+    '/experiments/{id}': { get: { requireAuth: false } },
     '/runs': { get: {}, post: {} },
     '/runs/{id}': { get: {}, patch: {} },
     '/logs': { get: {}, post: {} },

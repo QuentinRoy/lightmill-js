@@ -97,13 +97,13 @@ namespace Experiment {
   }
 
   @get
-  @useAuth(CookieSessionAuth)
+  @useAuth(CookieSessionAuth | NoAuth)
   op getCollection(@query `filter[name]`?: string | string[]): {
     @body doc: JsonApi.DataDocument<Resource[]>;
   } | ForbiddenErrorResponse | SessionRequiredErrorResponse;
 
   @get
-  @useAuth(CookieSessionAuth)
+  @useAuth(CookieSessionAuth | NoAuth)
   op getSingle(@path id: string):
     | {
         @body doc: JsonApi.DataDocument<Resource>;
@@ -113,7 +113,7 @@ namespace Experiment {
     | SessionRequiredErrorResponse;
 
   @post
-  @useAuth(CookieSessionAuth)
+  @useAuth(CookieSessionAuth | NoAuth)
   op post(@body experiment: JsonApi.DataDocument<Resource>):
     | {
         @statusCode statusCode: 201;
