@@ -112,6 +112,32 @@ describe('LogServer: post /logs', () => {
     expect(store.addLogs).not.toHaveBeenCalled();
   });
 
+  it('allows hosts to add logs to any run', async ({
+    hostFixture: { api, sessionStore, getRuns, setRuns, experiment },
+  }) => {
+    setRuns([
+      ...getRuns(),
+      {
+        runId: 'not-my-run',
+        runName: 'not-my-run',
+        experimentId: experiment,
+        runStatus: 'running' as const,
+        runCreatedAt: vi.getMockedSystemTime() ?? new Date(),
+      },
+    ]);
+    sessionStore.mockGetData({ role: 'host', runs: ['my-run'] });
+    await api
+      .post('/logs')
+      .send({
+        data: {
+          type: 'logs',
+          attributes: { number: 1, logType: 'test', values: { x: 'x' } },
+          relationships: { run: { data: { type: 'runs', id: 'not-my-run' } } },
+        },
+      })
+      .expect(201);
+  });
+
   it('refuses to add logs to a run that does not exist', async ({
     expect,
     participantFixture: { store, api },
@@ -133,33 +159,6 @@ describe('LogServer: post /logs', () => {
             status: 'Forbidden',
             code: 'RUN_NOT_FOUND',
             detail: "Run 'does-not-exist' not found",
-          },
-        ],
-      });
-    expect(store.addLogs).not.toHaveBeenCalled();
-  });
-
-  it('does not let hosts adding logs', async ({
-    expect,
-    participantFixture: { store, api, getRuns, sessionStore },
-  }) => {
-    const runId = getRuns()[0]!.runId;
-    sessionStore.mockGetData({ role: 'host', runs: [runId] });
-    await api
-      .post('/logs')
-      .send({
-        data: {
-          type: 'logs',
-          attributes: { number: 1, logType: 'test', values: { x: 'x' } },
-          relationships: { run: { data: { type: 'runs', id: runId } } },
-        },
-      })
-      .expect(403, {
-        errors: [
-          {
-            status: 'Forbidden',
-            code: 'FORBIDDEN',
-            detail: 'Only participants can add logs',
           },
         ],
       });

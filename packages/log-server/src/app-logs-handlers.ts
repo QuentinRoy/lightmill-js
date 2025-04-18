@@ -57,21 +57,19 @@ export const logHandlers = (): SubServerDescription<'/logs'> => ({
     },
 
     async post({ store, body, request }) {
-      if (request.session.data?.role !== 'participant') {
-        return getErrorResponse({
-          status: 403,
-          code: 'FORBIDDEN',
-          detail: `Only participants can add logs`,
-        });
-      }
-      let sessionRuns = request.session.data?.runs ?? [];
       let runId = body.data.relationships.run.data.id;
       let runNotFoundError = getErrorResponse({
         status: 403,
         code: 'RUN_NOT_FOUND',
         detail: `Run '${runId}' not found`,
       });
-      if (!sessionRuns.includes(runId)) return runNotFoundError;
+      let sessionRuns = request.session.data?.runs ?? [];
+      if (
+        request.session.data?.role !== 'host' &&
+        !sessionRuns.includes(runId)
+      ) {
+        return runNotFoundError;
+      }
       let matchingRuns = await store.getRuns({ runId });
       if (matchingRuns.length > 1) {
         throw new Error(`Multiple runs found for id '${runId}'`);
