@@ -50,26 +50,41 @@ describe('LogClient#getResumableRuns', () => {
         ],
       },
     ]);
-    await expect(
-      client.getResumableRuns({ resumableLogTypes: ['test-type'] }),
-    ).resolves.toEqual([
-      {
-        runId: 'test-run1',
-        runName: 'test-run1-name',
-        experimentId: 'test-experiment',
-        experimentName: 'test-experiment-name',
-        runStatus: 'running',
-        from: { logType: 'test-type', logNumber: 5 },
-      },
-      {
-        runId: 'test-run2',
-        runName: 'test-run2-name',
-        experimentId: 'test-experiment',
-        experimentName: 'test-experiment-name',
-        runStatus: 'interrupted',
-        from: { logType: 'test-type', logNumber: 7 },
-      },
-    ]);
+    await expect(client.getResumableRuns({ resumableLogTypes: ['test-type'] }))
+      .resolves.toMatchInlineSnapshot(`
+      [
+        {
+          "experimentId": "test-experiment",
+          "experimentName": "test-experiment-name",
+          "from": {
+            "log": {
+              "date": 2023-01-01T00:00:00.000Z,
+              "type": "test-type",
+              "value": "GET /logs/log-5 response",
+            },
+            "number": 5,
+          },
+          "runId": "test-run1",
+          "runName": "test-run1-name",
+          "runStatus": "running",
+        },
+        {
+          "experimentId": "test-experiment",
+          "experimentName": "test-experiment-name",
+          "from": {
+            "log": {
+              "date": 2023-01-01T00:00:00.000Z,
+              "type": "test-type",
+              "value": "GET /logs/log-7 response",
+            },
+            "number": 7,
+          },
+          "runId": "test-run2",
+          "runName": "test-run2-name",
+          "runStatus": "interrupted",
+        },
+      ]
+    `);
   });
 
   it('should ignore ended runs', async ({ expect, server, client }) => {
@@ -93,18 +108,26 @@ describe('LogClient#getResumableRuns', () => {
         logs: [{ type: 'test-type', count: 5, lastNumber: 5, pending: 1 }],
       },
     ]);
-    await expect(
-      client.getResumableRuns({ resumableLogTypes: ['test-type'] }),
-    ).resolves.toEqual([
-      {
-        runName: 'test-run2-name',
-        runId: 'test-run2',
-        experimentName: 'test-experiment-name',
-        experimentId: 'test-experiment',
-        runStatus: 'interrupted',
-        from: { logType: 'test-type', logNumber: 2 },
-      },
-    ]);
+    await expect(client.getResumableRuns({ resumableLogTypes: ['test-type'] }))
+      .resolves.toMatchInlineSnapshot(`
+      [
+        {
+          "experimentId": "test-experiment",
+          "experimentName": "test-experiment-name",
+          "from": {
+            "log": {
+              "date": 2023-01-01T00:00:00.000Z,
+              "type": "test-type",
+              "value": "GET /logs/log-2 response",
+            },
+            "number": 2,
+          },
+          "runId": "test-run2",
+          "runName": "test-run2-name",
+          "runStatus": "interrupted",
+        },
+      ]
+    `);
   });
 
   it('should find the latest log type', async ({ expect, server, client }) => {
@@ -129,9 +152,25 @@ describe('LogClient#getResumableRuns', () => {
       client.getResumableRuns({
         resumableLogTypes: ['test-type-1', 'test-type-2'],
       }),
-    ).resolves.toEqual([
-      { ...run, from: { logType: 'test-type-1', logNumber: 10 } },
-    ]);
+    ).resolves.toMatchInlineSnapshot(`
+      [
+        {
+          "experimentId": "exp-id",
+          "experimentName": "exp-name",
+          "from": {
+            "log": {
+              "date": 2023-01-01T00:00:00.000Z,
+              "type": "test-type-1",
+              "value": "GET /logs/log-10 response",
+            },
+            "number": 10,
+          },
+          "runId": "run-id",
+          "runName": "run-name",
+          "runStatus": "running",
+        },
+      ]
+    `);
   });
 
   it('should return an empty array if no resumable runs are found', async ({
@@ -174,7 +213,7 @@ describe('LogClient#getResumableRuns', () => {
         experimentId: 'test-experiment',
         experimentName: 'test-experiment-name',
         runStatus: 'running',
-        from: { logType: null, logNumber: 0 },
+        from: { type: null, number: 0, values: null },
       },
     ]);
   });
@@ -250,7 +289,7 @@ describe('LogClient#startRun', () => {
     let logger = await client.startRun({
       runName: 'test-run',
       experimentName: 'test-experiment',
-      from: { logNumber: 4 },
+      from: { number: 4 },
     });
     expect(logger).toBeInstanceOf(LightmillLogger);
     await expect(server.waitForChangeRequests()).resolves.toEqual([
@@ -282,7 +321,7 @@ describe('LogClient#startRun', () => {
     let logger = await client.startRun({
       runName: 'test-run',
       experimentName: 'test-experiment',
-      from: { logNumber: 0 },
+      from: { number: 0 },
     });
     expect(logger).toBeInstanceOf(LightmillLogger);
     await expect(server.waitForChangeRequests()).resolves.toEqual([

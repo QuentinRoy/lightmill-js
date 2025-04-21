@@ -322,6 +322,44 @@ export class MockServer {
           data: { id: 'log-id', type: 'logs' },
         } satisfies ApiResponse<'/logs', 'post', 201>);
       }),
+
+      get('/logs/:logId', ({ params }) => {
+        const log = Array.from(this.#runs.values())
+          .flatMap((r) => r.lastLogs)
+          .find((l) => l.id === params.logId);
+        if (log == null) {
+          return HttpResponse.json(
+            {
+              errors: [
+                {
+                  status: 'Not Found',
+                  code: 'LOG_NOT_FOUND',
+                  detail: `Log with id ${params.logId} not found`,
+                },
+              ],
+            } satisfies ApiResponse<'/logs/{id}', 'get', 404>,
+            { status: 404 },
+          );
+        }
+        return HttpResponse.json(
+          {
+            data: {
+              id: log.id,
+              type: 'logs',
+              attributes: {
+                logType: log.type,
+                number: log.number,
+                values: {
+                  value: `GET /logs/${log.id} response`,
+                  date: '2023-01-01T00:00:00.000Z',
+                },
+              },
+              relationships: { run: { data: { type: 'runs', id: log.id } } },
+            },
+          } satisfies ApiResponse<'/logs/{id}', 'get', 200>,
+          { status: 200 },
+        );
+      }),
     ];
   }
 

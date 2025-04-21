@@ -2,17 +2,10 @@ import createClient from 'openapi-fetch';
 import type { components, paths } from '../generated/api.js';
 import { anyLogSerializer } from './log-serializer.js';
 import { LightmillLogger } from './logger.js';
-import {
-  AnyLog,
-  LogValuesSerializer,
-  OptionallyDated,
-  Typed,
-} from './types.js';
+import { AnyLog, GetLogValues, LogBase, LogValuesSerializer } from './types.js';
 import { assertNever, RequestError } from './utils.js';
 
-export class LightmillClient<
-  ClientLog extends Typed & OptionallyDated = AnyLog,
-> {
+export class LightmillClient<ClientLog extends LogBase = AnyLog> {
   #fetchClient;
   #serializeLog;
 
@@ -95,45 +88,68 @@ export class LightmillClient<
           assertNever(r);
       }
     }
-    return response.data.data.map((r) => {
-      let experiment = experiments.get(r.relationships.experiment.data.id);
-      if (experiment == null) {
-        throw new Error(
-          `Experiment ${r.relationships.experiment.data.id} was not included with the server's response`,
-        );
-      }
-      let lastLogs = r.relationships.lastLogs.data.map(({ id }) => {
-        let log = logs.get(id);
-        if (log == null) {
+    // This could be better optimized by fetching all logs in one go,
+    // but there should always be only one resumable run anyway, so
+    // this is not a big deal.
+    return Promise.all(
+      response.data.data.map(async (r) => {
+        let experiment = experiments.get(r.relationships.experiment.data.id);
+        if (experiment == null) {
           throw new Error(
-            `Log ${id} was not included with the server's response`,
+            `Experiment ${r.relationships.experiment.data.id} was not included with the server's response`,
           );
         }
-        return { type: log.attributes.logType, number: log.attributes.number };
-      });
-      return {
-        runId: r.id,
-        experimentId: experiment.id,
-        runName: r.attributes.name,
-        experimentName: experiment.attributes.name,
-        runStatus: r.attributes.status,
-        from: this.#getLastLogRecordOfType({ lastLogs, resumableLogTypes }),
-      };
-    });
+        let lastLogs = r.relationships.lastLogs.data.map(({ id }) => {
+          let log = logs.get(id);
+          if (log == null) {
+            throw new Error(
+              `Log ${id} was not included with the server's response`,
+            );
+          }
+          return {
+            id,
+            type: log.attributes.logType,
+            number: log.attributes.number,
+          };
+        });
+        return {
+          runId: r.id,
+          experimentId: experiment.id,
+          runName: r.attributes.name,
+          experimentName: experiment.attributes.name,
+          runStatus: r.attributes.status,
+          from: await this.#getLastLogRecordOfType({
+            lastLogs,
+            resumableLogTypes,
+          }),
+        };
+      }),
+    );
   }
 
-  #getLastLogRecordOfType<T extends ClientLog['type']>({
+  async #getLastLogRecordOfType<T extends ClientLog['type']>({
     lastLogs: logRecords,
     resumableLogTypes,
   }: {
-    lastLogs: { type: string; number: number }[];
+    lastLogs: { type: string; number: number; id: string }[];
     resumableLogTypes: T[];
-  }) {
+  }): Promise<
+    | { number: 0; type: null; values: null }
+    | (T extends infer U
+        ? { number: number; log: GetLogValues<Extract<ClientLog, { type: U }>> }
+        : never)
+  > {
     const isResumableLog = (l: { type: string }): l is { type: T } => {
       return types.includes(l.type);
     };
     let types: string[] = resumableLogTypes;
-    let lastLogRecord = { number: 0, type: null as null | T };
+    let lastLogRecord:
+      | { number: 0; type: null; id: null }
+      | { number: number; type: T; id: string } = {
+      number: 0,
+      type: null,
+      id: null,
+    };
     for (let logRecord of logRecords) {
       if (
         logRecord.number > lastLogRecord.number &&
@@ -142,20 +158,46 @@ export class LightmillClient<
         lastLogRecord = logRecord;
       }
     }
-    return { logNumber: lastLogRecord.number, logType: lastLogRecord.type };
+    if (lastLogRecord.type == null || lastLogRecord.id == null) {
+      return { number: 0, type: null, values: null };
+    }
+    const response = await this.#fetchClient.GET('/logs/{id}', {
+      params: { path: { id: lastLogRecord.id } },
+      credentials: 'include',
+    });
+    if (response.error) {
+      throw new RequestError(response);
+    }
+    let log = response.data.data;
+    if (log.attributes.logType !== lastLogRecord.type) {
+      throw new Error(
+        `Log ${log.id} has type ${log.attributes.logType} but was expected to be of type ${lastLogRecord.type}`,
+      );
+    }
+    let number = log.attributes.number;
+    // @ts-expect-error Let us trust the server to return the correct type.
+    let type: T = log.attributes.logType;
+    let values = log.attributes.values as Omit<
+      GetLogValues<Extract<ClientLog, { type: T }>>,
+      'type' | 'number'
+    >;
+    let date = values.date;
+    if (date == null) {
+      throw new Error(
+        `Log ${log.id} has no date, but was expected to be of type ${lastLogRecord.type}`,
+      );
+    }
+    // @ts-expect-error I cannot make this type safe, but it should be safe.
+    return { number, log: { ...values, type, date: new Date(date) } };
   }
 
   async startRun(
     options:
       | { runName?: string; experimentName: string }
-      | {
-          runName: string;
-          experimentName: string;
-          from: { logNumber: number };
-        },
+      | { runName: string; experimentName: string; from: { number: number } },
   ) {
     if ('from' in options) {
-      return this.#resumeRun({ ...options, from: options.from?.logNumber });
+      return this.#resumeRun({ ...options, from: options.from?.number });
     }
     return this.#startNewRun(options);
   }

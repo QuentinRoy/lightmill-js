@@ -15,15 +15,28 @@ export type AnyLogValue =
   | { [K: string]: AnyLogValue | undefined }
   | AnyLogValue[];
 
-export type AnyLog = Typed &
-  OptionallyDated & { [K: string]: AnyLogValue | undefined };
+export interface LogBase extends Typed, OptionallyDated {}
+
+export interface AnyLog extends LogBase {
+  [key: string]: AnyLogValue | undefined;
+}
 
 export type LogValuesSerializer<InputLog extends Typed> = (
-  i: ServerLog<InputLog>['values'],
+  i: PostLogValues<InputLog>,
 ) => Record<string, JsonValue>;
 
-export type ServerLog<ClientLog extends Typed & OptionallyDated> = {
-  number: number;
-  type: NonNullable<ClientLog['type']>;
-  values: Omit<ClientLog, 'type'> & { date: Date };
+type PostLogValues<ClientLog extends LogBase> = Omit<ClientLog, 'type'> & {
+  date: Date;
 };
+
+export type GetLogValues<ClientLog extends LogBase> = ReplaceDateWithStringDeep<
+  Omit<ClientLog, 'id' | 'date'>
+> & { date: Date };
+
+type ReplaceDateWithStringDeep<T> = T extends Date
+  ? string
+  : T extends Array<infer U>
+    ? ReplaceDateWithStringDeep<U>[]
+    : T extends object
+      ? { [K in keyof T]: ReplaceDateWithStringDeep<T[K]> }
+      : T;
