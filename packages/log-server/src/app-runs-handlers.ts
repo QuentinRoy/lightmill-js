@@ -146,19 +146,15 @@ export const runHandlers = (): SubServerDescription<'/runs'> => ({
           detail: `A run's id cannot be changed`,
         });
       }
-      if (request.session.data?.role !== 'participant') {
-        return getErrorResponse({
-          status: 403,
-          code: 'INVALID_ROLE',
-          detail: 'Only participants can update runs',
-        });
-      }
       const unknownRunAnswer = getErrorResponse({
         status: 404,
         code: 'RUN_NOT_FOUND',
         detail: `Run ${runId} not found`,
       });
-      if (!request.session.data.runs.includes(runId)) {
+      if (
+        request.session.data?.role !== 'host' &&
+        !request.session.data?.runs.includes(runId)
+      ) {
         return unknownRunAnswer;
       }
       let matchingRuns = await store.getRuns({ runId });
