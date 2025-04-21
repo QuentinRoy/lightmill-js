@@ -57,7 +57,7 @@ export class LightmillClient<ClientLog extends LogBase = AnyLog> {
   }) {
     let session = await this.#getSession();
     if (session == null) {
-      return { runs: [] };
+      return [];
     }
     let response = await this.#fetchClient.GET('/runs', {
       credentials: 'include',
