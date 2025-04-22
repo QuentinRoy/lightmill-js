@@ -3,7 +3,7 @@
 
 import { describe, vi, test as vitestTest } from 'vitest';
 import { StoreError } from '../src/store.js';
-import { createFixtureWithRuns, FixtureWithRuns } from './test-utils.js';
+import { createFixtureWithRuns, type FixtureWithRuns } from './test-utils.js';
 
 const it = vitestTest.extend<{
   participantFixture: FixtureWithRuns<'participant'>;

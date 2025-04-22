@@ -1,6 +1,6 @@
 import {
   getErrorResponse,
-  ServerHandlerBody,
+  type ServerHandlerBody,
   type ServerHandlerResult,
   type SubServerDescription,
 } from './app-utils.js';

@@ -1,5 +1,5 @@
 import { TimelineRunner } from './runner.js';
-import { SuperIterator } from './types.js';
+import type { SuperIterator } from './types.js';
 
 export type RunTimelineParams<Task> = {
   timeline: SuperIterator<Task>;

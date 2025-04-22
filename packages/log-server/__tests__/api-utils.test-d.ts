@@ -1,7 +1,7 @@
-import { Merge, Simplify } from 'type-fest';
+import type { paths } from '@lightmill/log-api';
+import type { Merge, Simplify } from 'type-fest';
 import { expectTypeOf, test } from 'vitest';
-import type { paths } from '../generated/api.js';
-import {
+import type {
   AllApiPathFromMethod,
   Api,
   ApiMethodFromPath,

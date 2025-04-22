@@ -1,6 +1,6 @@
+import { paths } from '@lightmill/log-api';
 import { describe, expect, vi } from 'vitest';
 import { serverTest } from '../__mocks__/mock-server.js';
-import { paths } from '../generated/api.js';
 import { LightmillClient } from '../src/client.js';
 import { LightmillLogger } from '../src/logger.js';
 

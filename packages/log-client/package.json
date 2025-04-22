@@ -7,7 +7,8 @@
   "author": "Quentin Roy <contact@quentinroy.fr>",
   "access": "public",
   "files": [
-    "dist"
+    "dist",
+    "src"
   ],
   "main": "./dist/main.js",
   "types": "./dist/main.d.ts",
@@ -24,7 +25,6 @@
     "cross-env": "^7.0.3",
     "msw": "^2.7.3",
     "onchange": "^7.1.0",
-    "openapi-typescript": "^7.6.1",
     "type-fest": "^4.39.1",
     "typescript": "catalog:",
     "vitest": "catalog:"
@@ -34,9 +34,7 @@
   },
   "scripts": {
     "test": "cross-env NODE_ENV=test vitest",
-    "generate-api-types": "openapi-typescript node_modules/@lightmill/log-api/openapi.yaml --empty-objects-unknown --output ./generated/api.d.ts",
-    "watch:generate-api-types": "pnpm run generate-api-types && onchange 'node_modules/@lightmill/log-api/openapi.yaml' --no-exclude -- pnpm run generate-api-types",
-    "build": "pnpm run generate-api-types && tsc -b tsconfig.build.json",
+    "build": "tsc -b tsconfig.build.json",
     "prepublish": "pnpm run build"
   },
   "keywords": [

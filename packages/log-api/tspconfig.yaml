@@ -3,8 +3,8 @@ emit:
 options:
   '@typespec/openapi3':
     emitter-output-dir: '{output-dir}'
-    output-file: 'openapi.yaml'
-    file-type: 'yaml'
+    output-file: 'openapi.json'
+    file-type: 'json'
     seal-object-schemas: true
     openapi-versions:
       - '3.1.0'
@@ -12,4 +12,4 @@ linter:
   extends:
     - '@typespec/http/all'
 
-output-dir: '{project-root}'
+output-dir: '{project-root}/src'

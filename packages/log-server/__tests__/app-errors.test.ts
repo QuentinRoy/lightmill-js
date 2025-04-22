@@ -5,7 +5,11 @@ import express from 'express';
 import request from 'supertest';
 import { afterEach, describe, test, vi } from 'vitest';
 import { LogServer } from '../src/app.js';
-import { createAllRoute, MockSessionStore, MockStore } from './test-utils.js';
+import {
+  createAllRoute,
+  createMockStore,
+  MockSessionStore,
+} from './test-utils.js';
 
 let allRoutes = createAllRoute();
 afterEach(() => {
@@ -26,7 +30,7 @@ const it = test.extend<Fixture>({
   },
 
   store: async ({}, use) => {
-    let store = MockStore();
+    let store = createMockStore();
     await use(store);
   },
 

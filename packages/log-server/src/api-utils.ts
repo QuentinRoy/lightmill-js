@@ -100,21 +100,21 @@ export type ApiOperation<
   M extends HttpMethod = HttpMethod,
 > = NonNullable<A[P][M]>;
 
-export type RequestParameters = {
+export interface RequestParameters {
   path?: Record<string, string>;
   query?: Record<string, string | string[]>;
   header?: Record<string, string>;
   cookie?: Record<string, string>;
-};
+}
 
-type BaseApiOperation = {
+interface BaseApiOperation {
   parameters: RequestParameters;
   responses: Record<
     HttpCode,
     { headers?: Record<string, unknown>; content?: Record<string, unknown> }
   >;
   requestBody?: { content: Record<string, unknown> };
-};
+}
 
 export type Api<P extends string = string> = Record<
   P,

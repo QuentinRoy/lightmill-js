@@ -4,14 +4,7 @@
   "compilerOptions": {
     "lib": ["DOM", "ES2020"],
     "rootDir": "src",
-    "outDir": "dist",
-    "moduleResolution": "Node16",
-    "noImplicitAny": true,
-    "strict": true,
-    "sourceMap": true,
-    "declaration": true,
-    "allowSyntheticDefaultImports": true,
-    "forceConsistentCasingInFileNames": true
+    "outDir": "dist"
   },
   "include": ["./src/**/*.ts"]
 }

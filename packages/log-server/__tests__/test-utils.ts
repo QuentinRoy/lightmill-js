@@ -1,11 +1,11 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
+import type { paths } from '@lightmill/log-api';
 import express from 'express';
 import { Store as SessionStore, type SessionData } from 'express-session';
 import supertest from 'supertest';
 import type { RequiredKeysOf, Simplify, ValueOf } from 'type-fest';
 import { vi, type Mock } from 'vitest';
-import type { paths } from '../generated/api.js';
 import type { HttpMethod } from '../src/api-utils.js';
 import { LogServer } from '../src/app.js';
 import type {
@@ -92,7 +92,7 @@ export type MockStore = {
     : Store[K];
 };
 
-export function MockStore(): MockStore {
+export function createMockStore(): MockStore {
   return {
     addExperiment: vi.fn(async () => {
       return {
@@ -255,7 +255,7 @@ export async function createFixtureWithRuns({
 > {
   let runs: Array<Run> = [];
   const sessionStore = new MockSessionStore();
-  const store = MockStore();
+  const store = createMockStore();
   const server = LogServer({
     store,
     sessionStore,

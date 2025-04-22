@@ -1,7 +1,7 @@
 import { stringify } from 'csv';
 import { pipeline, Readable } from 'node:stream';
 import { mapKeys, pickBy, pipe } from 'remeda';
-import { AllFilter, Log, SQLiteStore as Store } from './store.js';
+import { type AllFilter, type Log, SQLiteStore as Store } from './store.js';
 import { withSnakeCaseProps } from './utils.js';
 
 const csvLogColumns: Array<keyof Log> = [

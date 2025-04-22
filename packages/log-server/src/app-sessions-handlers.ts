@@ -1,12 +1,12 @@
 import type express from 'express';
 import { promisify } from 'node:util';
-import { Writable } from 'type-fest';
+import type { Writable } from 'type-fest';
 import {
   getErrorResponse,
   getRunResources,
-  ServerHandlerBody,
-  ServerHandlerResult,
-  SubServerDescription,
+  type ServerHandlerBody,
+  type ServerHandlerResult,
+  type SubServerDescription,
 } from './app-utils.js';
 import { type Store } from './store.js';
 import { arrayify, checkBasicAuth } from './utils.js';

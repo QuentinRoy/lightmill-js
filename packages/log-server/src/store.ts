@@ -3,36 +3,36 @@ import {
   CamelCasePlugin,
   DeduplicateJoinsPlugin,
   FileMigrationProvider,
-  InsertObject,
+  type InsertObject,
   Kysely,
   Migrator,
   sql,
   SqliteDialect,
 } from 'kysely';
-import loglevel, { LogLevelDesc } from 'loglevel';
+import loglevel, { type LogLevelDesc } from 'loglevel';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import * as url from 'node:url';
 import { last, pick } from 'remeda';
-import { JsonObject, JsonValue } from 'type-fest';
+import type { JsonObject, JsonValue } from 'type-fest';
 import { StoreError } from './store-errors.js';
 import {
-  AllFilter,
+  type AllFilter,
   createQueryFilterAll,
   createQueryFilterExperiment,
   createQueryFilterRun,
-  ExperimentFilter,
-  LogFilter,
-  RunFilter,
+  type ExperimentFilter,
+  type LogFilter,
+  type RunFilter,
 } from './store-filters.js';
 import {
-  Database,
-  ExperimentId,
+  type Database,
+  type ExperimentId,
   fromDbId,
-  Log,
-  LogId,
-  RunId,
-  RunStatus,
+  type Log,
+  type LogId,
+  type RunId,
+  type RunStatus,
   toDbId,
 } from './store-types.js';
 import { getStrict } from './utils.js';
@@ -40,16 +40,16 @@ import { getStrict } from './utils.js';
 const __dirname = url.fileURLToPath(new URL('.', import.meta.url));
 
 export {
-  AllFilter,
-  ExperimentFilter,
-  ExperimentId,
-  Log,
-  LogFilter,
-  LogId,
-  RunFilter,
-  RunId,
-  RunStatus,
   StoreError,
+  type AllFilter,
+  type ExperimentFilter,
+  type ExperimentId,
+  type Log,
+  type LogFilter,
+  type LogId,
+  type RunFilter,
+  type RunId,
+  type RunStatus,
 };
 
 const DEFAULT_SELECT_QUERY_LIMIT = 1_000_000;

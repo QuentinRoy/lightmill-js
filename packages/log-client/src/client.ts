@@ -1,8 +1,8 @@
+import type { components, paths } from '@lightmill/log-api';
 import createClient from 'openapi-fetch';
-import type { components, paths } from '../generated/api.js';
 import { anyLogSerializer } from './log-serializer.js';
 import { LightmillLogger } from './logger.js';
-import {
+import type {
   AnyLog,
   GetLogValuesWithType,
   LogBase,

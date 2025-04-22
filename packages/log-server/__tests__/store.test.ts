@@ -7,14 +7,14 @@ import {
   beforeEach,
   describe,
   expect,
-  ExpectStatic,
-  TestAPI,
+  type ExpectStatic,
+  type TestAPI,
   vi,
   it as vitestIt,
 } from 'vitest';
 import {
   type ExperimentId,
-  LogId,
+  type LogId,
   type RunId,
   SQLiteStore,
 } from '../src/store.js';

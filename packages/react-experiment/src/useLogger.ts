@@ -1,7 +1,7 @@
 import * as React from 'react';
-import { RegisteredLog } from './config.js';
+import type { RegisteredLog } from './config.js';
 import { loggerContext, noLoggerSymbol } from './contexts.js';
-import { NotUnion } from './utils.js';
+import type { NotUnion } from './utils.js';
 
 type Simplify<T> = { [K in keyof T]: T[K] } & {};
 

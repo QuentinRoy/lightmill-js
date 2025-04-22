@@ -1,9 +1,9 @@
 import * as React from 'react';
-import { RegisteredLog, RegisteredTask, Typed } from './config.js';
+import type { RegisteredLog, RegisteredTask, Typed } from './config.js';
 import { loggerContext, noLoggerSymbol, timelineContext } from './contexts.js';
 import useManagedTimeline, {
-  AnyIteratorOrIterable,
-  TimelineState,
+  type AnyIteratorOrIterable,
+  type TimelineState,
 } from './useManagedTimeline.js';
 
 export type RunElements<T extends Typed> = {

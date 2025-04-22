@@ -1,4 +1,4 @@
-import { UnionToIntersection } from 'type-fest';
+import type { UnionToIntersection } from 'type-fest';
 import {
   runStatuses,
   type Database,

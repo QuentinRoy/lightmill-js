@@ -1,35 +1,55 @@
 import express from 'express';
 import request from 'supertest';
 import { test } from 'vitest';
-import { Store } from '../src/store.js';
+import type { Store } from '../src/store.js';
 import { createTypedExpressServer } from '../src/typed-server.js';
 
 type TestApi = {
   '/resources/{id}': {
+    parameters: { query?: never };
     get: {
-      parameters: { query: { q: 'q' }; path: { id: 'id-1' | 'id-2' | 'id-3' } };
+      parameters: {
+        query: { q: 'q' };
+        path: { id: 'id-1' | 'id-2' | 'id-3' };
+        header?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
       responses: {
-        200: { content: { 'application/json': { dataget: unknown } } };
+        200: {
+          headers: { [N: string]: unknown };
+          content: { 'application/json': { dataget: unknown } };
+        };
       };
     };
     delete: {
       parameters: {
         query: { q: Array<'a' | 'b'> };
         path: { id: 'id-x' | 'id-y' };
+        header?: never;
+        cookie?: never;
       };
+      requestBody?: never;
       responses: {
-        200: { content: { 'application/json': { datadel: unknown } } };
+        200: {
+          headers: { [N: string]: unknown };
+          content: { 'application/json': { datadel: unknown } };
+        };
       };
     };
   };
   '/resources': {
+    parameters: { query?: never; header?: never; cookie?: never; path?: never };
     post: {
       parameters: Record<never, never>;
       requestBody: {
         content: { 'application/json': { data: 're-post-body' } };
       };
       responses: {
-        201: { content: { 'application/json': { datapost: unknown } } };
+        201: {
+          headers: { [N: string]: unknown };
+          content: { 'application/json': { datapost: unknown } };
+        };
       };
     };
   };

@@ -1,32 +1,25 @@
 import { match, P } from '@gabriel/ts-pattern';
-import { parse } from '@std/yaml';
+import { openAPI as lightmillAPI, type components } from '@lightmill/log-api';
 import cookieParser from 'cookie-parser';
 import express, { type NextFunction } from 'express';
 import * as OpenApiValidator from 'express-openapi-validator';
-import {
+import type {
   OpenAPIV3,
   ValidationErrorItem,
 } from 'express-openapi-validator/dist/framework/types.js';
 import session, { Store as SessionStore } from 'express-session';
 import log from 'loglevel';
 import MemorySessionStoreModule from 'memorystore';
-import { readFileSync } from 'node:fs';
-import path from 'node:path';
-import type { components } from '../generated/api.js';
 import { experimentHandlers } from './app-experiments-handlers.js';
 import { logHandlers } from './app-logs-handlers.js';
 import { runHandlers } from './app-runs-handlers.js';
 import { sessionHandlers } from './app-sessions-handlers.js';
-import { ServerApi } from './app-utils.js';
-import { Store } from './store.js';
+import type { ServerApi } from './app-utils.js';
+import type { Store } from './store.js';
 import { createTypedExpressServer } from './typed-server.js';
 import { firstStrict } from './utils.js';
 
 const SESSION_COOKIE_NAME = 'lightmill-session-id';
-const OPEN_API_SPEC = path.join(
-  import.meta.dirname,
-  '../node_modules/@lightmill/log-api/openapi.yaml',
-);
 
 const MemorySessionStore = MemorySessionStoreModule(session);
 
@@ -76,13 +69,12 @@ export function LogServer({
     }),
   );
 
-  const apiSpecFile = readFileSync(OPEN_API_SPEC, 'utf8');
-  const apiSpec = parse(apiSpecFile) as OpenAPIV3.DocumentV3;
-  apiSpec.servers = [{ url: baseUrl }];
-
   app.use(
     OpenApiValidator.middleware({
-      apiSpec,
+      apiSpec: {
+        ...(lightmillAPI as OpenAPIV3.DocumentV3),
+        servers: [{ url: baseUrl }],
+      },
       validateApiSpec: mode !== 'production',
       validateRequests: { allErrors: mode !== 'production' },
       validateResponses: mode !== 'production',

@@ -1,7 +1,7 @@
 import TimelineIterator, {
-  BaseTask,
-  Run,
-  TimelineIteratorOptions,
+  type BaseTask,
+  type Run,
+  type TimelineIteratorOptions,
 } from './timeline-iterator.js';
 
 type Experiment<Task, RunId extends string> = {

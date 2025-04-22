@@ -2,12 +2,12 @@ import express from 'express';
 import request from 'supertest';
 import { describe, it } from 'vitest';
 import { LogServer } from '../src/app.js';
-import { MockSessionStore, MockStore } from './test-utils.js';
+import { MockSessionStore, createMockStore } from './test-utils.js';
 
 describe('LogServer', () => {
   it('can be mounted on a sub path', async () => {
     let sessionStore = new MockSessionStore();
-    let store = MockStore();
+    let store = createMockStore();
     let server = LogServer({
       baseUrl: '/api',
       store,

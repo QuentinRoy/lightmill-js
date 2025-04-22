@@ -16,8 +16,8 @@ import type {
   ApiPath,
   HttpMethod,
 } from './api-utils.js';
-import { Store } from './store.js';
-import { LowercaseProps } from './utils.js';
+import type { Store } from './store.js';
+import type { LowercaseProps } from './utils.js';
 
 const pathParamRegex = /{([^}]+)}/g;
 export function createTypedExpressServer<A extends Api>(
@@ -95,12 +95,12 @@ export type HandlerParameters<
   Method extends HttpMethod,
 > = OperationHandlerParameters<ApiOperation<A, Path, Method>>;
 
-export type HandlerResultBase = {
+export interface HandlerResultBase {
   status: number;
   body: unknown;
   contentType?: string;
   headers?: Record<string, unknown>;
-};
+}
 
 export type HandlerResult<
   A extends Api,
@@ -114,9 +114,11 @@ export type RequestContent<
   Method extends HttpMethod,
 > = ApiOperationRequestContent<ApiOperation<A, Path, Method>>;
 
-type Middleware = (req: Request, res: Response, next: NextFunction) => void;
+export interface Middleware {
+  (req: Request, res: Response, next: NextFunction): void;
+}
 
-type OperationTypedHandler<Op extends ApiOperation> = {
+interface OperationTypedHandler<Op extends ApiOperation> {
   (context: {
     store: Store;
     body: ReplaceNever<
@@ -132,11 +134,11 @@ type OperationTypedHandler<Op extends ApiOperation> = {
     >;
     response: Response<ApiOperationResponseContent<Op>['body']>;
   }): Promise<OperationHandlerResult<Op>>;
-};
+}
 
 type ReplaceNever<T, R> = [T] extends [never] ? R : T;
 
-type OperationHandlerParameters<Op extends ApiOperation> = {
+interface OperationHandlerParameters<Op extends ApiOperation> {
   query: ReplaceNever<
     NonNullable<ApiOperationParameters<Op>['query']>,
     Record<never, never>
@@ -155,7 +157,7 @@ type OperationHandlerParameters<Op extends ApiOperation> = {
     NonNullable<ApiOperationParameters<Op>['cookie']>,
     Record<never, never>
   >;
-};
+}
 
 type OperationHandlerResult<Op extends ApiOperation> = Simplify<
   RemoveSetCookiesFromHeaders<

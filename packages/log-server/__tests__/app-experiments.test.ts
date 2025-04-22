@@ -2,11 +2,17 @@
 
 import express from 'express';
 import request from 'supertest';
-import { afterEach, describe, TestAPI, vi, test as vitestTest } from 'vitest';
+import {
+  afterEach,
+  describe,
+  vi,
+  test as vitestTest,
+  type TestAPI,
+} from 'vitest';
 import { LogServer } from '../src/app.js';
 import { StoreError } from '../src/store.js';
 import { arrayify } from '../src/utils.js';
-import { MockSessionStore, MockStore } from './test-utils.js';
+import { MockSessionStore, createMockStore } from './test-utils.js';
 
 afterEach(() => {
   vi.resetAllMocks();
@@ -39,7 +45,7 @@ const it = initialIt;
 
 async function createFixture() {
   let sessionStore = new MockSessionStore();
-  let store = MockStore();
+  let store = createMockStore();
   let server = LogServer({
     store,
     sessionStore,

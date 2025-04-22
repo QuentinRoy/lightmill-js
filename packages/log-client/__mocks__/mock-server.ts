@@ -1,14 +1,14 @@
+import { type paths } from '@lightmill/log-api';
 import {
   http,
   HttpHandler,
   HttpResponse,
-  HttpResponseResolver,
+  type HttpResponseResolver,
   RequestHandler,
 } from 'msw';
 import { setupServer, SetupServerApi } from 'msw/node';
-import { RequiredKeysOf } from 'type-fest';
+import type { RequiredKeysOf } from 'type-fest';
 import { test } from 'vitest';
-import { paths } from '../generated/api.js';
 
 type ApiReponseCode<
   Path extends keyof paths,

@@ -1,7 +1,7 @@
-import { Client as FetchClient } from 'openapi-fetch';
+import type { paths } from '@lightmill/log-api';
+import type { Client as FetchClient } from 'openapi-fetch';
 import type { JsonValue } from 'type-fest';
-import type { paths } from '../generated/api.js';
-import { LogValuesSerializer } from './types.js';
+import type { LogValuesSerializer } from './types.js';
 import { RequestError } from './utils.js';
 
 interface Typed<Type extends string = string> {

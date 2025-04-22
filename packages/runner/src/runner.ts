@@ -1,4 +1,4 @@
-import { SuperIterator } from './types.js';
+import type { SuperIterator } from './types.js';
 
 export type TimelineRunnerParams<Task> = {
   timeline: SuperIterator<Task>;

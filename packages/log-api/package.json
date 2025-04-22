@@ -6,21 +6,36 @@
   "license": "MIT",
   "type": "module",
   "exports": {
-    "./openapi.json": "./openapi.json"
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    },
+    "./openapi.json": "./dist/openapi.json"
   },
   "files": [
-    "tsp-output"
+    "src",
+    "dist"
   ],
   "scripts": {
-    "build": "tsp compile src",
-    "watch:build": "tsp compile src --watch",
+    "generate-api-types": "openapi-typescript src/openapi.json --empty-objects-unknown --output src/openapi.ts",
+    "watch:generate-api-types": "onchange -i 'src/openapi.json' --no-exclude -- pnpm run generate-api-types",
+    "build-api": "tsp compile ./type-spec",
+    "watch:build-api": "pnpm run build-api --watch",
+    "build-js": "tsc -b tsconfig.json",
+    "watch:build-js": "pnpm run build-js --watch",
+    "build": "pnpm run build-api && pnpm run generate-api-types && pnpm run build-js",
+    "watch:build": "onchange -i 'src/index.ts' 'type-spec/**/*' -- pnpm build",
     "prepublish": "pnpm run build"
   },
   "devDependencies": {
-    "@typespec/compiler": "1.0.0-rc.0",
-    "@typespec/http": "1.0.0-rc.0",
-    "@typespec/openapi": "1.0.0-rc.0",
-    "@typespec/openapi3": "1.0.0-rc.0",
-    "@typespec/rest": "^0.68.0"
+    "@typespec/compiler": "1.0.0-rc.1",
+    "@typespec/http": "1.0.0-rc.1",
+    "@typespec/openapi": "1.0.0-rc.1",
+    "@typespec/openapi3": "1.0.0-rc.1",
+    "@typespec/rest": "^0.69.0",
+    "onchange": "^7.1.0",
+    "openapi-typescript": "^7.6.1"
   }
 }

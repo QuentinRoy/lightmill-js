@@ -1,5 +1,5 @@
-import { ColumnType, SelectQueryBuilder } from 'kysely';
-import { ReadonlyDeep } from 'type-fest';
+import type { ColumnType, SelectQueryBuilder } from 'kysely';
+import type { ReadonlyDeep } from 'type-fest';
 import {
   runStatuses,
   toDbId,

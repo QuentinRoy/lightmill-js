@@ -1,7 +1,7 @@
+import type { paths } from '@lightmill/log-api';
 import createClient from 'openapi-fetch';
 import { describe, expect, vi } from 'vitest';
 import { serverTest } from '../__mocks__/mock-server.js';
-import { paths } from '../generated/api.js';
 import { LightmillLogger } from '../src/logger.js';
 
 const it = serverTest.extend<{
@@ -186,9 +186,9 @@ describe('LogClient#addLog (after resume)', () => {
         experimentId: 'test-experiment',
         runId: 'test-run',
         runStatus: 'running',
-        logs: [
-          { type: 'test-type', count: 3, lastNumber: 4, pending: 2 },
-          { type: 'other-type', count: 3, lastNumber: 6, pending: 0 },
+        lastLogs: [
+          { type: 'test-type', number: 4 },
+          { type: 'other-type', number: 6 },
         ],
       },
     ]);

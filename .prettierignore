@@ -2,7 +2,7 @@
 **/node_modules
 packages/**/dist
 packages/**/generated
-packages/log-api/openapi.json
+packages/log-api/src/openapi.*
 **/coverage
 **/CHANGELOG.md
 pnpm-lock.yaml

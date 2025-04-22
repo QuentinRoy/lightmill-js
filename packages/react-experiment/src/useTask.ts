@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { RegisteredTask } from './config.js';
+import type { RegisteredTask } from './config.js';
 import { timelineContext } from './contexts.js';
 
 type UseTaskResult<Task extends RegisteredTask> = {

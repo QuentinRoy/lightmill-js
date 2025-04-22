@@ -1,6 +1,6 @@
 import * as React from 'react';
-import { RegisteredLog, RegisteredTask } from './config.js';
-import { TimelineState } from './useManagedTimeline.js';
+import type { RegisteredLog, RegisteredTask } from './config.js';
+import type { TimelineState } from './useManagedTimeline.js';
 
 export const timelineContext =
   React.createContext<TimelineState<RegisteredTask> | null>(null);

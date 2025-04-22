@@ -44,6 +44,13 @@ export default tseslint.config(
       ],
       'class-methods-use-this': 'off',
       'prefer-const': 'off',
+      'no-redeclare': 'off',
+      // We need to use no-redeclare from typescript-eslint otherwise
+      // we cannot use ts function overloads.
+      '@typescript-eslint/no-redeclare': [
+        'error',
+        { ignoreDeclarationMerge: false },
+      ],
     },
   },
   {

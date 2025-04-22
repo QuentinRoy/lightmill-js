@@ -1,12 +1,12 @@
 import type { Request, Response } from 'express';
 import { Readable } from 'node:stream';
-import { Merge, Simplify } from 'type-fest';
+import type { Merge, Simplify } from 'type-fest';
 import { describe, expectTypeOf, it } from 'vitest';
 import { createTypedExpressServer } from '../src/typed-server.js';
 
 type TestApi = {
   '/{id}': {
-    parameters: { query: 'just something to mess things up' };
+    parameters: { query?: never };
     delete: {
       parameters: {
         query: { q: 'a'[] };
@@ -18,7 +18,9 @@ type TestApi = {
       responses: {
         200: {
           headers: { [N: string]: unknown };
-          content: { 'root-delete-200-content-type': 'root-delete-200-body' };
+          content: {
+            'root-delete-200-content-type': { data: 'root-delete-200-body' };
+          };
         };
       };
     };
@@ -33,11 +35,15 @@ type TestApi = {
       responses: {
         404: {
           headers: { [N: string]: unknown };
-          content: { 'root-get-404-content-type': 'root-get-404-body' };
+          content: {
+            'root-get-404-content-type': { data: 'root-get-404-body' };
+          };
         };
         200: {
           headers: { [N: string]: unknown };
-          content: { 'root-get-200-content-type': 'root-get-200-body' };
+          content: {
+            'root-get-200-content-type': { data: 'root-get-200-body' };
+          };
         };
       };
     };
@@ -47,7 +53,7 @@ type TestApi = {
     trace?: never;
   };
   '/resources': {
-    parameters: { query: 'something else to mess things up' };
+    parameters: { query?: never };
     put?: never;
     patch?: never;
     delete?: never;
@@ -59,14 +65,16 @@ type TestApi = {
         path?: never;
         cookie?: never;
       };
-      requestBody: { content: { 'res-post-content-type': 're-post-body' } };
+      requestBody: {
+        content: { 'res-post-content-type': { data: 'req-post-body' } };
+      };
       responses: {
         201: {
           headers: Merge<
             { 'res-post-header-type': 'res-post-header' },
             { [N: string]: unknown }
           >;
-          content: { 'res-post-content-type': 'res-post-body' };
+          content: { 'res-post-content-type': { data: 'res-post-body' } };
         };
       };
     };
@@ -100,12 +108,12 @@ describe('createTypedExpressServer', () => {
           | {
               status: 200;
               contentType: 'root-get-200-content-type';
-              body: 'root-get-200-body' | Readable;
+              body: { data: 'root-get-200-body' } | Readable;
             }
           | {
               status: 404;
               contentType: 'root-get-404-content-type';
-              body: 'root-get-404-body' | Readable;
+              body: { data: 'root-get-404-body' } | Readable;
             }
         >;
         delete: (arg: {
@@ -121,12 +129,12 @@ describe('createTypedExpressServer', () => {
         }) => Promise<{
           status: 200;
           contentType: 'root-delete-200-content-type';
-          body: 'root-delete-200-body' | Readable;
+          body: { data: 'root-delete-200-body' } | Readable;
         }>;
       };
       '/resources': {
         post: (arg: {
-          body: 're-post-body';
+          body: { data: 'req-post-body' };
           parameters: {
             path: Record<never, never>;
             query: Record<never, never>;
@@ -142,7 +150,7 @@ describe('createTypedExpressServer', () => {
           >;
           status: 201;
           contentType: 'res-post-content-type';
-          body: 'res-post-body' | Readable;
+          body: { data: 'res-post-body' } | Readable;
         }>;
       };
     };
@@ -166,7 +174,7 @@ describe('createTypedExpressServer', () => {
       }) => Promise<{
         status: 201;
         contentType: 'res-post-content-type';
-        body: 'res-post-body' | ReadableStream;
+        body: { data: 'res-post-body' } | ReadableStream;
       }>;
     }>().not.toExtend<
       Parameters<typeof createTypedExpressServer<TestApi>>[1]['/resources']
@@ -186,7 +194,7 @@ describe('createTypedExpressServer', () => {
       }) => Promise<{
         status: 201;
         contentType: 'res-post-content-type';
-        body: 'res-post-body' | ReadableStream;
+        body: { data: 'res-post-body' } | ReadableStream;
       }>;
     }>().not.toExtend<
       Parameters<typeof createTypedExpressServer<TestApi>>[1]['/resources']
@@ -200,7 +208,7 @@ describe('createTypedExpressServer', () => {
       }) => Promise<{
         status: 400; // Another status code.
         contentType: 'res-post-content-type';
-        body: 'res-post-body' | ReadableStream;
+        body: { data: 'res-post-body' } | ReadableStream;
       }>;
     }>().not.toExtend<
       Parameters<typeof createTypedExpressServer<TestApi>>[1]['/resources']
@@ -213,7 +221,7 @@ describe('createTypedExpressServer', () => {
       }) => Promise<{
         status: 201;
         contentType: 'another-content-type';
-        body: 'res-post-body' | ReadableStream;
+        body: { data: 'res-post-body' } | ReadableStream;
       }>;
     }>().not.toExtend<
       Parameters<typeof createTypedExpressServer<TestApi>>[1]['/resources']
@@ -223,7 +231,7 @@ describe('createTypedExpressServer', () => {
   it('allow narrower return type', () => {
     expectTypeOf<{
       post: (arg: {
-        body: 're-post-body';
+        body: { data: 'req-post-body' };
         parameters: {
           path: Record<never, never>;
           query: Record<never, never>;

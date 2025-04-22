@@ -1,5 +1,5 @@
 import { mapKeys, toSnakeCase } from 'remeda';
-import {
+import type {
   ArrayIndices,
   IsNever,
   Merge,

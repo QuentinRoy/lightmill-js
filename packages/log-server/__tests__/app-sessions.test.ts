@@ -3,9 +3,9 @@
 import express, { type Application } from 'express';
 import request from 'supertest';
 import { describe, test as vitestTest } from 'vitest';
-import { ServerRequestContent } from '../src/app-utils.js';
+import type { ServerRequestContent } from '../src/app-utils.js';
 import { LogServer } from '../src/app.js';
-import { MockSessionStore, MockStore } from './test-utils.js';
+import { MockSessionStore, createMockStore } from './test-utils.js';
 
 type BaseFixture = {
   store: MockStore;
@@ -19,7 +19,7 @@ const it = vitestTest.extend<BaseFixture>({
     await use(store);
   },
   store: async ({}, use) => {
-    let store = MockStore();
+    let store = createMockStore();
     await use(store);
   },
   // @ts-expect-error There is something weird with express' Application type

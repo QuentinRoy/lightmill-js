@@ -1,15 +1,14 @@
-import { SessionData } from 'express-session';
+import type { paths } from '@lightmill/log-api';
+import type { SessionData } from 'express-session';
 import { groupBy, intersection, map, pipe, uniqueBy } from 'remeda';
 import type { Simplify, WritableDeep } from 'type-fest';
-import type { paths } from '../generated/api.js';
 import {
-  ApiPath,
-  HttpMethod,
+  type ApiPath,
+  type HttpMethod,
   httpStatuses,
   type HttpStatusMap,
 } from './api-utils.js';
-import { RunId } from './store-types.js';
-import { Store } from './store.js';
+import type { RunId, Store } from './store.js';
 import type {
   Handler,
   HandlerParameters,

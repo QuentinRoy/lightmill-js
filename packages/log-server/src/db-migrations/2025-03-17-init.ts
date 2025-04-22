@@ -1,5 +1,5 @@
-import { ColumnType, GeneratedAlways, Kysely, sql } from 'kysely';
-import { JsonObject } from 'type-fest';
+import { type ColumnType, type GeneratedAlways, Kysely, sql } from 'kysely';
+import type { JsonObject } from 'type-fest';
 
 export type DbRunId = number;
 export type DbExperimentId = number;

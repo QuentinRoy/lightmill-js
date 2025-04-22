@@ -1,15 +1,15 @@
+import type { components, operations } from '@lightmill/log-api';
 import { Readable } from 'node:stream';
-import { JsonObject } from 'type-fest';
-import { components, operations } from '../generated/api.js';
+import type { JsonObject } from 'type-fest';
 import {
   getAllowedAndFilteredRunIds,
   getErrorResponse,
   getRunResources,
-  ServerHandlerResult,
-  SubServerDescription,
+  type ServerHandlerResult,
+  type SubServerDescription,
 } from './app-utils.js';
 import { csvExportStream } from './csv-export.js';
-import { AllFilter, Store, StoreError } from './store.js';
+import { type AllFilter, type Store, StoreError } from './store.js';
 import { arrayify, firstStrict } from './utils.js';
 
 export const logHandlers = (): SubServerDescription<'/logs'> => ({
