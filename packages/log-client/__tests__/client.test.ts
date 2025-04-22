@@ -17,6 +17,7 @@ const it = serverTest.extend<{ client: LightmillClient; timer: void }>({
           'clearInterval',
         ],
       });
+      vi.setSystemTime(new Date('2022-12-31T23:00:00.000Z'));
       await use();
       vi.useRealTimers();
     },
@@ -35,18 +36,18 @@ describe('LogClient#getResumableRuns', () => {
         runId: 'test-run1',
         experimentId: 'test-experiment',
         runStatus: 'running',
-        logs: [
-          { type: 'test-type', count: 4, lastNumber: 5, pending: 1 },
-          { type: 'other-type', count: 3, lastNumber: 8, pending: 4 },
+        lastLogs: [
+          { type: 'test-type', number: 5, values: { prop: 'value-1' } },
+          { type: 'other-type', number: 8, values: { prop: 'value-2' } },
         ],
       },
       {
         runId: 'test-run2',
         experimentId: 'test-experiment',
         runStatus: 'interrupted',
-        logs: [
-          { type: 'test-type', count: 6, lastNumber: 7, pending: 0 },
-          { type: 'other-type', count: 3, lastNumber: 2, pending: 1 },
+        lastLogs: [
+          { type: 'test-type', number: 7, values: { prop: 'value-3' } },
+          { type: 'other-type', number: 2, values: { prop: 'value-4' } },
         ],
       },
     ]);
@@ -54,34 +55,42 @@ describe('LogClient#getResumableRuns', () => {
       .resolves.toMatchInlineSnapshot(`
       [
         {
-          "experimentId": "test-experiment",
-          "experimentName": "test-experiment-name",
-          "from": {
+          "experiment": {
+            "id": "test-experiment",
+            "name": "test-experiment-name",
+          },
+          "run": {
+            "id": "test-run1",
+            "name": "test-run1-name",
+            "status": "running",
+          },
+          "toResumeAfter": {
             "log": {
-              "date": 2023-01-01T00:00:00.000Z,
+              "date": "2022-12-31T23:00:00.000Z",
+              "prop": "value-1",
               "type": "test-type",
-              "value": "GET /logs/log-5 response",
             },
             "number": 5,
           },
-          "runId": "test-run1",
-          "runName": "test-run1-name",
-          "runStatus": "running",
         },
         {
-          "experimentId": "test-experiment",
-          "experimentName": "test-experiment-name",
-          "from": {
+          "experiment": {
+            "id": "test-experiment",
+            "name": "test-experiment-name",
+          },
+          "run": {
+            "id": "test-run2",
+            "name": "test-run2-name",
+            "status": "interrupted",
+          },
+          "toResumeAfter": {
             "log": {
-              "date": 2023-01-01T00:00:00.000Z,
+              "date": "2022-12-31T23:00:00.000Z",
+              "prop": "value-3",
               "type": "test-type",
-              "value": "GET /logs/log-7 response",
             },
             "number": 7,
           },
-          "runId": "test-run2",
-          "runName": "test-run2-name",
-          "runStatus": "interrupted",
         },
       ]
     `);
@@ -93,38 +102,51 @@ describe('LogClient#getResumableRuns', () => {
         runId: 'test-run1',
         experimentId: 'test-experiment',
         runStatus: 'canceled',
-        logs: [{ type: 'test-type', count: 5, lastNumber: 5, pending: 1 }],
+        lastLogs: [{ type: 'test-type', number: 5 }],
       },
       {
         runId: 'test-run2',
         experimentId: 'test-experiment',
         runStatus: 'interrupted',
-        logs: [{ type: 'test-type', count: 2, lastNumber: 2, pending: 0 }],
+        lastLogs: [
+          {
+            type: 'test-type',
+            number: 2,
+            values: {
+              prop: 'value',
+              date: new Date('2022-12-31T23:00:00.000Z'),
+            },
+          },
+        ],
       },
       {
         runId: 'test-run3',
         experimentId: 'test-experiment',
         runStatus: 'completed',
-        logs: [{ type: 'test-type', count: 5, lastNumber: 5, pending: 1 }],
+        lastLogs: [{ type: 'test-type', number: 5 }],
       },
     ]);
     await expect(client.getResumableRuns({ resumableLogTypes: ['test-type'] }))
       .resolves.toMatchInlineSnapshot(`
       [
         {
-          "experimentId": "test-experiment",
-          "experimentName": "test-experiment-name",
-          "from": {
+          "experiment": {
+            "id": "test-experiment",
+            "name": "test-experiment-name",
+          },
+          "run": {
+            "id": "test-run2",
+            "name": "test-run2-name",
+            "status": "interrupted",
+          },
+          "toResumeAfter": {
             "log": {
-              "date": 2023-01-01T00:00:00.000Z,
+              "date": "2022-12-31T23:00:00.000Z",
+              "prop": "value",
               "type": "test-type",
-              "value": "GET /logs/log-2 response",
             },
             "number": 2,
           },
-          "runId": "test-run2",
-          "runName": "test-run2-name",
-          "runStatus": "interrupted",
         },
       ]
     `);
@@ -141,10 +163,10 @@ describe('LogClient#getResumableRuns', () => {
     server.set([
       {
         ...run,
-        logs: [
-          { type: 'test-type-1', count: 5, lastNumber: 10, pending: 0 },
-          { type: 'test-type-2', count: 5, lastNumber: 5, pending: 0 },
-          { type: 'other-type', count: 5, lastNumber: 15, pending: 1 },
+        lastLogs: [
+          { type: 'test-type-1', number: 10 },
+          { type: 'test-type-2', number: 5 },
+          { type: 'other-type', number: 15 },
         ],
       },
     ]);
@@ -155,19 +177,22 @@ describe('LogClient#getResumableRuns', () => {
     ).resolves.toMatchInlineSnapshot(`
       [
         {
-          "experimentId": "exp-id",
-          "experimentName": "exp-name",
-          "from": {
+          "experiment": {
+            "id": "exp-id",
+            "name": "exp-name",
+          },
+          "run": {
+            "id": "run-id",
+            "name": "run-name",
+            "status": "running",
+          },
+          "toResumeAfter": {
             "log": {
-              "date": 2023-01-01T00:00:00.000Z,
+              "date": "2022-12-31T23:00:00.000Z",
               "type": "test-type-1",
-              "value": "GET /logs/log-10 response",
             },
             "number": 10,
           },
-          "runId": "run-id",
-          "runName": "run-name",
-          "runStatus": "running",
         },
       ]
     `);
@@ -183,7 +208,7 @@ describe('LogClient#getResumableRuns', () => {
         runId: 'test-run',
         experimentId: 'test-experiment',
         runStatus: 'completed',
-        logs: [{ type: 'test-type', count: 5, lastNumber: 5, pending: 0 }],
+        lastLogs: [{ type: 'test-type', number: 5 }],
       },
     ]);
     await expect(
@@ -201,21 +226,29 @@ describe('LogClient#getResumableRuns', () => {
         runId: 'test-run',
         experimentId: 'test-experiment',
         runStatus: 'running',
-        logs: [{ type: 'other-type', count: 5, lastNumber: 5, pending: 0 }],
+        lastLogs: [{ type: 'other-type', number: 5 }],
       },
     ]);
-    await expect(
-      client.getResumableRuns({ resumableLogTypes: ['test-type'] }),
-    ).resolves.toEqual([
-      {
-        runId: 'test-run',
-        runName: 'test-run-name',
-        experimentId: 'test-experiment',
-        experimentName: 'test-experiment-name',
-        runStatus: 'running',
-        from: { type: null, number: 0, values: null },
-      },
-    ]);
+    await expect(client.getResumableRuns({ resumableLogTypes: ['test-type'] }))
+      .resolves.toMatchInlineSnapshot(`
+      [
+        {
+          "experiment": {
+            "id": "test-experiment",
+            "name": "test-experiment-name",
+          },
+          "run": {
+            "id": "test-run",
+            "name": "test-run-name",
+            "status": "running",
+          },
+          "toResumeAfter": {
+            "log": null,
+            "number": 0,
+          },
+        },
+      ]
+    `);
   });
 });
 
@@ -289,7 +322,7 @@ describe('LogClient#startRun', () => {
     let logger = await client.startRun({
       runName: 'test-run',
       experimentName: 'test-experiment',
-      from: { number: 4 },
+      after: { number: 4 },
     });
     expect(logger).toBeInstanceOf(LightmillLogger);
     await expect(server.waitForChangeRequests()).resolves.toEqual([
@@ -321,7 +354,7 @@ describe('LogClient#startRun', () => {
     let logger = await client.startRun({
       runName: 'test-run',
       experimentName: 'test-experiment',
-      from: { number: 0 },
+      after: { number: 0 },
     });
     expect(logger).toBeInstanceOf(LightmillLogger);
     await expect(server.waitForChangeRequests()).resolves.toEqual([

@@ -186,7 +186,7 @@ export class MockServer {
                   attributes: {
                     logType: log.type,
                     number: log.number,
-                    values: {},
+                    values: log.values,
                   },
                   relationships: {
                     run: { data: { type: 'runs' as const, id: r.runId } },
@@ -243,7 +243,11 @@ export class MockServer {
             ...run.lastLogs.map((log) => ({
               type: 'logs' as const,
               id: log.id,
-              attributes: { logType: log.type, number: log.number, values: {} },
+              attributes: {
+                logType: log.type,
+                number: log.number,
+                values: log.values,
+              },
               relationships: {
                 run: { data: { type: 'runs' as const, id: run.runId } },
               },
@@ -287,14 +291,7 @@ export class MockServer {
         run.runStatus = body.data.attributes?.status ?? run.runStatus;
         const lastLogNumber = body.data.attributes?.lastLogNumber;
         if (lastLogNumber != null) {
-          run.lastLogs.filter((l) => l.number <= lastLogNumber);
-          if (run.lastLogs.every((l) => l.number !== lastLogNumber)) {
-            run.lastLogs.push({
-              id: 'new-last-log-id',
-              type: 'new-last-log',
-              number: lastLogNumber,
-            });
-          }
+          run.lastLogs = run.lastLogs.filter((l) => l.number <= lastLogNumber);
         }
 
         return HttpResponse.json({
@@ -322,44 +319,6 @@ export class MockServer {
           data: { id: 'log-id', type: 'logs' },
         } satisfies ApiResponse<'/logs', 'post', 201>);
       }),
-
-      get('/logs/:logId', ({ params }) => {
-        const log = Array.from(this.#runs.values())
-          .flatMap((r) => r.lastLogs)
-          .find((l) => l.id === params.logId);
-        if (log == null) {
-          return HttpResponse.json(
-            {
-              errors: [
-                {
-                  status: 'Not Found',
-                  code: 'LOG_NOT_FOUND',
-                  detail: `Log with id ${params.logId} not found`,
-                },
-              ],
-            } satisfies ApiResponse<'/logs/{id}', 'get', 404>,
-            { status: 404 },
-          );
-        }
-        return HttpResponse.json(
-          {
-            data: {
-              id: log.id,
-              type: 'logs',
-              attributes: {
-                logType: log.type,
-                number: log.number,
-                values: {
-                  value: `GET /logs/${log.id} response`,
-                  date: '2023-01-01T00:00:00.000Z',
-                },
-              },
-              relationships: { run: { data: { type: 'runs', id: log.id } } },
-            },
-          } satisfies ApiResponse<'/logs/{id}', 'get', 200>,
-          { status: 200 },
-        );
-      }),
     ];
   }
 
@@ -386,11 +345,11 @@ export class MockServer {
     entries: Array<
       | (Omit<Run, 'lastLogs'> & {
           experimentName?: string;
-          logs?: Array<{
+          lastLogs?: Array<{
             type: string;
-            count: number;
-            lastNumber: number;
-            pending: number;
+            number: number;
+            id?: string;
+            values?: Record<string, unknown> & { date?: Date };
           }>;
         })
       | { experimentName?: string; experimentId: string }
@@ -405,17 +364,18 @@ export class MockServer {
           ? entry.experimentName
           : `${entry.experimentId}-name`;
       if ('runId' in entry) {
-        let { logs, ...run } = entry;
+        let { lastLogs, ...run } = entry;
         let runName = run.runName ?? `${run.runId}-name`;
         this.#runs.set(run.runId, {
           ...run,
           runName,
           lastLogs:
-            logs?.map((log) => ({
-              type: log.type,
-              number: log.lastNumber,
-              id: `log-${log.lastNumber}`,
-            })) ?? [],
+            lastLogs?.map((l) => {
+              let id = l.id ?? `log-${run.runId}-${l.number}`;
+              let date = l.values?.date ?? new Date();
+              let values = { ...l.values, date: date.toISOString() };
+              return { ...l, id, values };
+            }) ?? [],
         });
         if (!this.#experiments.has(entry.experimentId)) {
           this.#experiments.set(entry.experimentId, {
@@ -465,7 +425,12 @@ type Run = {
   runName?: string;
   experimentId: string;
   runStatus: 'idle' | 'completed' | 'canceled' | 'running' | 'interrupted';
-  lastLogs: Array<{ id: string; type: string; number: number }>;
+  lastLogs: Array<{
+    id: string;
+    type: string;
+    number: number;
+    values: Record<string, unknown> & { date: string };
+  }>;
 };
 
 type Experiment = { id: string; name: string };

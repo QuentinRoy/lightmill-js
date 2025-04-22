@@ -29,9 +29,13 @@ type PostLogValues<ClientLog extends LogBase> = Omit<ClientLog, 'type'> & {
   date: Date;
 };
 
-export type GetLogValues<ClientLog extends LogBase> = ReplaceDateWithStringDeep<
-  Omit<ClientLog, 'id' | 'date'>
-> & { date: Date };
+export type GetLogValuesWithType<ClientLog extends LogBase> =
+  ReplaceDateWithStringDeep<ClientLog>;
+
+export type GetLogValues<ClientLog extends LogBase> = Omit<
+  GetLogValuesWithType<ClientLog>,
+  'type'
+>;
 
 type ReplaceDateWithStringDeep<T> = T extends Date
   ? string

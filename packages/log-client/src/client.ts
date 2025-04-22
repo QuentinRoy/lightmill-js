@@ -2,7 +2,12 @@ import createClient from 'openapi-fetch';
 import type { components, paths } from '../generated/api.js';
 import { anyLogSerializer } from './log-serializer.js';
 import { LightmillLogger } from './logger.js';
-import { AnyLog, GetLogValues, LogBase, LogValuesSerializer } from './types.js';
+import {
+  AnyLog,
+  GetLogValuesWithType,
+  LogBase,
+  LogValuesSerializer,
+} from './types.js';
 import { assertNever, RequestError } from './utils.js';
 
 export class LightmillClient<ClientLog extends LogBase = AnyLog> {
@@ -64,7 +69,7 @@ export class LightmillClient<ClientLog extends LogBase = AnyLog> {
       params: {
         query: {
           'filter[status]': ['running', 'interrupted'],
-          'filter[relationships.experiment.name]': experimentName,
+          'filter[experiment.name]': experimentName,
           'filter[name]': runName,
           include: ['lastLogs', 'experiment'],
         },
@@ -110,46 +115,53 @@ export class LightmillClient<ClientLog extends LogBase = AnyLog> {
             id,
             type: log.attributes.logType,
             number: log.attributes.number,
+            values: log.attributes.values,
           };
         });
+        let logToResumeAfter = await this.#getLastResumableLog<T>({
+          lastLogs,
+          resumableLogTypes,
+        });
         return {
-          runId: r.id,
-          experimentId: experiment.id,
-          runName: r.attributes.name,
-          experimentName: experiment.attributes.name,
-          runStatus: r.attributes.status,
-          from: await this.#getLastLogRecordOfType({
-            lastLogs,
-            resumableLogTypes,
-          }),
+          run: {
+            id: r.id,
+            name: r.attributes.name,
+            status: r.attributes.status,
+          },
+          experiment: { id: experiment.id, name: experiment.attributes.name },
+          toResumeAfter: logToResumeAfter,
         };
       }),
     );
   }
 
-  async #getLastLogRecordOfType<T extends ClientLog['type']>({
+  async #getLastResumableLog<T extends ClientLog['type']>({
     lastLogs: logRecords,
     resumableLogTypes,
   }: {
-    lastLogs: { type: string; number: number; id: string }[];
+    lastLogs: {
+      type: string;
+      number: number;
+      id: string;
+      values: Record<string, unknown>;
+    }[];
     resumableLogTypes: T[];
   }): Promise<
-    | { number: 0; type: null; values: null }
-    | (T extends infer U
-        ? { number: number; log: GetLogValues<Extract<ClientLog, { type: U }>> }
-        : never)
+    | { number: 0; log: null }
+    | { number: number; log: GetLogValuesWithType<ClientLog & { type: T }> }
   > {
     const isResumableLog = (l: { type: string }): l is { type: T } => {
       return types.includes(l.type);
     };
     let types: string[] = resumableLogTypes;
     let lastLogRecord:
-      | { number: 0; type: null; id: null }
-      | { number: number; type: T; id: string } = {
-      number: 0,
-      type: null,
-      id: null,
-    };
+      | { number: 0; type: null; id: null; values: null }
+      | {
+          number: number;
+          type: T;
+          id: string;
+          values: Record<string, unknown>;
+        } = { number: 0, type: null, id: null, values: null };
     for (let logRecord of logRecords) {
       if (
         logRecord.number > lastLogRecord.number &&
@@ -159,45 +171,33 @@ export class LightmillClient<ClientLog extends LogBase = AnyLog> {
       }
     }
     if (lastLogRecord.type == null || lastLogRecord.id == null) {
-      return { number: 0, type: null, values: null };
+      return { number: 0, log: null };
     }
-    const response = await this.#fetchClient.GET('/logs/{id}', {
-      params: { path: { id: lastLogRecord.id } },
-      credentials: 'include',
-    });
-    if (response.error) {
-      throw new RequestError(response);
-    }
-    let log = response.data.data;
-    if (log.attributes.logType !== lastLogRecord.type) {
-      throw new Error(
-        `Log ${log.id} has type ${log.attributes.logType} but was expected to be of type ${lastLogRecord.type}`,
-      );
-    }
-    let number = log.attributes.number;
-    // @ts-expect-error Let us trust the server to return the correct type.
-    let type: T = log.attributes.logType;
-    let values = log.attributes.values as Omit<
-      GetLogValues<Extract<ClientLog, { type: T }>>,
-      'type' | 'number'
-    >;
-    let date = values.date;
-    if (date == null) {
-      throw new Error(
-        `Log ${log.id} has no date, but was expected to be of type ${lastLogRecord.type}`,
-      );
-    }
-    // @ts-expect-error I cannot make this type safe, but it should be safe.
-    return { number, log: { ...values, type, date: new Date(date) } };
+    return {
+      number: lastLogRecord.number,
+      // @ts-expect-error we trust the server to return the correct values
+      // with the correct type.
+      log: { ...lastLogRecord.values, type: lastLogRecord.type },
+    };
   }
 
   async startRun(
     options:
-      | { runName?: string; experimentName: string }
-      | { runName: string; experimentName: string; from: { number: number } },
+      | {
+          experimentName: string;
+          // We cannot resume a run that has no name.
+          runName?: undefined;
+          after?: undefined;
+        }
+      // `after` is an object so it can be directly fed with the result of
+      // getResumableRuns.
+      | { experimentName: string; runName: string; after?: { number: number } }
+      // run id can only be used to resume a run, so from is required (even
+      // if it's 0).
+      | { runId: string; after: { number: number } },
   ) {
-    if ('from' in options) {
-      return this.#resumeRun({ ...options, from: options.from?.number });
+    if (options.after != null) {
+      return this.#resumeRun({ ...options, after: options.after.number });
     }
     return this.#startNewRun(options);
   }
@@ -254,17 +254,15 @@ export class LightmillClient<ClientLog extends LogBase = AnyLog> {
   }
 
   async #resumeRun({
-    from,
+    after,
     ...options
   }: (
-    | { runName: string; experimentName: string }
-    | { runName: string; experimentId: string }
+    | { runName: string; experimentName: string; runId?: undefined }
+    | { runName: string; experimentId: string; runId?: undefined }
     | { runId: string }
-  ) & { from?: number }) {
+  ) & { after: number }) {
     let runId: string =
-      'runId' in options
-        ? options.runId
-        : await this.#getRunIdFromName(options);
+      options.runId ?? (await this.#getRunIdFromName(options));
     let response = await this.#fetchClient.PATCH('/runs/{id}', {
       credentials: 'include',
       params: { path: { id: runId } },
@@ -272,7 +270,7 @@ export class LightmillClient<ClientLog extends LogBase = AnyLog> {
         data: {
           type: 'runs',
           id: runId,
-          attributes: { status: 'running', lastLogNumber: from },
+          attributes: { status: 'running', lastLogNumber: after },
         },
       },
     });
