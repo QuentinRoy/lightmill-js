@@ -537,7 +537,7 @@ describe('LogServer: patch /runs/:run', () => {
       })
       .expect(200);
     expect(store.setRunStatus).not.toHaveBeenCalled();
-    expect(store.resumeRun).toHaveBeenCalledWith(run, { from: 15 });
+    expect(store.resumeRun).toHaveBeenCalledWith(run, { after: 15 });
   });
 
   it.for(['idle', 'canceled', 'completed', 'interrupted'] as RunStatus[])(
@@ -618,7 +618,7 @@ describe('LogServer: patch /runs/:run', () => {
       })
       .expect(200);
     expect(store.setRunStatus).not.toHaveBeenCalled();
-    expect(store.resumeRun).toHaveBeenCalledWith('run-id', { from: 15 });
+    expect(store.resumeRun).toHaveBeenCalledWith('run-id', { after: 15 });
   });
 });
 

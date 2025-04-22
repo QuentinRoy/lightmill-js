@@ -170,7 +170,7 @@ export class SQLiteStore {
     });
   }
 
-  async resumeRun(runId: RunId, { from: resumeFrom }: { from: number }) {
+  async resumeRun(runId: RunId, { after: resumeAfter }: { after: number }) {
     const dbRunId = toDbId(runId);
     return this.#db.transaction().execute(async (trx) => {
       await trx
@@ -209,9 +209,9 @@ export class SQLiteStore {
       } else if (lastLogNumber != null) {
         minResumeFrom = lastLogNumber + 1;
       }
-      if (minResumeFrom < resumeFrom) {
+      if (minResumeFrom <= resumeAfter) {
         throw new StoreError(
-          `Cannot resume run ${runId} from log number ${resumeFrom} because it would leave log number ${minResumeFrom} missing.`,
+          `Cannot resume run ${runId} after log number ${resumeAfter} because it would leave log number ${minResumeFrom} missing.`,
           'INVALID_LOG_NUMBER',
         );
       }
@@ -220,7 +220,7 @@ export class SQLiteStore {
         .values({
           runId: dbRunId,
           sequenceNumber: lastSeqNumber + 1,
-          start: resumeFrom,
+          start: resumeAfter + 1,
         })
         .returning(['runId'])
         .executeTakeFirstOrThrow();

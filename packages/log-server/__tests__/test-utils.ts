@@ -110,7 +110,7 @@ export function MockStore(): MockStore {
         },
       ];
     }),
-    addRun: vi.fn(async (...args) => {
+    addRun: vi.fn(async (..._args) => {
       return {
         experimentId: '1',
         runId: '1',
@@ -120,7 +120,7 @@ export function MockStore(): MockStore {
         runCreatedAt: new Date('2022-11-01T00:00:00Z'),
       };
     }),
-    resumeRun: vi.fn(async (...args) => {}),
+    resumeRun: vi.fn(async (..._args) => {}),
     getRuns: vi.fn(async (filter) => {
       if (isNoResultFilter(filter)) {
         return [];
@@ -136,14 +136,14 @@ export function MockStore(): MockStore {
         },
       ];
     }),
-    setRunStatus: vi.fn((...args) => Promise.resolve()),
-    addLogs: vi.fn((...args) =>
+    setRunStatus: vi.fn((..._args) => Promise.resolve()),
+    addLogs: vi.fn((..._args) =>
       Promise.resolve([{ logId: 'l1' }, { logId: 'l2' }]),
     ),
     getLogValueNames: vi.fn(() =>
       Promise.resolve(['mock-col1', 'mock-col2', 'mock-col3']),
     ),
-    getLastLogs: vi.fn((...args) =>
+    getLastLogs: vi.fn((..._args) =>
       Promise.resolve([
         {
           runId: 'getLastLogs:run-id',

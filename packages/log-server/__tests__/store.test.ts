@@ -784,7 +784,7 @@ describe('SQLiteStore#setRunStatus', () => {
     runWithTwoLogs: { run },
   }) => {
     await store.setRunStatus(run, 'interrupted');
-    await store.resumeRun(run, { from: 2 });
+    await store.resumeRun(run, { after: 2 });
     await expect(store.setRunStatus(run, 'completed')).resolves.toBeUndefined();
   });
 
@@ -794,7 +794,7 @@ describe('SQLiteStore#setRunStatus', () => {
     runWithTwoLogs: { run },
   }) => {
     await store.setRunStatus(run, 'interrupted');
-    await store.resumeRun(run, { from: 2 });
+    await store.resumeRun(run, { after: 2 });
     await expect(store.setRunStatus(run, 'canceled')).resolves.toBeUndefined();
   });
 
@@ -817,7 +817,7 @@ describe('SQLiteStore#resumeRun', () => {
     store,
     e1run1: run,
   }) => {
-    await expect(store.resumeRun(run, { from: 1 })).resolves.toBeUndefined();
+    await expect(store.resumeRun(run, { after: 0 })).resolves.toBeUndefined();
   });
 
   it('resumes a running run with logs', async ({
@@ -825,7 +825,7 @@ describe('SQLiteStore#resumeRun', () => {
     store,
     runWithTwoLogs: { run },
   }) => {
-    await expect(store.resumeRun(run, { from: 2 })).resolves.toBeUndefined();
+    await expect(store.resumeRun(run, { after: 1 })).resolves.toBeUndefined();
   });
 
   it('resumes a running run with logs from the start', async ({
@@ -833,7 +833,7 @@ describe('SQLiteStore#resumeRun', () => {
     store,
     runWithTwoLogs: { run },
   }) => {
-    await expect(store.resumeRun(run, { from: 1 })).resolves.toBeUndefined();
+    await expect(store.resumeRun(run, { after: 0 })).resolves.toBeUndefined();
   });
 
   it('resumes an interrupted run without logs', async ({
@@ -842,7 +842,7 @@ describe('SQLiteStore#resumeRun', () => {
     e1run1: run1,
   }) => {
     await store.setRunStatus(run1, 'interrupted');
-    await expect(store.resumeRun(run1, { from: 1 })).resolves.toBeUndefined();
+    await expect(store.resumeRun(run1, { after: 0 })).resolves.toBeUndefined();
   });
 
   it('resumes an interrupted run with logs', async ({
@@ -851,7 +851,7 @@ describe('SQLiteStore#resumeRun', () => {
     runWithTwoLogs: { run },
   }) => {
     await store.setRunStatus(run, 'interrupted');
-    await expect(store.resumeRun(run, { from: 2 })).resolves.toBeUndefined();
+    await expect(store.resumeRun(run, { after: 1 })).resolves.toBeUndefined();
   });
 
   it('refuses to resume a completed run', async ({
@@ -860,7 +860,7 @@ describe('SQLiteStore#resumeRun', () => {
     runWithTwoLogs: { run },
   }) => {
     await store.setRunStatus(run, 'completed');
-    await expect(store.resumeRun(run, { from: 2 })).rejects.toThrow();
+    await expect(store.resumeRun(run, { after: 1 })).rejects.toThrow();
   });
 
   it('refuses to resume after missing logs', async ({
@@ -870,9 +870,9 @@ describe('SQLiteStore#resumeRun', () => {
   }) => {
     await store.addLogs(run, [{ type: 'log', number: 5, values: { x: 2 } }]);
     await expect(
-      store.resumeRun(run, { from: 6 }),
+      store.resumeRun(run, { after: 4 }),
     ).rejects.toThrowErrorMatchingInlineSnapshot(
-      `[StoreError: Cannot resume run 1 from log number 6 because it would leave log number 3 missing.]`,
+      `[StoreError: Cannot resume run 1 after log number 4 because it would leave log number 3 missing.]`,
     );
   });
 
@@ -886,7 +886,7 @@ describe('SQLiteStore#resumeRun', () => {
       { type: 'log', number: 4, values: { x: 2 } },
       { type: 'log', number: 6, values: { x: 2 } },
     ]);
-    await expect(store.resumeRun(run, { from: 2 })).resolves.toBeUndefined();
+    await expect(store.resumeRun(run, { after: 1 })).resolves.toBeUndefined();
   });
 });
 
@@ -1085,7 +1085,7 @@ describe('SQLiteStore#addLogs', () => {
       { type: 'log4', number: 2, values: { x: 2 } },
       { type: 'log4', number: 3, values: { x: 3 } },
     ]);
-    await store.resumeRun(e1run1, { from: 4 });
+    await store.resumeRun(e1run1, { after: 3 });
     await expect(
       store.addLogs(e1run1, [
         { type: 'log4', number: 4, values: { x: 3 } },
@@ -1105,7 +1105,7 @@ describe('SQLiteStore#addLogs', () => {
       { type: 'log4', number: 2, values: { x: 2 } },
       { type: 'log4', number: 3, values: { x: 3 } },
     ]);
-    await store.resumeRun(exp1run1, { from: 2 });
+    await store.resumeRun(exp1run1, { after: 1 });
     await expect(
       store.addLogs(exp1run1, [
         { type: 'log4', number: 2, values: { x: 3 } },
@@ -1124,7 +1124,7 @@ describe('SQLiteStore#addLogs', () => {
       { type: 'log4', number: 2, values: { x: 2 } },
       { type: 'log4', number: 3, values: { x: 3 } },
     ]);
-    await store.resumeRun(exp1run1, { from: 4 });
+    await store.resumeRun(exp1run1, { after: 3 });
     await expect(
       store.addLogs(exp1run1, [
         { type: 'log4', number: 7, values: { x: 3 } },
@@ -1142,7 +1142,7 @@ describe('SQLiteStore#addLogs', () => {
       { type: 'log4', number: 1, values: { x: 1 } },
       { type: 'log4', number: 2, values: { x: 1 } },
     ]);
-    await store.resumeRun(exp1run1, { from: 3 });
+    await store.resumeRun(exp1run1, { after: 2 });
     await expect(
       store.addLogs(exp1run1, [
         { type: 'log4', number: 2, values: { x: 3 } },
@@ -1540,7 +1540,7 @@ describe('SQLiteStore#getLogValueNames', () => {
       { type: 'log', number: 3, values: { nope: 'nope' } },
     ]);
     await store.setRunStatus(runId, 'interrupted');
-    await store.resumeRun(runId, { from: 3 });
+    await store.resumeRun(runId, { after: 2 });
     await expect(store.getLogValueNames({ runId })).resolves.toEqual(['x']);
   });
 });
@@ -1813,7 +1813,7 @@ describe.for([{ queryLimit: 10000 }, { queryLimit: 2 }])(
       expect,
       context: { store, experiment2, e2run1 },
     }) => {
-      await store.resumeRun(e2run1, { from: 2 });
+      await store.resumeRun(e2run1, { after: 1 });
       await store.addLogs(e2run1, [
         { type: 'log3', number: 2, values: { x: 25, y: 0, foo: true } },
       ]);
@@ -1829,7 +1829,7 @@ describe.for([{ queryLimit: 10000 }, { queryLimit: 2 }])(
       context: { experiment1, e1run2, store },
     }) => {
       let logs = await fromAsync(store.getLogs({ runId: e1run2 }));
-      await store.resumeRun(e1run2, { from: 2 });
+      await store.resumeRun(e1run2, { after: 1 });
       await expect(
         fromAsync(store.getLogs({ runId: e1run2 })),
       ).resolves.toEqual([
@@ -1845,7 +1845,7 @@ describe.for([{ queryLimit: 10000 }, { queryLimit: 2 }])(
           values: { bar: null, message: 'hola' },
         },
       ]);
-      await store.resumeRun(e1run2, { from: 1 });
+      await store.resumeRun(e1run2, { after: 0 });
       await expect(
         fromAsync(store.getLogs({ runId: e1run2 })),
       ).resolves.toEqual([]);
@@ -1861,7 +1861,7 @@ describe.for([{ queryLimit: 10000 }, { queryLimit: 2 }])(
       ]);
       let logs = await fromAsync(store.getLogs({ runId: e1run2 }));
       expect(logs).toHaveLength(4);
-      await store.resumeRun(e1run2, { from: 2 });
+      await store.resumeRun(e1run2, { after: 1 });
       await expect(
         fromAsync(store.getLogs({ runId: e1run2 })),
       ).resolves.toHaveLength(1);

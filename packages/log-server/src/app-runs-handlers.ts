@@ -231,7 +231,7 @@ export const runHandlers = (): SubServerDescription<'/runs'> => ({
           });
         }
         await store.resumeRun(targetRun.runId, {
-          from: requestedLastLogNumber,
+          after: requestedLastLogNumber,
         });
       } else if (futureRunStatus !== oldRunStatus) {
         if (futureRunStatus === 'idle') {
