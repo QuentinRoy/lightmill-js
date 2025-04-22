@@ -1,9 +1,9 @@
 /// <reference types="vitest" />
 /// <reference types="vite/client" />
 
+import react from '@vitejs/plugin-react';
 import { resolve } from 'node:path';
 import * as url from 'node:url';
-import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vitest/config';
 
 const dirname = url.fileURLToPath(new URL('.', import.meta.url));

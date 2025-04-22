@@ -1,5 +1,5 @@
-import { anyLogSerializer } from '../src/log-serializer.js';
 import { test } from 'vitest';
+import { anyLogSerializer } from '../src/log-serializer.js';
 
 test('anyLogSerializer should serialize a log', ({ expect }) => {
   expect(

@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
-import { Run, useLogger } from '../src/main.js';
 import userEventPackage from '@testing-library/user-event';
+import { Run, useLogger } from '../src/main.js';
 
 // @ts-expect-error - userEventPackage is not typed correctly
 const userEvent: typeof userEventPackage.default = userEventPackage;

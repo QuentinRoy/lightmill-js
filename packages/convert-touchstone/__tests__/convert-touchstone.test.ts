@@ -1,9 +1,9 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { readFile } from 'node:fs/promises';
 import { createReadStream, ReadStream } from 'node:fs';
-import { Readable } from 'node:stream';
+import { readFile } from 'node:fs/promises';
 import * as path from 'node:path';
+import { Readable } from 'node:stream';
 import * as url from 'node:url';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import convert from '../src/convert-touchstone.js';
 
 const dirname = url.fileURLToPath(new URL('.', import.meta.url));

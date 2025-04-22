@@ -1,4 +1,4 @@
-export { runTimeline as run, RunTimelineParams as RunParams } from './run.js';
+export { RunTimelineParams as RunParams, runTimeline as run } from './run.js';
 export {
   TimelineRunner as Runner,
   TimelineRunnerParams as TimelineRunnerParams,

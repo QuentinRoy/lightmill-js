@@ -1,5 +1,5 @@
-import * as React from 'react';
 import { Runner as TimelineRunner } from '@lightmill/runner';
+import * as React from 'react';
 
 export type TimelineStatus = 'running' | 'completed' | 'loading' | 'idle';
 

@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { RegisteredTask, Typed, RegisteredLog } from './config.js';
+import { RegisteredLog, RegisteredTask, Typed } from './config.js';
 import { loggerContext, noLoggerSymbol, timelineContext } from './contexts.js';
 import useManagedTimeline, {
   AnyIteratorOrIterable,

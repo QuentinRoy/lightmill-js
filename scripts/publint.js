@@ -1,5 +1,5 @@
-import { readdir } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
+import { readdir } from 'node:fs/promises';
 import { parseArgs } from 'node:util';
 
 function publint(path) {

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
-import { command } from 'yargs';
 import { createReadStream } from 'fs';
+import { command } from 'yargs';
 import convertTouchstone from '../dist/convert-touchstone.js';
 
 const { inputFile, ...options } = command(
