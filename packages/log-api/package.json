@@ -6,7 +6,7 @@
   "license": "MIT",
   "type": "module",
   "exports": {
-    "./openapi.json": "./tsp-output/schema/openapi.json"
+    "./openapi.json": "./openapi.json"
   },
   "files": [
     "tsp-output"
