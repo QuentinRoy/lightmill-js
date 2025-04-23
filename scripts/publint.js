@@ -25,10 +25,10 @@ function publint(path) {
 
 async function publintAll() {
   let hasError = false;
-  await publint('./').catch(() => {
-    hasError = true;
-  });
   for (const packagePath of await readdir('./packages')) {
+    if (packagePath.startsWith('.')) {
+      continue;
+    }
     await publint(`./packages/${packagePath}`).catch(() => {
       hasError = true;
     });
