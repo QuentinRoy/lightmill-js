@@ -1,5 +1,23 @@
 # Change Log
 
+## 3.0.0
+
+### Major Changes
+
+- 37f1b03: New Runner API as default export. The old `run` function is still available as a named export.
+- a35f3f9: Runner API has changed. Runner is now provided as a single run function, and the store argument has been removed.
+- d2f8ed5: Remove Runner as a default export. There is no default export anymore. Runner is provided as a named export. RunnerProps type is now exported.
+- aed9788: Update Runner interface.
+- 4bbaa8e: Distribute package as ES module only.
+
+### Minor Changes
+
+- 4bbaa8e: Refactor to typescript. The library now provides typescript types.
+
+### Patch Changes
+
+- 2d3d87e: Remove package.json engines directive which fixes a warning when consumer uses a different node version.
+
 ## 3.0.0-beta.25
 
 ### Patch Changes

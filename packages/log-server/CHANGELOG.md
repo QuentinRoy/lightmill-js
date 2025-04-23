@@ -1,5 +1,11 @@
 # @lightmill/log-server
 
+## 3.0.0
+
+### Major Changes
+
+New log server implementing @lightmill/log-api's contract.
+
 ## 3.0.0-beta.34
 
 ### Patch Changes

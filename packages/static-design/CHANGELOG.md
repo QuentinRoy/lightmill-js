@@ -1,5 +1,25 @@
 # Change Log
 
+## 3.0.0
+
+### Major Changes
+
+- ff4d4ac: Rename StaticDesign and Timeline's constructors 'tasks' option to 'timeline', rename StaticDesign's getId method to getRunId, and make every async methods sync (TimelineIterator now implements Iterator instead of AsyncInterator).
+- 115aa44: Static Design and Run Iterator APIs has changed:
+  - Run Iterator is now called Timeline Iterator since it only concerns itself with agnostically running a succession of tasks, and not blocks or trials as before.
+  - StaticDesign is now a class and must be called with `new`.
+  - The `runs` property of the StaticDesign's constructor argument has been renamed to `timelines`.
+  - StaticDesign#startRun is now StaticDesign#startTimeline.
+  - StaticDesign#getAvailableRuns is now StaticDesign#getAvailableTimelines.
+
+### Minor Changes
+
+- 4bbaa8e: Refactor to typescript. The library now provides typescript types.
+
+### Patch Changes
+
+- 2d3d87e: Remove package.json engines directive which fixes a warning when consumer uses a different node version.
+
 ## 3.0.0-beta.27
 
 ### Major Changes

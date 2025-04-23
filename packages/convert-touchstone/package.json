@@ -1,6 +1,6 @@
 {
   "name": "@lightmill/convert-touchstone",
-  "version": "3.0.0-alpha.8",
+  "version": "3.0.0",
   "type": "module",
   "description": "Converts touchstone XML exports to lightmill format.",
   "engines": {

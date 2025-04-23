@@ -1,5 +1,11 @@
 # @lightmill/log-api
 
+## 3.0.0
+
+### Major Changes
+
+New log api package to export server api contract and types.
+
 ## 3.0.0-beta.34
 
 ### Major Changes

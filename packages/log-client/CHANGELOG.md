@@ -1,5 +1,11 @@
 # @lightmill/log-client
 
+## 3.0.0
+
+### Major Changes
+
+New log client package to work with the new log api and the new log server.
+
 ## 3.0.0-beta.34
 
 ### Major Changes

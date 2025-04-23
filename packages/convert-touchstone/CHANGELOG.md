@@ -1,5 +1,17 @@
 # Change Log
 
+## 3.0.0
+
+### Major Changes
+
+- 508deac: Update export result so it matches @lightmill/static-design argument: (1) ensure ids are provided or generated for every tasks, (2) rename result's `runs` property to `timelines`.
+- 4bbaa8e: New convert touchstone API. Mapper options have been renamed to be singular: `preBlocks` is now `preBlock`, `trials` is now `trial`, etc.
+- 4bbaa8e: Distribute package as ES module only.
+
+### Minor Changes
+
+- 4bbaa8e: Refactor to typescript. The library now provides typescript types.
+
 ## 3.0.0-alpha.8
 
 ### Major Changes

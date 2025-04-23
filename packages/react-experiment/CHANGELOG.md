@@ -1,5 +1,11 @@
 # @lightmill/react-experiment
 
+## 3.0.0
+
+### Major Changes
+
+New @lightmill/react-experiment package to run experiments with react.
+
 ## 3.0.0-beta.30
 
 ### Patch Changes
