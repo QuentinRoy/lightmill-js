@@ -1,5 +1,11 @@
 # @lightmill/log-server
 
+## 3.0.2
+
+### Patch Changes
+
+- 082a7b9: Remove useless dependencies
+
 ## 3.0.1
 
 ### Patch Changes
