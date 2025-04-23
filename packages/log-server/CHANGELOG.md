@@ -1,5 +1,11 @@
 # @lightmill/log-server
 
+## 3.0.1
+
+### Patch Changes
+
+- 388f471: Add shebang to log-server's cli
+
 ## 3.0.0
 
 ### Major Changes
