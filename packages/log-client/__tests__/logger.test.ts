@@ -239,6 +239,34 @@ describe('LogClient#flush', () => {
     await logger.flush();
     await expect(server.waitForChangeRequests()).resolves.toMatchSnapshot();
   });
+
+  it('should flush even if flush is called multiple times', async ({
+    logger,
+    server,
+  }) => {
+    logger.addLog({
+      type: 'mock-log',
+      val: 1,
+      date: new Date('2021-06-03T02:00:00.000Z'),
+    });
+    logger.addLog({
+      type: 'mock-log',
+      val: 2,
+      date: new Date('2021-06-03T03:00:00.000Z'),
+    });
+    logger.addLog({
+      type: 'mock-log',
+      val: 3,
+      date: new Date('2021-06-03T04:00:00.000Z'),
+    });
+    let flush1 = logger.flush();
+    let flush2 = logger.flush();
+    let flush3 = logger.flush();
+    await expect(
+      Promise.all([flush1, flush2, flush3]),
+    ).resolves.toMatchSnapshot();
+    await expect(server.waitForChangeRequests()).resolves.toMatchSnapshot();
+  });
 });
 
 describe('LogClient#completeRun', () => {

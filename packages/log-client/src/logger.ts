@@ -87,12 +87,18 @@ export class LightmillLogger<
     if (this.#pendingLogs.size === 0) this.#emptyQueueCallback?.();
   }
 
+  #flushPromise: Promise<void> | null = null;
   async flush() {
-    if (this.#pendingLogs.size > 0) {
-      await new Promise<void>((resolve) => {
-        this.#emptyQueueCallback = resolve;
+    if (this.#pendingLogs.size === 0) return;
+    if (!this.#flushPromise) {
+      this.#flushPromise = new Promise<void>((resolve) => {
+        this.#emptyQueueCallback = () => {
+          this.#flushPromise = null;
+          resolve();
+        };
       });
     }
+    await this.#flushPromise;
     if (this.#error) {
       throw this.#error;
     }

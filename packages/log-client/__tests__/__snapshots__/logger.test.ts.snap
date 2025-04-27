@@ -159,3 +159,91 @@ exports[`LogClient#flush > should flush 1`] = `
   },
 ]
 `;
+
+exports[`LogClient#flush > should flush even if flush is called multiple times 1`] = `
+[
+  undefined,
+  undefined,
+  undefined,
+]
+`;
+
+exports[`LogClient#flush > should flush even if flush is called multiple times 2`] = `
+[
+  {
+    "body": {
+      "data": {
+        "attributes": {
+          "logType": "mock-log",
+          "number": 1,
+          "values": {
+            "date": "2021-06-03T02:00:00.000Z",
+            "val": 1,
+          },
+        },
+        "relationships": {
+          "run": {
+            "data": {
+              "id": "run-id",
+              "type": "runs",
+            },
+          },
+        },
+        "type": "logs",
+      },
+    },
+    "method": "POST",
+    "url": "https://server.test/api/logs",
+  },
+  {
+    "body": {
+      "data": {
+        "attributes": {
+          "logType": "mock-log",
+          "number": 2,
+          "values": {
+            "date": "2021-06-03T03:00:00.000Z",
+            "val": 2,
+          },
+        },
+        "relationships": {
+          "run": {
+            "data": {
+              "id": "run-id",
+              "type": "runs",
+            },
+          },
+        },
+        "type": "logs",
+      },
+    },
+    "method": "POST",
+    "url": "https://server.test/api/logs",
+  },
+  {
+    "body": {
+      "data": {
+        "attributes": {
+          "logType": "mock-log",
+          "number": 3,
+          "values": {
+            "date": "2021-06-03T04:00:00.000Z",
+            "val": 3,
+          },
+        },
+        "relationships": {
+          "run": {
+            "data": {
+              "id": "run-id",
+              "type": "runs",
+            },
+          },
+        },
+        "type": "logs",
+      },
+    },
+    "method": "POST",
+    "url": "https://server.test/api/logs",
+  },
+]
+`;
