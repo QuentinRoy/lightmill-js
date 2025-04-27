@@ -1,5 +1,11 @@
 # @lightmill/log-client
 
+## 3.0.3
+
+### Patch Changes
+
+- 87d6281: Fix flush stalling when called multiple times without awaiting.
+
 ## 3.0.0
 
 ### Major Changes
