@@ -1,5 +1,3 @@
-#!/usr/bin/env node
-
 import cors from 'cors';
 import dotenv from 'dotenv';
 import express from 'express';
@@ -178,94 +176,96 @@ async function migrateDatabase({ database }: MigrateDatabaseParameter) {
 // Command line interface
 // ----------------------
 
-const _a = yargs(process.argv.slice(2))
-  .command(
-    'start',
-    'Start the server',
-    (yargs) => {
-      return yargs
-        .option('database', {
-          alias: 'd',
-          desc: 'Path to the database file',
-          type: 'string',
-          normalize: true,
-          default: dbPath,
-        })
-        .option('port', {
-          alias: 'p',
-          desc: 'Port to listen on',
-          type: 'number',
-          default: env.PORT,
-        })
-        .option('session-key', {
-          alias: 's',
-          desc: 'Secret to use for signing client cookies',
-          type: 'string',
-          default: env.SESSION_KEY,
-        })
-        .option('host-password', {
-          alias: 'w',
-          desc: 'Password for the host user',
-          type: 'string',
-          default: env.HOST_PASSWORD,
-        })
-        .help()
-        .alias('help', 'h')
-        .strict();
-    },
-    (argv) => start(argv).catch(handleError),
-  )
-  .command(
-    'migrate',
-    'Migrate the database',
-    (yargs) =>
-      yargs
-        .option('database', {
-          alias: 'd',
-          desc: 'Path to the database file',
-          type: 'string',
-          normalize: true,
-          default: dbPath,
-        })
-        .strict()
-        .help()
-        .alias('help', 'h'),
-    (argv) => migrateDatabase(argv).catch(handleError),
-  )
-  .command(
-    'export',
-    'Export logs',
-    (yargs) => {
-      return yargs
-        .option('output', {
-          alias: 'o',
-          desc: 'Path to the output file',
-          type: 'string',
-          normalize: true,
-        } as const)
-        .option('database', {
-          alias: 'd',
-          desc: 'Path to the database file',
-          type: 'string',
-          normalize: true,
-          default: dbPath,
-        })
-        .option('logType', { alias: 't', type: 'string' })
-        .option('experimentName', { alias: 'e', type: 'string' })
-        .strict()
-        .help()
-        .alias('help', 'h');
-    },
-    (argv) => exportLogs(argv).catch(handleError),
-  )
-  .demandCommand(1)
-  .scriptName('log-server')
-  .version(version)
-  .alias('version', 'V')
-  .usage('Usage: $0 <command> [options]')
-  .help()
-  .alias('help', 'h')
-  .strict().argv;
+export function cli() {
+  yargs(process.argv.slice(2))
+    .command(
+      'start',
+      'Start the server',
+      (yargs) => {
+        return yargs
+          .option('database', {
+            alias: 'd',
+            desc: 'Path to the database file',
+            type: 'string',
+            normalize: true,
+            default: dbPath,
+          })
+          .option('port', {
+            alias: 'p',
+            desc: 'Port to listen on',
+            type: 'number',
+            default: env.PORT,
+          })
+          .option('session-key', {
+            alias: 's',
+            desc: 'Secret to use for signing client cookies',
+            type: 'string',
+            default: env.SESSION_KEY,
+          })
+          .option('host-password', {
+            alias: 'w',
+            desc: 'Password for the host user',
+            type: 'string',
+            default: env.HOST_PASSWORD,
+          })
+          .help()
+          .alias('help', 'h')
+          .strict();
+      },
+      (argv) => start(argv).catch(handleError),
+    )
+    .command(
+      'migrate',
+      'Migrate the database',
+      (yargs) =>
+        yargs
+          .option('database', {
+            alias: 'd',
+            desc: 'Path to the database file',
+            type: 'string',
+            normalize: true,
+            default: dbPath,
+          })
+          .strict()
+          .help()
+          .alias('help', 'h'),
+      (argv) => migrateDatabase(argv).catch(handleError),
+    )
+    .command(
+      'export',
+      'Export logs',
+      (yargs) => {
+        return yargs
+          .option('output', {
+            alias: 'o',
+            desc: 'Path to the output file',
+            type: 'string',
+            normalize: true,
+          } as const)
+          .option('database', {
+            alias: 'd',
+            desc: 'Path to the database file',
+            type: 'string',
+            normalize: true,
+            default: dbPath,
+          })
+          .option('logType', { alias: 't', type: 'string' })
+          .option('experimentName', { alias: 'e', type: 'string' })
+          .strict()
+          .help()
+          .alias('help', 'h');
+      },
+      (argv) => exportLogs(argv).catch(handleError),
+    )
+    .demandCommand(1)
+    .scriptName('log-server')
+    .version(version)
+    .alias('version', 'V')
+    .usage('Usage: $0 <command> [options]')
+    .help()
+    .alias('help', 'h')
+    .strict();
+}
 
 function handleError(error: unknown) {
   log.error(error);

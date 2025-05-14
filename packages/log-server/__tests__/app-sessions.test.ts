@@ -5,7 +5,11 @@ import request from 'supertest';
 import { describe, test as vitestTest } from 'vitest';
 import type { ServerRequestContent } from '../src/app-utils.js';
 import { LogServer } from '../src/app.js';
-import { MockSessionStore, createMockStore } from './test-utils.js';
+import {
+  MockSessionStore,
+  createMockStore,
+  type MockStore,
+} from './test-utils.js';
 
 type BaseFixture = {
   store: MockStore;

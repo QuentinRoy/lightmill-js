@@ -12,7 +12,11 @@ import {
 import { LogServer } from '../src/app.js';
 import { StoreError } from '../src/store.js';
 import { arrayify } from '../src/utils.js';
-import { MockSessionStore, createMockStore } from './test-utils.js';
+import {
+  MockSessionStore,
+  createMockStore,
+  type MockStore,
+} from './test-utils.js';
 
 afterEach(() => {
   vi.resetAllMocks();

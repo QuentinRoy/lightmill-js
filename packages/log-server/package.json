@@ -18,7 +18,7 @@
     "dist"
   ],
   "bin": {
-    "log-server": "./dist/cli.js"
+    "log-server": "./dist/start-cli.js"
   },
   "scripts": {
     "build": "rm -rf dist && tsc -b tsconfig.build.json",

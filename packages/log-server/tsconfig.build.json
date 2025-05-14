@@ -5,7 +5,8 @@
     "strict": true,
     "rootDir": "./src",
     "outDir": "dist",
-    "exactOptionalPropertyTypes": false
+    "exactOptionalPropertyTypes": false,
+    "allowJs": true
   },
   "include": [
     "./src/**/*.ts",
