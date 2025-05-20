@@ -46,7 +46,24 @@ export function LogServer({
   sessionStore = new MemorySessionStore({ checkPeriod: 1000 * 60 * 60 * 24 }),
   baseUrl = '/',
 }: CreateLogServerOptions): { middleware: express.RequestHandler } {
-  const app = express.Router();
+  const app = express();
+
+  app.set('query parser', (str: string | null) => {
+    if (str == null) return {};
+    let params = new URLSearchParams(decodeURIComponent(str));
+    let values: Record<string, string[] | string> = {};
+    for (const [key, value] of params.entries()) {
+      let oldValue = values[key];
+      if (oldValue == null) {
+        values[key] = value;
+      } else if (Array.isArray(oldValue)) {
+        oldValue.push(value);
+      } else {
+        values[key] = [oldValue, value];
+      }
+    }
+    return values;
+  });
 
   app.use(express.json());
 
@@ -87,34 +104,6 @@ export function LogServer({
         },
       },
     }),
-  );
-
-  app.use(
-    (
-      request: express.Request,
-      _res: express.Response,
-      next: NextFunction,
-    ): void => {
-      let str = request.url.split('?')[1];
-      if (str == null) {
-        next();
-        return;
-      }
-      let params = new URLSearchParams(decodeURIComponent(str));
-      let values: Record<string, string[] | string> = {};
-      for (const [key, value] of params.entries()) {
-        let oldValue = values[key];
-        if (oldValue == null) {
-          values[key] = value;
-        } else if (Array.isArray(oldValue)) {
-          oldValue.push(value);
-        } else {
-          values[key] = [oldValue, value];
-        }
-      }
-      request.query = values;
-      next();
-    },
   );
 
   createTypedExpressServer<ServerApi>(

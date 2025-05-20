@@ -30,8 +30,8 @@
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",
     "@types/cookie-parser": "^1.4.8",
-    "@types/cors": "^2.8.17",
-    "@types/express": "^5.0.1",
+    "@types/cors": "^2.8.18",
+    "@types/express": "^5.0.2",
     "@types/express-session": "^1.18.1",
     "@types/node": "catalog:",
     "@types/supertest": "^6.0.3",
@@ -40,9 +40,9 @@
     "cross-env": "^7.0.3",
     "onchange": "^7.1.0",
     "string-dedent": "^3.0.1",
-    "supertest": "^7.1.0",
+    "supertest": "^7.1.1",
     "tsx": "catalog:",
-    "type-fest": "^4.39.1",
+    "type-fest": "^4.41.0",
     "typescript": "catalog:",
     "vitest": "catalog:"
   },
@@ -51,21 +51,21 @@
     "express": "^5.1.0"
   },
   "dependencies": {
-    "@gabriel/ts-pattern": "npm:@jsr/gabriel__ts-pattern@^5.6.2",
-    "better-sqlite3": "^11.9.1",
+    "@gabriel/ts-pattern": "npm:@jsr/gabriel__ts-pattern@^5.7.1",
+    "better-sqlite3": "^11.10.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "csv": "^6.3.11",
-    "dotenv": "^16.4.7",
+    "dotenv": "^16.5.0",
     "express": "^5.1.0",
-    "express-openapi-validator": "^5.4.9",
+    "express-openapi-validator": "5.4.9",
     "express-session": "^1.18.1",
-    "kysely": "^0.28.1",
+    "kysely": "^0.28.2",
     "loglevel": "^1.9.2",
     "memorystore": "^1.6.7",
-    "remeda": "^2.21.2",
+    "remeda": "^2.21.8",
     "yargs": "17.7.2",
-    "zod": "^3.24.2"
+    "zod": "^3.25.7"
   },
   "engines": {
     "node": "^22.x.x"

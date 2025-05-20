@@ -100,9 +100,13 @@ export type ApiOperation<
   M extends HttpMethod = HttpMethod,
 > = NonNullable<A[P][M]>;
 
+interface QueryParameter {
+  [key: string]: string | string[] | QueryParameter;
+}
+
 export interface RequestParameters {
   path?: Record<string, string>;
-  query?: Record<string, string | string[]>;
+  query?: QueryParameter;
   header?: Record<string, string>;
   cookie?: Record<string, string>;
 }

@@ -9,6 +9,7 @@ import {
   createAllRoute,
   createMockStore,
   MockSessionStore,
+  type MockStore,
 } from './test-utils.js';
 
 let allRoutes = createAllRoute();
