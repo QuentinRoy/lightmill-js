@@ -1,5 +1,11 @@
 # @lightmill/log-server
 
+## 3.1.0
+
+### Minor Changes
+
+- 93ae6d1: Allow canceling completed runs
+
 ## 3.0.2
 
 ### Patch Changes
