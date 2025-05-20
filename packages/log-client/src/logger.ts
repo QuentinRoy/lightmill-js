@@ -1,7 +1,7 @@
 import type { paths } from '@lightmill/log-api';
 import type { Client as FetchClient } from 'openapi-fetch';
 import type { JsonValue } from 'type-fest';
-import type { LogValuesSerializer } from './types.js';
+import type { LogValuesSerializer, RunStatus } from './types.js';
 import { RequestError } from './utils.js';
 
 interface Typed<Type extends string = string> {
@@ -10,21 +10,21 @@ interface Typed<Type extends string = string> {
 interface OptionallyDated {
   date?: Date;
 }
-
-type AnyLog = Record<string, JsonValue | Date | undefined> &
-  Typed &
-  OptionallyDated;
+interface JsonObjectAndDate {
+  [key: string]: JsonValue | Date | undefined | JsonObjectAndDate;
+}
+interface AnyLog extends Typed, OptionallyDated, JsonObjectAndDate {}
 
 export class LightmillLogger<
   ClientLog extends Typed & OptionallyDated = AnyLog,
 > {
   #serializeValues: LogValuesSerializer<ClientLog>;
   #runId: string;
-  #runStatus: 'running' | 'completed' | 'canceled' | 'interrupted' = 'running';
+  #runStatus: RunStatus = 'running';
   #lastLogNumber: number;
   #fetchClient: FetchClient<paths, `${string}/${string}`>;
   #pendingLogs = new Set<number>();
-  #emptyQueueCallback?: () => void;
+  #emptyQueueCallback: null | (() => void) = null;
   #error: Error | null = null;
 
   constructor({
@@ -75,6 +75,7 @@ export class LightmillLogger<
     let error = response.error == null ? null : new RequestError(response);
     this.#error = this.#error == null ? error : this.#error;
     this.#removePendingLog(logNumber);
+    if (this.#pendingLogs.size === 0) this.#emptyQueueCallback?.();
     if (error != null) throw error;
   }
 
@@ -84,7 +85,6 @@ export class LightmillLogger<
 
   async #removePendingLog(logNumber: number) {
     this.#pendingLogs.delete(logNumber);
-    if (this.#pendingLogs.size === 0) this.#emptyQueueCallback?.();
   }
 
   #flushPromise: Promise<void> | null = null;
@@ -94,6 +94,7 @@ export class LightmillLogger<
       this.#flushPromise = new Promise<void>((resolve) => {
         this.#emptyQueueCallback = () => {
           this.#flushPromise = null;
+          this.#emptyQueueCallback = null;
           resolve();
         };
       });

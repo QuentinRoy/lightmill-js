@@ -44,3 +44,5 @@ type ReplaceDateWithStringDeep<T> = T extends Date
     : T extends object
       ? { [K in keyof T]: ReplaceDateWithStringDeep<T[K]> }
       : T;
+
+export type RunStatus = 'running' | 'completed' | 'canceled' | 'interrupted';
