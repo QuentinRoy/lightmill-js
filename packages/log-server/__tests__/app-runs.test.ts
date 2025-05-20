@@ -3,7 +3,12 @@
 import { describe, vi, test as vitestTest } from 'vitest';
 import { StoreError, type RunStatus } from '../src/store.js';
 import { arrayify, firstStrict } from '../src/utils.js';
-import { createFixtureWithRuns, type FixtureWithRuns } from './test-utils.js';
+import {
+  createFixtureWithRuns,
+  generateCombinations,
+  runStatus,
+  type FixtureWithRuns,
+} from './test-utils.js';
 
 const it = vitestTest.extend<Fixture>({
   noRun: async ({}, use) => {
@@ -357,7 +362,10 @@ describe('LogServer: patch /runs/:run', () => {
     expect(store.setRunStatus).not.toHaveBeenCalled();
   });
 
-  it.for([
+  const allowedTransitions: Array<{
+    originalStatus: RunStatus;
+    targetStatus: RunStatus;
+  }> = [
     { originalStatus: 'idle', targetStatus: 'running' },
     { originalStatus: 'idle', targetStatus: 'canceled' },
     { originalStatus: 'running', targetStatus: 'canceled' },
@@ -365,7 +373,10 @@ describe('LogServer: patch /runs/:run', () => {
     { originalStatus: 'running', targetStatus: 'interrupted' },
     { originalStatus: 'interrupted', targetStatus: 'running' },
     { originalStatus: 'interrupted', targetStatus: 'canceled' },
-  ] satisfies Array<{ originalStatus: RunStatus; targetStatus: RunStatus }>)(
+    { originalStatus: 'completed', targetStatus: 'canceled' },
+  ];
+
+  it.for(allowedTransitions)(
     'changes the status of a run from $originalStatus to $targetStatus',
     async (
       { originalStatus, targetStatus },
@@ -395,21 +406,22 @@ describe('LogServer: patch /runs/:run', () => {
     },
   );
 
-  it.for([
-    { originalStatus: 'completed', targetStatus: 'canceled' },
-    { originalStatus: 'completed', targetStatus: 'idle' },
-    { originalStatus: 'completed', targetStatus: 'running' },
-    { originalStatus: 'completed', targetStatus: 'interrupted' },
-    { originalStatus: 'canceled', targetStatus: 'completed' },
-    { originalStatus: 'canceled', targetStatus: 'idle' },
-    { originalStatus: 'canceled', targetStatus: 'running' },
-    { originalStatus: 'canceled', targetStatus: 'interrupted' },
-    { originalStatus: 'idle', targetStatus: 'interrupted' },
-    { originalStatus: 'idle', targetStatus: 'completed' },
-    { originalStatus: 'running', targetStatus: 'idle' },
-    { originalStatus: 'interrupted', targetStatus: 'idle' },
-    { originalStatus: 'interrupted', targetStatus: 'completed' },
-  ] satisfies Array<{ originalStatus: RunStatus; targetStatus: RunStatus }>)(
+  const forbiddenTransitions: Array<{
+    originalStatus: RunStatus;
+    targetStatus: RunStatus;
+  }> = generateCombinations(runStatus)
+    .map(([originalStatus, targetStatus]) => ({ originalStatus, targetStatus }))
+    .filter(
+      (t) =>
+        t.originalStatus !== t.targetStatus &&
+        allowedTransitions.every(
+          (t2) =>
+            t2.originalStatus !== t.originalStatus ||
+            t.targetStatus !== t2.targetStatus,
+        ),
+    );
+
+  it.for(forbiddenTransitions)(
     'refuses to change the status of a run from $originalStatus to $targetStatus',
     async (
       { originalStatus, targetStatus },

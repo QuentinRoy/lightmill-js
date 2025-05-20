@@ -314,3 +314,24 @@ export type FixtureWithRuns<Role extends string = 'participant'> = {
   getRuns: () => Run[];
   role: Role;
 };
+
+export function generateCombinations<T>(values: Iterable<T>) {
+  let combinations: Array<[T, T]> = [];
+  for (let v1 of values) {
+    for (let v2 of values) {
+      combinations.push([v1, v2]);
+    }
+  }
+  return combinations;
+}
+
+export const runStatus = [
+  'canceled',
+  'completed',
+  'running',
+  'idle',
+  'interrupted',
+] as const;
+type ProvidedStatus = (typeof runStatus)[number];
+type ForgottenStatus = Exclude<RunStatus, ProvidedStatus>;
+const _isRunStatusComplete: ForgottenStatus extends never ? true : false = true;

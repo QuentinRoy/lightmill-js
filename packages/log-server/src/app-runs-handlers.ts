@@ -16,6 +16,7 @@ const allowedStatusTransitions = [
   { from: 'running', to: 'completed' },
   { from: 'idle', to: 'running' },
   { from: 'idle', to: 'canceled' },
+  { from: 'completed', to: 'canceled' },
 ] as const satisfies Array<{ from: RunStatus; to: RunStatus }>;
 
 export const runHandlers = (): SubServerDescription<'/runs'> => ({
