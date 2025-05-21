@@ -753,28 +753,40 @@ describe('SQLiteStore#setRunStatus', () => {
   it('refuses to update a completed run', async ({ expect, store, e1run1 }) => {
     await store.setRunStatus(e1run1, 'completed');
     await expect(
-      store.setRunStatus(e1run1, 'completed'),
+      store.setRunStatus(e1run1, 'idle'),
     ).rejects.toThrowErrorMatchingInlineSnapshot(
-      `[StoreError: Cannot update status of run 1 because the run is completed or canceled]`,
+      `[StoreError: Cannot change status of run 1 to idle because the run is completed and can only be canceled.]`,
     );
     await expect(
-      store.setRunStatus(e1run1, 'canceled'),
+      store.setRunStatus(e1run1, 'running'),
     ).rejects.toThrowErrorMatchingInlineSnapshot(
-      `[StoreError: Cannot update status of run 1 because the run is completed or canceled]`,
+      `[StoreError: Cannot change status of run 1 to running because the run is completed and can only be canceled.]`,
     );
+  });
+
+  it('cancels a completed run', async ({ expect, store, e1run1 }) => {
+    await store.setRunStatus(e1run1, 'completed');
+    await expect(
+      store.setRunStatus(e1run1, 'canceled'),
+    ).resolves.toBeUndefined();
   });
 
   it('refuses to update a canceled run', async ({ expect, store, e1run1 }) => {
     await store.setRunStatus(e1run1, 'canceled');
     await expect(
-      store.setRunStatus(e1run1, 'completed'),
+      store.setRunStatus(e1run1, 'running'),
     ).rejects.toThrowErrorMatchingInlineSnapshot(
-      `[StoreError: Cannot update status of run 1 because the run is completed or canceled]`,
+      `[StoreError: Cannot update status of run 1 because the run is canceled.]`,
     );
     await expect(
       store.setRunStatus(e1run1, 'canceled'),
     ).rejects.toThrowErrorMatchingInlineSnapshot(
-      `[StoreError: Cannot update status of run 1 because the run is completed or canceled]`,
+      `[StoreError: Cannot update status of run 1 because the run is canceled.]`,
+    );
+    await expect(
+      store.setRunStatus(e1run1, 'completed'),
+    ).rejects.toThrowErrorMatchingInlineSnapshot(
+      `[StoreError: Cannot update status of run 1 because the run is canceled.]`,
     );
   });
 

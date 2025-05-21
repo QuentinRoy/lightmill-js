@@ -288,11 +288,20 @@ export class SQLiteStore {
         if (
           e instanceof SQLiteDB.SqliteError &&
           e.code === 'SQLITE_CONSTRAINT_TRIGGER' &&
-          e.message ===
-            'Cannot update run status when the run is completed or canceled'
+          e.message === 'Completed runs can only be canceled'
         ) {
           throw new StoreError(
-            `Cannot update status of run ${runId} because the run is completed or canceled`,
+            `Cannot change status of run ${runId} to ${status} because the run is completed and can only be canceled.`,
+            StoreError.RUN_HAS_ENDED,
+            { cause: e },
+          );
+        } else if (
+          e instanceof SQLiteDB.SqliteError &&
+          e.code === 'SQLITE_CONSTRAINT_TRIGGER' &&
+          e.message === 'Cannot update run status when the run is canceled'
+        ) {
+          throw new StoreError(
+            `Cannot update status of run ${runId} because the run is canceled.`,
             StoreError.RUN_HAS_ENDED,
             { cause: e },
           );
