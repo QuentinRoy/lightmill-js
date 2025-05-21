@@ -58,21 +58,29 @@ export class LightmillLogger<
     const logNumber = this.#lastLogNumber + 1;
     this.#lastLogNumber = logNumber;
     this.#addPendingLog(logNumber);
-    let response = await this.#fetchClient.POST('/logs', {
-      credentials: 'include',
-      body: {
-        data: {
-          type: 'logs',
-          attributes: {
-            logType: type,
-            number: logNumber,
-            values: this.#serializeValues({ date: new Date(), ...values }),
+    let error: Error | null = null;
+    try {
+      let response = await this.#fetchClient.POST('/logs', {
+        credentials: 'include',
+        body: {
+          data: {
+            type: 'logs',
+            attributes: {
+              logType: type,
+              number: logNumber,
+              values: this.#serializeValues({ date: new Date(), ...values }),
+            },
+            relationships: { run: { data: { type: 'runs', id: this.#runId } } },
           },
-          relationships: { run: { data: { type: 'runs', id: this.#runId } } },
         },
-      },
-    });
-    let error = response.error == null ? null : new RequestError(response);
+      });
+      error = response.error == null ? null : new RequestError(response);
+    } catch (caughtError) {
+      error =
+        caughtError instanceof Error
+          ? caughtError
+          : new Error(String(caughtError));
+    }
     this.#error = this.#error == null ? error : this.#error;
     this.#removePendingLog(logNumber);
     if (this.#pendingLogs.size === 0) this.#emptyQueueCallback?.();

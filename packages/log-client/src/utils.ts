@@ -1,4 +1,4 @@
-type ErrorResource = { status: string; code: string; detail?: string };
+type ErrorResource = { status: string; code?: string; detail?: string };
 
 export class RequestError extends Error {
   #name = 'RequestError';
@@ -8,13 +8,27 @@ export class RequestError extends Error {
 
   constructor(fetchResponse: {
     response: Response;
-    error: { errors: ErrorResource[] };
+    error: string | { errors: ErrorResource[] };
   }) {
     super(
-      fetchResponse.error.errors[0].detail ??
-        fetchResponse.error.errors[0].code,
+      typeof fetchResponse.error === 'string'
+        ? fetchResponse.error !== ''
+          ? fetchResponse.error
+          : fetchResponse.response.statusText
+        : (fetchResponse.error.errors?.[0].detail ??
+            fetchResponse.error.errors?.[0].code ??
+            fetchResponse.error.errors?.[0].status ??
+            fetchResponse.response.statusText),
     );
-    this.#errors = fetchResponse.error.errors;
+    if (typeof fetchResponse.error === 'string') {
+      let error: ErrorResource = { status: fetchResponse.response.statusText };
+      if (fetchResponse.error !== '') {
+        error.detail = fetchResponse.error;
+      }
+      this.#errors = [error];
+    } else {
+      this.#errors = fetchResponse.error.errors;
+    }
     this.#status = fetchResponse.response.status;
     this.#statusText = fetchResponse.response.statusText;
   }
