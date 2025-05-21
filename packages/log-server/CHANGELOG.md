@@ -1,5 +1,11 @@
 # @lightmill/log-server
 
+## 3.1.1
+
+### Patch Changes
+
+- e8d8347: Fix broken requests with query strings
+
 ## 3.1.0
 
 ### Minor Changes

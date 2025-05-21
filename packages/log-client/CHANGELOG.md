@@ -1,5 +1,11 @@
 # @lightmill/log-client
 
+## 3.1.1
+
+### Patch Changes
+
+- 0572f38: Fix failed requests not being properly handled.
+
 ## 3.0.3
 
 ### Patch Changes
