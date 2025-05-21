@@ -1,5 +1,11 @@
 # @lightmill/log-server
 
+## 3.1.2
+
+### Patch Changes
+
+- 3900ae4: Fix cancelation of completed runs. Requires database migration.
+
 ## 3.1.1
 
 ### Patch Changes
