@@ -122,7 +122,7 @@ export function LogServer({
       err: Error,
       req: express.Request,
       res: express.Response,
-      _next: NextFunction,
+      next: NextFunction,
     ) => {
       if (
         err instanceof OpenApiValidator.error.BadRequest ||
@@ -149,7 +149,7 @@ export function LogServer({
           .json({ errors: errorEntries.map((error) => error.content) });
         return;
       }
-      throw err;
+      next(err);
     },
   );
 
