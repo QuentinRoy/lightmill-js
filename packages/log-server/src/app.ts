@@ -170,7 +170,7 @@ export function LogServer({
             {
               status: 'Internal Server Error',
               code: 'INTERNAL_SERVER',
-              detail: mode !== 'production' ? err.message : undefined,
+              detail: err.message,
             },
           ],
         } satisfies components['schemas']['NonRouterErrorDocument']);
