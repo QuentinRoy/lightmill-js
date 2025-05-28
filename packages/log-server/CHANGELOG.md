@@ -1,5 +1,11 @@
 # @lightmill/log-server
 
+## 3.2.0
+
+### Minor Changes
+
+- 24579e5: Stop hiding error messages from client
+
 ## 3.1.2
 
 ### Patch Changes
