@@ -30,21 +30,15 @@ model Resource<
 model ResourcePatch<Type extends string, Attributes extends {}>
   is Resource<Type, Utils.Partial<Attributes>>;
 
-/**
- * A JSON API document.
- */
+// JSON API document with data.
 model DataDocument<Data> {
   data: Data;
 }
 
-/**
- * A JSON API document with no data. Used for empty responses.
- */
+// JSON API document with no data. Used for empty responses.
 model EmptyDataDocument is DataDocument<null>;
 
-/**
- * A JSON API error document.
- */
+// A JSON API error document that contains an array of errors.
 model ErrorDocument<E extends Error> {
   errors: E[];
 }
@@ -55,9 +49,7 @@ model BaseError {
   detail?: string;
 }
 
-/**
- * A JSON API error object.
- */
+// JSON API error object with a code and status.
 model Error<
   Code extends string = string,
   Status extends HttpStatus = HttpStatus
@@ -79,3 +71,5 @@ enum HttpStatus {
   `415`: "Unsupported Media Type",
   `500`: "Internal Server Error",
 }
+
+alias APIContentType = "application/vnd.api+json";

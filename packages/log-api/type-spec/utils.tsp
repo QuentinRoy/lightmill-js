@@ -25,11 +25,13 @@ model ForbiddenErrorDocTemplate<Code extends string = "FORBIDDEN">
 model ForbiddenErrorDoc is ForbiddenErrorDocTemplate<"FORBIDDEN">;
 model ForbiddenErrorResponse extends ForbiddenResponse {
   @body doc: ForbiddenErrorDoc;
+  @header contentType: JsonApi.APIContentType;
 }
 
 model InvalidCredentialsError is Error<"INVALID_CREDENTIALS", HttpStatus.`403`>;
 model InvalidCredentialsErrorResponse extends ForbiddenResponse {
   @body doc: ErrorDocument<InvalidCredentialsError>;
+  @header contentType: JsonApi.APIContentType;
 }
 
 model NotFoundError<Code extends string = "NOT_FOUND">
@@ -42,6 +44,7 @@ model NotFoundErrorDocTemplate<Code extends string = "NOT_FOUND">
 model NotFoundErrorDoc is NotFoundErrorDocTemplate<"NOT_FOUND">;
 model NotFoundErrorResponse extends NotFoundResponse {
   @body doc: NotFoundErrorDoc;
+  @header contentType: JsonApi.APIContentType;
 }
 
 /**
@@ -50,6 +53,7 @@ model NotFoundErrorResponse extends NotFoundResponse {
 model SessionRequiredError is Error<"SESSION_REQUIRED", HttpStatus.`403`>;
 model SessionRequiredErrorResponse extends ForbiddenResponse {
   @body doc: ErrorDocument<SessionRequiredError>;
+  @header contentType: JsonApi.APIContentType;
 }
 
 model UnsupportedMediaTypeError
@@ -61,6 +65,7 @@ model UnsupportedMediaTypeErrorDoc
   is ErrorDocument<Error<"UNSUPPORTED_MEDIA_TYPE", HttpStatus.`415`>>;
 model UnsupportedMediaTypeErrorResponse extends Response<415> {
   @body doc: ErrorDocument<UnsupportedMediaTypeError>;
+  @header contentType: JsonApi.APIContentType;
 }
 
 alias CookieSessionName = "lightmill-session-id";
