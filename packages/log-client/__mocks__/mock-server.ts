@@ -5,10 +5,14 @@ import {
   HttpResponse,
   type HttpResponseResolver,
   RequestHandler,
+  type StrictRequest,
 } from 'msw';
 import { setupServer, SetupServerApi } from 'msw/node';
 import type { RequiredKeysOf } from 'type-fest';
 import { test } from 'vitest';
+import { apiMediaType } from '../src/utils.js';
+
+export type ApiMediaType = typeof apiMediaType;
 
 type ApiReponseCode<
   Path extends keyof paths,
@@ -27,7 +31,7 @@ type ApiResponse<
   [P in Path]: {
     [M in Method]: {
       responses: {
-        [S in Status]: { content: { 'application/json': infer R } };
+        [S in Status]: { content: { [K in ApiMediaType]: infer R } };
       };
     };
   };
@@ -41,7 +45,7 @@ type ApiRequestBody<
 > = paths extends {
   [P in Path]: {
     [M in Method]: {
-      requestBody: { content: { 'application/json': infer R } };
+      requestBody: { content: { [K in ApiMediaType]: infer R } };
     };
   };
 }
@@ -413,8 +417,26 @@ function createMethods(baseUrl: string) {
     (p: string, handler: HttpResponseResolver) => HttpHandler
   > = {};
   for (let method of ['get', 'put', 'post', 'patch', 'delete'] as const) {
-    result[method] = (path, handler) =>
-      http[method](`${baseUrl}${path}`, handler);
+    result[method] = (path, handler) => {
+      return http[method](`${baseUrl}${path}`, (...args) => {
+        // The log server isn't as strict, but we want to ensure that the
+        // client is using the correct headers.
+        try {
+          checkHeaders(args[0].request);
+        } catch (err: unknown) {
+          if (!(err instanceof Error)) {
+            throw new Error(
+              `Unexpected error type: ${typeof err}. Expected an Error.`,
+            );
+          }
+          return HttpResponse.json(
+            { errors: [{ message: err.message }] },
+            { status: 400 },
+          );
+        }
+        return handler(...args);
+      });
+    };
   }
 
   return result;
@@ -459,4 +481,15 @@ function parseUrlQuery(url: string) {
     acc[key] = values;
     return acc;
   }, {});
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function checkHeaders(request: StrictRequest<any>) {
+  if (request.body == null) return;
+  const actualContentType = request.headers.get('content-type');
+  if (actualContentType !== apiMediaType) {
+    throw new Error(
+      `Expected 'content-type' header to be '${apiMediaType}', but got '${actualContentType}'`,
+    );
+  }
 }

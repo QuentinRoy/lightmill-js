@@ -40,7 +40,10 @@ const it = serverTest.extend<{
     runId: 'run-id',
   }),
   logger: async ({ server, run }, use) => {
-    const fetchClient = createClient<paths>({ baseUrl: server.getBaseUrl() });
+    const fetchClient = createClient<paths>({
+      baseUrl: server.getBaseUrl(),
+      headers: { accept: 'application/json' },
+    });
     const logger = new LightmillLogger({
       fetchClient,
       ...run,
@@ -193,7 +196,10 @@ describe('LogClient#addLog (after resume)', () => {
       },
     ]);
     const logger = new LightmillLogger({
-      fetchClient: createClient({ baseUrl: 'https://server.test/api' }),
+      fetchClient: createClient({
+        baseUrl: 'https://server.test/api',
+        headers: { contentType: 'application/vnd.api+json' },
+      }),
       runId: 'test-run',
       lastLogNumber: 4,
       serializeLog: (log) => JSON.parse(JSON.stringify(log)),

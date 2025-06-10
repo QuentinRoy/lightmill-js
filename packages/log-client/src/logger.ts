@@ -2,7 +2,7 @@ import type { paths } from '@lightmill/log-api';
 import type { Client as FetchClient } from 'openapi-fetch';
 import type { JsonValue } from 'type-fest';
 import type { LogValuesSerializer, RunStatus } from './types.js';
-import { RequestError } from './utils.js';
+import { apiMediaType, RequestError } from './utils.js';
 
 interface Typed<Type extends string = string> {
   type: Type;
@@ -62,6 +62,7 @@ export class LightmillLogger<
     try {
       let response = await this.#fetchClient.POST('/logs', {
         credentials: 'include',
+        headers: { 'content-type': apiMediaType },
         body: {
           data: {
             type: 'logs',
@@ -135,6 +136,7 @@ export class LightmillLogger<
     let response = await this.#fetchClient.PATCH('/runs/{id}', {
       credentials: 'include',
       params: { path: { id: this.#runId } },
+      headers: { 'content-type': apiMediaType },
       body: {
         data: {
           type: 'runs',
