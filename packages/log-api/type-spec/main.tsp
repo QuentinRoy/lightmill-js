@@ -29,6 +29,7 @@ namespace Session {
 
   model NotFoundErrorResponse extends NotFoundResponse {
     @body doc: NotFoundErrorDocTemplate<"SESSION_NOT_FOUND">;
+    @header contentType: JsonApi.APIContentType;
   }
 
   enum Include {
@@ -56,9 +57,11 @@ namespace Session {
   op post(
     @body doc: JsonApi.DataDocument<Resource>,
     @header Authorization?: string,
+    @header contentType: JsonApi.APIContentType,
   ): {
     @statusCode statusCode: 201;
     @body doc: JsonApi.DataDocument<ResourceIdentifier>;
+    @header contentType: JsonApi.APIContentType;
     @header("Set-Cookie") sessionCookie: string;
     @header("Location") location: string;
   } | InvalidCredentialsErrorResponse | {
@@ -67,18 +70,21 @@ namespace Session {
       "SESSION_EXISTS",
       JsonApi.HttpStatus.`409`
     >>;
+    @header contentType: JsonApi.APIContentType;
   };
 
   @get
   @useAuth(CookieSessionAuth | NoAuth)
   op get(@path id: string, @query include?: Array<Include> | Include): {
     @body doc: JsonApi.DataDocument<Resource> & Includes;
+    @header contentType: JsonApi.APIContentType;
   } | NotFoundErrorResponse;
 
   @delete
   @useAuth(CookieSessionAuth | NoAuth)
   op delete(@path id: string): {
     @body doc: JsonApi.EmptyDataDocument;
+    @header contentType: JsonApi.APIContentType;
   } | NotFoundErrorResponse;
 }
 
@@ -94,12 +100,14 @@ namespace Experiment {
 
   model NotFoundErrorResponse extends NotFoundResponse {
     @body doc: NotFoundErrorDocTemplate<"EXPERIMENT_NOT_FOUND">;
+    @header contentType: JsonApi.APIContentType;
   }
 
   @get
   @useAuth(CookieSessionAuth | NoAuth)
   op getCollection(@query `filter[name]`?: string | string[]): {
     @body doc: JsonApi.DataDocument<Resource[]>;
+    @header contentType: JsonApi.APIContentType;
   } | ForbiddenErrorResponse | SessionRequiredErrorResponse;
 
   @get
@@ -107,6 +115,7 @@ namespace Experiment {
   op getSingle(@path id: string):
     | {
         @body doc: JsonApi.DataDocument<Resource>;
+        @header contentType: JsonApi.APIContentType;
       }
     | ForbiddenErrorResponse
     | NotFoundErrorResponse
@@ -114,11 +123,15 @@ namespace Experiment {
 
   @post
   @useAuth(CookieSessionAuth | NoAuth)
-  op post(@body experiment: JsonApi.DataDocument<Resource>):
+  op post(
+    @body experiment: JsonApi.DataDocument<Resource>,
+    @header contentType: JsonApi.APIContentType,
+  ):
     | {
         @statusCode statusCode: 201;
         @header("Location") location: string;
         @body doc: JsonApi.DataDocument<ResourceIdentifier>;
+        @header contentType: JsonApi.APIContentType;
       }
     | ForbiddenErrorResponse
     | SessionRequiredErrorResponse
@@ -128,6 +141,7 @@ namespace Experiment {
           "EXPERIMENT_EXISTS",
           JsonApi.HttpStatus.`409`
         >>;
+        @header contentType: JsonApi.APIContentType;
       };
 }
 
@@ -176,11 +190,13 @@ namespace Run {
 
   model NotFoundErrorResponse extends NotFoundResponse {
     @body doc: NotFoundErrorDocTemplate<"RUN_NOT_FOUND">;
+    @header contentType: JsonApi.APIContentType;
   }
 
   model OngoingRunsErrorResponse extends ForbiddenResponse {
     @statusCode statusCode: 403;
     @body doc: ForbiddenErrorDocTemplate<"ONGOING_RUNS">;
+    @header contentType: JsonApi.APIContentType;
   }
 
   /**
@@ -213,11 +229,15 @@ namespace Run {
 
   @useAuth(CookieSessionAuth)
   @post
-  op post(@body run: JsonApi.DataDocument<Run.Resource>):
+  op post(
+    @body run: JsonApi.DataDocument<Run.Resource>,
+    @header contentType: JsonApi.APIContentType,
+  ):
     | {
         @statusCode statusCode: 201;
         @body doc: JsonApi.DataDocument<ResourceIdentifier>;
         @header("Location") location: string;
+        @header contentType: JsonApi.APIContentType;
       }
     | SessionRequiredErrorResponse
     | ForbiddenErrorResponse
@@ -228,6 +248,7 @@ namespace Run {
           "RUN_EXISTS",
           JsonApi.HttpStatus.`409`
         >>;
+        @header contentType: JsonApi.APIContentType;
       };
 
   @get
@@ -235,6 +256,7 @@ namespace Run {
   op getSingle(@path id: string, @query include?: Array<Include> | Include):
     | {
         @body doc: JsonApi.DataDocument<Resource> & Includes;
+        @header contentType: JsonApi.APIContentType;
       }
     | SessionRequiredErrorResponse
     | ForbiddenErrorResponse
@@ -251,14 +273,20 @@ namespace Run {
     @query include?: Array<Include> | Include,
   ): {
     @body doc: JsonApi.DataDocument<Resource[]> & Includes;
+    @header contentType: JsonApi.APIContentType;
   } | ForbiddenErrorResponse | SessionRequiredErrorResponse;
 
   @patch(#{ implicitOptionality: false })
   @useAuth(CookieSessionAuth)
-  op patch(@path id: string, @body run: JsonApi.DataDocument<ResourcePatch>):
+  op patch(
+    @path id: string,
+    @body run: JsonApi.DataDocument<ResourcePatch>,
+    @header contentType: JsonApi.APIContentType,
+  ):
     | {
         @statusCode statusCode: 200;
         @body doc: JsonApi.DataDocument<Resource>;
+        @header contentType: JsonApi.APIContentType;
       }
     | {
         @statusCode statusCode: 403;
@@ -270,6 +298,8 @@ namespace Run {
           | "PENDING_LOGS"
           | "INVALID_ROLE"
           | "INVALID_RUN_ID">;
+
+        @header contentType: JsonApi.APIContentType;
       }
     | OngoingRunsErrorResponse
     | NotFoundErrorResponse
@@ -331,11 +361,12 @@ namespace Log {
 
   model NotFoundErrorResponse extends NotFoundResponse {
     @body doc: NotFoundErrorDocTemplate<"LOG_NOT_FOUND">;
+    @header contentType: JsonApi.APIContentType;
   }
 
   /**
    * Get all logs, optionally filtered using query parameters.
-   * `Accept` header can be used to request CSV format.
+   * Defaults to CSV format so `Accept` header is required to get JSON.
    */
   @get
   @useAuth(CookieSessionAuth)
@@ -349,20 +380,22 @@ namespace Log {
     @query `filter[run.name]`?: string | string[],
     @query `filter[run.id]`?: string | string[],
     @query include?: Include | Include[],
-    @header accept?: "application/json" | "text/csv",
+    @header accept?: JsonApi.APIContentType | "text/csv",
   ):
     | {
         @statusCode statusCode: 200;
         @body doc: JsonApi.DataDocument<Resource[]> & Includes;
+        @header contentType: JsonApi.APIContentType;
       }
     | {
         @statusCode statusCode: 200;
-        @header("Content-Type") contentType: "text/csv";
+        @header contentType: "text/csv";
         @body csv: string;
       }
     | {
         @statusCode statusCode: 400;
         @body doc: InvalidQueryParameterDoc;
+        @header contentType: JsonApi.APIContentType;
       }
     | ForbiddenErrorResponse
     | UnsupportedMediaTypeErrorResponse
@@ -371,17 +404,26 @@ namespace Log {
   @get
   @useAuth(CookieSessionAuth)
   op getSingle(@path id: string, @query include?: Include | Include[]):
-    | JsonApi.DataDocument<Resource>
+    | {
+        @body
+        body: JsonApi.DataDocument<Resource>;
+
+        @header contentType: JsonApi.APIContentType;
+      }
     | ForbiddenErrorResponse
     | NotFoundErrorResponse
     | SessionRequiredErrorResponse;
 
   @post
   @useAuth(CookieSessionAuth)
-  op post(@body log: JsonApi.DataDocument<Resource>):
+  op post(
+    @body log: JsonApi.DataDocument<Resource>,
+    @header contentType: JsonApi.APIContentType,
+  ):
     | {
         @statusCode statusCode: 201;
         @body doc: JsonApi.DataDocument<ResourceIdentifier>;
+        @header contentType: JsonApi.APIContentType;
         @header("Location") location: string;
       }
     | SessionRequiredErrorResponse
@@ -391,6 +433,8 @@ namespace Log {
 
         @body
         doc: ForbiddenErrorDocTemplate<"INVALID_RUN_STATUS" | "RUN_NOT_FOUND">;
+
+        @header contentType: JsonApi.APIContentType;
       }
     | {
         @statusCode statusCode: 409;
@@ -400,6 +444,8 @@ namespace Log {
           "LOG_NUMBER_EXISTS",
           JsonApi.HttpStatus.`409`
         >>;
+
+        @header contentType: JsonApi.APIContentType;
       };
 }
 
