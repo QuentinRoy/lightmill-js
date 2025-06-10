@@ -1,6 +1,6 @@
 import type { paths } from '@lightmill/log-api';
 import { describe, expect, vi } from 'vitest';
-import { serverTest } from '../__mocks__/mock-server.js';
+import { serverTest, type ApiMediaType } from '../__mocks__/mock-server.js';
 import { LightmillClient } from '../src/client.js';
 import { LightmillLogger } from '../src/logger.js';
 
@@ -376,12 +376,12 @@ describe('LogClient#startRun', () => {
 type Method = 'get' | 'post' | 'delete' | 'patch';
 
 type ApiBody<M extends Method, P extends keyof paths> = paths[P] extends {
-  [K in M]: { requestBody: { content: { 'application/json': infer B } } };
+  [K in M]: { requestBody: { content: { [K in ApiMediaType]: infer B } } };
 }
   ? B
   : paths[P] extends {
         [K in M]: {
-          requestBody?: { content: { 'application/json': infer B } };
+          requestBody?: { content: { [K in ApiMediaType]: infer B } };
         };
       }
     ? B | undefined

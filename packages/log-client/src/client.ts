@@ -9,6 +9,7 @@ import type {
   LogValuesSerializer,
 } from './types.js';
 import { assertNever, RequestError } from './utils.js';
+import { apiMediaType } from './utils.ts';
 
 export class LightmillClient<ClientLog extends LogBase = AnyLog> {
   #fetchClient;
@@ -266,6 +267,7 @@ export class LightmillClient<ClientLog extends LogBase = AnyLog> {
     let response = await this.#fetchClient.PATCH('/runs/{id}', {
       credentials: 'include',
       params: { path: { id: runId } },
+      headers: { 'content-type': apiMediaType },
       body: {
         data: {
           type: 'runs',
@@ -297,6 +299,7 @@ export class LightmillClient<ClientLog extends LogBase = AnyLog> {
     }
     let response = await this.#fetchClient.POST('/runs', {
       credentials: 'include',
+      headers: { 'content-type': apiMediaType },
       body: {
         data: {
           type: 'runs',
@@ -333,6 +336,7 @@ export class LightmillClient<ClientLog extends LogBase = AnyLog> {
     let session = await this.#getSession();
     if (session == null) {
       await this.#fetchClient.POST('/sessions', {
+        headers: { 'content-type': apiMediaType },
         body: {
           data: { type: 'sessions', attributes: { role: 'participant' } },
         },

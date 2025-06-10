@@ -64,3 +64,5 @@ export function assertNever(value: never, isCrashing: boolean = false): never {
   }
   return value;
 }
+
+export const apiMediaType = 'application/vnd.api+json';
