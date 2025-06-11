@@ -472,13 +472,12 @@ describe('LogServer: get /logs/{id}', () => {
         values: { x: 'x' },
       };
     });
-    let result = await api.get('/logs').expect(200);
+    let result = await api.get('/logs/log-id').expect(200);
     expect(store.getLogs.mock.calls).toMatchInlineSnapshot(`
       [
         [
           {
-            "experimentId": undefined,
-            "logType": undefined,
+            "logId": "log-id",
             "runId": [
               "run-id",
             ],
@@ -489,27 +488,25 @@ describe('LogServer: get /logs/{id}', () => {
     `);
     expect(result.body).toMatchInlineSnapshot(`
       {
-        "data": [
-          {
-            "attributes": {
-              "logType": "log-type",
-              "number": 5,
-              "values": {
-                "x": "x",
-              },
+        "data": {
+          "attributes": {
+            "logType": "log-type",
+            "number": 5,
+            "values": {
+              "x": "x",
             },
-            "id": "log-id",
-            "relationships": {
-              "run": {
-                "data": {
-                  "id": "run-id",
-                  "type": "runs",
-                },
-              },
-            },
-            "type": "logs",
           },
-        ],
+          "id": "log-id",
+          "relationships": {
+            "run": {
+              "data": {
+                "id": "run-id",
+                "type": "runs",
+              },
+            },
+          },
+          "type": "logs",
+        },
       }
     `);
   });
