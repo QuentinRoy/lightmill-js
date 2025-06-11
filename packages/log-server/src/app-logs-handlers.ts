@@ -21,7 +21,9 @@ export const logHandlers = (): SubServerDescription<'/logs'> => ({
       store,
       parameters: { query, headers },
     }): Promise<ServerHandlerResult<'/logs', 'get'>> {
-      let responseMimeType = getResponseMimeType(headers.accept);
+      let responseMimeType = getResponseMimeType(headers.accept, {
+        defaultMimeType: 'csv',
+      });
       let filter: AllFilter = {
         logType: query['filter[logType]'],
         runId: getAllowedAndFilteredRunIds(
@@ -155,10 +157,14 @@ export const logHandlers = (): SubServerDescription<'/logs'> => ({
   },
 });
 
+interface GetResponseMimeTypeOptions {
+  defaultMimeType?: LogResponseMimeType;
+}
 function getResponseMimeType(
   acceptHeader: string | undefined,
+  { defaultMimeType = 'json' }: GetResponseMimeTypeOptions = {},
 ): LogResponseMimeType {
-  let format: LogResponseMimeType = 'json';
+  let format: LogResponseMimeType = defaultMimeType;
   if (acceptHeader != null) {
     for (let accept of acceptHeader.split(',')) {
       if (accept.includes('csv')) {
