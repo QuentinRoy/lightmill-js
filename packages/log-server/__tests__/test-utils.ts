@@ -7,6 +7,7 @@ import supertest from 'supertest';
 import type { RequiredKeysOf, Simplify, ValueOf } from 'type-fest';
 import { vi, type Mock } from 'vitest';
 import type { HttpMethod } from '../src/api-utils.js';
+import { apiMediaType } from '../src/app-utils.ts';
 import { LogServer } from '../src/app.js';
 import type {
   AllFilter,
@@ -270,6 +271,7 @@ export async function createFixtureWithRuns({
   await api
     .post('/sessions')
     .auth('host user', 'host password')
+    .set('Content-Type', apiMediaType)
     .send({ data: { type: 'sessions', attributes: { role } } })
     .expect(201);
   const experiments = await store.getExperiments();
@@ -335,3 +337,7 @@ export const runStatus = [
 type ProvidedStatus = (typeof runStatus)[number];
 type ForgottenStatus = Exclude<RunStatus, ProvidedStatus>;
 const _isRunStatusComplete: ForgottenStatus extends never ? true : false = true;
+
+export const apiContentTypeRegExp = new RegExp(
+  `^${apiMediaType.replaceAll(/(\.|\/|\+)/g, '\\$1')}(;\\s*charset=[^\\s]+)?$`,
+);

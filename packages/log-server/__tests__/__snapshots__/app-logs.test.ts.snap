@@ -219,9 +219,7 @@ exports[`LogServer: get /logs > returns logs as json by default 1`] = `
       "experimentId": undefined,
       "logType": undefined,
       "runId": undefined,
-      "runStatus": [
-        "-canceled",
-      ],
+      "runStatus": "-canceled",
     },
   ],
 ]
@@ -282,9 +280,7 @@ exports[`LogServer: get /logs > returns logs as json if json is the first suppor
       "experimentId": undefined,
       "logType": undefined,
       "runId": undefined,
-      "runStatus": [
-        "-canceled",
-      ],
+      "runStatus": "-canceled",
     },
   ],
 ]
@@ -347,9 +343,7 @@ exports[`LogServer: get /logs > returns only logs a participant has access to 1`
       "runId": [
         "that-run",
       ],
-      "runStatus": [
-        "-canceled",
-      ],
+      "runStatus": "-canceled",
     },
   ],
 ]

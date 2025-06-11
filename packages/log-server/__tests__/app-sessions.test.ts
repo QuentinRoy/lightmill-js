@@ -3,10 +3,11 @@
 import express, { type Application } from 'express';
 import request from 'supertest';
 import { describe, test as vitestTest } from 'vitest';
-import type { ServerRequestContent } from '../src/app-utils.js';
+import { apiMediaType, type ServerRequestContent } from '../src/app-utils.js';
 import { LogServer } from '../src/app.js';
 import {
   MockSessionStore,
+  apiContentTypeRegExp,
   createMockStore,
   type MockStore,
 } from './test-utils.js';
@@ -50,6 +51,7 @@ describe('LogServer: post /sessions', () => {
   it('can set up a participant session', async ({ api }) => {
     await api
       .post('/sessions')
+      .set('content-type', apiMediaType)
       .send({
         data: { type: 'sessions', attributes: { role: 'participant' } },
       } satisfies ServerRequestContent<'/sessions', 'post'>['body'])
@@ -60,12 +62,14 @@ describe('LogServer: post /sessions', () => {
           attributes: { role: 'participant' },
           relationships: { runs: { data: [] } },
         },
-      });
+      })
+      .expect('Content-Type', apiContentTypeRegExp);
   });
 
   it('refuses to create a session for an unknown role', async ({ api }) => {
     await api
       .post('/sessions')
+      .set('content-type', apiMediaType)
       .send({
         data: {
           type: 'sessions',
@@ -88,6 +92,7 @@ describe('LogServer: post /sessions', () => {
     let api = request.agent(app);
     await api
       .post('/sessions')
+      .set('content-type', apiMediaType)
       .send({ data: { type: 'sessions', attributes: { role: 'host' } } })
       .expect(201, {
         data: {
@@ -96,7 +101,8 @@ describe('LogServer: post /sessions', () => {
           attributes: { role: 'host' },
           relationships: { runs: { data: [] } },
         },
-      });
+      })
+      .expect('Content-Type', apiContentTypeRegExp);
   });
 
   it('creates a host session if the provided password is correct', async ({
@@ -105,6 +111,7 @@ describe('LogServer: post /sessions', () => {
     await api
       .post('/sessions')
       .auth('host user', 'host password', { type: 'basic' })
+      .set('content-type', apiMediaType)
       .send({ data: { type: 'sessions', attributes: { role: 'host' } } })
       .expect('Set-Cookie', /lightmill-session-id=.+;\s*Path=\/;\s*HttpOnly/)
       .expect(201, {
@@ -114,7 +121,8 @@ describe('LogServer: post /sessions', () => {
           attributes: { role: 'host' },
           relationships: { runs: { data: [] } },
         },
-      });
+      })
+      .expect('Content-Type', apiContentTypeRegExp);
   });
 
   it('refuses to create a host session if the provided password is incorrect', async ({
@@ -123,6 +131,7 @@ describe('LogServer: post /sessions', () => {
     await api
       .post('/sessions')
       .auth('host user', 'not the host password', { type: 'basic' })
+      .set('content-type', apiMediaType)
       .send({ data: { type: 'sessions', attributes: { role: 'host' } } })
       .expect(403, {
         errors: [
@@ -132,7 +141,8 @@ describe('LogServer: post /sessions', () => {
             detail: 'Invalid credentials for role: host',
           },
         ],
-      });
+      })
+      .expect('Content-Type', apiContentTypeRegExp);
     await api.get('/sessions/current').expect(404);
   });
 
@@ -141,6 +151,7 @@ describe('LogServer: post /sessions', () => {
   }) => {
     await api
       .post('/sessions')
+      .set('content-type', apiMediaType)
       .send({ data: { type: 'sessions', attributes: { role: 'host' } } })
       .expect(403, {
         errors: [
@@ -150,17 +161,20 @@ describe('LogServer: post /sessions', () => {
             detail: 'Invalid credentials for role: host',
           },
         ],
-      });
+      })
+      .expect('Content-Type', apiContentTypeRegExp);
     await api.get('/sessions/current').expect(404);
   });
 
   it('refuses to create a session if there is already one', async ({ api }) => {
     await api
       .post('/sessions')
+      .set('content-type', apiMediaType)
       .send({ data: { type: 'sessions', attributes: { role: 'participant' } } })
       .expect(201);
     await api
       .post('/sessions')
+      .set('content-type', apiMediaType)
       .send({ data: { type: 'sessions', attributes: { role: 'participant' } } })
       .expect(409, {
         errors: [
@@ -170,7 +184,8 @@ describe('LogServer: post /sessions', () => {
             detail: 'Session already exists, delete it first',
           },
         ],
-      });
+      })
+      .expect('Content-Type', apiContentTypeRegExp);
   });
 });
 
@@ -188,7 +203,8 @@ describe('LogServer: get /sessions/{id}', () => {
             detail: 'Session current not found',
           },
         ],
-      });
+      })
+      .expect('Content-Type', apiContentTypeRegExp);
   });
 
   it('returns a 404 error if trying to get any session other than current', async ({
@@ -196,6 +212,7 @@ describe('LogServer: get /sessions/{id}', () => {
   }) => {
     await api
       .post('/sessions')
+      .set('content-type', apiMediaType)
       .send({ data: { type: 'sessions', attributes: { role: 'participant' } } })
       .expect(201);
     await api
@@ -208,12 +225,14 @@ describe('LogServer: get /sessions/{id}', () => {
             detail: 'Session something-else not found',
           },
         ],
-      });
+      })
+      .expect('Content-Type', apiContentTypeRegExp);
   });
 
   it('returns a participant session', async ({ api }) => {
     await api
       .post('/sessions')
+      .set('content-type', apiMediaType)
       .send({ data: { type: 'sessions', attributes: { role: 'participant' } } })
       .expect(201);
     await api
@@ -225,13 +244,15 @@ describe('LogServer: get /sessions/{id}', () => {
           attributes: { role: 'participant' },
           relationships: { runs: { data: [] } },
         },
-      });
+      })
+      .expect('Content-Type', apiContentTypeRegExp);
   });
 
   it('returns a host session', async ({ api }) => {
     await api
       .post('/sessions')
       .auth('host user', 'host password')
+      .set('content-type', apiMediaType)
       .send({ data: { type: 'sessions', attributes: { role: 'host' } } })
       .expect(201);
     await api
@@ -243,7 +264,8 @@ describe('LogServer: get /sessions/{id}', () => {
           attributes: { role: 'host' },
           relationships: { runs: { data: [] } },
         },
-      });
+      })
+      .expect('Content-Type', apiContentTypeRegExp);
   });
 });
 
@@ -251,6 +273,7 @@ describe('LogServer: delete /sessions/{id}', () => {
   it('clears the current session', async ({ api }) => {
     await api
       .post('/sessions')
+      .set('content-type', apiMediaType)
       .send({ data: { type: 'sessions', attributes: { role: 'participant' } } })
       .expect(201);
     await api.get('/sessions/current').expect(200);
@@ -263,6 +286,7 @@ describe('LogServer: delete /sessions/{id}', () => {
   }) => {
     await api
       .post('/sessions')
+      .set('content-type', apiMediaType)
       .send({ data: { type: 'sessions', attributes: { role: 'participant' } } })
       .expect(201);
     await api.delete('/sessions/current').expect(200);
@@ -270,6 +294,7 @@ describe('LogServer: delete /sessions/{id}', () => {
     await api
       .post('/sessions')
       .auth('host user', 'host password')
+      .set('content-type', apiMediaType)
       .send({ data: { type: 'sessions', attributes: { role: 'host' } } })
       .expect(201);
     await api
@@ -281,11 +306,13 @@ describe('LogServer: delete /sessions/{id}', () => {
           attributes: { role: 'host' },
           relationships: { runs: { data: [] } },
         },
-      });
+      })
+      .expect('Content-Type', apiContentTypeRegExp);
     await api.delete('/sessions/current').expect(200);
     await api.get('/sessions/current').expect(404);
     await api
       .post('/sessions')
+      .set('content-type', apiMediaType)
       .send({ data: { type: 'sessions', attributes: { role: 'participant' } } })
       .expect(201);
     await api
@@ -297,6 +324,7 @@ describe('LogServer: delete /sessions/{id}', () => {
           attributes: { role: 'participant' },
           relationships: { runs: { data: [] } },
         },
-      });
+      })
+      .expect('Content-Type', apiContentTypeRegExp);
   });
 });

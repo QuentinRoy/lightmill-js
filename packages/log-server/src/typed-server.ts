@@ -16,6 +16,7 @@ import type {
   ApiPath,
   HttpMethod,
 } from './api-utils.js';
+import { apiMediaType, type ApiMediaType } from './app-utils.ts';
 import type { Store } from './store.js';
 import type { LowercaseProps } from './utils.js';
 
@@ -54,13 +55,13 @@ export function createTypedExpressServer<A extends Api>(
             if (result.body instanceof Stream) {
               result.body.pipe(
                 response
-                  .contentType(result.contentType ?? 'application/json')
+                  .contentType(result.contentType ?? apiMediaType)
                   .status(result.status),
               );
               return;
             }
             response
-              .contentType(result.contentType ?? 'application/json')
+              .contentType(result.contentType ?? apiMediaType)
               .status(result.status)
               .send(result.body);
           } catch (error) {
@@ -170,9 +171,7 @@ type OperationHandlerResult<Op extends ApiOperation> = Simplify<
     HandlerResultBase
 >;
 
-type SetOptionalJsonContentType<T> = T extends {
-  contentType: 'application/json';
-}
+type SetOptionalJsonContentType<T> = T extends { contentType: ApiMediaType }
   ? SetOptional<T, 'contentType'>
   : T;
 

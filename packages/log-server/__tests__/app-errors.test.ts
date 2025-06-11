@@ -4,8 +4,10 @@ import type { Application } from 'express';
 import express from 'express';
 import request from 'supertest';
 import { afterEach, describe, test, vi } from 'vitest';
+import { apiMediaType, type ServerRequestContent } from '../src/app-utils.ts';
 import { LogServer } from '../src/app.js';
 import {
+  apiContentTypeRegExp,
   createAllRoute,
   createMockStore,
   MockSessionStore,
@@ -62,6 +64,7 @@ describe('LogServer', () => {
   }) => {
     await api
       .get('/not-a-route')
+      .expect('Content-Type', apiContentTypeRegExp)
       .expect(404, {
         errors: [
           {
@@ -74,6 +77,7 @@ describe('LogServer', () => {
 
     await api
       .get('/resources/that-do-not-exist')
+      .expect('Content-Type', apiContentTypeRegExp)
       .expect(404, {
         errors: [
           {
@@ -85,11 +89,34 @@ describe('LogServer', () => {
       });
   });
 
+  it('returns a 415 error if the requested route does not accept the media type', async ({
+    api,
+  }) => {
+    await api
+      .post('/sessions')
+      .set('content-type', 'application/json')
+      .send({
+        data: { type: 'sessions', attributes: { role: 'participant' } },
+      } satisfies ServerRequestContent<'/sessions', 'post'>['body'])
+      .expect(415, {
+        errors: [
+          {
+            status: 'Unsupported Media Type',
+            code: 'UNSUPPORTED_MEDIA_TYPE',
+            detail: 'unsupported media type application/json',
+          },
+        ],
+      });
+  });
+
   it('returns a 405 error if an unsupported method is used with an existing resource', async ({
     api,
   }) => {
     await api
       .put('/sessions/current')
+      .set('Content-Type', apiMediaType)
+      .send({})
+      .expect('Content-Type', apiContentTypeRegExp)
       .expect(405, {
         errors: [
           {
@@ -102,6 +129,7 @@ describe('LogServer', () => {
       .expect('Allow', 'DELETE, GET');
     await api
       .delete('/logs')
+      .expect('Content-Type', apiContentTypeRegExp)
       .expect(405, {
         errors: [
           {
@@ -114,6 +142,9 @@ describe('LogServer', () => {
       .expect('Allow', 'POST, GET');
     await api
       .put('/experiments/exp-id')
+      .set('Content-Type', apiMediaType)
+      .send({})
+      .expect('Content-Type', apiContentTypeRegExp)
       .expect(405, {
         errors: [
           {
@@ -129,7 +160,9 @@ describe('LogServer', () => {
   it('returns 400 error if a request body is invalid', async ({ api }) => {
     await api
       .post('/sessions')
+      .set('Content-Type', apiMediaType)
       .send({})
+      .expect('Content-Type', apiContentTypeRegExp)
       .expect(400, {
         errors: [
           {
@@ -143,11 +176,14 @@ describe('LogServer', () => {
     // Create a session.
     await api
       .post('/sessions')
+      .set('Content-Type', apiMediaType)
       .send({ data: { type: 'sessions', attributes: { role: 'participant' } } })
       .expect(201);
     await api
       .post('/logs')
+      .set('Content-Type', apiMediaType)
       .send({ data: 'invalid' })
+      .expect('Content-Type', apiContentTypeRegExp)
       .expect(400, {
         errors: [
           {
@@ -160,6 +196,7 @@ describe('LogServer', () => {
       });
     await api
       .post('/runs')
+      .set('Content-Type', apiMediaType)
       .send({
         data: {
           type: 'runs',
@@ -173,6 +210,7 @@ describe('LogServer', () => {
           },
         },
       })
+      .expect('Content-Type', apiContentTypeRegExp)
       .expect(400, {
         errors: [
           {
@@ -192,6 +230,7 @@ describe('LogServer', () => {
       .post('/sessions')
       .set('Content-Type', 'text/plain')
       .send("I'm obviously not a JSON object")
+      .expect('Content-Type', apiContentTypeRegExp)
       .expect(415, {
         errors: [
           {
@@ -224,6 +263,7 @@ describe('LogServer', () => {
     async (route, { api }) => {
       await api[route.method](route.path)
         .set('Cookie', ['lightmill-session-id=invalid'])
+        .expect('Content-Type', apiContentTypeRegExp)
         .expect(403, {
           errors: [
             {

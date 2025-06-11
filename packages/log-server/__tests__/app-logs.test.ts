@@ -1,9 +1,13 @@
 /* eslint-disable no-empty-pattern */
-/* eslint-disable @typescript-eslint/no-unused-vars */
 
 import { describe, vi, test as vitestTest } from 'vitest';
+import { apiMediaType } from '../src/app-utils.ts';
 import { StoreError } from '../src/store.js';
-import { createFixtureWithRuns, type FixtureWithRuns } from './test-utils.js';
+import {
+  apiContentTypeRegExp,
+  createFixtureWithRuns,
+  type FixtureWithRuns,
+} from './test-utils.js';
 
 const it = vitestTest.extend<{
   participantFixture: FixtureWithRuns<'participant'>;
@@ -51,6 +55,7 @@ describe('LogServer: post /logs', () => {
     const runId = getRuns()[0]!.runId;
     const response = await api
       .post('/logs')
+      .set('Content-Type', apiMediaType)
       .send({
         data: {
           type: 'logs',
@@ -93,6 +98,7 @@ describe('LogServer: post /logs', () => {
     sessionStore.mockGetData({ role: 'participant', runs: ['my-run'] });
     await api
       .post('/logs')
+      .set('Content-Type', apiMediaType)
       .send({
         data: {
           type: 'logs',
@@ -108,7 +114,8 @@ describe('LogServer: post /logs', () => {
             detail: "Run 'not-my-run' not found",
           },
         ],
-      });
+      })
+      .expect('Content-Type', apiContentTypeRegExp);
     expect(store.addLogs).not.toHaveBeenCalled();
   });
 
@@ -128,6 +135,7 @@ describe('LogServer: post /logs', () => {
     sessionStore.mockGetData({ role: 'host', runs: ['my-run'] });
     await api
       .post('/logs')
+      .set('Content-Type', apiMediaType)
       .send({
         data: {
           type: 'logs',
@@ -144,6 +152,7 @@ describe('LogServer: post /logs', () => {
   }) => {
     await api
       .post('/logs')
+      .set('Content-Type', apiMediaType)
       .send({
         data: {
           type: 'logs',
@@ -161,7 +170,8 @@ describe('LogServer: post /logs', () => {
             detail: "Run 'does-not-exist' not found",
           },
         ],
-      });
+      })
+      .expect('Content-Type', apiContentTypeRegExp);
     expect(store.addLogs).not.toHaveBeenCalled();
   });
 
@@ -177,6 +187,7 @@ describe('LogServer: post /logs', () => {
     });
     await api
       .post('/logs')
+      .set('Content-Type', apiMediaType)
       .send({
         data: {
           type: 'logs',
@@ -193,7 +204,8 @@ describe('LogServer: post /logs', () => {
               "Cannot add log to run 'run-id', log number 2 already exists",
           },
         ],
-      });
+      })
+      .expect('Content-Type', apiContentTypeRegExp);
   });
 });
 
@@ -202,9 +214,54 @@ describe('LogServer: get /logs', () => {
     expect,
     hostFixture: { api, store },
   }) => {
-    let result = await api.get('/logs').expect(200);
+    let result = await api
+      .get('/logs')
+      .expect(200)
+      .expect('Content-Type', apiContentTypeRegExp);
     expect(store.getLogs.mock.calls).toMatchSnapshot();
     expect(result.body).toMatchSnapshot();
+  });
+
+  it('returns logs as json if json is the first supported format in the Accept header', async ({
+    expect,
+    hostFixture: { api, store },
+  }) => {
+    let result = await api
+      .get('/logs')
+      .set('Accept', apiMediaType)
+      .expect(200)
+      .expect('Content-Type', apiContentTypeRegExp);
+    expect(store.getLogs.mock.calls).toMatchSnapshot();
+    expect(result.body).toMatchSnapshot();
+  });
+
+  it('returns logs as csv if csv is the first supported format in the Accept header', async ({
+    expect,
+    hostFixture: { api, store },
+  }) => {
+    let result = await api.get('/logs').set('Accept', 'text/csv').expect(200);
+    expect(store.getLogs.mock.calls).toMatchSnapshot();
+    expect(result.text).toMatchSnapshot();
+  });
+
+  it('returns a 400 error if the Accept header is not supported', async ({
+    hostFixture: { api },
+  }) => {
+    await api
+      .get('/logs')
+      .set('Accept', 'application/xml,application/pdf,text/html')
+      .expect(400, {
+        errors: [
+          {
+            code: 'HEADERS_VALIDATION',
+            detail:
+              'must be equal to one of the allowed values: application/vnd.api+json, text/csv',
+            source: { header: 'accept' },
+            status: 'Bad Request',
+          },
+        ],
+      })
+      .expect('Content-Type', apiContentTypeRegExp);
   });
 
   it('returns only logs a participant has access to', async ({
@@ -223,48 +280,13 @@ describe('LogServer: get /logs', () => {
     ]);
     sessionStore.mockGetData({ role: 'participant', runs: ['that-run'] });
 
-    let result = await api.get('/logs').expect(200);
+    let result = await api
+      .set('Accept', apiMediaType)
+      .get('/logs')
+      .expect(200)
+      .expect('Content-Type', apiContentTypeRegExp);
     expect(store.getLogs.mock.calls).toMatchSnapshot();
     expect(result.body).toMatchSnapshot();
-  });
-
-  it('returns logs as json if json is the first supported format in the Accept header', async ({
-    expect,
-    hostFixture: { api, store },
-  }) => {
-    let result = await api
-      .get('/logs')
-      .set('Accept', 'application/json')
-      .expect(200);
-    expect(store.getLogs.mock.calls).toMatchSnapshot();
-    expect(result.body).toMatchSnapshot();
-  });
-  it('returns logs as csv if csv is the first supported format in the Accept header', async ({
-    expect,
-    hostFixture: { api, store },
-  }) => {
-    let result = await api.get('/logs').set('Accept', 'text/csv').expect(200);
-    expect(store.getLogs.mock.calls).toMatchSnapshot();
-    expect(result.text).toMatchSnapshot();
-  });
-
-  it('returns a 400 error if the Accept header is not supported', async ({
-    hostFixture: { api },
-  }) => {
-    let result = await api
-      .get('/logs')
-      .set('Accept', 'application/xml,application/pdf,text/html')
-      .expect(400, {
-        errors: [
-          {
-            code: 'HEADERS_VALIDATION',
-            detail:
-              'must be equal to one of the allowed values: application/json, text/csv',
-            source: { header: 'accept' },
-            status: 'Bad Request',
-          },
-        ],
-      });
   });
 
   it('filters logs by type', async ({
@@ -273,8 +295,10 @@ describe('LogServer: get /logs', () => {
   }) => {
     const response = await api
       .get('/logs')
+      .set('Accept', apiMediaType)
       .query({ 'filter[logType]': 'log-type' })
-      .expect(200);
+      .expect(200)
+      .expect('Content-Type', apiContentTypeRegExp);
     expect(store.getLogs.mock.calls).toMatchInlineSnapshot(`
       [
         [
@@ -282,9 +306,7 @@ describe('LogServer: get /logs', () => {
             "experimentId": undefined,
             "logType": "log-type",
             "runId": undefined,
-            "runStatus": [
-              "-canceled",
-            ],
+            "runStatus": "-canceled",
           },
         ],
       ]
@@ -298,8 +320,10 @@ describe('LogServer: get /logs', () => {
   }) => {
     const response = await api
       .get('/logs')
+      .set('Accept', apiMediaType)
       .query({ 'filter[experiment.id]': 'experiment-id' })
-      .expect(200);
+      .expect(200)
+      .expect('Content-Type', apiContentTypeRegExp);
     expect(store.getLogs.mock.calls).toMatchInlineSnapshot(`
       [
         [
@@ -307,9 +331,7 @@ describe('LogServer: get /logs', () => {
             "experimentId": "experiment-id",
             "logType": undefined,
             "runId": undefined,
-            "runStatus": [
-              "-canceled",
-            ],
+            "runStatus": "-canceled",
           },
         ],
       ]
@@ -320,8 +342,10 @@ describe('LogServer: get /logs', () => {
   it('filters logs by run', async ({ expect, hostFixture: { api, store } }) => {
     const response = await api
       .get('/logs')
+      .set('Accept', apiMediaType)
       .query({ 'filter[run.id]': 'run-id' })
-      .expect(200);
+      .expect(200)
+      .expect('Content-Type', apiContentTypeRegExp);
     expect(store.getLogs.mock.calls).toMatchInlineSnapshot(`
       [
         [
@@ -329,9 +353,7 @@ describe('LogServer: get /logs', () => {
             "experimentId": undefined,
             "logType": undefined,
             "runId": "run-id",
-            "runStatus": [
-              "-canceled",
-            ],
+            "runStatus": "-canceled",
           },
         ],
       ]
@@ -345,12 +367,14 @@ describe('LogServer: get /logs', () => {
   }) => {
     const response = await api
       .get('/logs')
+      .set('Accept', apiMediaType)
       .query({
         'filter[logType]': 'log-type',
         'filter[experiment.id]': 'experiment-id',
         'filter[run.id]': 'run-id',
       })
-      .expect(200);
+      .expect(200)
+      .expect('Content-Type', apiContentTypeRegExp);
     expect(store.getLogs.mock.calls).toMatchInlineSnapshot(`
       [
         [
@@ -358,9 +382,7 @@ describe('LogServer: get /logs', () => {
             "experimentId": "experiment-id",
             "logType": "log-type",
             "runId": "run-id",
-            "runStatus": [
-              "-canceled",
-            ],
+            "runStatus": "-canceled",
           },
         ],
       ]
@@ -385,7 +407,8 @@ describe('LogServer: get /logs/{id}', () => {
             detail: "Log 'not-mine' not found",
           },
         ],
-      });
+      })
+      .expect('Content-Type', apiContentTypeRegExp);
     expect(store.getLogs.mock.calls).toMatchInlineSnapshot(`
       [
         [
@@ -394,9 +417,7 @@ describe('LogServer: get /logs/{id}', () => {
             "runId": [
               "run-id",
             ],
-            "runStatus": [
-              "-canceled",
-            ],
+            "runStatus": "-canceled",
           },
         ],
       ]
@@ -418,16 +439,15 @@ describe('LogServer: get /logs/{id}', () => {
             detail: "Log 'does-not-exist' not found",
           },
         ],
-      });
+      })
+      .expect('Content-Type', apiContentTypeRegExp);
     expect(store.getLogs.mock.calls).toMatchInlineSnapshot(`
       [
         [
           {
             "logId": "does-not-exist",
             "runId": undefined,
-            "runStatus": [
-              "-canceled",
-            ],
+            "runStatus": "-canceled",
           },
         ],
       ]
@@ -462,9 +482,7 @@ describe('LogServer: get /logs/{id}', () => {
             "runId": [
               "run-id",
             ],
-            "runStatus": [
-              "-canceled",
-            ],
+            "runStatus": "-canceled",
           },
         ],
       ]
