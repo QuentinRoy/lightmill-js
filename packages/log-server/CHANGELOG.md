@@ -1,5 +1,17 @@
 # @lightmill/log-server
 
+## 4.0.0
+
+### Major Changes
+
+- 000d116: Update server to comply with new API contract. Post and put requests are now required to use `application/vnd.api+json` as content type. Responses' content type is now `application/vnd.api+json` (except when responding with CSV content).
+- e7f2da4: GET /logs handler now defaults to CSV format and only returns JSON when the Accept header is set to JSON. This change allows logs to be downloadable from HTML without requiring JavaScript to set the Accept header.
+
+### Patch Changes
+
+- Updated dependencies [36607bc]
+  - @lightmill/log-api@4.0.0
+
 ## 3.2.0
 
 ### Minor Changes

@@ -1,5 +1,11 @@
 # @lightmill/log-client
 
+## 4.0.0
+
+### Major Changes
+
+- 8b648f9: Changes the content type of every post or patch requests to `application/vnd.api+json` to match the new API.
+
 ## 3.1.1
 
 ### Patch Changes
