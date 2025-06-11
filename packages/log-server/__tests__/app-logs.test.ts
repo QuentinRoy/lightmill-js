@@ -210,16 +210,16 @@ describe('LogServer: post /logs', () => {
 });
 
 describe('LogServer: get /logs', () => {
-  it('returns logs as json by default', async ({
+  it('returns logs as csv by default', async ({
     expect,
     hostFixture: { api, store },
   }) => {
     let result = await api
       .get('/logs')
       .expect(200)
-      .expect('Content-Type', apiContentTypeRegExp);
+      .expect('Content-Type', /^text\/csv/);
     expect(store.getLogs.mock.calls).toMatchSnapshot();
-    expect(result.body).toMatchSnapshot();
+    expect(result.text).toMatchSnapshot();
   });
 
   it('returns logs as json if json is the first supported format in the Accept header', async ({

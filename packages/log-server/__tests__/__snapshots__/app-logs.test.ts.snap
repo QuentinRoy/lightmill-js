@@ -192,6 +192,26 @@ exports[`LogServer: get /logs > filters logs by type 2`] = `
 }
 `;
 
+exports[`LogServer: get /logs > returns logs as csv by default 1`] = `
+[
+  [
+    {
+      "experimentId": undefined,
+      "logType": undefined,
+      "runId": undefined,
+      "runStatus": "-canceled",
+    },
+  ],
+]
+`;
+
+exports[`LogServer: get /logs > returns logs as csv by default 2`] = `
+"type,experiment_name,run_name,run_status,mock_col_1,mock_col_2,mock_col_3
+getLogs:type-1,getLogs:experimentName-1,getLogs:runName-1,running,log1-mock-value1,log1-mock-value2,
+getLogs:type-2,getLogs:experimentName-2,getLogs:runName-2,completed,log2-mock-value1,log2-mock-value2,log2-mock-value3
+"
+`;
+
 exports[`LogServer: get /logs > returns logs as csv if csv is the first supported format in the Accept header 1`] = `
 [
   [
@@ -210,67 +230,6 @@ exports[`LogServer: get /logs > returns logs as csv if csv is the first supporte
 getLogs:type-1,getLogs:experimentName-1,getLogs:runName-1,running,log1-mock-value1,log1-mock-value2,
 getLogs:type-2,getLogs:experimentName-2,getLogs:runName-2,completed,log2-mock-value1,log2-mock-value2,log2-mock-value3
 "
-`;
-
-exports[`LogServer: get /logs > returns logs as json by default 1`] = `
-[
-  [
-    {
-      "experimentId": undefined,
-      "logType": undefined,
-      "runId": undefined,
-      "runStatus": "-canceled",
-    },
-  ],
-]
-`;
-
-exports[`LogServer: get /logs > returns logs as json by default 2`] = `
-{
-  "data": [
-    {
-      "attributes": {
-        "logType": "getLogs:type-1",
-        "number": 1,
-        "values": {
-          "mock-col1": "log1-mock-value1",
-          "mock-col2": "log1-mock-value2",
-        },
-      },
-      "id": "getLogs:id-1",
-      "relationships": {
-        "run": {
-          "data": {
-            "id": "getLogs:run-id-1",
-            "type": "runs",
-          },
-        },
-      },
-      "type": "logs",
-    },
-    {
-      "attributes": {
-        "logType": "getLogs:type-2",
-        "number": 2,
-        "values": {
-          "mock-col1": "log2-mock-value1",
-          "mock-col2": "log2-mock-value2",
-          "mock-col3": "log2-mock-value3",
-        },
-      },
-      "id": "getLogs:id-2",
-      "relationships": {
-        "run": {
-          "data": {
-            "id": "getLogs:run-id-2",
-            "type": "runs",
-          },
-        },
-      },
-      "type": "logs",
-    },
-  ],
-}
 `;
 
 exports[`LogServer: get /logs > returns logs as json if json is the first supported format in the Accept header 1`] = `
