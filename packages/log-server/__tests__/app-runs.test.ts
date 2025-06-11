@@ -1,9 +1,11 @@
 /* eslint-disable no-empty-pattern */
 
 import { describe, vi, test as vitestTest } from 'vitest';
+import { apiMediaType } from '../src/app-utils.ts';
 import { StoreError, type RunStatus } from '../src/store.js';
 import { arrayify, firstStrict } from '../src/utils.js';
 import {
+  apiContentTypeRegExp,
   createFixtureWithRuns,
   generateCombinations,
   runStatus,
@@ -37,6 +39,7 @@ describe('LogServer: post /runs', () => {
   }) => {
     const response = await api
       .post('/runs')
+      .set('content-type', apiMediaType)
       .send({
         data: {
           type: 'runs',
@@ -46,7 +49,8 @@ describe('LogServer: post /runs', () => {
           },
         },
       })
-      .expect(201);
+      .expect(201)
+      .expect('Content-Type', apiContentTypeRegExp);
     expect(response.headers['location']).toEqual(
       `http://lightmill-test.com/runs/${response.body.data.id}`,
     );
@@ -70,6 +74,7 @@ describe('LogServer: post /runs', () => {
   }) => {
     const response = await api
       .post('/runs')
+      .set('content-type', apiMediaType)
       .send({
         data: {
           type: 'runs',
@@ -79,7 +84,8 @@ describe('LogServer: post /runs', () => {
           },
         },
       })
-      .expect(201);
+      .expect(201)
+      .expect('Content-Type', apiContentTypeRegExp);
     expect(response.body).toEqual({
       data: { id: expect.any(String), type: 'runs' },
     });
@@ -123,6 +129,7 @@ describe('LogServer: post /runs', () => {
           },
         },
       })
+      .set('content-type', apiMediaType)
       .expect(403, {
         errors: [
           {
@@ -131,7 +138,8 @@ describe('LogServer: post /runs', () => {
             detail: 'Client already has ongoing runs, end them first',
           },
         ],
-      });
+      })
+      .expect('Content-Type', apiContentTypeRegExp);
     expect(store.addRun).toHaveBeenCalledTimes(0);
   });
 
@@ -153,6 +161,7 @@ describe('LogServer: post /runs', () => {
           },
         },
       })
+      .set('content-type', apiMediaType)
       .expect(409, {
         errors: [
           {
@@ -161,7 +170,8 @@ describe('LogServer: post /runs', () => {
             detail: `A run named test-run already exists for experiment ${experiment}`,
           },
         ],
-      });
+      })
+      .expect('Content-Type', apiContentTypeRegExp);
     expect(store.addRun).toHaveBeenCalledTimes(1);
   });
 });
@@ -181,7 +191,8 @@ describe('LogServer: get /runs/:run', () => {
             detail: 'Run not-my-run not found',
           },
         ],
-      });
+      })
+      .expect('Content-Type', apiContentTypeRegExp);
   });
 
   it('returns a 404 error if client does not have access to this particular run', async ({
@@ -211,7 +222,8 @@ describe('LogServer: get /runs/:run', () => {
             detail: 'Run not-my-run not found',
           },
         ],
-      });
+      })
+      .expect('Content-Type', apiContentTypeRegExp);
   });
 
   it.for([
@@ -264,7 +276,10 @@ describe('LogServer: get /runs/:run', () => {
         }
         return [];
       });
-      const resp = await api.get('/runs/my-run').expect(200);
+      const resp = await api
+        .get('/runs/my-run')
+        .expect(200)
+        .expect('Content-Type', apiContentTypeRegExp);
       const respBody = resp.body;
       expect(respBody).toEqual({
         data: {
@@ -295,6 +310,7 @@ describe('LogServer: patch /runs/:run', () => {
     store.getRuns.mockImplementation(async () => []);
     await api
       .patch('/runs/not-my-run')
+      .set('content-type', apiMediaType)
       .send({
         data: {
           id: 'not-my-run',
@@ -313,6 +329,7 @@ describe('LogServer: patch /runs/:run', () => {
   }) => {
     await api
       .patch('/runs/not-my-run')
+      .set('content-type', apiMediaType)
       .send({
         data: {
           id: 'not-my-run',
@@ -332,6 +349,7 @@ describe('LogServer: patch /runs/:run', () => {
     store.getRuns.mockImplementation(async () => []);
     await api
       .patch('/runs/not-my-run')
+      .set('content-type', apiMediaType)
       .send({
         data: {
           id: 'not-my-run',
@@ -350,6 +368,7 @@ describe('LogServer: patch /runs/:run', () => {
   }) => {
     await api
       .patch('/runs/not-my-run')
+      .set('content-type', apiMediaType)
       .send({
         data: {
           id: 'not-my-run',
@@ -393,6 +412,7 @@ describe('LogServer: patch /runs/:run', () => {
       ]);
       await api
         .patch(`/runs/run-id`)
+        .set('content-type', apiMediaType)
         .send({
           data: {
             id: 'run-id',
@@ -438,6 +458,7 @@ describe('LogServer: patch /runs/:run', () => {
       ]);
       await api
         .patch('/runs/run-id')
+        .set('content-type', apiMediaType)
         .send({
           data: {
             id: 'run-id',
@@ -453,7 +474,8 @@ describe('LogServer: patch /runs/:run', () => {
               detail: `Cannot transition run status from ${originalStatus} to ${targetStatus}`,
             },
           ],
-        });
+        })
+        .expect('Content-Type', apiContentTypeRegExp);
       expect(store.setRunStatus).not.toHaveBeenCalled();
       expect(store.resumeRun).not.toHaveBeenCalled();
     },
@@ -474,10 +496,12 @@ describe('LogServer: patch /runs/:run', () => {
     ]);
     await api
       .patch(`/runs/run-id`)
+      .set('content-type', apiMediaType)
       .send({ data: { id: 'run-id', type: 'runs' } })
       .expect(200);
     await api
       .patch(`/runs/run-id`)
+      .set('content-type', apiMediaType)
       .send({ data: { id: 'run-id', type: 'runs', attributes: {} } })
       .expect(200);
     expect(store.setRunStatus).not.toHaveBeenCalled();
@@ -504,6 +528,7 @@ describe('LogServer: patch /runs/:run', () => {
       ]);
       await api
         .patch(`/runs/run-id`)
+        .set('content-type', apiMediaType)
         .send({ data: { id: 'run-id', type: 'runs', attributes: { status } } })
         .expect(200);
       expect(store.setRunStatus).not.toHaveBeenCalled();
@@ -520,6 +545,7 @@ describe('LogServer: patch /runs/:run', () => {
     ]);
     await api
       .patch(`/runs/${run}`)
+      .set('content-type', apiMediaType)
       .send({
         data: { id: run, type: 'runs', attributes: { status: 'completed' } },
       })
@@ -531,7 +557,8 @@ describe('LogServer: patch /runs/:run', () => {
             detail: 'Cannot complete run with pending logs',
           },
         ],
-      });
+      })
+      .expect('Content-Type', apiContentTypeRegExp);
     expect(store.setRunStatus).not.toHaveBeenCalled();
   });
 
@@ -544,6 +571,7 @@ describe('LogServer: patch /runs/:run', () => {
     ]);
     await api
       .patch(`/runs/${run}`)
+      .set('content-type', apiMediaType)
       .send({
         data: { id: run, type: 'runs', attributes: { lastLogNumber: 15 } },
       })
@@ -575,6 +603,7 @@ describe('LogServer: patch /runs/:run', () => {
       ]);
       await api
         .patch(`/runs/run-id`)
+        .set('content-type', apiMediaType)
         .send({
           data: {
             id: 'run-id',
@@ -591,7 +620,8 @@ describe('LogServer: patch /runs/:run', () => {
                 'Updating last log number is only allowed when resuming a run',
             },
           ],
-        });
+        })
+        .expect('Content-Type', apiContentTypeRegExp);
       expect(store.setRunStatus).not.toHaveBeenCalled();
       expect(store.resumeRun).not.toHaveBeenCalled();
     },
@@ -621,6 +651,7 @@ describe('LogServer: patch /runs/:run', () => {
     ]);
     await api
       .patch(`/runs/run-id`)
+      .set('content-type', apiMediaType)
       .send({
         data: {
           id: 'run-id',
@@ -669,7 +700,10 @@ describe('LogServer: get /runs', () => {
         },
       ];
     });
-    const response = await api.get('/runs').expect(200);
+    const response = await api
+      .get('/runs')
+      .expect(200)
+      .expect('Content-Type', apiContentTypeRegExp);
     expect(response.body).toMatchSnapshot();
     expect(store.getRuns.mock.calls).toMatchSnapshot();
   });
@@ -689,7 +723,10 @@ describe('LogServer: get /runs', () => {
         runId: run,
       },
     ]);
-    const response = await api.get('/runs').expect(200);
+    const response = await api
+      .get('/runs')
+      .expect(200)
+      .expect('Content-Type', apiContentTypeRegExp);
     expect(response.body).toMatchSnapshot();
     expect(store.getRuns.mock.calls).toMatchSnapshot();
   });
@@ -709,7 +746,10 @@ describe('LogServer: get /runs', () => {
         runId: run,
       },
     ]);
-    const response = await api.get('/runs').expect(200);
+    const response = await api
+      .get('/runs')
+      .expect(200)
+      .expect('Content-Type', apiContentTypeRegExp);
     expect(response.body).toMatchSnapshot();
     expect(store.getRuns.mock.calls).toMatchSnapshot();
   });
@@ -732,7 +772,8 @@ describe('LogServer: get /runs', () => {
     const response = await api
       .get('/runs')
       .query({ include: 'experiment' })
-      .expect(200);
+      .expect(200)
+      .expect('Content-Type', apiContentTypeRegExp);
     expect(response.body).toMatchSnapshot();
     expect(store.getRuns.mock.calls).toMatchSnapshot();
   });
@@ -755,7 +796,8 @@ describe('LogServer: get /runs', () => {
     const response = await api
       .get('/runs')
       .query({ include: 'lastLogs' })
-      .expect(200);
+      .expect(200)
+      .expect('Content-Type', apiContentTypeRegExp);
     expect(response.body).toMatchSnapshot();
     expect(store.getRuns.mock.calls).toMatchSnapshot();
   });
@@ -778,7 +820,8 @@ describe('LogServer: get /runs', () => {
     const response = await api
       .get('/runs')
       .query({ include: ['lastLogs', 'experiment'] })
-      .expect(200);
+      .expect(200)
+      .expect('Content-Type', apiContentTypeRegExp);
     expect(response.body).toMatchSnapshot();
     expect(store.getRuns.mock.calls).toMatchSnapshot();
   });
@@ -790,7 +833,10 @@ describe('LogServer: get /runs', () => {
     sessionStore.mockGetData({ role: 'participant', runs: [] });
     store.getRuns.mockImplementation(async () => []);
     store.getExperiments.mockImplementation(async () => []);
-    const response = await api.get('/runs').expect(200);
+    const response = await api
+      .get('/runs')
+      .expect(200)
+      .expect('Content-Type', apiContentTypeRegExp);
     expect(response.body).toEqual({ data: [] });
     expect(store.getRuns.mock.calls).toMatchSnapshot();
   });

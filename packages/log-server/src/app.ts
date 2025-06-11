@@ -14,7 +14,7 @@ import { experimentHandlers } from './app-experiments-handlers.js';
 import { logHandlers } from './app-logs-handlers.js';
 import { runHandlers } from './app-runs-handlers.js';
 import { sessionHandlers } from './app-sessions-handlers.js';
-import type { ServerApi } from './app-utils.js';
+import { apiMediaType, type ServerApi } from './app-utils.js';
 import type { Store } from './store.js';
 import { createTypedExpressServer } from './typed-server.js';
 import { firstStrict } from './utils.js';
@@ -65,7 +65,7 @@ export function LogServer({
     return values;
   });
 
-  app.use(express.json());
+  app.use(express.json({ type: [apiMediaType, 'application/json'] }));
 
   // Required for open api validator, but be careful to use
   // the same keys as the session middleware.
@@ -146,6 +146,7 @@ export function LogServer({
         );
         res
           .status(firstStrict(errorEntries).statusCode)
+          .header('content-type', apiMediaType)
           .json({ errors: errorEntries.map((error) => error.content) });
         return;
       }
@@ -165,6 +166,7 @@ export function LogServer({
       log.error(err);
       res
         .status(500)
+        .header('content-type', apiMediaType)
         .json({
           errors: [
             {

@@ -2,14 +2,16 @@ import type { components, operations } from '@lightmill/log-api';
 import { Readable } from 'node:stream';
 import type { JsonObject } from 'type-fest';
 import {
+  apiMediaType,
   getAllowedAndFilteredRunIds,
   getErrorResponse,
   getRunResources,
+  type ApiMediaType,
   type ServerHandlerResult,
   type SubServerDescription,
 } from './app-utils.js';
 import { csvExportStream } from './csv-export.js';
-import { type AllFilter, type Store, StoreError } from './store.js';
+import { StoreError, type AllFilter, type Store } from './store.js';
 import { arrayify, firstStrict } from './utils.js';
 
 export const logHandlers = (): SubServerDescription<'/logs'> => ({
@@ -52,7 +54,7 @@ export const logHandlers = (): SubServerDescription<'/logs'> => ({
           experiment: includeQuery.includes('run.experiment'),
           lastLogs: includeQuery.includes('run.lastLogs'),
         }),
-        contentType: 'application/json',
+        contentType: apiMediaType,
       };
     },
 
@@ -133,7 +135,7 @@ export const logHandlers = (): SubServerDescription<'/logs'> => ({
       }
       let data = JSON.parse(
         dataString,
-      ) as operations['Log_getCollection']['responses']['200']['content']['application/json'];
+      ) as operations['Log_getCollection']['responses']['200']['content'][ApiMediaType];
       if (data.data.length > 1) {
         throw new Error(`More than one log found for id '${path.id}'`);
       }
@@ -191,7 +193,7 @@ async function* jsonResponseChunkGenerator(
     components['schemas']['Experiment.Resource']
   >();
   let includedLogs = new Array<components['schemas']['Log.Resource']>();
-  let logs = await store.getLogs({ ...filter, runStatus: ['-canceled'] });
+  let logs = await store.getLogs({ ...filter, runStatus: '-canceled' });
   yield '{"data":[';
   let started = false;
   for await (let log of logs) {

@@ -9,11 +9,13 @@ import {
   test as vitestTest,
   type TestAPI,
 } from 'vitest';
+import { apiMediaType } from '../src/app-utils.ts';
 import { LogServer } from '../src/app.js';
 import { StoreError } from '../src/store.js';
 import { arrayify } from '../src/utils.js';
 import {
   MockSessionStore,
+  apiContentTypeRegExp,
   createMockStore,
   type MockStore,
 } from './test-utils.js';
@@ -63,6 +65,7 @@ async function createFixture() {
   // This request only matters to get the cookie. After that we'll mock the session anyway.
   await api
     .post('/sessions')
+    .set('Content-Type', apiMediaType)
     .send({ data: { type: 'sessions', attributes: { role: 'participant' } } })
     .expect(201);
   vi.clearAllMocks();
@@ -75,9 +78,11 @@ describe('LogServer: post /experiments', () => {
   }) => {
     await api
       .post('/experiments')
+      .set('Content-Type', apiMediaType)
       .send({ data: { type: 'experiments', attributes: { name: 'exp-name' } } })
       .expect('location', 'http://lightmill-test.com/experiments/1')
-      .expect(201, { data: { type: 'experiments', id: '1' } });
+      .expect(201, { data: { type: 'experiments', id: '1' } })
+      .expect('Content-Type', apiContentTypeRegExp);
   });
 
   it('refuses to create an experiment if the session is not a host session', async ({
@@ -85,6 +90,7 @@ describe('LogServer: post /experiments', () => {
   }) => {
     await api
       .post('/experiments')
+      .set('Content-Type', apiMediaType)
       .send({ data: { type: 'experiments', attributes: { name: 'exp-name' } } })
       .expect(403, {
         errors: [
@@ -94,7 +100,8 @@ describe('LogServer: post /experiments', () => {
             detail: 'Only hosts can create experiments',
           },
         ],
-      });
+      })
+      .expect('Content-Type', apiContentTypeRegExp);
   });
 
   it('refuses to create an experiment if there are name conflicts', async ({
@@ -105,6 +112,7 @@ describe('LogServer: post /experiments', () => {
     });
     await api
       .post('/experiments')
+      .set('Content-Type', apiMediaType)
       .send({ data: { type: 'experiments', attributes: { name: 'exp-name' } } })
       .expect(409, {
         errors: [
@@ -114,7 +122,8 @@ describe('LogServer: post /experiments', () => {
             detail: 'An experiment named "exp-name" already exists',
           },
         ],
-      });
+      })
+      .expect('Content-Type', apiContentTypeRegExp);
   });
 });
 
@@ -235,7 +244,8 @@ describe('LogServer: get /experiments', () => {
             attributes: { name: 'exp-2-name' },
           },
         ],
-      });
+      })
+      .expect('Content-Type', apiContentTypeRegExp);
   });
 
   it('returns empty array when no experiments match the name filter', async ({
@@ -250,7 +260,8 @@ describe('LogServer: get /experiments', () => {
 
     await api
       .get('/experiments?filter[name]=non-existent')
-      .expect(200, { data: [] });
+      .expect(200, { data: [] })
+      .expect('Content-Type', apiContentTypeRegExp);
   });
 });
 
@@ -299,7 +310,8 @@ describe('LogServer: get /experiments/{id}', () => {
           type: 'experiments',
           attributes: { name: 'exp-1-name' },
         },
-      });
+      })
+      .expect('Content-Type', apiContentTypeRegExp);
   });
 
   it('returns 404 for non-existent experiment', async ({
@@ -316,6 +328,7 @@ describe('LogServer: get /experiments/{id}', () => {
             detail: 'Experiment non-existent not found',
           },
         ],
-      });
+      })
+      .expect('Content-Type', apiContentTypeRegExp);
   });
 });

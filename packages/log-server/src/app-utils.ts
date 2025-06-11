@@ -77,7 +77,7 @@ export function getErrorResponse<
   return {
     status: option.status as T['status'],
     body: { errors: [error] },
-    contentType: 'application/json' as const,
+    contentType: apiMediaType,
   };
 }
 
@@ -167,3 +167,6 @@ export function getAllowedAndFilteredRunIds(
   }
   return intersection(sessionData.runs, arrayify(queryFilter, true));
 }
+
+export const apiMediaType = 'application/vnd.api+json' as const;
+export type ApiMediaType = typeof apiMediaType;
