@@ -1,0 +1,95 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Integration - Logging Flow > handles complex log value types 1`] = `
+{
+  "data": [
+    {
+      "attributes": {
+        "logType": "complex",
+        "number": 1,
+        "values": {
+          "array": [
+            1,
+            2,
+            3,
+          ],
+          "boolean": true,
+          "nested": {
+            "a": 1,
+            "b": "string",
+          },
+          "null_value": null,
+          "object_array": [
+            {
+              "id": 1,
+            },
+            {
+              "id": 2,
+            },
+          ],
+        },
+      },
+      "id": "1",
+      "relationships": {
+        "run": {
+          "data": {
+            "id": "2",
+            "type": "runs",
+          },
+        },
+      },
+      "type": "logs",
+    },
+  ],
+}
+`;
+
+exports[`Integration - Run Management > adds run to participant session 1`] = `
+{
+  "data": {
+    "attributes": {
+      "lastLogNumber": 0,
+      "name": "session-test-run",
+      "status": "idle",
+    },
+    "id": "1",
+    "relationships": {
+      "experiment": {
+        "data": {
+          "id": "1",
+          "type": "experiments",
+        },
+      },
+      "lastLogs": {
+        "data": [],
+      },
+    },
+    "type": "runs",
+  },
+}
+`;
+
+exports[`Integration - Run Management > creates, updates and retrieves runs 1`] = `
+{
+  "data": {
+    "attributes": {
+      "lastLogNumber": 0,
+      "name": "test-run",
+      "status": "running",
+    },
+    "id": "1",
+    "relationships": {
+      "experiment": {
+        "data": {
+          "id": "1",
+          "type": "experiments",
+        },
+      },
+      "lastLogs": {
+        "data": [],
+      },
+    },
+    "type": "runs",
+  },
+}
+`;
