@@ -3,19 +3,20 @@
 import type { paths } from '@lightmill/log-api';
 import express from 'express';
 import { Store as SessionStore, type SessionData } from 'express-session';
-import supertest from 'supertest';
+import { default as request, default as supertest } from 'supertest';
 import type { RequiredKeysOf, Simplify, ValueOf } from 'type-fest';
 import { vi, type Mock } from 'vitest';
 import type { HttpMethod } from '../src/api-utils.js';
 import { apiMediaType } from '../src/app-utils.ts';
 import { LogServer } from '../src/app.js';
-import type {
-  AllFilter,
-  Log,
-  LogFilter,
-  RunFilter,
-  RunStatus,
-  Store,
+import {
+  SQLiteStore,
+  type AllFilter,
+  type Log,
+  type LogFilter,
+  type RunFilter,
+  type RunStatus,
+  type Store,
 } from '../src/store.js';
 import { arrayify, firstStrict } from '../src/utils.js';
 
@@ -339,3 +340,27 @@ const _isRunStatusComplete: ForgottenStatus extends never ? true : false = true;
 export const apiContentTypeRegExp = new RegExp(
   `^${apiMediaType.replaceAll(/(\.|\/|\+)/g, '\\$1')}(;\\s*charset=[^\\s]+)?$`,
 );
+
+const baseServerOptions = {
+  sessionKeys: ['secret'],
+  hostPassword: 'host password',
+  hostUser: 'host user',
+  secureCookies: false,
+};
+
+export async function createUnitTestServer() {
+  return LogServer({
+    store: createMockStore(),
+    sessionStore: new MockSessionStore(),
+    ...baseServerOptions,
+  });
+}
+
+export async function createIntegrationTestServer() {
+  // Create real in-memory database
+  const store = new SQLiteStore(':memory:');
+  await store.migrateDatabase();
+  return LogServer({ store, ...baseServerOptions });
+}
+
+export type App = Parameters<typeof request.agent>[0];
