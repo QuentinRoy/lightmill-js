@@ -3,14 +3,14 @@
 import express, { type Application } from 'express';
 import request from 'supertest';
 import { describe, test as vitestTest } from 'vitest';
-import { apiMediaType, type ServerRequestContent } from '../src/app-utils.js';
-import { LogServer } from '../src/app.js';
 import {
-  MockSessionStore,
-  apiContentTypeRegExp,
   createMockStore,
   type MockStore,
-} from './test-utils.js';
+} from '../__mocks__/mock-data-store.ts';
+import { MockSessionStore } from '../__mocks__/mock-session-store.ts';
+import { apiMediaType, type ServerRequestContent } from '../src/app-utils.js';
+import { LogServer } from '../src/app.js';
+import { apiContentTypeRegExp } from './test-utils.js';
 
 type BaseFixture = {
   store: MockStore;
