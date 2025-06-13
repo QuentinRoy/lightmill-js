@@ -1,11 +1,11 @@
 import { afterEach, describe, vi } from 'vitest';
+import { isMockStore } from '../__mocks__/mock-data-store.ts';
 import { apiMediaType } from '../src/app-utils.ts';
 import { StoreError } from '../src/store.ts';
 import { arrayify } from '../src/utils.js';
 import {
   apiContentTypeRegExp,
   createSessionTest,
-  isMockStore,
   storeTypes,
 } from './test-utils.js';
 
@@ -114,6 +114,7 @@ describe.for(allTests)(
             runId: `run-${runNum + 1}`,
             experimentId: experimentId,
             runName: `run-${runNum + 1}-name`,
+            experimentName: `${experimentId}-name`,
             runCreatedAt: new Date('2023-01-01T00:00:00Z'),
             runStatus: 'running' as const,
           }));
@@ -126,6 +127,7 @@ describe.for(allTests)(
                 return {
                   runId,
                   experimentId,
+                  experimentName: `${experimentId}-name`,
                   runName: `${runId}-name`,
                   runCreatedAt: new Date('2023-01-01T00:00:00Z'),
                   runStatus: 'running',

@@ -3,27 +3,21 @@
 
 import type { paths } from '@lightmill/log-api';
 import express from 'express';
-import {
-  MemoryStore,
-  Store as SessionStore,
-  type SessionData,
-} from 'express-session';
+import { MemoryStore, Store as SessionStore } from 'express-session';
 import { default as request, default as supertest } from 'supertest';
 import type { RequiredKeysOf, Simplify, ValueOf } from 'type-fest';
-import { test, vi, type Mock, type TestAPI } from 'vitest';
+import { test, vi, type TestAPI } from 'vitest';
+import {
+  createMockStore,
+  type MockStore,
+} from '../__mocks__/mock-data-store.ts';
+import { MockSessionStore } from '../__mocks__/mock-session-store.ts';
 import type { HttpMethod } from '../src/api-utils.js';
 import { apiMediaType } from '../src/app-utils.ts';
 import { LogServer } from '../src/app.js';
-import { storeTypeSymbol } from '../src/store-types.ts';
-import {
-  SQLiteStore,
-  type AllFilter,
-  type Log,
-  type LogFilter,
-  type RunFilter,
-  type RunStatus,
-  type Store,
-} from '../src/store.js';
+// storeTypeSymbol is required by TS even if not used it directly.
+import type { storeTypeSymbol } from '../src/store-types.ts';
+import { SQLiteStore, type RunStatus, type Store } from '../src/store.js';
 import { arrayify, firstStrict } from '../src/utils.js';
 
 type RouteMap<T = unknown> = {
@@ -70,188 +64,6 @@ export function createAllRoute() {
     }
   }
   return result;
-}
-
-function isEmptyArray(value: unknown): value is [] {
-  return Array.isArray(value) && value.length === 0;
-}
-
-const keys = [
-  'experimentId',
-  'experimentName',
-  'runId',
-  'runName',
-  'runStatus',
-  'logType',
-  'logId',
-] satisfies Array<keyof AllFilter>;
-function isNoResultFilter<Filter extends LogFilter | RunFilter>(
-  filter?: Filter,
-) {
-  if (filter == null) return false;
-  return keys.some((key) => isEmptyArray(filter[key as keyof Filter]));
-}
-
-export type MockStore = {
-  [K in keyof Store]: Store[K] extends infer C extends (
-    ...args: never[]
-  ) => unknown
-    ? Mock<C>
-    : Store[K];
-} & { [storeTypeSymbol]: 'mock' };
-
-export function createMockStore(): MockStore {
-  return {
-    [storeTypeSymbol]: 'mock',
-    addExperiment: vi.fn(async () => {
-      return {
-        experimentId: '1',
-        experimentName: 'addExperiment:experimentName',
-        experimentCreatedAt: new Date('2022-11-01T00:00:00Z'),
-      };
-    }),
-    getExperiments: vi.fn(async () => {
-      return [
-        {
-          experimentId: '1',
-          experimentName: 'getExperiments:experimentName',
-          experimentCreatedAt: new Date('2022-11-01T00:00:00Z'),
-        },
-      ];
-    }),
-    addRun: vi.fn(async (..._args) => {
-      return {
-        experimentId: '1',
-        runId: '1',
-        runName: 'addRun:runName',
-        experimentName: 'addRun:experimentName',
-        runStatus: 'idle' satisfies RunStatus as RunStatus,
-        runCreatedAt: new Date('2022-11-01T00:00:00Z'),
-      };
-    }),
-    resumeRun: vi.fn(async (..._args) => {}),
-    getRuns: vi.fn(async (filter) => {
-      if (isNoResultFilter(filter)) {
-        return [];
-      }
-      return [
-        {
-          experimentId: 'exp-id',
-          runId: 'run-id',
-          runName: 'getRun:runName',
-          experimentName: 'getRun:experimentName',
-          runCreatedAt: vi.getMockedSystemTime() ?? new Date(),
-          runStatus: 'running' satisfies RunStatus as RunStatus,
-        },
-      ];
-    }),
-    setRunStatus: vi.fn((..._args) => Promise.resolve()),
-    addLogs: vi.fn((..._args) =>
-      Promise.resolve([{ logId: 'l1' }, { logId: 'l2' }]),
-    ),
-    getLogValueNames: vi.fn(() =>
-      Promise.resolve(['mock-col1', 'mock-col2', 'mock-col3']),
-    ),
-    getLastLogs: vi.fn((..._args) =>
-      Promise.resolve([
-        {
-          runId: 'getLastLogs:run-id',
-          type: 'getLastLogs:type-1',
-          logId: 'getLastLogs:id-1',
-          number: 12,
-          values: { 'mock-col1': 'log1-mock-value1' },
-        },
-        {
-          runId: 'getLastLogs:run-id',
-          type: 'getLastLogs:type-2',
-          logId: 'getLastLogs:id-2',
-          number: 3,
-          values: { 'mock-col2': 'log2-mock-value1' },
-        },
-      ]),
-    ),
-    getNumberOfPendingLogs: vi.fn((_filter) => {
-      return Promise.resolve([
-        { runId: 'getNumberOfPendingLogs:run-id', count: 0 },
-      ]);
-    }),
-    getLogs: vi.fn(async function* (): AsyncGenerator<Log> {
-      yield {
-        experimentId: 'getLogs:exp-id-1',
-        runId: 'getLogs:run-id-1',
-        logId: 'getLogs:id-1',
-        runStatus: 'running',
-        experimentName: 'getLogs:experimentName-1',
-        runName: 'getLogs:runName-1',
-        type: 'getLogs:type-1',
-        number: 1,
-        values: {
-          'mock-col1': 'log1-mock-value1',
-          'mock-col2': 'log1-mock-value2',
-        },
-      };
-      yield {
-        experimentId: 'getLogs:exp-id-2',
-        runId: 'getLogs:run-id-2',
-        logId: 'getLogs:id-2',
-        runStatus: 'completed',
-        experimentName: 'getLogs:experimentName-2',
-        runName: 'getLogs:runName-2',
-        type: 'getLogs:type-2',
-        number: 2,
-        values: {
-          'mock-col1': 'log2-mock-value1',
-          'mock-col2': 'log2-mock-value2',
-          'mock-col3': 'log2-mock-value3',
-        },
-      };
-    }),
-    migrateDatabase: vi.fn(async () => {}),
-    close: vi.fn(async () => {}),
-  };
-}
-
-export function isMockStore(store: unknown): store is MockStore {
-  return (
-    typeof store === 'object' &&
-    store != null &&
-    storeTypeSymbol in store &&
-    store[storeTypeSymbol] === 'mock'
-  );
-}
-
-export class MockSessionStore extends SessionStore {
-  data: Map<string, SessionData> = new Map();
-
-  ids = vi.fn((cb: (ids: string[]) => void) => {
-    cb(Array.from(this.data.keys()));
-  });
-
-  get = vi.fn(
-    (sid: string, cb: (err?: Error | null, data?: SessionData) => void) => {
-      if (this.data.has(sid)) {
-        cb(null, this.data.get(sid));
-      } else {
-        cb();
-      }
-    },
-  );
-
-  set = vi.fn((sid: string, data: SessionData, cb: (err?: Error) => void) => {
-    this.data.set(sid, data);
-    cb();
-  });
-
-  destroy = vi.fn((sid: string, cb: (err?: Error) => void) => {
-    this.data.delete(sid);
-    cb();
-  });
-
-  mockGetData = (data: SessionData['data']) => {
-    this.get.mockImplementation((sid, cb) => {
-      cb(null, { data, cookie: { originalMaxAge: 0 } });
-    });
-  };
 }
 
 export function idCompare(a: { id: string }, b: { id: string }) {
@@ -342,6 +154,8 @@ export function generateCombinations<T>(values: Iterable<T>) {
   return combinations;
 }
 
+function assertTypeExtends<U extends T, T>() {}
+
 export const runStatus = [
   'canceled',
   'completed',
@@ -351,7 +165,9 @@ export const runStatus = [
 ] as const;
 type ProvidedStatus = (typeof runStatus)[number];
 type ForgottenStatus = Exclude<RunStatus, ProvidedStatus>;
-const _isRunStatusComplete: ForgottenStatus extends never ? true : false = true;
+// This will fail if `ForgottenStatus` is not empty, which happens if not all
+// possible run statuses are covered.
+assertTypeExtends<ForgottenStatus, never>();
 
 export const apiContentTypeRegExp = new RegExp(
   `^${apiMediaType.replaceAll(/(\.|\/|\+)/g, '\\$1')}(;\\s*charset=[^\\s]+)?$`,

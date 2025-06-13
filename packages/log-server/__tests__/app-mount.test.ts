@@ -1,13 +1,11 @@
 import express from 'express';
 import request from 'supertest';
 import { describe, it } from 'vitest';
+import { createMockStore } from '../__mocks__/mock-data-store.ts';
+import { MockSessionStore } from '../__mocks__/mock-session-store.ts';
 import { apiMediaType } from '../src/app-utils.ts';
 import { LogServer } from '../src/app.js';
-import {
-  MockSessionStore,
-  apiContentTypeRegExp,
-  createMockStore,
-} from './test-utils.js';
+import { apiContentTypeRegExp } from './test-utils.js';
 
 describe('LogServer', () => {
   it('can be mounted on a sub path', async () => {
