@@ -33,6 +33,7 @@ import {
   type LogId,
   type RunId,
   type RunStatus,
+  storeTypeSymbol,
   toDbId,
 } from './store-types.js';
 import { getStrict } from './utils.js';
@@ -58,6 +59,8 @@ const MIGRATION_FOLDER = path.join(__dirname, 'db-migrations');
 export class SQLiteStore {
   #db: Kysely<Database>;
   #selectQueryLimit: number;
+
+  [storeTypeSymbol] = 'sqlite';
 
   constructor(
     db: string,
@@ -652,4 +655,6 @@ function parseJsonObject(jsonString: string): Record<string, unknown> {
   return result;
 }
 
-export type Store = { [K in keyof SQLiteStore]: SQLiteStore[K] };
+export type Store = {
+  [K in Exclude<keyof SQLiteStore, typeof storeTypeSymbol>]: SQLiteStore[K];
+};

@@ -73,3 +73,8 @@ type ReverseIdsMap = UnionToIntersection<
       : never
     : never
 >;
+
+// This symbol is used to identify the type of store being used during tests.
+// This is exposed to the outside world, but custom store cannot currently
+// use it.
+export const storeTypeSymbol = Symbol('StoreType');
