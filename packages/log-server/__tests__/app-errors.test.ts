@@ -7,8 +7,7 @@ import { apiMediaType, type ServerRequestContent } from '../src/app-utils.ts';
 import {
   apiContentTypeRegExp,
   createAllRoute,
-  createIntegrationTestServer,
-  createUnitTestServer,
+  createServer,
 } from './test-utils.js';
 
 let allRoutes = createAllRoute();
@@ -19,15 +18,12 @@ afterEach(() => {
 
 type Fixture = { api: request.Agent };
 
-describe.for([{ type: 'unit' }, { type: 'integration' }])(
-  'LogServer Errors ($type)',
-  ({ type }) => {
+describe.for([{ serverType: 'mock' }, { serverType: 'sqlite' }] as const)(
+  'LogServer Errors ($storesType server)',
+  ({ serverType }) => {
     const it = test.extend<Fixture>({
       api: async ({}, use) => {
-        let server =
-          type === 'unit'
-            ? await createUnitTestServer()
-            : await createIntegrationTestServer();
+        let { server } = await createServer({ type: serverType });
         let app = express().use(server.middleware);
         let api = request.agent(app);
         await use(api);
