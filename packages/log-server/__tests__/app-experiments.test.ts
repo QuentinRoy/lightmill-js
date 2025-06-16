@@ -1,8 +1,5 @@
 import { afterEach, describe, vi } from 'vitest';
-import { isMockStore } from '../__mocks__/mock-data-store.ts';
 import { apiMediaType } from '../src/app-utils.ts';
-import { StoreError } from '../src/store.ts';
-import { arrayify } from '../src/utils.js';
 import {
   apiContentTypeRegExp,
   createSessionTest,
@@ -45,13 +42,7 @@ describe.for(hostTests)(
     it('refuses to create an experiment if there are name conflicts', async ({
       session: { api, store },
     }) => {
-      if (isMockStore(store)) {
-        store.addExperiment.mockImplementation(async () => {
-          throw new StoreError('message', StoreError.EXPERIMENT_EXISTS);
-        });
-      } else {
-        await store.addExperiment({ experimentName: 'exp-name' });
-      }
+      await store.addExperiment({ experimentName: 'exp-name' });
 
       await api
         .post('/experiments')
@@ -104,40 +95,6 @@ describe.for(allTests)(
       sessionType,
       storeType,
       setup: {
-        mock: async ({ store }) => {
-          const experiments = ['exp-1', 'exp-2', 'exp-3'].map((id) => ({
-            experimentId: id,
-            experimentName: `${id}-name`,
-            experimentCreatedAt: new Date('2023-01-01T00:00:00Z'),
-          }));
-          const runs = experiments.map(({ experimentId }, runNum) => ({
-            runId: `run-${runNum + 1}`,
-            experimentId: experimentId,
-            runName: `run-${runNum + 1}-name`,
-            experimentName: `${experimentId}-name`,
-            runCreatedAt: new Date('2023-01-01T00:00:00Z'),
-            runStatus: 'running' as const,
-          }));
-          store.getExperiments.mockImplementation(async () => experiments);
-          store.getRuns.mockImplementation(async (filter) => {
-            if (filter?.runId != null) {
-              let runFilter = arrayify(filter.runId);
-              return runFilter.map((runId) => {
-                let experimentId = /^(exp-\d+)/.exec(runId)?.[1] ?? 'exp-?';
-                return {
-                  runId,
-                  experimentId,
-                  experimentName: `${experimentId}-name`,
-                  runName: `${runId}-name`,
-                  runCreatedAt: new Date('2023-01-01T00:00:00Z'),
-                  runStatus: 'running',
-                };
-              });
-            }
-            return runs;
-          });
-          return { experiments, runs };
-        },
         sqlite: async ({ store }) => {
           vi.useFakeTimers({ now: new Date('2023-01-01T00:00:00Z') });
           const experiments = await Promise.all(
@@ -182,18 +139,6 @@ describe.for(allTests)(
       const expNumber = 1;
       const expName = experiments[expNumber].experimentName;
       const expId = experiments[expNumber].experimentId;
-      if (isMockStore(store)) {
-        store.getExperiments.mockImplementation(async () => {
-          return [
-            {
-              experimentId: expId,
-              experimentName: expName,
-              experimentCreatedAt: new Date('2023-01-01T00:00:00Z'),
-            },
-          ];
-        });
-      }
-
       await api
         .get(`/experiments?filter[name]=${expName}`)
         .expect(200, {
@@ -203,22 +148,12 @@ describe.for(allTests)(
         })
         .expect('Content-Type', apiContentTypeRegExp);
 
-      if (isMockStore(store)) {
-        expect(store.getExperiments.mock.calls).toMatchSnapshot();
-      }
+      expect(store.getExperiments.mock.calls).toMatchSnapshot();
     });
 
     it('returns empty array when no experiments match the name filter', async ({
-      session: { api, store },
+      session: { api },
     }) => {
-      if (isMockStore(store)) {
-        store.getExperiments.mockImplementation(async (filter) => {
-          if (filter?.experimentName === 'non-existent') {
-            return [];
-          }
-          return [];
-        });
-      }
       await api
         .get('/experiments?filter[name]=non-existent')
         .expect(200, { data: [] })
@@ -231,25 +166,9 @@ describe.for(allTests)(
   'LogServer: get /experiments/{id} ($sessionType session, $storeType store)',
   ({ test: it }) => {
     it('returns an experiment by ID', async ({ session: { api, store } }) => {
-      let experimentId = 'exp-1';
-      if (isMockStore(store)) {
-        store.getExperiments.mockImplementation(async (filter) => {
-          if (filter?.experimentId === 'exp-1') {
-            return [
-              {
-                experimentId,
-                experimentName: 'exp-1-name',
-                experimentCreatedAt: new Date('2023-01-01T00:00:00Z'),
-              },
-            ];
-          }
-          return [];
-        });
-      } else {
-        ({ experimentId } = await store.addExperiment({
-          experimentName: 'exp-1-name',
-        }));
-      }
+      let { experimentId } = await store.addExperiment({
+        experimentName: 'exp-1-name',
+      });
 
       await api
         .get(`/experiments/${experimentId}`)
@@ -264,11 +183,8 @@ describe.for(allTests)(
     });
 
     it('returns 404 for non-existent experiment', async ({
-      session: { api, store },
+      session: { api },
     }) => {
-      if (isMockStore(store)) {
-        store.getExperiments.mockImplementation(async () => []);
-      }
       await api
         .get('/experiments/non-existent')
         .expect(404, {

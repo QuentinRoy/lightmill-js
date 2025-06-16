@@ -6,19 +6,12 @@ import express from 'express';
 import { MemoryStore, Store as SessionStore } from 'express-session';
 import { default as request, default as supertest } from 'supertest';
 import type { RequiredKeysOf, Simplify, ValueOf } from 'type-fest';
-import { test, vi, type TestAPI } from 'vitest';
-import {
-  createMockStore,
-  type MockStore,
-} from '../__mocks__/mock-data-store.ts';
-import { MockSessionStore } from '../__mocks__/mock-session-store.ts';
+import { test, vi, type Mock, type TestAPI } from 'vitest';
 import type { HttpMethod } from '../src/api-utils.js';
 import { apiMediaType } from '../src/app-utils.ts';
 import { LogServer } from '../src/app.js';
-// storeTypeSymbol is required by TS even if not used it directly.
-import type { storeTypeSymbol } from '../src/store-types.ts';
-import { SQLiteStore, type RunStatus, type Store } from '../src/store.js';
-import { arrayify, firstStrict } from '../src/utils.js';
+import type { DataStore } from '../src/store-types.ts';
+import { SQLiteStore, type RunStatus } from '../src/store.js';
 
 type RouteMap<T = unknown> = {
   [P in keyof paths]: {
@@ -70,80 +63,6 @@ export function idCompare(a: { id: string }, b: { id: string }) {
   return a.id.localeCompare(b.id, 'en');
 }
 
-export async function createFixtureWithRuns(opt?: {
-  role?: 'participant';
-}): Promise<FixtureWithRuns<'participant'>>;
-export async function createFixtureWithRuns(opt: {
-  role: 'host';
-}): Promise<FixtureWithRuns<'host'>>;
-export async function createFixtureWithRuns({
-  role = 'participant',
-}: { role?: 'participant' | 'host' } = {}): Promise<
-  FixtureWithRuns<'participant' | 'host'>
-> {
-  let runs: Array<Run> = [];
-  const sessionStore = new MockSessionStore();
-  const store = createMockStore();
-  const server = LogServer({
-    store,
-    sessionStore,
-    sessionKeys: ['secret'],
-    hostPassword: 'host password',
-    hostUser: 'host user',
-    secureCookies: false,
-  });
-  const app = express();
-  app.use(server.middleware);
-  const api = supertest.agent(app).host('lightmill-test.com');
-  await api
-    .post('/sessions')
-    .auth('host user', 'host password')
-    .set('Content-Type', apiMediaType)
-    .send({ data: { type: 'sessions', attributes: { role } } })
-    .expect(201);
-  const experiments = await store.getExperiments();
-  sessionStore.get.mockImplementation((sid, cb) => {
-    cb(null, {
-      data: { role, runs: runs.map((r) => r.runId) },
-      cookie: { originalMaxAge: 0 },
-    });
-  });
-  store.getRuns.mockImplementation(async (filter) => {
-    return runs.filter(
-      (r) => filter?.runId == null || arrayify(filter.runId).includes(r.runId),
-    );
-  });
-  vi.clearAllMocks();
-  return {
-    api,
-    sessionStore,
-    store,
-    experiment: firstStrict(experiments).experimentId,
-    setRuns: (newRuns: Array<Run>) => {
-      runs = newRuns;
-    },
-    getRuns: () => runs,
-    role,
-  };
-}
-
-type Run = {
-  runId: string;
-  runName: string;
-  experimentId: string;
-  runStatus: RunStatus;
-  runCreatedAt: Date;
-};
-export type FixtureWithRuns<Role extends string = 'participant'> = {
-  experiment: string;
-  api: supertest.Agent;
-  store: MockStore;
-  sessionStore: MockSessionStore;
-  setRuns: (run: Run[]) => void;
-  getRuns: () => Run[];
-  role: Role;
-};
-
 export function generateCombinations<T>(values: Iterable<T>) {
   let combinations: Array<[T, T]> = [];
   for (let v1 of values) {
@@ -176,8 +95,8 @@ export const apiContentTypeRegExp = new RegExp(
 const baseServerOptions = { sessionKeys: ['secret'], secureCookies: false };
 
 type ServerOptions = { hostPassword?: string; hostUser?: string };
-async function createServerFromStores<
-  DataStore extends Store,
+async function createServerContextFromStores<
+  ThisDataStore extends DataStore,
   ThisSessionStore extends SessionStore,
   ServerType extends string,
 >({
@@ -186,7 +105,7 @@ async function createServerFromStores<
   type,
   serverOptions,
 }: {
-  store: DataStore;
+  store: ThisDataStore;
   sessionStore: ThisSessionStore;
   type: ServerType;
   serverOptions?: ServerOptions;
@@ -207,39 +126,46 @@ async function createServerFromStores<
   };
 }
 
-export const storeTypes = ['sqlite', 'mock'] as const;
+export const storeTypes = ['sqlite'] as const;
 export type StoreType = (typeof storeTypes)[number];
+export interface ServerContext {
+  store: WithMockedMethods<DataStore>;
+  sessionStore: WithMockedMethods<SessionStore>;
+}
 const storesCreators = {
   async sqlite() {
     const store = new SQLiteStore(':memory:');
     await store.migrateDatabase();
     const sessionStore = new MemoryStore();
-    return { store, sessionStore };
+    return {
+      store: mockMethods<DataStore>(store),
+      sessionStore: mockMethods<SessionStore>(sessionStore),
+    };
   },
-  async mock() {
-    const store = createMockStore();
-    const sessionStore = new MockSessionStore();
-    return { store, sessionStore };
-  },
-} satisfies Record<StoreType, unknown>;
+} satisfies Record<StoreType, () => Promise<ServerContext>>;
 
 type StoreCreatorsMap = typeof storesCreators;
+type StoreContextMap = {
+  [K in keyof StoreCreatorsMap]: Awaited<ReturnType<StoreCreatorsMap[K]>>;
+};
 export type ServerFromStores<
-  DataStore extends Store,
+  ThisDataStore extends DataStore,
   ThisSessionStore extends SessionStore,
   ServerType extends string,
 > = Awaited<
   ReturnType<
-    typeof createServerFromStores<DataStore, ThisSessionStore, ServerType>
+    typeof createServerContextFromStores<
+      ThisDataStore,
+      ThisSessionStore,
+      ServerType
+    >
   >
 >;
-export type ServerFromDefaultTypes<Type extends StoreType> =
-  Awaited<ReturnType<StoreCreatorsMap[Type]>> extends {
-    store: infer DataStore extends Store;
-    sessionStore: infer ThisSessionStore extends SessionStore;
-  }
-    ? ServerFromStores<DataStore, ThisSessionStore, Type>
-    : never;
+export type ServerFromDefaultTypes<Type extends StoreType> = ServerFromStores<
+  StoreContextMap[Type]['store'],
+  StoreContextMap[Type]['sessionStore'],
+  Type
+>;
 
 function isDefaultServerTypeOptions(
   value: unknown,
@@ -254,54 +180,45 @@ function isDefaultServerTypeOptions(
 }
 
 type CreateServerBaseOptions = { serverOptions?: ServerOptions };
-export async function createServer<Type extends StoreType>(
+export async function createServerContext<Type extends StoreType>(
   options: { type: Type } & CreateServerBaseOptions,
 ): Promise<ServerFromDefaultTypes<Type>>;
-export async function createServer<
-  DataStore extends Store,
-  ThisSessionStore extends SessionStore,
-  ServerType extends `custom${string}`,
->(
-  options: {
-    store: Store;
-    sessionStore: SessionStore;
-    type: ServerType;
-  } & CreateServerBaseOptions,
-): Promise<ServerFromStores<DataStore, ThisSessionStore, ServerType>>;
-export async function createServer<
-  DataStore extends Store,
+export async function createServerContext<
+  ThisDataStore extends DataStore,
   ThisSessionStore extends SessionStore,
 >(
   options: {
-    store: Store;
-    sessionStore: SessionStore;
+    store: ThisDataStore;
+    sessionStore: ThisSessionStore;
   } & CreateServerBaseOptions,
-): Promise<ServerFromStores<DataStore, ThisSessionStore, 'custom'>>;
-export async function createServer(
+): Promise<ServerFromStores<ThisDataStore, ThisSessionStore, 'custom'>>;
+export async function createServerContext(
   options: (
-    | { store: Store; sessionStore: SessionStore; type?: `custom${string}` }
-    | { type: 'mock' | 'sqlite' }
+    | { store: DataStore; sessionStore: SessionStore }
+    | { type: StoreType }
   ) &
     CreateServerBaseOptions,
 ) {
   if (isDefaultServerTypeOptions(options)) {
     const { store, sessionStore } = await storesCreators[options.type]();
-    return createServerFromStores({ ...options, store, sessionStore });
+    return createServerContextFromStores({ ...options, store, sessionStore });
   }
-  return createServerFromStores({ type: 'custom', ...options });
+  return createServerContextFromStores({ type: 'custom', ...options });
 }
 
 export type App = Parameters<typeof request.agent>[0];
 
 type Role = 'host' | 'participant';
-type StoreContextMap = {
-  sqlite: { store: SQLiteStore; sessionStore: MemoryStore };
-  mock: { store: MockStore; sessionStore: MockSessionStore };
-};
+
 type SessionFixtureContext<
   R extends Role = Role,
   T extends StoreType = StoreType,
-> = { api: request.Agent; role: R; type: T } & StoreContextMap[T];
+> = {
+  api: request.Agent;
+  role: R;
+  type: T;
+  app: NonNullable<Parameters<typeof request.agent>[0]>;
+} & StoreContextMap[T];
 type SessionFixture<R extends Role, T extends StoreType = StoreType> = {
   session: SessionFixtureContext<R, T>;
 };
@@ -314,8 +231,8 @@ async function createSessionFixtureContext<
   R extends 'host' | 'participant',
   T extends StoreType,
 >({ type, role }: { type: T; role: R }) {
-  let serverBag = await createServer({ type });
-  let app = express().use(serverBag.server.middleware);
+  let serverContext = await createServerContext({ type });
+  let app = express().use(serverContext.server.middleware);
   let api = request.agent(app).host('lightmill-test.com');
   // This request only matters to get the cookie. After that we'll mock the session anyway.
   await api
@@ -324,7 +241,7 @@ async function createSessionFixtureContext<
     .send({ data: { type: 'sessions', attributes: { role } } })
     .expect(201);
   vi.clearAllMocks();
-  return { ...serverBag, api, role };
+  return { ...serverContext, api, role, app };
 }
 
 export type SetupFunction<
@@ -371,7 +288,6 @@ export function createSessionTest(
     if (typeof options.setup === 'function') {
       return options.setup(context);
     }
-    // @ts-expect-error I don't care about TS here.
     return options.setup[options.storeType](context);
   };
   return test.extend({
@@ -380,9 +296,33 @@ export function createSessionTest(
         role: options.sessionType,
         type: options.storeType,
       });
-      // @ts-expect-error I don't care about TS here.
       const patch = await setupFn(context);
       await use({ ...context, ...patch });
     },
   });
+}
+
+export type WithMockedMethods<T extends object> = {
+  [K in keyof T]: T[K] extends (...args: never[]) => unknown
+    ? Mock<T[K]>
+    : T[K];
+};
+export function mockMethods<T extends object>(obj: T): WithMockedMethods<T> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const proxiedMethods = new Map<PropertyKey, Mock<any>>();
+  return new Proxy(obj, {
+    get(target, prop) {
+      let proxiedMethod = proxiedMethods.get(prop);
+      if (proxiedMethod != null) {
+        return proxiedMethod;
+      }
+      let value = Reflect.get(target, prop);
+      if (typeof value === 'function') {
+        let newProxiedMethod = vi.fn(value.bind(target));
+        proxiedMethods.set(prop as string, newProxiedMethod);
+        return newProxiedMethod;
+      }
+      return value;
+    },
+  }) as WithMockedMethods<T>;
 }

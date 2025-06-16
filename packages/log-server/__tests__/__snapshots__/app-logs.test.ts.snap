@@ -1,273 +1,30 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`LogServer: get /logs > filters logs by experiment 2`] = `
-{
-  "data": [
-    {
-      "attributes": {
-        "logType": "getLogs:type-1",
-        "number": 1,
-        "values": {
-          "mock-col1": "log1-mock-value1",
-          "mock-col2": "log1-mock-value2",
-        },
-      },
-      "id": "getLogs:id-1",
-      "relationships": {
-        "run": {
-          "data": {
-            "id": "getLogs:run-id-1",
-            "type": "runs",
-          },
-        },
-      },
-      "type": "logs",
-    },
-    {
-      "attributes": {
-        "logType": "getLogs:type-2",
-        "number": 2,
-        "values": {
-          "mock-col1": "log2-mock-value1",
-          "mock-col2": "log2-mock-value2",
-          "mock-col3": "log2-mock-value3",
-        },
-      },
-      "id": "getLogs:id-2",
-      "relationships": {
-        "run": {
-          "data": {
-            "id": "getLogs:run-id-2",
-            "type": "runs",
-          },
-        },
-      },
-      "type": "logs",
-    },
-  ],
-}
-`;
-
-exports[`LogServer: get /logs > filters logs by run 2`] = `
-{
-  "data": [
-    {
-      "attributes": {
-        "logType": "getLogs:type-1",
-        "number": 1,
-        "values": {
-          "mock-col1": "log1-mock-value1",
-          "mock-col2": "log1-mock-value2",
-        },
-      },
-      "id": "getLogs:id-1",
-      "relationships": {
-        "run": {
-          "data": {
-            "id": "getLogs:run-id-1",
-            "type": "runs",
-          },
-        },
-      },
-      "type": "logs",
-    },
-    {
-      "attributes": {
-        "logType": "getLogs:type-2",
-        "number": 2,
-        "values": {
-          "mock-col1": "log2-mock-value1",
-          "mock-col2": "log2-mock-value2",
-          "mock-col3": "log2-mock-value3",
-        },
-      },
-      "id": "getLogs:id-2",
-      "relationships": {
-        "run": {
-          "data": {
-            "id": "getLogs:run-id-2",
-            "type": "runs",
-          },
-        },
-      },
-      "type": "logs",
-    },
-  ],
-}
-`;
-
-exports[`LogServer: get /logs > filters logs by run, type, and experiment 2`] = `
-{
-  "data": [
-    {
-      "attributes": {
-        "logType": "getLogs:type-1",
-        "number": 1,
-        "values": {
-          "mock-col1": "log1-mock-value1",
-          "mock-col2": "log1-mock-value2",
-        },
-      },
-      "id": "getLogs:id-1",
-      "relationships": {
-        "run": {
-          "data": {
-            "id": "getLogs:run-id-1",
-            "type": "runs",
-          },
-        },
-      },
-      "type": "logs",
-    },
-    {
-      "attributes": {
-        "logType": "getLogs:type-2",
-        "number": 2,
-        "values": {
-          "mock-col1": "log2-mock-value1",
-          "mock-col2": "log2-mock-value2",
-          "mock-col3": "log2-mock-value3",
-        },
-      },
-      "id": "getLogs:id-2",
-      "relationships": {
-        "run": {
-          "data": {
-            "id": "getLogs:run-id-2",
-            "type": "runs",
-          },
-        },
-      },
-      "type": "logs",
-    },
-  ],
-}
-`;
-
-exports[`LogServer: get /logs > filters logs by type 2`] = `
-{
-  "data": [
-    {
-      "attributes": {
-        "logType": "getLogs:type-1",
-        "number": 1,
-        "values": {
-          "mock-col1": "log1-mock-value1",
-          "mock-col2": "log1-mock-value2",
-        },
-      },
-      "id": "getLogs:id-1",
-      "relationships": {
-        "run": {
-          "data": {
-            "id": "getLogs:run-id-1",
-            "type": "runs",
-          },
-        },
-      },
-      "type": "logs",
-    },
-    {
-      "attributes": {
-        "logType": "getLogs:type-2",
-        "number": 2,
-        "values": {
-          "mock-col1": "log2-mock-value1",
-          "mock-col2": "log2-mock-value2",
-          "mock-col3": "log2-mock-value3",
-        },
-      },
-      "id": "getLogs:id-2",
-      "relationships": {
-        "run": {
-          "data": {
-            "id": "getLogs:run-id-2",
-            "type": "runs",
-          },
-        },
-      },
-      "type": "logs",
-    },
-  ],
-}
-`;
-
-exports[`LogServer: get /logs > returns logs as csv by default 1`] = `
-[
-  [
-    {
-      "experimentId": undefined,
-      "experimentName": undefined,
-      "logType": undefined,
-      "runId": undefined,
-      "runName": undefined,
-      "runStatus": "-canceled",
-    },
-  ],
-]
-`;
-
-exports[`LogServer: get /logs > returns logs as csv by default 2`] = `
-"type,experiment_name,run_name,run_status,mock_col_1,mock_col_2,mock_col_3
-getLogs:type-1,getLogs:experimentName-1,getLogs:runName-1,running,log1-mock-value1,log1-mock-value2,
-getLogs:type-2,getLogs:experimentName-2,getLogs:runName-2,completed,log2-mock-value1,log2-mock-value2,log2-mock-value3
+exports[`LogServer: get /logs (sqlite) > filters logs by experiment id (csv) 1`] = `
+"type,experiment_name,run_name,run_status,value
+log-type,log-test-experiment,log-test-run,running,1
+test-type,log-test-experiment,log-test-run,running,2
+log-type,log-test-experiment,other-run-1,running,3
+test-type,log-test-experiment,other-run-1,running,4
 "
 `;
 
-exports[`LogServer: get /logs > returns logs as csv if csv is the first supported format in the Accept header 1`] = `
-[
-  [
-    {
-      "experimentId": undefined,
-      "experimentName": undefined,
-      "logType": undefined,
-      "runId": undefined,
-      "runName": undefined,
-      "runStatus": "-canceled",
-    },
-  ],
-]
-`;
-
-exports[`LogServer: get /logs > returns logs as csv if csv is the first supported format in the Accept header 2`] = `
-"type,experiment_name,run_name,run_status,mock_col_1,mock_col_2,mock_col_3
-getLogs:type-1,getLogs:experimentName-1,getLogs:runName-1,running,log1-mock-value1,log1-mock-value2,
-getLogs:type-2,getLogs:experimentName-2,getLogs:runName-2,completed,log2-mock-value1,log2-mock-value2,log2-mock-value3
-"
-`;
-
-exports[`LogServer: get /logs > returns logs as json if json is the first supported format in the Accept header 1`] = `
-[
-  [
-    {
-      "experimentId": undefined,
-      "experimentName": undefined,
-      "logType": undefined,
-      "runId": undefined,
-      "runName": undefined,
-      "runStatus": "-canceled",
-    },
-  ],
-]
-`;
-
-exports[`LogServer: get /logs > returns logs as json if json is the first supported format in the Accept header 2`] = `
+exports[`LogServer: get /logs (sqlite) > filters logs by experiment id (json) 1`] = `
 {
   "data": [
     {
       "attributes": {
-        "logType": "getLogs:type-1",
+        "logType": "log-type",
         "number": 1,
         "values": {
-          "mock-col1": "log1-mock-value1",
-          "mock-col2": "log1-mock-value2",
+          "value": 1,
         },
       },
-      "id": "getLogs:id-1",
+      "id": "1",
       "relationships": {
         "run": {
           "data": {
-            "id": "getLogs:run-id-1",
+            "id": "2",
             "type": "runs",
           },
         },
@@ -276,19 +33,55 @@ exports[`LogServer: get /logs > returns logs as json if json is the first suppor
     },
     {
       "attributes": {
-        "logType": "getLogs:type-2",
+        "logType": "test-type",
         "number": 2,
         "values": {
-          "mock-col1": "log2-mock-value1",
-          "mock-col2": "log2-mock-value2",
-          "mock-col3": "log2-mock-value3",
+          "value": 2,
         },
       },
-      "id": "getLogs:id-2",
+      "id": "2",
       "relationships": {
         "run": {
           "data": {
-            "id": "getLogs:run-id-2",
+            "id": "2",
+            "type": "runs",
+          },
+        },
+      },
+      "type": "logs",
+    },
+    {
+      "attributes": {
+        "logType": "log-type",
+        "number": 1,
+        "values": {
+          "value": 3,
+        },
+      },
+      "id": "3",
+      "relationships": {
+        "run": {
+          "data": {
+            "id": "3",
+            "type": "runs",
+          },
+        },
+      },
+      "type": "logs",
+    },
+    {
+      "attributes": {
+        "logType": "test-type",
+        "number": 2,
+        "values": {
+          "value": 4,
+        },
+      },
+      "id": "4",
+      "relationships": {
+        "run": {
+          "data": {
+            "id": "3",
             "type": "runs",
           },
         },
@@ -299,40 +92,31 @@ exports[`LogServer: get /logs > returns logs as json if json is the first suppor
 }
 `;
 
-exports[`LogServer: get /logs > returns only logs a participant has access to 1`] = `
-[
-  [
-    {
-      "experimentId": undefined,
-      "experimentName": undefined,
-      "logType": undefined,
-      "runId": [
-        "that-run",
-      ],
-      "runName": undefined,
-      "runStatus": "-canceled",
-    },
-  ],
-]
+exports[`LogServer: get /logs (sqlite) > filters logs by experiment name (csv) 1`] = `
+"type,run_name,run_status,value
+log-type,log-test-run,running,1
+test-type,log-test-run,running,2
+log-type,other-run-1,running,3
+test-type,other-run-1,running,4
+"
 `;
 
-exports[`LogServer: get /logs > returns only logs a participant has access to 2`] = `
+exports[`LogServer: get /logs (sqlite) > filters logs by experiment name (json) 1`] = `
 {
   "data": [
     {
       "attributes": {
-        "logType": "getLogs:type-1",
+        "logType": "log-type",
         "number": 1,
         "values": {
-          "mock-col1": "log1-mock-value1",
-          "mock-col2": "log1-mock-value2",
+          "value": 1,
         },
       },
-      "id": "getLogs:id-1",
+      "id": "1",
       "relationships": {
         "run": {
           "data": {
-            "id": "getLogs:run-id-1",
+            "id": "2",
             "type": "runs",
           },
         },
@@ -341,19 +125,513 @@ exports[`LogServer: get /logs > returns only logs a participant has access to 2`
     },
     {
       "attributes": {
-        "logType": "getLogs:type-2",
+        "logType": "test-type",
         "number": 2,
         "values": {
-          "mock-col1": "log2-mock-value1",
-          "mock-col2": "log2-mock-value2",
-          "mock-col3": "log2-mock-value3",
+          "value": 2,
         },
       },
-      "id": "getLogs:id-2",
+      "id": "2",
       "relationships": {
         "run": {
           "data": {
-            "id": "getLogs:run-id-2",
+            "id": "2",
+            "type": "runs",
+          },
+        },
+      },
+      "type": "logs",
+    },
+    {
+      "attributes": {
+        "logType": "log-type",
+        "number": 1,
+        "values": {
+          "value": 3,
+        },
+      },
+      "id": "3",
+      "relationships": {
+        "run": {
+          "data": {
+            "id": "3",
+            "type": "runs",
+          },
+        },
+      },
+      "type": "logs",
+    },
+    {
+      "attributes": {
+        "logType": "test-type",
+        "number": 2,
+        "values": {
+          "value": 4,
+        },
+      },
+      "id": "4",
+      "relationships": {
+        "run": {
+          "data": {
+            "id": "3",
+            "type": "runs",
+          },
+        },
+      },
+      "type": "logs",
+    },
+  ],
+}
+`;
+
+exports[`LogServer: get /logs (sqlite) > filters logs by run id (csv) 1`] = `
+"type,experiment_name,run_name,run_status,value
+log-type,log-test-experiment,other-run-1,running,3
+test-type,log-test-experiment,other-run-1,running,4
+"
+`;
+
+exports[`LogServer: get /logs (sqlite) > filters logs by run id (json) 1`] = `
+{
+  "data": [
+    {
+      "attributes": {
+        "logType": "log-type",
+        "number": 1,
+        "values": {
+          "value": 3,
+        },
+      },
+      "id": "3",
+      "relationships": {
+        "run": {
+          "data": {
+            "id": "3",
+            "type": "runs",
+          },
+        },
+      },
+      "type": "logs",
+    },
+    {
+      "attributes": {
+        "logType": "test-type",
+        "number": 2,
+        "values": {
+          "value": 4,
+        },
+      },
+      "id": "4",
+      "relationships": {
+        "run": {
+          "data": {
+            "id": "3",
+            "type": "runs",
+          },
+        },
+      },
+      "type": "logs",
+    },
+  ],
+}
+`;
+
+exports[`LogServer: get /logs (sqlite) > filters logs by run name (csv) 1`] = `
+"type,experiment_name,run_status,value
+log-type,log-test-experiment,running,1
+test-type,log-test-experiment,running,2
+test-type,test-experiment,running,5
+log-type,test-experiment,running,6
+"
+`;
+
+exports[`LogServer: get /logs (sqlite) > filters logs by run name (json) 1`] = `
+{
+  "data": [
+    {
+      "attributes": {
+        "logType": "log-type",
+        "number": 1,
+        "values": {
+          "value": 1,
+        },
+      },
+      "id": "1",
+      "relationships": {
+        "run": {
+          "data": {
+            "id": "2",
+            "type": "runs",
+          },
+        },
+      },
+      "type": "logs",
+    },
+    {
+      "attributes": {
+        "logType": "test-type",
+        "number": 2,
+        "values": {
+          "value": 2,
+        },
+      },
+      "id": "2",
+      "relationships": {
+        "run": {
+          "data": {
+            "id": "2",
+            "type": "runs",
+          },
+        },
+      },
+      "type": "logs",
+    },
+    {
+      "attributes": {
+        "logType": "test-type",
+        "number": 1,
+        "values": {
+          "value": 5,
+        },
+      },
+      "id": "5",
+      "relationships": {
+        "run": {
+          "data": {
+            "id": "4",
+            "type": "runs",
+          },
+        },
+      },
+      "type": "logs",
+    },
+    {
+      "attributes": {
+        "logType": "log-type",
+        "number": 2,
+        "values": {
+          "value": 6,
+        },
+      },
+      "id": "6",
+      "relationships": {
+        "run": {
+          "data": {
+            "id": "4",
+            "type": "runs",
+          },
+        },
+      },
+      "type": "logs",
+    },
+  ],
+}
+`;
+
+exports[`LogServer: get /logs (sqlite) > filters logs by run name, type, and experiment name (csv) 1`] = `{}`;
+
+exports[`LogServer: get /logs (sqlite) > filters logs by run name, type, and experiment name (json) 1`] = `
+{
+  "data": [
+    {
+      "attributes": {
+        "logType": "test-type",
+        "number": 2,
+        "values": {
+          "value": 2,
+        },
+      },
+      "id": "2",
+      "relationships": {
+        "run": {
+          "data": {
+            "id": "2",
+            "type": "runs",
+          },
+        },
+      },
+      "type": "logs",
+    },
+  ],
+}
+`;
+
+exports[`LogServer: get /logs (sqlite) > filters logs by type (csv) 1`] = `
+"experiment_name,run_name,run_status,value
+log-test-experiment,log-test-run,running,2
+log-test-experiment,other-run-1,running,4
+test-experiment,log-test-run,running,5
+test-experiment,other-run-2,running,7
+"
+`;
+
+exports[`LogServer: get /logs (sqlite) > filters logs by type (json) 1`] = `
+{
+  "data": [
+    {
+      "attributes": {
+        "logType": "test-type",
+        "number": 2,
+        "values": {
+          "value": 2,
+        },
+      },
+      "id": "2",
+      "relationships": {
+        "run": {
+          "data": {
+            "id": "2",
+            "type": "runs",
+          },
+        },
+      },
+      "type": "logs",
+    },
+    {
+      "attributes": {
+        "logType": "test-type",
+        "number": 2,
+        "values": {
+          "value": 4,
+        },
+      },
+      "id": "4",
+      "relationships": {
+        "run": {
+          "data": {
+            "id": "3",
+            "type": "runs",
+          },
+        },
+      },
+      "type": "logs",
+    },
+    {
+      "attributes": {
+        "logType": "test-type",
+        "number": 1,
+        "values": {
+          "value": 5,
+        },
+      },
+      "id": "5",
+      "relationships": {
+        "run": {
+          "data": {
+            "id": "4",
+            "type": "runs",
+          },
+        },
+      },
+      "type": "logs",
+    },
+    {
+      "attributes": {
+        "logType": "test-type",
+        "number": 1,
+        "values": {
+          "value": 7,
+        },
+      },
+      "id": "7",
+      "relationships": {
+        "run": {
+          "data": {
+            "id": "5",
+            "type": "runs",
+          },
+        },
+      },
+      "type": "logs",
+    },
+  ],
+}
+`;
+
+exports[`LogServer: get /logs (sqlite) > returns logs as csv by default 1`] = `
+"type,experiment_name,run_name,run_status,x,y
+log-type,test-experiment,other-run,running,x4,y4
+log-type,test-experiment,other-run,running,x5,y5
+log-type,test-experiment,test-run,running,x1,y1
+log-type,test-experiment,test-run,running,x2,y2
+log-type,test-experiment,test-run,running,x3,y3
+"
+`;
+
+exports[`LogServer: get /logs (sqlite) > returns logs as csv if csv is the first supported format in the Accept header 1`] = `
+"type,experiment_name,run_name,run_status,x,y
+log-type,test-experiment,other-run,running,x4,y4
+log-type,test-experiment,other-run,running,x5,y5
+log-type,test-experiment,test-run,running,x1,y1
+log-type,test-experiment,test-run,running,x2,y2
+log-type,test-experiment,test-run,running,x3,y3
+"
+`;
+
+exports[`LogServer: get /logs (sqlite) > returns logs as json if json is the first supported format in the Accept header 1`] = `
+{
+  "data": [
+    {
+      "attributes": {
+        "logType": "log-type",
+        "number": 1,
+        "values": {
+          "x": "x4",
+          "y": "y4",
+        },
+      },
+      "id": "4",
+      "relationships": {
+        "run": {
+          "data": {
+            "id": "2",
+            "type": "runs",
+          },
+        },
+      },
+      "type": "logs",
+    },
+    {
+      "attributes": {
+        "logType": "log-type",
+        "number": 2,
+        "values": {
+          "x": "x5",
+          "y": "y5",
+        },
+      },
+      "id": "5",
+      "relationships": {
+        "run": {
+          "data": {
+            "id": "2",
+            "type": "runs",
+          },
+        },
+      },
+      "type": "logs",
+    },
+    {
+      "attributes": {
+        "logType": "log-type",
+        "number": 1,
+        "values": {
+          "x": "x1",
+          "y": "y1",
+        },
+      },
+      "id": "1",
+      "relationships": {
+        "run": {
+          "data": {
+            "id": "1",
+            "type": "runs",
+          },
+        },
+      },
+      "type": "logs",
+    },
+    {
+      "attributes": {
+        "logType": "log-type",
+        "number": 2,
+        "values": {
+          "x": "x2",
+          "y": "y2",
+        },
+      },
+      "id": "2",
+      "relationships": {
+        "run": {
+          "data": {
+            "id": "1",
+            "type": "runs",
+          },
+        },
+      },
+      "type": "logs",
+    },
+    {
+      "attributes": {
+        "logType": "log-type",
+        "number": 3,
+        "values": {
+          "x": "x3",
+          "y": "y3",
+        },
+      },
+      "id": "3",
+      "relationships": {
+        "run": {
+          "data": {
+            "id": "1",
+            "type": "runs",
+          },
+        },
+      },
+      "type": "logs",
+    },
+  ],
+}
+`;
+
+exports[`LogServer: get /logs (sqlite) > returns only logs a participant has access to 1`] = `
+{
+  "data": [
+    {
+      "attributes": {
+        "logType": "log-type",
+        "number": 1,
+        "values": {
+          "x": "x1",
+          "y": "y1",
+        },
+      },
+      "id": "1",
+      "relationships": {
+        "run": {
+          "data": {
+            "id": "1",
+            "type": "runs",
+          },
+        },
+      },
+      "type": "logs",
+    },
+    {
+      "attributes": {
+        "logType": "log-type",
+        "number": 2,
+        "values": {
+          "x": "x2",
+          "y": "y2",
+        },
+      },
+      "id": "2",
+      "relationships": {
+        "run": {
+          "data": {
+            "id": "1",
+            "type": "runs",
+          },
+        },
+      },
+      "type": "logs",
+    },
+    {
+      "attributes": {
+        "logType": "log-type",
+        "number": 3,
+        "values": {
+          "x": "x3",
+          "y": "y3",
+        },
+      },
+      "id": "3",
+      "relationships": {
+        "run": {
+          "data": {
+            "id": "1",
             "type": "runs",
           },
         },

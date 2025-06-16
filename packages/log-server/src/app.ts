@@ -15,7 +15,7 @@ import { logHandlers } from './app-logs-handlers.js';
 import { runHandlers } from './app-runs-handlers.js';
 import { sessionHandlers } from './app-sessions-handlers.js';
 import { apiMediaType, type ServerApi } from './app-utils.js';
-import type { DataStore } from './store-types.ts';
+import type { Store } from './store.js';
 import { createTypedExpressServer } from './typed-server.js';
 import { firstStrict } from './utils.js';
 
@@ -24,7 +24,7 @@ const SESSION_COOKIE_NAME = 'lightmill-session-id';
 const MemorySessionStore = MemorySessionStoreModule(session);
 
 type CreateLogServerOptions = {
-  store: DataStore;
+  store: Store;
   hostUser?: string | undefined;
   hostPassword?: string | undefined;
   allowCrossOrigin?: boolean | undefined;
