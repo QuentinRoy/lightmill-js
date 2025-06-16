@@ -198,9 +198,7 @@ export function createMockStore(): MockStore {
         },
       };
     }),
-    migrateDatabase: vi.fn(async () => {
-      return {};
-    }),
+    migrateDatabase: vi.fn(async () => {}),
     close: vi.fn(async () => {}),
   };
 }
