@@ -156,7 +156,7 @@ function parseAllFilter(filter: AllFilter) {
  * @param runStatusFilter - A RunStatus, array of RunStatus values, or strings with '-' prefix for exclusion
  * @returns Array of RunStatus values after applying inclusions/exclusions, or undefined if input is undefined
  */
-function parseRunStatusFilter(runStatusFilter: RunFilter['runStatus']) {
+export function parseRunStatusFilter(runStatusFilter: RunFilter['runStatus']) {
   if (runStatusFilter == null) return undefined;
   const runStatusFilterArray = arrayify(runStatusFilter, true);
   if (runStatusFilterArray.length === 0) return [];
