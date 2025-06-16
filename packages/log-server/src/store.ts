@@ -27,6 +27,7 @@ import {
 } from './store-filters.js';
 import {
   type Database,
+  type DataStore,
   type ExperimentId,
   type ExperimentRecord,
   fromDbId,
@@ -35,7 +36,6 @@ import {
   type RunId,
   type RunRecord,
   type RunStatus,
-  storeTypeSymbol,
   toDbId,
 } from './store-types.js';
 import { getStrict } from './utils.js';
@@ -58,11 +58,9 @@ export {
 const DEFAULT_SELECT_QUERY_LIMIT = 1_000_000;
 const MIGRATION_FOLDER = path.join(__dirname, 'db-migrations');
 
-export class SQLiteStore {
+export class SQLiteStore implements DataStore {
   #db: Kysely<Database>;
   #selectQueryLimit: number;
-
-  [storeTypeSymbol] = 'sqlite';
 
   constructor(
     db: string,
@@ -679,7 +677,3 @@ function parseJsonObject(jsonString: string): Record<string, unknown> {
   }
   return result;
 }
-
-export type Store = {
-  [K in Exclude<keyof SQLiteStore, typeof storeTypeSymbol>]: SQLiteStore[K];
-};
