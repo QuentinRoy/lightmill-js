@@ -206,9 +206,9 @@ exports[`LogServer: get /logs > returns logs as csv by default 1`] = `
 `;
 
 exports[`LogServer: get /logs > returns logs as csv by default 2`] = `
-"type,experiment_name,run_name,run_status,mock_col_1,mock_col_2,mock_col_3
-getLogs:type-1,getLogs:experimentName-1,getLogs:runName-1,running,log1-mock-value1,log1-mock-value2,
-getLogs:type-2,getLogs:experimentName-2,getLogs:runName-2,completed,log2-mock-value1,log2-mock-value2,log2-mock-value3
+"type,experiment_name,run_name,mock_col_1,mock_col_2,mock_col_3
+getLogs:type-1,getLogs:experimentName-1,getLogs:runName-1,log1-mock-value1,log1-mock-value2,
+getLogs:type-2,getLogs:experimentName-2,getLogs:runName-2,log2-mock-value1,log2-mock-value2,log2-mock-value3
 "
 `;
 
@@ -226,9 +226,9 @@ exports[`LogServer: get /logs > returns logs as csv if csv is the first supporte
 `;
 
 exports[`LogServer: get /logs > returns logs as csv if csv is the first supported format in the Accept header 2`] = `
-"type,experiment_name,run_name,run_status,mock_col_1,mock_col_2,mock_col_3
-getLogs:type-1,getLogs:experimentName-1,getLogs:runName-1,running,log1-mock-value1,log1-mock-value2,
-getLogs:type-2,getLogs:experimentName-2,getLogs:runName-2,completed,log2-mock-value1,log2-mock-value2,log2-mock-value3
+"type,experiment_name,run_name,mock_col_1,mock_col_2,mock_col_3
+getLogs:type-1,getLogs:experimentName-1,getLogs:runName-1,log1-mock-value1,log1-mock-value2,
+getLogs:type-2,getLogs:experimentName-2,getLogs:runName-2,log2-mock-value1,log2-mock-value2,log2-mock-value3
 "
 `;
 
