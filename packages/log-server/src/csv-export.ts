@@ -4,12 +4,7 @@ import { mapKeys, pickBy, pipe } from 'remeda';
 import { type AllFilter, type Log, SQLiteStore as Store } from './store.js';
 import { withSnakeCaseProps } from './utils.js';
 
-const csvLogColumns: Array<keyof Log> = [
-  'type',
-  'experimentName',
-  'runName',
-  'runStatus',
-];
+const csvLogColumns: Array<keyof Log> = ['type', 'experimentName', 'runName'];
 const renamedLogColumns: Partial<Record<keyof Log, string>> = {};
 
 export function csvExportStream(
