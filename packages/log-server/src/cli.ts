@@ -69,12 +69,7 @@ async function start({
   );
   let store = new SQLiteStore(dbPath);
   if (!doesDbExist) {
-    let { error } = await store.migrateDatabase();
-    if (error != null) {
-      log.info('Failed to initialize database');
-      log.error(error);
-      process.exit(1);
-    }
+    await store.migrateDatabase();
   }
   let server = express()
     .use(cors())
@@ -156,21 +151,7 @@ async function exportLogs({
 type MigrateDatabaseParameter = { database: string };
 async function migrateDatabase({ database }: MigrateDatabaseParameter) {
   let store = new SQLiteStore(database);
-  let { error, results } = await store.migrateDatabase();
-  results?.forEach((it) => {
-    if (it.status === 'Success') {
-      log.info(`migration "${it.migrationName}" was executed successfully`);
-    } else if (it.status === 'Error') {
-      log.error(`failed to execute migration "${it.migrationName}"`);
-    }
-  });
-  if (error) {
-    log.error(`failed to migrate ${database}`);
-    log.error(error);
-    process.exit(1);
-  } else {
-    log.info(`${database} migration successful`);
-  }
+  await store.migrateDatabase();
 }
 
 // Command line interface
