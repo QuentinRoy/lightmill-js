@@ -28,10 +28,12 @@ import {
 import {
   type Database,
   type ExperimentId,
+  type ExperimentRecord,
   fromDbId,
   type Log,
   type LogId,
   type RunId,
+  type RunRecord,
   type RunStatus,
   toDbId,
 } from './store-types.js';
@@ -82,7 +84,11 @@ export class SQLiteStore {
     });
   }
 
-  async addExperiment({ experimentName }: { experimentName: string }) {
+  async addExperiment({
+    experimentName,
+  }: {
+    experimentName: string;
+  }): Promise<ExperimentRecord> {
     let exp = await this.#db
       .insertInto('experiment')
       .values({ experimentName, experimentCreatedAt: new Date().toISOString() })
@@ -108,7 +114,9 @@ export class SQLiteStore {
     };
   }
 
-  async getExperiments(filter: ExperimentFilter = {}) {
+  async getExperiments(
+    filter: ExperimentFilter = {},
+  ): Promise<ExperimentRecord[]> {
     const result = await this.#db
       .selectFrom('experiment')
       .$call(createQueryFilterExperiment(filter, 'experiment'))
@@ -129,7 +137,7 @@ export class SQLiteStore {
     runName?: string;
     experimentId: ExperimentId;
     runStatus?: RunStatus | undefined;
-  }) {
+  }): Promise<RunRecord> {
     return this.#db.transaction().execute(async (trx) => {
       let result = await trx
         .insertInto('run')
@@ -170,7 +178,10 @@ export class SQLiteStore {
     });
   }
 
-  async resumeRun(runId: RunId, { after: resumeAfter }: { after: number }) {
+  async resumeRun(
+    runId: RunId,
+    { after: resumeAfter }: { after: number },
+  ): Promise<void> {
     const dbRunId = toDbId(runId);
     return this.#db.transaction().execute(async (trx) => {
       await trx
@@ -233,7 +244,7 @@ export class SQLiteStore {
     // prevents subtle bugs where some filters might be applied only when experimentName is present.
     // If new properties are added to ExperimentFilter, this code will need updating.
     filter: RunFilter & Pick<ExperimentFilter, 'experimentName'> = {},
-  ) {
+  ): Promise<RunRecord[]> {
     const runs = await this.#db
       .selectFrom('run')
       // Do not join if we do not need to.
@@ -269,7 +280,7 @@ export class SQLiteStore {
     }));
   }
 
-  async setRunStatus(runId: RunId, status: RunStatus) {
+  async setRunStatus(runId: RunId, status: RunStatus): Promise<void> {
     const dbRunId = toDbId(runId);
     await this.#db
       .updateTable('run')
@@ -426,7 +437,7 @@ export class SQLiteStore {
     });
   }
 
-  async getLogValueNames(filter: AllFilter = {}) {
+  async getLogValueNames(filter: AllFilter = {}): Promise<string[]> {
     let result = await this.#db
       .selectFrom('logPropertyName as lpn')
       .innerJoin('runLogView as l', 'l.logId', 'lpn.logId')
@@ -438,7 +449,9 @@ export class SQLiteStore {
     return result.map((it) => it.logPropertyName);
   }
 
-  async getNumberOfPendingLogs(filter: RunFilter & ExperimentFilter) {
+  async getNumberOfPendingLogs(
+    filter: RunFilter & ExperimentFilter,
+  ): Promise<{ runId: RunId; count: number }[]> {
     let result = await this.#db
       .selectFrom('log')
       .innerJoin('logSequence', 'log.sequenceId', 'logSequence.sequenceId')
@@ -620,7 +633,7 @@ export class SQLiteStore {
     }
   }
 
-  async migrateDatabase() {
+  async migrateDatabase(): Promise<void> {
     let migrator = new Migrator({
       db: this.#db,
       provider: new FileMigrationProvider({
@@ -629,7 +642,19 @@ export class SQLiteStore {
         migrationFolder: MIGRATION_FOLDER,
       }),
     });
-    return migrator.migrateToLatest();
+    let result = await migrator.migrateToLatest();
+    if (result.error != null && result.error instanceof Error) {
+      throw new StoreError(
+        `Database migration failed: ${result.error.message}`,
+        StoreError.MIGRATION_FAILED,
+        { cause: result.error },
+      );
+    } else if (result.error != null) {
+      throw new StoreError(
+        `Database migration failed: ${result.error}`,
+        StoreError.MIGRATION_FAILED,
+      );
+    }
   }
 
   async close() {

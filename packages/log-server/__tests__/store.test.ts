@@ -163,17 +163,9 @@ describe('SQLiteStore', () => {
 });
 
 describe('SQLiteStore#migrateDatabase', () => {
-  it('initializes the database', async ({ expect }) => {
+  it('initializes the database', async () => {
     let store = new SQLiteStore(':memory:');
-    let resultSet = await store.migrateDatabase();
-    if (resultSet.error != null) {
-      throw resultSet.error;
-    }
-    expect(resultSet.results).toBeDefined();
-    expect(resultSet.results?.length).toBeGreaterThan(0);
-    resultSet.results?.forEach((result) => {
-      expect(result.status).toBe('Success');
-    });
+    await store.migrateDatabase();
     await store.close();
   });
 });

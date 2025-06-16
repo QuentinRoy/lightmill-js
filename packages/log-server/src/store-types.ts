@@ -35,7 +35,7 @@ export type RunId = string;
 export type ExperimentId = string;
 export type LogId = string;
 
-export type Log = {
+export interface Log {
   experimentId: ExperimentId;
   experimentName: string;
   runId: RunId;
@@ -48,7 +48,7 @@ export type Log = {
   // as it causes more problems than it solves in this case, and type-fest
   // specifically recommends against using it as a return type.
   values: Record<string, unknown>;
-};
+}
 
 export function fromDbId<I extends keyof IdsMap>(experimentId: I) {
   return experimentId.toString() as IdsMap[I];
@@ -73,3 +73,17 @@ type ReverseIdsMap = UnionToIntersection<
       : never
     : never
 >;
+
+export interface RunRecord {
+  experimentId: ExperimentId;
+  runId: RunId;
+  runName?: string;
+  runStatus: RunStatus;
+  runCreatedAt: Date;
+}
+
+export interface ExperimentRecord {
+  experimentId: ExperimentId;
+  experimentName: string;
+  experimentCreatedAt: Date;
+}

@@ -7,6 +7,7 @@ const storeErrorCodeList = [
   'RUN_NOT_FOUND',
   'LOG_NOT_FOUND',
   'RUN_HAS_ENDED',
+  'MIGRATION_FAILED',
 ] as const;
 type StoreErrorCode = (typeof storeErrorCodeList)[number];
 
