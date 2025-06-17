@@ -41,7 +41,7 @@ const it = test.extend<Fixture>({
   // that messes up with vitest's fixtures, but it's not a big deal.
   app: async ({ store, sessionStore }, use) => {
     let server = LogServer({
-      store,
+      dataStore: store,
       sessionStore,
       sessionKeys: ['secret'],
       hostPassword: 'host password',

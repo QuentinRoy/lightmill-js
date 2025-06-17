@@ -15,7 +15,7 @@ describe('LogServer', () => {
     let store = createMockStore();
     let server = LogServer({
       baseUrl: '/api',
-      store,
+      dataStore: store,
       sessionStore,
       sessionKeys: ['secret'],
       hostPassword: 'host password',
