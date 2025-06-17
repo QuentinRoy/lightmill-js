@@ -13,11 +13,12 @@ import {
   it as vitestIt,
 } from 'vitest';
 import {
+  type DataStore,
   type ExperimentId,
   type LogId,
   type RunId,
-  SQLiteStore,
-} from '../src/store.js';
+} from '../src/data-store.ts';
+import { SQLiteDataStore } from '../src/sqlite-data-store.ts';
 import { fromAsync } from '../src/utils.js';
 
 // Prevent kysely from logging anything.
@@ -28,7 +29,7 @@ afterEach(() => {
 });
 
 interface Fixture {
-  store: SQLiteStore;
+  store: DataStore;
   experiment1: ExperimentId;
   experiment2: ExperimentId;
   experiment3: ExperimentId;
@@ -45,7 +46,7 @@ interface Fixture {
 
 let baseIt = vitestIt.extend<Fixture>({
   store: async ({}, use) => {
-    let store = new SQLiteStore(':memory:');
+    let store = new SQLiteDataStore(':memory:');
     await store.migrateDatabase();
     await use(store);
     store.close();
@@ -157,14 +158,14 @@ let it = baseIt;
 
 describe('SQLiteStore', () => {
   it('creates and closes a new Store instance', async () => {
-    let store = new SQLiteStore(':memory:');
+    let store = new SQLiteDataStore(':memory:');
     await store.close();
   });
 });
 
 describe('SQLiteStore#migrateDatabase', () => {
   it('initializes the database', async () => {
-    let store = new SQLiteStore(':memory:');
+    let store = new SQLiteDataStore(':memory:');
     await store.migrateDatabase();
     await store.close();
   });
@@ -1162,7 +1163,7 @@ describe('SQLiteStore#addLogs', () => {
 describe('SQLiteStore#getLastLogs', () => {
   type Fixture = {
     context: {
-      store: SQLiteStore;
+      store: DataStore;
       exp1run1: RunId;
       exp1run2: RunId;
       exp2run1: RunId;
@@ -1555,7 +1556,7 @@ describe.for([{ queryLimit: 10000 }, { queryLimit: 2 }])(
     type NewFixture = {
       queryLimit: number;
       context: {
-        store: SQLiteStore;
+        store: SQLiteDataStore;
         experiment1: ExperimentId;
         experiment2: ExperimentId;
         e1run1: RunId;
@@ -1569,7 +1570,7 @@ describe.for([{ queryLimit: 10000 }, { queryLimit: 2 }])(
       queryLimit: async ({}, use) => use(queryLimit),
       context: async ({ queryLimit }, use) => {
         vi.useFakeTimers({ now: new Date('2025-01-01T00:00:01Z') });
-        let store = new SQLiteStore(':memory:', {
+        let store = new SQLiteDataStore(':memory:', {
           selectQueryLimit: queryLimit,
         });
         await store.migrateDatabase();

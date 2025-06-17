@@ -11,7 +11,9 @@ import {
   type SubServerDescription,
 } from './app-utils.js';
 import { csvExportStream } from './csv-export.js';
-import { StoreError, type AllFilter, type Store } from './store.js';
+import type { AllFilter } from './data-filters.ts';
+import { DataStoreError } from './data-store-errors.ts';
+import type { DataStore } from './data-store.ts';
 import { arrayify, firstStrict } from './utils.js';
 
 export const logHandlers = (): SubServerDescription<'/logs'> => ({
@@ -109,7 +111,7 @@ export const logHandlers = (): SubServerDescription<'/logs'> => ({
         };
       } catch (e) {
         if (
-          e instanceof StoreError &&
+          e instanceof DataStoreError &&
           e.code === 'LOG_NUMBER_EXISTS_IN_SEQUENCE'
         ) {
           return getErrorResponse({
@@ -183,7 +185,7 @@ function getResponseMimeType(
 type LogResponseMimeType = 'json' | 'csv';
 
 function jsonResponseStream(
-  store: Store,
+  store: DataStore,
   filter: Omit<AllFilter, 'runStatus'> = {},
   includes: { run?: boolean; experiment?: boolean; lastLogs?: boolean } = {},
 ): Readable {
@@ -191,7 +193,7 @@ function jsonResponseStream(
 }
 
 async function* jsonResponseChunkGenerator(
-  store: Store,
+  store: DataStore,
   filter: Omit<AllFilter, 'runStatus'>,
   includes: { run?: boolean; experiment?: boolean; lastLogs?: boolean },
 ) {

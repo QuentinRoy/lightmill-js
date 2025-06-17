@@ -1,4 +1,4 @@
-const storeErrorCodeList = [
+const dataStoreErrorCodeList = [
   'EXPERIMENT_EXISTS',
   'RUN_EXISTS',
   'LOG_NUMBER_EXISTS_IN_SEQUENCE',
@@ -9,10 +9,14 @@ const storeErrorCodeList = [
   'RUN_HAS_ENDED',
   'MIGRATION_FAILED',
 ] as const;
-type StoreErrorCode = (typeof storeErrorCodeList)[number];
+type DataStoreErrorCode = (typeof dataStoreErrorCodeList)[number];
 
-export class StoreError extends ErrorWithCodes(storeErrorCodeList) {
-  constructor(message: string, code: StoreErrorCode, options?: ErrorOptions) {
+export class DataStoreError extends ErrorWithCodes(dataStoreErrorCodeList) {
+  constructor(
+    message: string,
+    code: DataStoreErrorCode,
+    options?: ErrorOptions,
+  ) {
     super(message, code, options);
     this.name = 'StoreError';
   }

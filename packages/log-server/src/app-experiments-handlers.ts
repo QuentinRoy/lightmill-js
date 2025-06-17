@@ -4,7 +4,7 @@ import {
   type ServerHandlerResult,
   type SubServerDescription,
 } from './app-utils.js';
-import { StoreError } from './store.js';
+import { DataStoreError } from './data-store-errors.ts';
 
 export const experimentHandlers = (): SubServerDescription<'/experiments'> => ({
   '/experiments': {
@@ -32,8 +32,8 @@ export const experimentHandlers = (): SubServerDescription<'/experiments'> => ({
         };
       } catch (error) {
         if (
-          error instanceof StoreError &&
-          error.code === StoreError.EXPERIMENT_EXISTS
+          error instanceof DataStoreError &&
+          error.code === DataStoreError.EXPERIMENT_EXISTS
         ) {
           return getErrorResponse({
             status: 409,

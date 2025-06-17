@@ -15,18 +15,18 @@ import path from 'node:path';
 import * as url from 'node:url';
 import { last, pick } from 'remeda';
 import type { JsonObject, JsonValue } from 'type-fest';
-import { StoreError } from './store-errors.js';
 import {
   type AllFilter,
   createQueryFilterAll,
   createQueryFilterExperiment,
   createQueryFilterRun,
   type ExperimentFilter,
-  type LogFilter,
   type RunFilter,
-} from './store-filters.js';
+} from './data-filters.ts';
+import { DataStoreError } from './data-store-errors.ts';
 import {
   type Database,
+  type DataStore,
   type ExperimentId,
   type ExperimentRecord,
   fromDbId,
@@ -36,28 +36,15 @@ import {
   type RunRecord,
   type RunStatus,
   toDbId,
-} from './store-types.js';
-import { getStrict } from './utils.js';
+} from './data-store.ts';
+import { getStrict } from './utils.ts';
 
 const __dirname = url.fileURLToPath(new URL('.', import.meta.url));
-
-export {
-  StoreError,
-  type AllFilter,
-  type ExperimentFilter,
-  type ExperimentId,
-  type Log,
-  type LogFilter,
-  type LogId,
-  type RunFilter,
-  type RunId,
-  type RunStatus,
-};
 
 const DEFAULT_SELECT_QUERY_LIMIT = 1_000_000;
 const MIGRATION_FOLDER = path.join(__dirname, 'db-migrations');
 
-export class SQLiteStore {
+export class SQLiteDataStore implements DataStore {
   #db: Kysely<Database>;
   #selectQueryLimit: number;
 
@@ -99,9 +86,9 @@ export class SQLiteStore {
           e instanceof SQLiteDB.SqliteError &&
           e.code === 'SQLITE_CONSTRAINT_UNIQUE'
         ) {
-          throw new StoreError(
+          throw new DataStoreError(
             `Experiment ${experimentName} already exists`,
-            StoreError.EXPERIMENT_EXISTS,
+            DataStoreError.EXPERIMENT_EXISTS,
             { cause: e },
           );
         }
@@ -157,9 +144,9 @@ export class SQLiteStore {
               'another run with the same name for the same experiment exists and is not canceled',
             )
           ) {
-            throw new StoreError(
+            throw new DataStoreError(
               `A run named "${runName}" already exists for experiment ${experimentId}.`,
-              StoreError.RUN_EXISTS,
+              DataStoreError.RUN_EXISTS,
               { cause: e },
             );
           }
@@ -189,7 +176,7 @@ export class SQLiteStore {
         .set({ runStatus: 'running' })
         .where('runId', '=', dbRunId)
         .executeTakeFirstOrThrow(() => {
-          return new StoreError(
+          return new DataStoreError(
             `No run found for id ${runId}`,
             'RUN_NOT_FOUND',
           );
@@ -221,7 +208,7 @@ export class SQLiteStore {
         minResumeFrom = lastLogNumber + 1;
       }
       if (minResumeFrom <= resumeAfter) {
-        throw new StoreError(
+        throw new DataStoreError(
           `Cannot resume run ${runId} after log number ${resumeAfter} because it would leave log number ${minResumeFrom} missing.`,
           'INVALID_LOG_NUMBER',
         );
@@ -290,9 +277,9 @@ export class SQLiteStore {
       // is updated.
       .returning(['runName', 'experimentId', 'runStatus'])
       .executeTakeFirstOrThrow(() => {
-        return new StoreError(
+        return new DataStoreError(
           `No run found for id ${runId}`,
-          StoreError.RUN_NOT_FOUND,
+          DataStoreError.RUN_NOT_FOUND,
         );
       })
       .catch((e) => {
@@ -301,9 +288,9 @@ export class SQLiteStore {
           e.code === 'SQLITE_CONSTRAINT_TRIGGER' &&
           e.message === 'Completed runs can only be canceled'
         ) {
-          throw new StoreError(
+          throw new DataStoreError(
             `Cannot change status of run ${runId} to ${status} because the run is completed and can only be canceled.`,
-            StoreError.RUN_HAS_ENDED,
+            DataStoreError.RUN_HAS_ENDED,
             { cause: e },
           );
         } else if (
@@ -311,9 +298,9 @@ export class SQLiteStore {
           e.code === 'SQLITE_CONSTRAINT_TRIGGER' &&
           e.message === 'Cannot update run status when the run is canceled'
         ) {
-          throw new StoreError(
+          throw new DataStoreError(
             `Cannot update status of run ${runId} because the run is canceled.`,
-            StoreError.RUN_HAS_ENDED,
+            DataStoreError.RUN_HAS_ENDED,
             { cause: e },
           );
         }
@@ -345,9 +332,9 @@ export class SQLiteStore {
         ])
         .executeTakeFirstOrThrow(
           () =>
-            new StoreError(
+            new DataStoreError(
               `No run found for id ${runId}`,
-              StoreError.RUN_NOT_FOUND,
+              DataStoreError.RUN_NOT_FOUND,
             ),
         );
       let newLogNumbers = logs.map((log) => log.number);
@@ -371,9 +358,9 @@ export class SQLiteStore {
           );
         }
         if (logToInsert.logType != null) {
-          throw new StoreError(
+          throw new DataStoreError(
             `Cannot add log: duplicated log number in the sequence.`,
-            StoreError.LOG_NUMBER_EXISTS_IN_SEQUENCE,
+            DataStoreError.LOG_NUMBER_EXISTS_IN_SEQUENCE,
           );
         }
         logToInsert.logType = log.type;
@@ -402,9 +389,9 @@ export class SQLiteStore {
                 (e.message === 'Cannot change log values once set' ||
                   e.message === 'Cannot change log type once set')))
           ) {
-            throw new StoreError(
+            throw new DataStoreError(
               `Cannot add log: duplicated log number in the sequence.`,
-              StoreError.LOG_NUMBER_EXISTS_IN_SEQUENCE,
+              DataStoreError.LOG_NUMBER_EXISTS_IN_SEQUENCE,
               { cause: e },
             );
           }
@@ -644,15 +631,15 @@ export class SQLiteStore {
     });
     let result = await migrator.migrateToLatest();
     if (result.error != null && result.error instanceof Error) {
-      throw new StoreError(
+      throw new DataStoreError(
         `Database migration failed: ${result.error.message}`,
-        StoreError.MIGRATION_FAILED,
+        DataStoreError.MIGRATION_FAILED,
         { cause: result.error },
       );
     } else if (result.error != null) {
-      throw new StoreError(
+      throw new DataStoreError(
         `Database migration failed: ${result.error}`,
-        StoreError.MIGRATION_FAILED,
+        DataStoreError.MIGRATION_FAILED,
       );
     }
   }
@@ -676,5 +663,3 @@ function parseJsonObject(jsonString: string): Record<string, unknown> {
   }
   return result;
 }
-
-export type Store = { [K in keyof SQLiteStore]: SQLiteStore[K] };

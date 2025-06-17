@@ -2,7 +2,7 @@
 
 import { describe, vi, test as vitestTest } from 'vitest';
 import { apiMediaType } from '../src/app-utils.ts';
-import { StoreError } from '../src/store.js';
+import { DataStoreError } from '../src/data-store-errors.ts';
 import {
   apiContentTypeRegExp,
   createFixtureWithRuns,
@@ -180,9 +180,9 @@ describe('LogServer: post /logs', () => {
   }) => {
     const runId = getRuns()[0]!.runId;
     store.addLogs.mockImplementation(async () => {
-      throw new StoreError(
+      throw new DataStoreError(
         'Log number 2 is already used',
-        StoreError.LOG_NUMBER_EXISTS_IN_SEQUENCE,
+        DataStoreError.LOG_NUMBER_EXISTS_IN_SEQUENCE,
       );
     });
     await api

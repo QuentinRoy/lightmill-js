@@ -6,8 +6,8 @@ import {
   type ExperimentId,
   type RunId,
   type RunStatus,
-} from './store-types.js';
-import { arrayify, firstStrict, removePrefix, startsWith } from './utils.js';
+} from './data-store.ts';
+import { arrayify, firstStrict, removePrefix, startsWith } from './utils.ts';
 
 export const createQueryFilterRun = createQueryFilterFactory(parseRunFilter);
 export const createQueryFilterExperiment = createQueryFilterFactory(

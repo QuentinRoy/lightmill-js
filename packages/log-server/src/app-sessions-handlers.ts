@@ -8,7 +8,7 @@ import {
   type ServerHandlerResult,
   type SubServerDescription,
 } from './app-utils.js';
-import { type Store } from './store.js';
+import { type DataStore } from './data-store.ts';
 import { arrayify, checkBasicAuth } from './utils.js';
 
 type SessionHandlerOptions = {
@@ -96,7 +96,7 @@ export const sessionHandlers = ({
 
 async function getSessionResource(
   req: express.Request,
-  store: Store,
+  store: DataStore,
   {
     includeRuns = false,
     includeExperiment = false,

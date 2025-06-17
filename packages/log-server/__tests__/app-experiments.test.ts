@@ -11,7 +11,7 @@ import {
 } from 'vitest';
 import { apiMediaType } from '../src/app-utils.ts';
 import { LogServer } from '../src/app.js';
-import { StoreError } from '../src/store.js';
+import { DataStoreError } from '../src/data-store-errors.ts';
 import { arrayify } from '../src/utils.js';
 import {
   MockSessionStore,
@@ -108,7 +108,7 @@ describe('LogServer: post /experiments', () => {
     hostSession: { api, store },
   }) => {
     store.addExperiment.mockImplementation(async () => {
-      throw new StoreError('message', StoreError.EXPERIMENT_EXISTS);
+      throw new DataStoreError('message', DataStoreError.EXPERIMENT_EXISTS);
     });
     await api
       .post('/experiments')
