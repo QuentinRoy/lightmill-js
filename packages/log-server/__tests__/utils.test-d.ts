@@ -1,6 +1,6 @@
 import { describe, expectTypeOf, it } from 'vitest';
 import {
-  EntryAsObject,
+  type EntryAsObject,
   type IsUnion,
   type RemoveReadonlyPropsDeep,
   fromAsync,

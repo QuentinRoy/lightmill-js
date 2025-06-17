@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseRunStatusFilter } from '../src/store-filters.js';
+import { parseRunStatusFilter } from '../src/data-filters.ts';
 
 describe('parseRunStatusFilter', () => {
   it('returns undefined if input is undefined', () => {

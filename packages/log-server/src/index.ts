@@ -1,2 +1,3 @@
 export { LogServer } from './app.js';
-export { SQLiteStore } from './sqlite-store.ts';
+export type { DataStore } from './data-store.ts';
+export { SQLiteDataStore as SQLiteDataStore } from './sqlite-data-store.ts';

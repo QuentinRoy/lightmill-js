@@ -7,12 +7,12 @@ import { createServerContext, storeTypes } from './test-utils.js';
 
 describe.for(storeTypes)('LogServer (%s)', (storeType) => {
   it('can be mounted on a sub path', async () => {
-    let { store, sessionStore } = await createServerContext({
+    let { dataStore, sessionStore } = await createServerContext({
       type: storeType,
     });
     let server = LogServer({
       baseUrl: '/api',
-      store,
+      dataStore,
       sessionStore,
       sessionKeys: ['secret'],
     });

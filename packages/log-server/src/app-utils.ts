@@ -8,8 +8,7 @@ import {
   httpStatuses,
   type HttpStatusMap,
 } from './api-utils.js';
-import type { RunId } from './sqlite-store.ts';
-import type { DataStore } from './store.ts';
+import type { DataStore, RunId } from './data-store.ts';
 import type {
   Handler,
   HandlerParameters,

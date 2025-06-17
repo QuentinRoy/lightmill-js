@@ -12,12 +12,8 @@ import {
   vi,
   it as vitestIt,
 } from 'vitest';
-import {
-  type ExperimentId,
-  type LogId,
-  type RunId,
-  SQLiteStore,
-} from '../src/sqlite-store.ts';
+import type { ExperimentId, LogId, RunId } from '../src/data-store.ts';
+import { SQLiteStore } from '../src/sqlite-store.ts';
 import { fromAsync } from '../src/utils.js';
 
 // Prevent kysely from logging anything.

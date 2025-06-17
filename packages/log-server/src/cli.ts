@@ -10,7 +10,7 @@ import * as url from 'node:url';
 import yargs from 'yargs';
 import { z } from 'zod';
 import { csvExportStream } from './csv-export.js';
-import { LogServer, SQLiteStore } from './index.js';
+import { LogServer, SQLiteDataStore } from './index.js';
 
 // Constants and setup
 // -------------------
@@ -67,15 +67,18 @@ async function start({
     () => true,
     () => false,
   );
-  let store = new SQLiteStore(dbPath);
+  let store = new SQLiteDataStore(dbPath);
   if (!doesDbExist) {
     await store.migrateDatabase();
   }
   let server = express()
     .use(cors())
     .use(
-      LogServer({ store, sessionKeys: sessionKey.split(':'), hostPassword })
-        .middleware,
+      LogServer({
+        dataStore: store,
+        sessionKeys: sessionKey.split(':'),
+        hostPassword,
+      }).middleware,
     )
     .listen(port, () => {
       log.info(`Listening on port ${port}`);
@@ -109,7 +112,7 @@ async function exportLogs({
   output = undefined,
 }: ExportLogsParameter) {
   let filter = { type: logType, experimentName };
-  let store = new SQLiteStore(database);
+  let store = new SQLiteDataStore(database);
   let stream = csvExportStream(store, filter);
   if (output === undefined) {
     stream.pipe(process.stdout).on('error', handleError);
@@ -150,7 +153,7 @@ async function exportLogs({
 
 type MigrateDatabaseParameter = { database: string };
 async function migrateDatabase({ database }: MigrateDatabaseParameter) {
-  let store = new SQLiteStore(database);
+  let store = new SQLiteDataStore(database);
   await store.migrateDatabase();
 }
 

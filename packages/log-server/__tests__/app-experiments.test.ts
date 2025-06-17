@@ -40,9 +40,9 @@ describe.for(hostTests)(
     });
 
     it('refuses to create an experiment if there are name conflicts', async ({
-      session: { api, store },
+      session: { api, dataStore },
     }) => {
-      await store.addExperiment({ experimentName: 'exp-name' });
+      await dataStore.addExperiment({ experimentName: 'exp-name' });
 
       await api
         .post('/experiments')
@@ -95,16 +95,16 @@ describe.for(allTests)(
       sessionType,
       storeType,
       setup: {
-        sqlite: async ({ store }) => {
+        sqlite: async ({ dataStore }) => {
           vi.useFakeTimers({ now: new Date('2023-01-01T00:00:00Z') });
           const experiments = await Promise.all(
             ['exp-1-name', 'exp-2-name', 'exp-3-name'].map((name) =>
-              store.addExperiment({ experimentName: name }),
+              dataStore.addExperiment({ experimentName: name }),
             ),
           );
           const runs = await Promise.all(
             experiments.map((exp, index) => {
-              return store.addRun({
+              return dataStore.addRun({
                 experimentId: exp.experimentId,
                 runName: `run-${index + 1}-name`,
                 runStatus: 'running',
@@ -134,7 +134,7 @@ describe.for(allTests)(
 
     it('filters experiments by name when given filter[name] parameter', async ({
       expect,
-      session: { api, store, experiments },
+      session: { api, dataStore, experiments },
     }) => {
       const expNumber = 1;
       const expName = experiments[expNumber].experimentName;
@@ -148,7 +148,7 @@ describe.for(allTests)(
         })
         .expect('Content-Type', apiContentTypeRegExp);
 
-      expect(store.getExperiments.mock.calls).toMatchSnapshot();
+      expect(dataStore.getExperiments.mock.calls).toMatchSnapshot();
     });
 
     it('returns empty array when no experiments match the name filter', async ({
@@ -165,8 +165,10 @@ describe.for(allTests)(
 describe.for(allTests)(
   'LogServer: get /experiments/{id} ($sessionType session, $storeType store)',
   ({ test: it }) => {
-    it('returns an experiment by ID', async ({ session: { api, store } }) => {
-      let { experimentId } = await store.addExperiment({
+    it('returns an experiment by ID', async ({
+      session: { api, dataStore },
+    }) => {
+      let { experimentId } = await dataStore.addExperiment({
         experimentName: 'exp-1-name',
       });
 

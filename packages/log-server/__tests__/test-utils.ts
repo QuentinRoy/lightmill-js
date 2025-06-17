@@ -10,8 +10,8 @@ import { test, vi, type Mock, type TestAPI } from 'vitest';
 import type { HttpMethod } from '../src/api-utils.js';
 import { apiMediaType } from '../src/app-utils.ts';
 import { LogServer } from '../src/app.js';
-import { SQLiteStore, type RunStatus } from '../src/sqlite-store.ts';
-import type { DataStore } from '../src/store.ts';
+import type { DataStore, RunStatus } from '../src/data-store.ts';
+import { SQLiteStore } from '../src/sqlite-store.ts';
 
 type RouteMap<T = unknown> = {
   [P in keyof paths]: {
@@ -100,27 +100,27 @@ async function createServerContextFromStores<
   ThisSessionStore extends SessionStore,
   ServerType extends string,
 >({
-  store,
+  dataStore,
   sessionStore,
   type,
   serverOptions,
 }: {
-  store: ThisDataStore;
+  dataStore: ThisDataStore;
   sessionStore: ThisSessionStore;
   type: ServerType;
   serverOptions?: ServerOptions;
 }) {
-  if (store instanceof SQLiteStore) {
-    await store.migrateDatabase();
+  if (dataStore instanceof SQLiteStore) {
+    await dataStore.migrateDatabase();
   }
   return {
     server: LogServer({
-      store,
+      dataStore: dataStore,
       sessionStore,
       ...baseServerOptions,
       ...serverOptions,
     }),
-    store,
+    dataStore,
     sessionStore,
     type,
   };
@@ -129,16 +129,16 @@ async function createServerContextFromStores<
 export const storeTypes = ['sqlite'] as const;
 export type StoreType = (typeof storeTypes)[number];
 export interface ServerContext {
-  store: WithMockedMethods<DataStore>;
+  dataStore: WithMockedMethods<DataStore>;
   sessionStore: WithMockedMethods<SessionStore>;
 }
 const storesCreators = {
   async sqlite() {
-    const store = new SQLiteStore(':memory:');
-    await store.migrateDatabase();
+    const dataStore = new SQLiteStore(':memory:');
+    await dataStore.migrateDatabase();
     const sessionStore = new MemoryStore();
     return {
-      store: mockMethods<DataStore>(store),
+      dataStore: mockMethods<DataStore>(dataStore),
       sessionStore: mockMethods<SessionStore>(sessionStore),
     };
   },
@@ -162,7 +162,7 @@ export type ServerFromStores<
   >
 >;
 export type ServerFromDefaultTypes<Type extends StoreType> = ServerFromStores<
-  StoreContextMap[Type]['store'],
+  StoreContextMap[Type]['dataStore'],
   StoreContextMap[Type]['sessionStore'],
   Type
 >;
@@ -188,20 +188,24 @@ export async function createServerContext<
   ThisSessionStore extends SessionStore,
 >(
   options: {
-    store: ThisDataStore;
+    dataStore: ThisDataStore;
     sessionStore: ThisSessionStore;
   } & CreateServerBaseOptions,
 ): Promise<ServerFromStores<ThisDataStore, ThisSessionStore, 'custom'>>;
 export async function createServerContext(
   options: (
-    | { store: DataStore; sessionStore: SessionStore }
+    | { dataStore: DataStore; sessionStore: SessionStore }
     | { type: StoreType }
   ) &
     CreateServerBaseOptions,
 ) {
   if (isDefaultServerTypeOptions(options)) {
-    const { store, sessionStore } = await storesCreators[options.type]();
-    return createServerContextFromStores({ ...options, store, sessionStore });
+    const { dataStore, sessionStore } = await storesCreators[options.type]();
+    return createServerContextFromStores({
+      ...options,
+      dataStore,
+      sessionStore,
+    });
   }
   return createServerContextFromStores({ type: 'custom', ...options });
 }
