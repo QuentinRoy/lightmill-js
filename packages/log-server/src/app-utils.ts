@@ -8,7 +8,8 @@ import {
   httpStatuses,
   type HttpStatusMap,
 } from './api-utils.js';
-import type { RunId, Store } from './store.js';
+import type { RunId } from './sqlite-store.ts';
+import type { DataStore } from './store.ts';
 import type {
   Handler,
   HandlerParameters,
@@ -87,15 +88,15 @@ export type SubServerDescription<K extends string> = Pick<
 >;
 
 type GetRunResourcesOptions =
-  | { filter: Parameters<Store['getRuns']>[0] }
+  | { filter: Parameters<DataStore['getRuns']>[0] }
   | {
       runs: Omit<
-        Awaited<ReturnType<Store['getRuns']>>[number],
+        Awaited<ReturnType<DataStore['getRuns']>>[number],
         'runCreatedAt'
       >[];
     };
 export async function getRunResources(
-  store: Store,
+  store: DataStore,
   options: GetRunResourcesOptions,
 ) {
   const runs =

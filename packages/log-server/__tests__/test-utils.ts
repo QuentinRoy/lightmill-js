@@ -10,8 +10,8 @@ import { test, vi, type Mock, type TestAPI } from 'vitest';
 import type { HttpMethod } from '../src/api-utils.js';
 import { apiMediaType } from '../src/app-utils.ts';
 import { LogServer } from '../src/app.js';
-import type { DataStore } from '../src/store-types.ts';
-import { SQLiteStore, type RunStatus } from '../src/store.js';
+import { SQLiteStore, type RunStatus } from '../src/sqlite-store.ts';
+import type { DataStore } from '../src/store.ts';
 
 type RouteMap<T = unknown> = {
   [P in keyof paths]: {

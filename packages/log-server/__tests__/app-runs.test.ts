@@ -2,7 +2,7 @@
 
 import { describe, vi, test as vitestTest } from 'vitest';
 import { apiMediaType } from '../src/app-utils.ts';
-import { StoreError, type RunStatus } from '../src/store.js';
+import { StoreError, type RunStatus } from '../src/sqlite-store.ts';
 import { arrayify, firstStrict } from '../src/utils.js';
 import {
   apiContentTypeRegExp,

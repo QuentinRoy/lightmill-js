@@ -6,7 +6,7 @@ import {
   type ExperimentId,
   type RunId,
   type RunStatus,
-} from './store-types.js';
+} from './store.ts';
 import { arrayify, firstStrict, removePrefix, startsWith } from './utils.js';
 
 export const createQueryFilterRun = createQueryFilterFactory(parseRunFilter);

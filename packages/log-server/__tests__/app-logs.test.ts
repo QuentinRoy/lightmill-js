@@ -2,8 +2,12 @@ import type { Store as SessionStore } from 'express-session';
 import request from 'supertest';
 import { beforeEach, describe } from 'vitest';
 import { apiMediaType } from '../src/app-utils.ts';
-import type { DataStore } from '../src/store-types.ts';
-import { StoreError, type ExperimentId, type RunId } from '../src/store.js';
+import {
+  StoreError,
+  type ExperimentId,
+  type RunId,
+} from '../src/sqlite-store.ts';
+import type { DataStore } from '../src/store.ts';
 import {
   apiContentTypeRegExp,
   createSessionTest,

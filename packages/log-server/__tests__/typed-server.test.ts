@@ -1,7 +1,7 @@
 import express from 'express';
 import request from 'supertest';
 import { test } from 'vitest';
-import type { Store } from '../src/store.js';
+import type { Store } from '../src/sqlite-store.ts';
 import { createTypedExpressServer } from '../src/typed-server.js';
 
 type TestApi = {

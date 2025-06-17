@@ -5,7 +5,7 @@ import {
   type ServerHandlerResult,
   type SubServerDescription,
 } from './app-utils.js';
-import { type RunStatus, StoreError } from './store.js';
+import { type RunStatus, StoreError } from './sqlite-store.ts';
 import { arrayify, firstStrict } from './utils.js';
 
 const allowedStatusTransitions = [

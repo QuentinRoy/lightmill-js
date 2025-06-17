@@ -17,7 +17,7 @@ import type {
   HttpMethod,
 } from './api-utils.js';
 import { apiMediaType, type ApiMediaType } from './app-utils.ts';
-import type { Store } from './store.js';
+import type { Store } from './sqlite-store.ts';
 import type { LowercaseProps } from './utils.js';
 
 const pathParamRegex = /{([^}]+)}/g;

@@ -8,7 +8,7 @@ import {
   type ServerHandlerResult,
   type SubServerDescription,
 } from './app-utils.js';
-import { type Store } from './store.js';
+import { type Store } from './sqlite-store.ts';
 import { arrayify, checkBasicAuth } from './utils.js';
 
 type SessionHandlerOptions = {

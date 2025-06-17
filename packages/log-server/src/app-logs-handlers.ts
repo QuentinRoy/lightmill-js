@@ -11,7 +11,8 @@ import {
   type SubServerDescription,
 } from './app-utils.js';
 import { csvExportStream } from './csv-export.js';
-import { StoreError, type AllFilter, type Store } from './store.js';
+import { StoreError, type AllFilter } from './sqlite-store.ts';
+import type { DataStore } from './store.ts';
 import { arrayify, firstStrict } from './utils.js';
 
 export const logHandlers = (): SubServerDescription<'/logs'> => ({
@@ -183,7 +184,7 @@ function getResponseMimeType(
 type LogResponseMimeType = 'json' | 'csv';
 
 function jsonResponseStream(
-  store: Store,
+  store: DataStore,
   filter: Omit<AllFilter, 'runStatus'> = {},
   includes: { run?: boolean; experiment?: boolean; lastLogs?: boolean } = {},
 ): Readable {
@@ -191,7 +192,7 @@ function jsonResponseStream(
 }
 
 async function* jsonResponseChunkGenerator(
-  store: Store,
+  store: DataStore,
   filter: Omit<AllFilter, 'runStatus'>,
   includes: { run?: boolean; experiment?: boolean; lastLogs?: boolean },
 ) {

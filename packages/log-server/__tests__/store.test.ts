@@ -17,7 +17,7 @@ import {
   type LogId,
   type RunId,
   SQLiteStore,
-} from '../src/store.js';
+} from '../src/sqlite-store.ts';
 import { fromAsync } from '../src/utils.js';
 
 // Prevent kysely from logging anything.

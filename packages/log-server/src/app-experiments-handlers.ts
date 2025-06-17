@@ -4,7 +4,7 @@ import {
   type ServerHandlerResult,
   type SubServerDescription,
 } from './app-utils.js';
-import { StoreError } from './store.js';
+import { StoreError } from './sqlite-store.ts';
 
 export const experimentHandlers = (): SubServerDescription<'/experiments'> => ({
   '/experiments': {
