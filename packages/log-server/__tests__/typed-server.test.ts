@@ -1,7 +1,7 @@
 import express from 'express';
 import request from 'supertest';
 import { test } from 'vitest';
-import type { Store } from '../src/store.js';
+import type { DataStore } from '../src/store.ts';
 import { createTypedExpressServer } from '../src/typed-server.js';
 
 type TestApi = {
@@ -56,7 +56,7 @@ type TestApi = {
 };
 
 test('createTypedServer', async () => {
-  const mid = createTypedExpressServer<TestApi>({} as Store, {
+  const mid = createTypedExpressServer<TestApi>({} as DataStore, {
     '/resources/{id}': {
       async get({ parameters, body }) {
         return {

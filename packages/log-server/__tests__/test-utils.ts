@@ -9,14 +9,8 @@ import { vi, type Mock } from 'vitest';
 import type { HttpMethod } from '../src/api-utils.js';
 import { apiMediaType } from '../src/app-utils.ts';
 import { LogServer } from '../src/app.js';
-import type {
-  AllFilter,
-  Log,
-  LogFilter,
-  RunFilter,
-  RunStatus,
-  Store,
-} from '../src/store.js';
+import type { AllFilter, LogFilter, RunFilter } from '../src/store-filters.ts';
+import type { DataStore, Log, RunStatus } from '../src/store.ts';
 import { arrayify, firstStrict } from '../src/utils.js';
 
 type RouteMap<T = unknown> = {
@@ -86,11 +80,11 @@ function isNoResultFilter<Filter extends LogFilter | RunFilter>(
 }
 
 export type MockStore = {
-  [K in keyof Store]: Store[K] extends infer C extends (
+  [K in keyof DataStore]: DataStore[K] extends infer C extends (
     ...args: never[]
   ) => unknown
     ? Mock<C>
-    : Store[K];
+    : DataStore[K];
 };
 
 export function createMockStore(): MockStore {

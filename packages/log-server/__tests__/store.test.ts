@@ -12,12 +12,13 @@ import {
   vi,
   it as vitestIt,
 } from 'vitest';
+import { SQLiteStore } from '../src/sqlite-store.ts';
 import {
+  type DataStore,
   type ExperimentId,
   type LogId,
   type RunId,
-  SQLiteStore,
-} from '../src/store.js';
+} from '../src/store.ts';
 import { fromAsync } from '../src/utils.js';
 
 // Prevent kysely from logging anything.
@@ -28,7 +29,7 @@ afterEach(() => {
 });
 
 interface Fixture {
-  store: SQLiteStore;
+  store: DataStore;
   experiment1: ExperimentId;
   experiment2: ExperimentId;
   experiment3: ExperimentId;
@@ -1162,7 +1163,7 @@ describe('SQLiteStore#addLogs', () => {
 describe('SQLiteStore#getLastLogs', () => {
   type Fixture = {
     context: {
-      store: SQLiteStore;
+      store: DataStore;
       exp1run1: RunId;
       exp1run2: RunId;
       exp2run1: RunId;

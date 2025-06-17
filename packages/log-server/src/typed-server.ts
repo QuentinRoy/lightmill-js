@@ -17,12 +17,12 @@ import type {
   HttpMethod,
 } from './api-utils.js';
 import { apiMediaType, type ApiMediaType } from './app-utils.ts';
-import type { Store } from './store.js';
+import type { DataStore } from './store.ts';
 import type { LowercaseProps } from './utils.js';
 
 const pathParamRegex = /{([^}]+)}/g;
 export function createTypedExpressServer<A extends Api>(
-  store: Store,
+  store: DataStore,
   server: ServerDescription<A>,
   router: Router = Router(),
 ): Middleware {
@@ -121,7 +121,7 @@ export interface Middleware {
 
 interface OperationTypedHandler<Op extends ApiOperation> {
   (context: {
-    store: Store;
+    store: DataStore;
     body: ReplaceNever<
       ApiOperationRequestContent<Op>['body'],
       Record<never, never>

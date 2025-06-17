@@ -2,7 +2,7 @@
 
 import { describe, vi, test as vitestTest } from 'vitest';
 import { apiMediaType } from '../src/app-utils.ts';
-import { StoreError } from '../src/store.js';
+import { StoreError } from '../src/store-errors.ts';
 import {
   apiContentTypeRegExp,
   createFixtureWithRuns,

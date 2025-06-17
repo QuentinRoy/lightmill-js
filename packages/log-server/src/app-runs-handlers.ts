@@ -5,7 +5,8 @@ import {
   type ServerHandlerResult,
   type SubServerDescription,
 } from './app-utils.js';
-import { type RunStatus, StoreError } from './store.js';
+import { StoreError } from './store-errors.ts';
+import { type RunStatus } from './store.ts';
 import { arrayify, firstStrict } from './utils.js';
 
 const allowedStatusTransitions = [

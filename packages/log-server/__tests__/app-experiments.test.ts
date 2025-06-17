@@ -11,7 +11,7 @@ import {
 } from 'vitest';
 import { apiMediaType } from '../src/app-utils.ts';
 import { LogServer } from '../src/app.js';
-import { StoreError } from '../src/store.js';
+import { StoreError } from '../src/store-errors.ts';
 import { arrayify } from '../src/utils.js';
 import {
   MockSessionStore,
