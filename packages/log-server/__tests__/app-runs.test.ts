@@ -2,8 +2,8 @@
 
 import { describe, vi, test as vitestTest } from 'vitest';
 import { apiMediaType } from '../src/app-utils.ts';
-import { StoreError } from '../src/store-errors.ts';
-import type { RunStatus } from '../src/store.ts';
+import { DataStoreError } from '../src/data-store-errors.ts';
+import type { RunStatus } from '../src/data-store.ts';
 import { arrayify, firstStrict } from '../src/utils.js';
 import {
   apiContentTypeRegExp,
@@ -149,7 +149,7 @@ describe('LogServer: post /runs', () => {
     noRun: { api, store, experiment },
   }) => {
     store.addRun.mockImplementation(() => {
-      throw new StoreError('message', StoreError.RUN_EXISTS);
+      throw new DataStoreError('message', DataStoreError.RUN_EXISTS);
     });
     await api
       .post('/runs')

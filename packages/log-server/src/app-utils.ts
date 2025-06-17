@@ -8,7 +8,7 @@ import {
   httpStatuses,
   type HttpStatusMap,
 } from './api-utils.js';
-import type { DataStore, RunId } from './store.ts';
+import type { DataStore, RunId } from './data-store.ts';
 import type {
   Handler,
   HandlerParameters,

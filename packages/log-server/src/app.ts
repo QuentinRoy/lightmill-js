@@ -15,7 +15,7 @@ import { logHandlers } from './app-logs-handlers.js';
 import { runHandlers } from './app-runs-handlers.js';
 import { sessionHandlers } from './app-sessions-handlers.js';
 import { apiMediaType, type ServerApi } from './app-utils.js';
-import type { DataStore } from './store.ts';
+import type { DataStore } from './data-store.ts';
 import { createTypedExpressServer } from './typed-server.js';
 import { firstStrict } from './utils.js';
 

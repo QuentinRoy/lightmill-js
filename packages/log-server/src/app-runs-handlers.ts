@@ -5,8 +5,8 @@ import {
   type ServerHandlerResult,
   type SubServerDescription,
 } from './app-utils.js';
-import { StoreError } from './store-errors.ts';
-import { type RunStatus } from './store.ts';
+import { DataStoreError } from './data-store-errors.ts';
+import { type RunStatus } from './data-store.ts';
 import { arrayify, firstStrict } from './utils.js';
 
 const allowedStatusTransitions = [
@@ -82,7 +82,10 @@ export const runHandlers = (): SubServerDescription<'/runs'> => ({
           },
         };
       } catch (e) {
-        if (e instanceof StoreError && e.code === StoreError.RUN_EXISTS) {
+        if (
+          e instanceof DataStoreError &&
+          e.code === DataStoreError.RUN_EXISTS
+        ) {
           return getErrorResponse({
             code: 'RUN_EXISTS',
             status: 409,

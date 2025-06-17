@@ -9,8 +9,8 @@ import { vi, type Mock } from 'vitest';
 import type { HttpMethod } from '../src/api-utils.js';
 import { apiMediaType } from '../src/app-utils.ts';
 import { LogServer } from '../src/app.js';
-import type { AllFilter, LogFilter, RunFilter } from '../src/store-filters.ts';
-import type { DataStore, Log, RunStatus } from '../src/store.ts';
+import type { AllFilter, LogFilter, RunFilter } from '../src/data-filters.ts';
+import type { DataStore, Log, RunStatus } from '../src/data-store.ts';
 import { arrayify, firstStrict } from '../src/utils.js';
 
 type RouteMap<T = unknown> = {

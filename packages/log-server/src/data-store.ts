@@ -1,4 +1,5 @@
 import type { JsonObject, Merge, UnionToIntersection } from 'type-fest';
+import type { AllFilter, ExperimentFilter, RunFilter } from './data-filters.ts';
 import {
   runStatuses,
   type Database,
@@ -13,12 +14,7 @@ import {
   type RunLogView,
   type RunStatus,
   type RunTable,
-} from './db-migrations/2025-03-17-init.js';
-import type {
-  AllFilter,
-  ExperimentFilter,
-  RunFilter,
-} from './store-filters.js';
+} from './db-migrations/2025-03-17-init.ts';
 
 export {
   runStatuses,

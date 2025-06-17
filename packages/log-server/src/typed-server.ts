@@ -17,7 +17,7 @@ import type {
   HttpMethod,
 } from './api-utils.js';
 import { apiMediaType, type ApiMediaType } from './app-utils.ts';
-import type { DataStore } from './store.ts';
+import type { DataStore } from './data-store.ts';
 import type { LowercaseProps } from './utils.js';
 
 const pathParamRegex = /{([^}]+)}/g;

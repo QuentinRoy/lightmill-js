@@ -1,8 +1,8 @@
 import { stringify } from 'csv';
 import { pipeline, Readable } from 'node:stream';
 import { mapKeys, pickBy, pipe } from 'remeda';
-import type { AllFilter } from './store-filters.ts';
-import type { DataStore, Log } from './store.ts';
+import type { AllFilter } from './data-filters.ts';
+import type { DataStore, Log } from './data-store.ts';
 import { withSnakeCaseProps } from './utils.js';
 
 const csvLogColumns: Array<keyof Log> = [

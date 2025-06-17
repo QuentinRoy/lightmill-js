@@ -11,9 +11,9 @@ import {
   type SubServerDescription,
 } from './app-utils.js';
 import { csvExportStream } from './csv-export.js';
-import { StoreError } from './store-errors.ts';
-import type { AllFilter } from './store-filters.ts';
-import type { DataStore } from './store.ts';
+import type { AllFilter } from './data-filters.ts';
+import { DataStoreError } from './data-store-errors.ts';
+import type { DataStore } from './data-store.ts';
 import { arrayify, firstStrict } from './utils.js';
 
 export const logHandlers = (): SubServerDescription<'/logs'> => ({
@@ -111,7 +111,7 @@ export const logHandlers = (): SubServerDescription<'/logs'> => ({
         };
       } catch (e) {
         if (
-          e instanceof StoreError &&
+          e instanceof DataStoreError &&
           e.code === 'LOG_NUMBER_EXISTS_IN_SEQUENCE'
         ) {
           return getErrorResponse({

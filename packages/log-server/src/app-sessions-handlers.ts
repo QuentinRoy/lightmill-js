@@ -8,7 +8,7 @@ import {
   type ServerHandlerResult,
   type SubServerDescription,
 } from './app-utils.js';
-import { type DataStore } from './store.ts';
+import { type DataStore } from './data-store.ts';
 import { arrayify, checkBasicAuth } from './utils.js';
 
 type SessionHandlerOptions = {
