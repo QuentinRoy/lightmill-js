@@ -24,7 +24,7 @@ const SESSION_COOKIE_NAME = 'lightmill-session-id';
 const MemorySessionStore = MemorySessionStoreModule(session);
 
 type CreateLogServerOptions = {
-  store: DataStore;
+  dataStore: DataStore;
   hostUser?: string | undefined;
   hostPassword?: string | undefined;
   allowCrossOrigin?: boolean | undefined;
@@ -36,7 +36,7 @@ type CreateLogServerOptions = {
 };
 
 export function LogServer({
-  store,
+  dataStore,
   sessionKeys,
   hostPassword,
   hostUser = 'host',
@@ -107,7 +107,7 @@ export function LogServer({
   );
 
   createTypedExpressServer<ServerApi>(
-    store,
+    dataStore,
     {
       ...sessionHandlers({ hostPassword, hostUser }),
       ...experimentHandlers(),

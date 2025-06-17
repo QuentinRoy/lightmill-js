@@ -53,7 +53,7 @@ async function createFixture() {
   let sessionStore = new MockSessionStore();
   let store = createMockStore();
   let server = LogServer({
-    store,
+    dataStore: store,
     sessionStore,
     sessionKeys: ['secret'],
     hostPassword: 'host password',

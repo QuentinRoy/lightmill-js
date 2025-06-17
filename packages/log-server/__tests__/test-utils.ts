@@ -250,7 +250,7 @@ export async function createFixtureWithRuns({
   const sessionStore = new MockSessionStore();
   const store = createMockStore();
   const server = LogServer({
-    store,
+    dataStore: store,
     sessionStore,
     sessionKeys: ['secret'],
     hostPassword: 'host password',
