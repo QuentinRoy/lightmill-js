@@ -31,6 +31,8 @@ export const logHandlers = (): SubServerDescription<'/logs'> => ({
           query['filter[run.id]'],
         ),
         experimentId: query['filter[experiment.id]'],
+        experimentName: query['filter[experiment.name]'],
+        runName: query['filter[run.name]'],
       };
       let includeQuery = arrayify(query['include'], true);
       if (responseMimeType === 'csv') {

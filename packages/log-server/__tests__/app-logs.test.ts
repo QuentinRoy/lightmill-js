@@ -304,8 +304,10 @@ describe('LogServer: get /logs', () => {
         [
           {
             "experimentId": undefined,
+            "experimentName": undefined,
             "logType": "log-type",
             "runId": undefined,
+            "runName": undefined,
             "runStatus": "-canceled",
           },
         ],
@@ -329,8 +331,10 @@ describe('LogServer: get /logs', () => {
         [
           {
             "experimentId": "experiment-id",
+            "experimentName": undefined,
             "logType": undefined,
             "runId": undefined,
+            "runName": undefined,
             "runStatus": "-canceled",
           },
         ],
@@ -351,8 +355,10 @@ describe('LogServer: get /logs', () => {
         [
           {
             "experimentId": undefined,
+            "experimentName": undefined,
             "logType": undefined,
             "runId": "run-id",
+            "runName": undefined,
             "runStatus": "-canceled",
           },
         ],
@@ -380,8 +386,10 @@ describe('LogServer: get /logs', () => {
         [
           {
             "experimentId": "experiment-id",
+            "experimentName": undefined,
             "logType": "log-type",
             "runId": "run-id",
+            "runName": undefined,
             "runStatus": "-canceled",
           },
         ],

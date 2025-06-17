@@ -197,8 +197,10 @@ exports[`LogServer: get /logs > returns logs as csv by default 1`] = `
   [
     {
       "experimentId": undefined,
+      "experimentName": undefined,
       "logType": undefined,
       "runId": undefined,
+      "runName": undefined,
       "runStatus": "-canceled",
     },
   ],
@@ -217,8 +219,10 @@ exports[`LogServer: get /logs > returns logs as csv if csv is the first supporte
   [
     {
       "experimentId": undefined,
+      "experimentName": undefined,
       "logType": undefined,
       "runId": undefined,
+      "runName": undefined,
       "runStatus": "-canceled",
     },
   ],
@@ -237,8 +241,10 @@ exports[`LogServer: get /logs > returns logs as json if json is the first suppor
   [
     {
       "experimentId": undefined,
+      "experimentName": undefined,
       "logType": undefined,
       "runId": undefined,
+      "runName": undefined,
       "runStatus": "-canceled",
     },
   ],
@@ -298,10 +304,12 @@ exports[`LogServer: get /logs > returns only logs a participant has access to 1`
   [
     {
       "experimentId": undefined,
+      "experimentName": undefined,
       "logType": undefined,
       "runId": [
         "that-run",
       ],
+      "runName": undefined,
       "runStatus": "-canceled",
     },
   ],
