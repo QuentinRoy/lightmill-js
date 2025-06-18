@@ -69,7 +69,7 @@ export const sessionHandlers = ({
         return getErrorResponse({
           status: 404,
           code: 'SESSION_NOT_FOUND',
-          detail: `Session ${path.id} not found`,
+          detail: `Session "${path.id}" not found`,
         });
       }
       return {
@@ -85,7 +85,7 @@ export const sessionHandlers = ({
         return getErrorResponse({
           status: 404,
           code: 'SESSION_NOT_FOUND',
-          detail: `Session ${path.id} not found`,
+          detail: `Session "${path.id}" not found`,
         });
       }
       await promisify(request.session.destroy.bind(request.session))();

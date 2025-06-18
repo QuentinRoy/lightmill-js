@@ -10,7 +10,7 @@ import {
   storeTypes,
   type StoreType,
   type WithMockedMethods,
-} from './test-utils.js';
+} from './test-utils.ts';
 
 type TestContext = {
   runId: RunId;
@@ -162,7 +162,7 @@ describe.each(storeTypes)('LogServer: post /logs (%s)', (storeType) => {
           {
             status: 'Forbidden',
             code: 'RUN_NOT_FOUND',
-            detail: `Run '${response.body.data.id}' not found`,
+            detail: `Run "${response.body.data.id}" not found`,
           },
         ],
       })
@@ -214,7 +214,7 @@ describe.each(storeTypes)('LogServer: post /logs (%s)', (storeType) => {
             {
               status: 'Forbidden',
               code: 'RUN_NOT_FOUND',
-              detail: "Run 'does-not-exist' not found",
+              detail: 'Run "does-not-exist" not found',
             },
           ],
         })
@@ -535,7 +535,7 @@ describe.for(storeTypes)('LogServer: get /logs/{id} (%s)', (storeType) => {
           {
             status: 'Not Found',
             code: 'LOG_NOT_FOUND',
-            detail: `Log '${logId}' not found`,
+            detail: `Log "${logId}" not found`,
           },
         ],
       })
@@ -552,7 +552,7 @@ describe.for(storeTypes)('LogServer: get /logs/{id} (%s)', (storeType) => {
           {
             status: 'Not Found',
             code: 'LOG_NOT_FOUND',
-            detail: "Log 'does-not-exist' not found",
+            detail: 'Log "does-not-exist" not found',
           },
         ],
       })

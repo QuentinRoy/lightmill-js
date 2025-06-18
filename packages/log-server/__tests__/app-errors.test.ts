@@ -9,7 +9,7 @@ import {
   createAllRoute,
   createServerContext,
   storeTypes,
-} from './test-utils.js';
+} from './test-utils.ts';
 
 let allRoutes = createAllRoute();
 afterEach(() => {

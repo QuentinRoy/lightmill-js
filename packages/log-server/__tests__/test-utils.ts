@@ -4,14 +4,17 @@
 import type { paths } from '@lightmill/log-api';
 import express from 'express';
 import { MemoryStore, Store as SessionStore } from 'express-session';
-import { default as request, default as supertest } from 'supertest';
+import { last } from 'remeda';
+import request from 'supertest';
 import type { RequiredKeysOf, Simplify, ValueOf } from 'type-fest';
 import { test, vi, type Mock, type TestAPI } from 'vitest';
-import type { HttpMethod } from '../src/api-utils.js';
+import type { HttpMethod } from '../src/api-utils.ts';
 import { apiMediaType } from '../src/app-utils.ts';
-import { LogServer } from '../src/app.js';
-import type { DataStore, RunStatus } from '../src/data-store.ts';
-import { SQLiteStore } from '../src/sqlite-store.ts';
+import { LogServer, SESSION_COOKIE_NAME } from '../src/app.ts';
+import type { DataStore, RunId, RunStatus } from '../src/data-store.ts';
+import { SQLiteDataStore } from '../src/sqlite-data-store.ts';
+
+export const host = 'lightmill-test.com';
 
 type RouteMap<T = unknown> = {
   [P in keyof paths]: {
@@ -110,7 +113,7 @@ async function createServerContextFromStores<
   type: ServerType;
   serverOptions?: ServerOptions;
 }) {
-  if (dataStore instanceof SQLiteStore) {
+  if (dataStore instanceof SQLiteDataStore) {
     await dataStore.migrateDatabase();
   }
   return {
@@ -134,7 +137,7 @@ export interface ServerContext {
 }
 const storesCreators = {
   async sqlite() {
-    const dataStore = new SQLiteStore(':memory:');
+    const dataStore = new SQLiteDataStore(':memory:');
     await dataStore.migrateDatabase();
     const sessionStore = new MemoryStore();
     return {
@@ -223,7 +226,7 @@ type SessionFixtureContext<
   type: T;
   app: NonNullable<Parameters<typeof request.agent>[0]>;
 } & StoreContextMap[T];
-type SessionFixture<R extends Role, T extends StoreType = StoreType> = {
+export type SessionFixture<R extends Role, T extends StoreType = StoreType> = {
   session: SessionFixtureContext<R, T>;
 };
 type PatchedFixture<
@@ -237,9 +240,9 @@ async function createSessionFixtureContext<
 >({ type, role }: { type: T; role: R }) {
   let serverContext = await createServerContext({ type });
   let app = express().use(serverContext.server.middleware);
-  let api = request.agent(app).host('lightmill-test.com');
+  let api = request.agent(app).host(host);
   // This request only matters to get the cookie. After that we'll mock the session anyway.
-  await api
+  const response = await api
     .post('/sessions')
     .set('Content-Type', apiMediaType)
     .send({ data: { type: 'sessions', attributes: { role } } })
@@ -329,4 +332,50 @@ export function mockMethods<T extends object>(obj: T): WithMockedMethods<T> {
       return value;
     },
   }) as WithMockedMethods<T>;
+}
+
+export async function addRunToSession({
+  api,
+  runId,
+  sessionStore,
+}: {
+  api: request.Agent;
+  sessionStore: WithMockedMethods<SessionStore>;
+  runId: RunId;
+}) {
+  // I have not found a better way to get the session cookie. request.Agent does
+  // expose a `jar` property, but I could not find a way to get the session id
+  // from it. Maybe because it isn't supposed to be accessible with JavaScript?
+  await api.get('/sessions/current');
+  const sessionId = last(sessionStore.get.mock.calls)?.[0];
+  if (sessionId == null) {
+    throw new Error('No session cookie found');
+  }
+  return new Promise((resolve, reject) => {
+    sessionStore.get(sessionId, (err, session) => {
+      if (err) {
+        return reject(err);
+      }
+      if (session == null) {
+        return reject(
+          new Error(`Session not found for cookie value: ${sessionId}`),
+        );
+      }
+      const data = session.data;
+      if (data == null) {
+        return reject(new Error(`Session data is not initialized`));
+      }
+      if (session.data.runs.includes(runId)) {
+        return resolve(session); // Run already exists in the session
+      }
+      const newRuns = [...session.data.runs, runId];
+      session.data = { ...data, runs: newRuns };
+      sessionStore.set(sessionId, session, (err) => {
+        if (err) {
+          return reject(err);
+        }
+        resolve(session);
+      });
+    });
+  });
 }

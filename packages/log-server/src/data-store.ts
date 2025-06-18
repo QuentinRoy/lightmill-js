@@ -14,7 +14,7 @@ import {
   type RunLogView,
   type RunStatus,
   type RunTable,
-} from './db-migrations/2025-03-17-init.ts';
+} from './db-migrations/2025-05-21-cancel-completed.ts';
 
 export {
   runStatuses,

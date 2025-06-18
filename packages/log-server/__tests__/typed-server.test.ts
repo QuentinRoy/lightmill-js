@@ -2,7 +2,7 @@ import express from 'express';
 import request from 'supertest';
 import { test } from 'vitest';
 import type { DataStore } from '../src/data-store.ts';
-import { createTypedExpressServer } from '../src/typed-server.js';
+import { createTypedExpressServer } from '../src/typed-server.ts';
 
 type TestApi = {
   '/resources/{id}': {

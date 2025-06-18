@@ -13,8 +13,8 @@ import {
   it as vitestIt,
 } from 'vitest';
 import type { ExperimentId, LogId, RunId } from '../src/data-store.ts';
-import { SQLiteStore } from '../src/sqlite-store.ts';
-import { fromAsync } from '../src/utils.js';
+import { SQLiteDataStore } from '../src/sqlite-data-store.ts';
+import { fromAsync } from '../src/utils.ts';
 
 // Prevent kysely from logging anything.
 loglevel.setDefaultLevel('silent');
@@ -24,7 +24,7 @@ afterEach(() => {
 });
 
 interface Fixture {
-  store: SQLiteStore;
+  store: SQLiteDataStore;
   experiment1: ExperimentId;
   experiment2: ExperimentId;
   experiment3: ExperimentId;
@@ -41,7 +41,7 @@ interface Fixture {
 
 let baseIt = vitestIt.extend<Fixture>({
   store: async ({}, use) => {
-    let store = new SQLiteStore(':memory:');
+    let store = new SQLiteDataStore(':memory:');
     await store.migrateDatabase();
     await use(store);
     store.close();
@@ -153,14 +153,14 @@ let it = baseIt;
 
 describe('SQLiteStore', () => {
   it('creates and closes a new Store instance', async () => {
-    let store = new SQLiteStore(':memory:');
+    let store = new SQLiteDataStore(':memory:');
     await store.close();
   });
 });
 
 describe('SQLiteStore#migrateDatabase', () => {
   it('initializes the database', async () => {
-    let store = new SQLiteStore(':memory:');
+    let store = new SQLiteDataStore(':memory:');
     await store.migrateDatabase();
     await store.close();
   });
@@ -381,6 +381,17 @@ describe('SQLiteStore#addRun', () => {
     await expect(
       store.addRun({ experimentId: experiment1 }),
     ).resolves.toSatisfy(isAddRunResult);
+  });
+
+  it('throws with a meaningful error if the experiment does not exist', async ({
+    expect,
+    store: store,
+  }) => {
+    await expect(
+      store.addRun({ experimentId: 'doesNotExist' }),
+    ).rejects.toMatchInlineSnapshot(
+      `[StoreError: Experiment "doesNotExist" does not exist.]`,
+    );
   });
 });
 
@@ -1158,7 +1169,7 @@ describe('SQLiteStore#addLogs', () => {
 describe('SQLiteStore#getLastLogs', () => {
   type Fixture = {
     context: {
-      store: SQLiteStore;
+      store: SQLiteDataStore;
       exp1run1: RunId;
       exp1run2: RunId;
       exp2run1: RunId;
@@ -1551,7 +1562,7 @@ describe.for([{ queryLimit: 10000 }, { queryLimit: 2 }])(
     type NewFixture = {
       queryLimit: number;
       context: {
-        store: SQLiteStore;
+        store: SQLiteDataStore;
         experiment1: ExperimentId;
         experiment2: ExperimentId;
         e1run1: RunId;
@@ -1565,7 +1576,7 @@ describe.for([{ queryLimit: 10000 }, { queryLimit: 2 }])(
       queryLimit: async ({}, use) => use(queryLimit),
       context: async ({ queryLimit }, use) => {
         vi.useFakeTimers({ now: new Date('2025-01-01T00:00:01Z') });
-        let store = new SQLiteStore(':memory:', {
+        let store = new SQLiteDataStore(':memory:', {
           selectQueryLimit: queryLimit,
         });
         await store.migrateDatabase();

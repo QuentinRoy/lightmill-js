@@ -137,8 +137,10 @@ export class SQLiteDataStore implements DataStore {
         .returningAll()
         .executeTakeFirstOrThrow()
         .catch((e) => {
+          if (!(e instanceof SQLiteDB.SqliteError)) {
+            throw e;
+          }
           if (
-            e instanceof SQLiteDB.SqliteError &&
             e.code === 'SQLITE_CONSTRAINT_TRIGGER' &&
             e.message.includes(
               'another run with the same name for the same experiment exists and is not canceled',
@@ -147,6 +149,15 @@ export class SQLiteDataStore implements DataStore {
             throw new DataStoreError(
               `A run named "${runName}" already exists for experiment ${experimentId}.`,
               DataStoreError.RUN_EXISTS,
+              { cause: e },
+            );
+          }
+          if (e.code === 'SQLITE_CONSTRAINT_FOREIGNKEY') {
+            // Only the experimentId is a foreign key, so we can assume
+            // that the experiment does not exist.
+            throw new DataStoreError(
+              `Experiment "${experimentId}" does not exist.`,
+              DataStoreError.EXPERIMENT_NOT_FOUND,
               { cause: e },
             );
           }

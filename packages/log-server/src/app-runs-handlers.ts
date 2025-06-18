@@ -109,7 +109,7 @@ export const runHandlers = (): SubServerDescription<'/runs'> => ({
         return getErrorResponse({
           status: 404,
           code: 'RUN_NOT_FOUND',
-          detail: `Run ${parameters.path.id} not found`,
+          detail: `Run "${parameters.path.id}" not found`,
         });
       }
       const { runs, experiments, lastLogs } = await getRunResources(store, {
@@ -120,7 +120,7 @@ export const runHandlers = (): SubServerDescription<'/runs'> => ({
         return getErrorResponse({
           status: 404,
           code: 'RUN_NOT_FOUND',
-          detail: `Run ${parameters.path.id} not found`,
+          detail: `Run "${parameters.path.id}" not found`,
         });
       }
       return {
@@ -154,7 +154,7 @@ export const runHandlers = (): SubServerDescription<'/runs'> => ({
       const unknownRunAnswer = getErrorResponse({
         status: 404,
         code: 'RUN_NOT_FOUND',
-        detail: `Run ${runId} not found`,
+        detail: `Run "${runId}" not found`,
       });
       if (
         request.session.data?.role !== 'host' &&

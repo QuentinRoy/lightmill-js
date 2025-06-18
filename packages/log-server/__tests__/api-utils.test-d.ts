@@ -10,7 +10,7 @@ import type {
   ApiRequestContent,
   ApiRequestParameters,
   ApiResponseContent,
-} from '../src/api-utils.js';
+} from '../src/api-utils.ts';
 
 type TestApi = {
   '/{id}': {

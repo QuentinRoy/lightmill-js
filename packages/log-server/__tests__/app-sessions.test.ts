@@ -8,9 +8,9 @@ import {
   type MockStore,
 } from '../__mocks__/mock-data-store.ts';
 import { MockSessionStore } from '../__mocks__/mock-session-store.ts';
-import { apiMediaType, type ServerRequestContent } from '../src/app-utils.js';
-import { LogServer } from '../src/app.js';
-import { apiContentTypeRegExp } from './test-utils.js';
+import { apiMediaType, type ServerRequestContent } from '../src/app-utils.ts';
+import { LogServer } from '../src/app.ts';
+import { apiContentTypeRegExp } from './test-utils.ts';
 
 type BaseFixture = {
   store: MockStore;
