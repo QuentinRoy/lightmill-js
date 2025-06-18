@@ -253,7 +253,11 @@ describe('LogClient#getResumableRuns', () => {
 });
 
 describe('LogClient#startRun', () => {
-  it('should send a start request', async ({ expect, server, client }) => {
+  it('should post to /runs without a run name', async ({
+    expect,
+    server,
+    client,
+  }) => {
     server.set([{ experimentId: 'test-experiment' }]);
     let logger = await client.startRun({
       experimentName: 'test-experiment-name',
@@ -266,7 +270,7 @@ describe('LogClient#startRun', () => {
         body: {
           data: {
             type: 'runs',
-            attributes: { status: 'running' },
+            attributes: { status: 'running', name: null },
             relationships: {
               experiment: {
                 data: { type: 'experiments', id: 'test-experiment' },
@@ -278,7 +282,7 @@ describe('LogClient#startRun', () => {
     ]);
   });
 
-  it('should send a start request with parameters', async ({
+  it('should post to /runs with a run name', async ({
     expect,
     server,
     client,
