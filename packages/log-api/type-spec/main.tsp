@@ -175,7 +175,7 @@ namespace Run {
   model Attributes {
     @minLength(1)
     @visibility(Lifecycle.Read, Lifecycle.Create)
-    name?: string;
+    name: string | null;
 
     status: Status;
 
