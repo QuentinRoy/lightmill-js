@@ -5,7 +5,7 @@
     "strict": true,
     "rootDir": "./src",
     "outDir": "dist",
-    "exactOptionalPropertyTypes": false,
+    "exactOptionalPropertyTypes": true,
     "allowJs": true
   },
   "include": [

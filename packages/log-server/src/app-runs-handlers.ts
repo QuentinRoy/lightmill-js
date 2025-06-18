@@ -33,16 +33,17 @@ export const runHandlers = (): SubServerDescription<'/runs'> => ({
         experimentName: parameters.query['filter[experiment.name]'],
         runName: parameters.query['filter[name]'],
       };
-      const { runs, ...included } = await getRunResources(store, { filter });
+      const { runs, ...otherResources } = await getRunResources(store, {
+        filter,
+      });
+      const included = getIncluded({
+        ...otherResources,
+        include: parameters.query.include,
+      });
       return {
         status: 200,
-        body: {
-          data: runs,
-          included: getIncluded({
-            ...included,
-            include: parameters.query.include,
-          }),
-        },
+        // included may not be undefined.
+        body: included == null ? { data: runs } : { data: runs, included },
       };
     },
 
@@ -123,16 +124,15 @@ export const runHandlers = (): SubServerDescription<'/runs'> => ({
           detail: `Run "${parameters.path.id}" not found`,
         });
       }
+      const included = getIncluded({
+        experiments,
+        lastLogs,
+        include: parameters.query.include,
+      });
       return {
         status: 200,
-        body: {
-          data: run,
-          included: getIncluded({
-            experiments,
-            lastLogs,
-            include: parameters.query.include,
-          }),
-        },
+        // included may not be undefined.
+        body: included == null ? { data: run } : { data: run, included },
       };
     },
 

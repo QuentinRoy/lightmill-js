@@ -137,8 +137,8 @@ describe.for(allTests)(
       session: { api, dataStore, experiments },
     }) => {
       const expNumber = 1;
-      const expName = experiments[expNumber].experimentName;
-      const expId = experiments[expNumber].experimentId;
+      const expName = experiments[expNumber]!.experimentName;
+      const expId = experiments[expNumber]!.experimentId;
       await api
         .get(`/experiments?filter[name]=${expName}`)
         .expect(200, {

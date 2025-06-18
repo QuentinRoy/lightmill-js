@@ -524,18 +524,18 @@ describe.for(storeTypes)('LogServer: get /logs/{id} (%s)', (storeType) => {
       experimentId,
       runStatus: 'running',
     });
-    const [{ logId }] = await dataStore.addLogs(runId, [
+    const [logRecord] = await dataStore.addLogs(runId, [
       { type: 'log-type', values: { value: 'v' }, number: 1 },
     ]);
     dataStore.getLogs.mockImplementation(async function* () {});
     await participantApi
-      .get(`/logs/${logId}`)
+      .get(`/logs/${logRecord!.logId}`)
       .expect(404, {
         errors: [
           {
             status: 'Not Found',
             code: 'LOG_NOT_FOUND',
-            detail: `Log "${logId}" not found`,
+            detail: `Log "${logRecord!.logId}" not found`,
           },
         ],
       })
@@ -560,9 +560,10 @@ describe.for(storeTypes)('LogServer: get /logs/{id} (%s)', (storeType) => {
   });
 
   it('returns the log', async ({ dataStore, participantApi, runId }) => {
-    const [{ logId }] = await dataStore.addLogs(runId, [
+    const [logRecord] = await dataStore.addLogs(runId, [
       { type: 'log-type', values: { value: 'v' }, number: 1 },
     ]);
+    const logId = logRecord!.logId;
     await participantApi
       .get(`/logs/${logId}`)
       .expect(200, {
