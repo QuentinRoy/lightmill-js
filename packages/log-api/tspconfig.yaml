@@ -12,4 +12,4 @@ linter:
   extends:
     - '@typespec/http/all'
 
-output-dir: '{project-root}/src'
+output-dir: '{project-root}/temp'
