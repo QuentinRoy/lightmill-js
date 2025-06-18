@@ -135,17 +135,29 @@ export interface ServerContext {
   dataStore: WithMockedMethods<DataStore>;
   sessionStore: WithMockedMethods<SessionStore>;
 }
-const storesCreators = {
+export const dataStoreCreators = {
   async sqlite() {
     const dataStore = new SQLiteDataStore(':memory:');
     await dataStore.migrateDatabase();
-    const sessionStore = new MemoryStore();
-    return {
-      dataStore: mockMethods<DataStore>(dataStore),
-      sessionStore: mockMethods<SessionStore>(sessionStore),
-    };
+    return mockMethods<DataStore>(dataStore);
   },
-} satisfies Record<StoreType, () => Promise<ServerContext>>;
+} satisfies Record<StoreType, () => Promise<WithMockedMethods<DataStore>>>;
+export const sessionStoreCreators = {
+  async sqlite() {
+    return mockMethods<SessionStore>(new MemoryStore());
+  },
+} satisfies Record<StoreType, () => Promise<WithMockedMethods<SessionStore>>>;
+// @ts-expect-error We will fill this up just after.
+const storesCreators: Record<StoreType, () => Promise<ServerContext>> = {};
+for (let storeType of storeTypes) {
+  storesCreators[storeType] = async () => {
+    const [dataStore, sessionStore] = await Promise.all([
+      dataStoreCreators[storeType](),
+      sessionStoreCreators[storeType](),
+    ]);
+    return { dataStore, sessionStore };
+  };
+}
 
 type StoreCreatorsMap = typeof storesCreators;
 type StoreContextMap = {
