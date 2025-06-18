@@ -144,13 +144,6 @@ export const runHandlers = (): SubServerDescription<'/runs'> => ({
         path: { id: runId },
       },
     }): Promise<ServerHandlerResult<'/runs/{id}', 'patch'>> {
-      if (body.data.id !== runId) {
-        return getErrorResponse({
-          status: 403,
-          code: 'INVALID_RUN_ID',
-          detail: `A run's id cannot be changed`,
-        });
-      }
       const unknownRunAnswer = getErrorResponse({
         status: 404,
         code: 'RUN_NOT_FOUND',
@@ -166,6 +159,16 @@ export const runHandlers = (): SubServerDescription<'/runs'> => ({
       if (matchingRuns.length === 0) {
         return unknownRunAnswer;
       }
+
+      // Run not found errors must be handled before this.
+      if (body.data.id !== runId) {
+        return getErrorResponse({
+          status: 403,
+          code: 'INVALID_RUN_ID',
+          detail: `A run's id cannot be changed`,
+        });
+      }
+
       const targetRun = firstStrict(matchingRuns);
       const oldRunStatus = targetRun.runStatus;
       const newRunStatus = body.data.attributes?.status;
