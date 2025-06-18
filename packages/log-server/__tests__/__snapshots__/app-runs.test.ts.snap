@@ -1,26 +1,83 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`LogServer: get /runs > returns a 200 with all runs when authenticated with role host 1`] = `
+exports[`LogServer: get /runs ('host' / 'sqlite') > returns a 200 with all runs 1`] = `
 {
   "data": [
     {
       "attributes": {
-        "lastLogNumber": 5,
-        "name": "run-name-1",
+        "lastLogNumber": 2,
+        "name": "run-1",
         "status": "running",
       },
-      "id": "run-id-1",
+      "id": "1",
       "relationships": {
         "experiment": {
           "data": {
-            "id": "exp-id",
+            "id": "1",
             "type": "experiments",
           },
         },
         "lastLogs": {
           "data": [
             {
-              "id": "log-run-id-1-1",
+              "id": "2",
+              "type": "logs",
+            },
+          ],
+        },
+      },
+      "type": "runs",
+    },
+    {
+      "attributes": {
+        "lastLogNumber": 1,
+        "name": "run-2",
+        "status": "running",
+      },
+      "id": "2",
+      "relationships": {
+        "experiment": {
+          "data": {
+            "id": "1",
+            "type": "experiments",
+          },
+        },
+        "lastLogs": {
+          "data": [
+            {
+              "id": "3",
+              "type": "logs",
+            },
+          ],
+        },
+      },
+      "type": "runs",
+    },
+  ],
+}
+`;
+
+exports[`LogServer: get /runs ('host' / 'sqlite') > returns a 200 with all runs with requested related experiment 1`] = `
+{
+  "data": [
+    {
+      "attributes": {
+        "lastLogNumber": 2,
+        "name": "run-1",
+        "status": "running",
+      },
+      "id": "1",
+      "relationships": {
+        "experiment": {
+          "data": {
+            "id": "2",
+            "type": "experiments",
+          },
+        },
+        "lastLogs": {
+          "data": [
+            {
+              "id": "2",
               "type": "logs",
             },
           ],
@@ -31,14 +88,14 @@ exports[`LogServer: get /runs > returns a 200 with all runs when authenticated w
     {
       "attributes": {
         "lastLogNumber": 0,
-        "name": "run-name-2",
+        "name": "run-2",
         "status": "completed",
       },
-      "id": "run-id-2",
+      "id": "2",
       "relationships": {
         "experiment": {
           "data": {
-            "id": "exp-id",
+            "id": "2",
             "type": "experiments",
           },
         },
@@ -48,59 +105,24 @@ exports[`LogServer: get /runs > returns a 200 with all runs when authenticated w
       },
       "type": "runs",
     },
-  ],
-}
-`;
-
-exports[`LogServer: get /runs > returns a 200 with all runs when authenticated with role host 2`] = `
-[
-  [
-    {
-      "experimentId": undefined,
-      "experimentName": undefined,
-      "runId": undefined,
-      "runName": undefined,
-      "runStatus": undefined,
-    },
-  ],
-]
-`;
-
-exports[`LogServer: get /runs > returns a 200 with empty array when no runs found 1`] = `
-[
-  [
-    {
-      "experimentId": undefined,
-      "experimentName": undefined,
-      "runId": [],
-      "runName": undefined,
-      "runStatus": undefined,
-    },
-  ],
-]
-`;
-
-exports[`LogServer: get /runs > returns a 200 with participant-owned runs and requested related experiment 1`] = `
-{
-  "data": [
     {
       "attributes": {
-        "lastLogNumber": 15,
-        "name": "my-run-name",
+        "lastLogNumber": 1,
+        "name": null,
         "status": "running",
       },
-      "id": "my-run-id",
+      "id": "3",
       "relationships": {
         "experiment": {
           "data": {
-            "id": "1",
+            "id": "3",
             "type": "experiments",
           },
         },
         "lastLogs": {
           "data": [
             {
-              "id": "log-my-run-id-1",
+              "id": "3",
               "type": "logs",
             },
           ],
@@ -112,52 +134,88 @@ exports[`LogServer: get /runs > returns a 200 with participant-owned runs and re
   "included": [
     {
       "attributes": {
-        "name": "getExperiments:experimentName",
+        "name": "experiment-1",
       },
-      "id": "1",
+      "id": "2",
+      "type": "experiments",
+    },
+    {
+      "attributes": {
+        "name": "experiment-2",
+      },
+      "id": "3",
       "type": "experiments",
     },
   ],
 }
 `;
 
-exports[`LogServer: get /runs > returns a 200 with participant-owned runs and requested related experiment 2`] = `
-[
-  [
-    {
-      "experimentId": undefined,
-      "experimentName": undefined,
-      "runId": [
-        "my-run-id",
-      ],
-      "runName": undefined,
-      "runStatus": undefined,
-    },
-  ],
-]
-`;
-
-exports[`LogServer: get /runs > returns a 200 with participant-owned runs and requested related lastLogs 1`] = `
+exports[`LogServer: get /runs ('host' / 'sqlite') > returns a 200 with all runs with requested related lastLogs 1`] = `
 {
   "data": [
     {
       "attributes": {
-        "lastLogNumber": 15,
-        "name": "my-run-name",
+        "lastLogNumber": 2,
+        "name": "run-1",
         "status": "running",
       },
-      "id": "my-run-id",
+      "id": "1",
       "relationships": {
         "experiment": {
           "data": {
-            "id": "1",
+            "id": "2",
             "type": "experiments",
           },
         },
         "lastLogs": {
           "data": [
             {
-              "id": "log-my-run-id-1",
+              "id": "2",
+              "type": "logs",
+            },
+          ],
+        },
+      },
+      "type": "runs",
+    },
+    {
+      "attributes": {
+        "lastLogNumber": 0,
+        "name": "run-2",
+        "status": "completed",
+      },
+      "id": "2",
+      "relationships": {
+        "experiment": {
+          "data": {
+            "id": "2",
+            "type": "experiments",
+          },
+        },
+        "lastLogs": {
+          "data": [],
+        },
+      },
+      "type": "runs",
+    },
+    {
+      "attributes": {
+        "lastLogNumber": 1,
+        "name": null,
+        "status": "running",
+      },
+      "id": "3",
+      "relationships": {
+        "experiment": {
+          "data": {
+            "id": "3",
+            "type": "experiments",
+          },
+        },
+        "lastLogs": {
+          "data": [
+            {
+              "id": "3",
               "type": "logs",
             },
           ],
@@ -170,14 +228,35 @@ exports[`LogServer: get /runs > returns a 200 with participant-owned runs and re
     {
       "attributes": {
         "logType": "log-type",
-        "number": 15,
-        "values": {},
+        "number": 2,
+        "values": {
+          "v": "r1l2",
+        },
       },
-      "id": "log-my-run-id-1",
+      "id": "2",
       "relationships": {
         "run": {
           "data": {
-            "id": "my-run-id",
+            "id": "1",
+            "type": "runs",
+          },
+        },
+      },
+      "type": "logs",
+    },
+    {
+      "attributes": {
+        "logType": "log-type",
+        "number": 1,
+        "values": {
+          "v": "r3l1",
+        },
+      },
+      "id": "3",
+      "relationships": {
+        "run": {
+          "data": {
+            "id": "3",
             "type": "runs",
           },
         },
@@ -188,43 +267,72 @@ exports[`LogServer: get /runs > returns a 200 with participant-owned runs and re
 }
 `;
 
-exports[`LogServer: get /runs > returns a 200 with participant-owned runs and requested related lastLogs 2`] = `
-[
-  [
-    {
-      "experimentId": undefined,
-      "experimentName": undefined,
-      "runId": [
-        "my-run-id",
-      ],
-      "runName": undefined,
-      "runStatus": undefined,
-    },
-  ],
-]
-`;
-
-exports[`LogServer: get /runs > returns a 200 with participant-owned runs and requested related lastLogs and experiments 1`] = `
+exports[`LogServer: get /runs ('host' / 'sqlite') > returns a 200 with all runs with requested related lastLogs 2`] = `
 {
   "data": [
     {
       "attributes": {
-        "lastLogNumber": 15,
-        "name": "my-run-name",
+        "lastLogNumber": 2,
+        "name": "run-1",
         "status": "running",
       },
-      "id": "my-run-id",
+      "id": "1",
       "relationships": {
         "experiment": {
           "data": {
-            "id": "1",
+            "id": "2",
             "type": "experiments",
           },
         },
         "lastLogs": {
           "data": [
             {
-              "id": "log-my-run-id-1",
+              "id": "2",
+              "type": "logs",
+            },
+          ],
+        },
+      },
+      "type": "runs",
+    },
+    {
+      "attributes": {
+        "lastLogNumber": 0,
+        "name": "run-2",
+        "status": "completed",
+      },
+      "id": "2",
+      "relationships": {
+        "experiment": {
+          "data": {
+            "id": "2",
+            "type": "experiments",
+          },
+        },
+        "lastLogs": {
+          "data": [],
+        },
+      },
+      "type": "runs",
+    },
+    {
+      "attributes": {
+        "lastLogNumber": 1,
+        "name": null,
+        "status": "running",
+      },
+      "id": "3",
+      "relationships": {
+        "experiment": {
+          "data": {
+            "id": "3",
+            "type": "experiments",
+          },
+        },
+        "lastLogs": {
+          "data": [
+            {
+              "id": "3",
               "type": "logs",
             },
           ],
@@ -236,22 +344,50 @@ exports[`LogServer: get /runs > returns a 200 with participant-owned runs and re
   "included": [
     {
       "attributes": {
-        "name": "getExperiments:experimentName",
+        "name": "experiment-1",
       },
-      "id": "1",
+      "id": "2",
+      "type": "experiments",
+    },
+    {
+      "attributes": {
+        "name": "experiment-2",
+      },
+      "id": "3",
       "type": "experiments",
     },
     {
       "attributes": {
         "logType": "log-type",
-        "number": 15,
-        "values": {},
+        "number": 2,
+        "values": {
+          "v": "r1l2",
+        },
       },
-      "id": "log-my-run-id-1",
+      "id": "2",
       "relationships": {
         "run": {
           "data": {
-            "id": "my-run-id",
+            "id": "1",
+            "type": "runs",
+          },
+        },
+      },
+      "type": "logs",
+    },
+    {
+      "attributes": {
+        "logType": "log-type",
+        "number": 1,
+        "values": {
+          "v": "r3l1",
+        },
+      },
+      "id": "3",
+      "relationships": {
+        "run": {
+          "data": {
+            "id": "3",
             "type": "runs",
           },
         },
@@ -262,32 +398,16 @@ exports[`LogServer: get /runs > returns a 200 with participant-owned runs and re
 }
 `;
 
-exports[`LogServer: get /runs > returns a 200 with participant-owned runs and requested related lastLogs and experiments 2`] = `
-[
-  [
-    {
-      "experimentId": undefined,
-      "experimentName": undefined,
-      "runId": [
-        "my-run-id",
-      ],
-      "runName": undefined,
-      "runStatus": undefined,
-    },
-  ],
-]
-`;
-
-exports[`LogServer: get /runs > returns a 200 with participant-owned runs when authenticated as participant 1`] = `
+exports[`LogServer: get /runs ('participant' / 'sqlite') > returns a 200 with participant-owned runs 1`] = `
 {
   "data": [
     {
       "attributes": {
-        "lastLogNumber": 15,
-        "name": "my-run-name",
+        "lastLogNumber": 2,
+        "name": "run-1",
         "status": "running",
       },
-      "id": "my-run-id",
+      "id": "1",
       "relationships": {
         "experiment": {
           "data": {
@@ -298,7 +418,7 @@ exports[`LogServer: get /runs > returns a 200 with participant-owned runs when a
         "lastLogs": {
           "data": [
             {
-              "id": "log-my-run-id-1",
+              "id": "2",
               "type": "logs",
             },
           ],
@@ -310,43 +430,27 @@ exports[`LogServer: get /runs > returns a 200 with participant-owned runs when a
 }
 `;
 
-exports[`LogServer: get /runs > returns a 200 with participant-owned runs when authenticated as participant 2`] = `
-[
-  [
-    {
-      "experimentId": undefined,
-      "experimentName": undefined,
-      "runId": [
-        "my-run-id",
-      ],
-      "runName": undefined,
-      "runStatus": undefined,
-    },
-  ],
-]
-`;
-
-exports[`LogServer: get /runs > returns a 200 with participant-owned runs when authenticated as participant 3`] = `
+exports[`LogServer: get /runs ('participant' / 'sqlite') > returns a 200 with participant-owned runs with requested related experiment 1`] = `
 {
   "data": [
     {
       "attributes": {
-        "lastLogNumber": 15,
-        "name": "my-run-name",
+        "lastLogNumber": 2,
+        "name": "run-1",
         "status": "running",
       },
-      "id": "my-run-id",
+      "id": "1",
       "relationships": {
         "experiment": {
           "data": {
-            "id": "1",
+            "id": "2",
             "type": "experiments",
           },
         },
         "lastLogs": {
           "data": [
             {
-              "id": "log-my-run-id-1",
+              "id": "2",
               "type": "logs",
             },
           ],
@@ -355,21 +459,127 @@ exports[`LogServer: get /runs > returns a 200 with participant-owned runs when a
       "type": "runs",
     },
   ],
+  "included": [
+    {
+      "attributes": {
+        "name": "experiment-1",
+      },
+      "id": "2",
+      "type": "experiments",
+    },
+  ],
 }
 `;
 
-exports[`LogServer: get /runs > returns a 200 with participant-owned runs when authenticated as participant 4`] = `
-[
-  [
+exports[`LogServer: get /runs ('participant' / 'sqlite') > returns a 200 with participant-owned runs with requested related lastLogs 1`] = `
+{
+  "data": [
     {
-      "experimentId": undefined,
-      "experimentName": undefined,
-      "runId": [
-        "my-run-id",
-      ],
-      "runName": undefined,
-      "runStatus": undefined,
+      "attributes": {
+        "lastLogNumber": 2,
+        "name": "run-1",
+        "status": "running",
+      },
+      "id": "1",
+      "relationships": {
+        "experiment": {
+          "data": {
+            "id": "2",
+            "type": "experiments",
+          },
+        },
+        "lastLogs": {
+          "data": [
+            {
+              "id": "2",
+              "type": "logs",
+            },
+          ],
+        },
+      },
+      "type": "runs",
     },
   ],
-]
+  "included": [
+    {
+      "attributes": {
+        "logType": "log-type",
+        "number": 2,
+        "values": {
+          "v": "r1l2",
+        },
+      },
+      "id": "2",
+      "relationships": {
+        "run": {
+          "data": {
+            "id": "1",
+            "type": "runs",
+          },
+        },
+      },
+      "type": "logs",
+    },
+  ],
+}
+`;
+
+exports[`LogServer: get /runs ('participant' / 'sqlite') > returns a 200 with participant-owned runs with requested related lastLogs 2`] = `
+{
+  "data": [
+    {
+      "attributes": {
+        "lastLogNumber": 2,
+        "name": "run-1",
+        "status": "running",
+      },
+      "id": "1",
+      "relationships": {
+        "experiment": {
+          "data": {
+            "id": "2",
+            "type": "experiments",
+          },
+        },
+        "lastLogs": {
+          "data": [
+            {
+              "id": "2",
+              "type": "logs",
+            },
+          ],
+        },
+      },
+      "type": "runs",
+    },
+  ],
+  "included": [
+    {
+      "attributes": {
+        "name": "experiment-1",
+      },
+      "id": "2",
+      "type": "experiments",
+    },
+    {
+      "attributes": {
+        "logType": "log-type",
+        "number": 2,
+        "values": {
+          "v": "r1l2",
+        },
+      },
+      "id": "2",
+      "relationships": {
+        "run": {
+          "data": {
+            "id": "1",
+            "type": "runs",
+          },
+        },
+      },
+      "type": "logs",
+    },
+  ],
+}
 `;

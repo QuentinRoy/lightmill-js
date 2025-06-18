@@ -6,7 +6,7 @@ import request from 'supertest';
 import { test as baseTest, beforeEach, describe, vi } from 'vitest';
 import { apiMediaType } from '../src/app-utils.ts';
 import type { DataStore, ExperimentId, RunStatus } from '../src/data-store.ts';
-import { arrayify, firstStrict } from '../src/utils.ts';
+import { fromAsync } from '../src/utils.ts';
 import {
   addRunToSession,
   apiContentTypeRegExp,
@@ -26,37 +26,36 @@ interface Fixture {
     experimentId: ExperimentId;
   };
 }
-const describeForAll = describe.for(
-  storeTypes
-    .flatMap((storeType) => [
-      { storeType, sessionType: 'participant' as const },
-      { storeType, sessionType: 'host' as const },
-    ])
-    .map(({ storeType, sessionType }) => {
-      const test = baseTest.extend<Fixture>({
-        context: async ({}, use) => {
-          const { server, dataStore, sessionStore } = await createServerContext(
-            { type: storeType },
-          );
-          const app = express();
-          app.use(server.middleware);
-          const api = request.agent(app).host(host);
-          await api
-            .post('/sessions')
-            .set('content-type', apiMediaType)
-            .send({
-              data: { type: 'sessions', attributes: { role: sessionType } },
-            })
-            .expect(201);
-          const { experimentId } = await dataStore.addExperiment({
-            experimentName: 'my-experiment-name',
-          });
-          await use({ dataStore, sessionStore, api, experimentId });
-        },
-      });
-      return { storeType, sessionType, test };
-    }),
-);
+const suite = storeTypes
+  .flatMap((storeType) => [
+    { storeType, sessionType: 'participant' as const },
+    { storeType, sessionType: 'host' as const },
+  ])
+  .map(({ storeType, sessionType }) => {
+    const test = baseTest.extend<Fixture>({
+      context: async ({}, use) => {
+        const { server, dataStore, sessionStore } = await createServerContext({
+          type: storeType,
+        });
+        const app = express();
+        app.use(server.middleware);
+        const api = request.agent(app).host(host);
+        await api
+          .post('/sessions')
+          .set('content-type', apiMediaType)
+          .send({
+            data: { type: 'sessions', attributes: { role: sessionType } },
+          })
+          .expect(201);
+        const { experimentId } = await dataStore.addExperiment({
+          experimentName: 'my-experiment-name',
+        });
+        await use({ dataStore, sessionStore, api, experimentId });
+      },
+    });
+    return { storeType, sessionType, test };
+  });
+const describeForAll = describe.for(suite);
 
 beforeEach(() => {
   vi.resetAllMocks();
@@ -79,7 +78,7 @@ describeForAll(
             data: {
               type: 'runs',
               attributes: {
-                name: hasAName ? 'addRun:runName' : undefined,
+                name: hasAName ? 'addRun:runName' : null,
                 status: 'idle',
               },
               relationships: {
@@ -119,7 +118,7 @@ describeForAll(
         .send({
           data: {
             type: 'runs',
-            attributes: { status: 'running' },
+            attributes: { status: 'running', name: null },
             relationships: {
               experiment: { data: { type: 'experiments', id: experimentId } },
             },
@@ -132,7 +131,7 @@ describeForAll(
         .send({
           data: {
             type: 'runs',
-            attributes: { status: 'idle' },
+            attributes: { status: 'idle', name: null },
             relationships: {
               experiment: { data: { type: 'experiments', id: experimentId } },
             },
@@ -270,9 +269,9 @@ describeForAll(
       expect(sortBy(body.data.relationships.lastLogs.data, prop('id'))).toEqual(
         sortBy(
           [
-            { id: logs[3].logId, type: 'logs' },
-            { id: logs[7].logId, type: 'logs' },
-            { id: logs[1].logId, type: 'logs' },
+            { id: logs[3]!.logId, type: 'logs' },
+            { id: logs[7]!.logId, type: 'logs' },
+            { id: logs[1]!.logId, type: 'logs' },
           ],
           prop('id'),
         ),
@@ -286,6 +285,7 @@ describeForAll(
       const { runId } = await dataStore.addRun({
         experimentId,
         runStatus: 'running',
+        runName: null,
       });
       const logs = await dataStore.addLogs(runId, [
         { type: 'log-type', number: 1, values: {} },
@@ -300,9 +300,9 @@ describeForAll(
         data: {
           id: runId,
           type: 'runs',
-          attributes: { status: 'running', lastLogNumber: 8 },
+          attributes: { status: 'running', lastLogNumber: 2, name: null },
           relationships: {
-            lastLogs: { data: [{ id: logs[1], type: 'logs' }] },
+            lastLogs: { data: [{ id: logs[1]?.logId, type: 'logs' }] },
             experiment: { data: { id: experimentId, type: 'experiments' } },
           },
         },
@@ -314,7 +314,6 @@ describeForAll(
 describeForAll(
   'LogServer: patch /runs/:run ($sessionType / $storeType)',
   ({ test: it, sessionType }) => {
-    it.extend({ context: async ({ context }, use) => {} });
     it('returns a 404 error if the client tries to change the status of the run that does not exist', async ({
       context: { api },
     }) => {
@@ -325,7 +324,7 @@ describeForAll(
           data: {
             id: 'does-not-exist',
             type: 'runs',
-            attributes: { status: 'completed' },
+            attributes: { status: 'completed', name: null },
           },
         })
         .expect(404);
@@ -335,9 +334,15 @@ describeForAll(
       it('returns a 404 error if a participant tries to change the status of the run but does not have access to that run', async ({
         context: { api, dataStore, experimentId, sessionStore },
       }) => {
-        const { runId: otherRunId } = await dataStore.addRun({ experimentId });
+        const { runId: otherRunId } = await dataStore.addRun({
+          experimentId,
+          runName: null,
+        });
         await addRunToSession({ api, runId: otherRunId, sessionStore });
-        const { runId } = await dataStore.addRun({ experimentId });
+        const { runId } = await dataStore.addRun({
+          experimentId,
+          runName: null,
+        });
         await api
           .patch(`/runs/${runId}`)
           .set('content-type', apiMediaType)
@@ -354,9 +359,15 @@ describeForAll(
       it('returns a 404 error if a participant tries to resume a run but does not have access to that run', async ({
         context: { api, dataStore, experimentId, sessionStore },
       }) => {
-        const { runId: otherRunId } = await dataStore.addRun({ experimentId });
+        const { runId: otherRunId } = await dataStore.addRun({
+          experimentId,
+          runName: null,
+        });
         await addRunToSession({ api, runId: otherRunId, sessionStore });
-        const { runId } = await dataStore.addRun({ experimentId });
+        const { runId } = await dataStore.addRun({
+          experimentId,
+          runName: null,
+        });
         await api
           .patch(`/runs/${runId}`)
           .set('content-type', apiMediaType)
@@ -394,6 +405,7 @@ describeForAll(
         const { runId } = await dataStore.addRun({
           experimentId,
           runStatus: originalStatus,
+          runName: null,
         });
         await addRunToSession({ api, runId, sessionStore });
         await api
@@ -407,8 +419,8 @@ describeForAll(
             },
           })
           .expect(200);
-        const [{ runStatus }] = await dataStore.getRuns({ runId });
-        expect(runStatus).toBe(targetStatus);
+        const [runRecord] = await dataStore.getRuns({ runId });
+        expect(runRecord!.runStatus).toBe(targetStatus);
       },
     );
 
@@ -461,8 +473,8 @@ describeForAll(
             ],
           })
           .expect('Content-Type', apiContentTypeRegExp);
-        const [{ runStatus }] = await dataStore.getRuns({ runId });
-        expect(runStatus).toBe(originalStatus);
+        const [runRecord] = await dataStore.getRuns({ runId });
+        expect(runRecord!.runStatus).toBe(originalStatus);
       },
     );
 
@@ -506,10 +518,10 @@ describeForAll(
         });
         await addRunToSession({ api, runId: runRecord.runId, sessionStore });
         await api
-          .patch(`/runs/run-id`)
+          .patch(`/runs/${runRecord.runId}`)
           .set('content-type', apiMediaType)
           .send({
-            data: { id: 'run-id', type: 'runs', attributes: { status } },
+            data: { id: runRecord.runId, type: 'runs', attributes: { status } },
           })
           .expect(200);
         const [r1] = await dataStore.getRuns({ runId: runRecord.runId });
@@ -555,7 +567,7 @@ describeForAll(
       expect(r1).toEqual(runRecord);
     });
 
-    it('resumes updates logs according to lastLogNumber when resuming', async ({
+    it('updates logs according to lastLogNumber when resuming', async ({
       expect,
       context: { api, experimentId, dataStore, sessionStore },
     }) => {
@@ -579,43 +591,39 @@ describeForAll(
           data: { id: runId, type: 'runs', attributes: { lastLogNumber: 2 } },
         })
         .expect(200);
-      const [run] = await dataStore.getRuns({ runId });
-      expect(run).toMatchInlineSnapshot();
+      await expect(dataStore.getRuns({ runId })).resolves.toMatchObject([
+        { runId: runId, runName: null, runStatus: 'running' },
+      ]);
+      await expect(
+        fromAsync(dataStore.getLogs({ runId })),
+      ).resolves.toMatchObject([
+        { number: 1, values: { v: 1 } },
+        { number: 2, values: { v: 2 } },
+      ]);
     });
 
     it.for(['idle', 'canceled', 'completed', 'interrupted'] as RunStatus[])(
       "refuses to change lastLogNumber when status is '%s' and unchanged",
       async (
         status,
-        { expect, noRun: { api, setRuns, store, experiment } },
+        { expect, context: { api, dataStore, experimentId, sessionStore } },
       ) => {
-        setRuns([
-          {
-            experimentId: experiment,
-            runId: 'run-id',
-            runName: 'run-name',
-            runStatus: status,
-            runCreatedAt: new Date(100100),
-          },
+        const { runId } = await dataStore.addRun({
+          experimentId,
+          runStatus: 'running',
+        });
+        await dataStore.addLogs(runId, [
+          { type: 'log-type', number: 1, values: { v: 'v1' } },
+          { type: 'log-type', number: 2, values: { v: 'v2' } },
+          { type: 'log-type', number: 3, values: { v: 'v3' } },
         ]);
-        store.getLastLogs.mockImplementation(async () => [
-          {
-            runId: 'run-id',
-            logId: 'log-id',
-            type: 'log-type',
-            number: 41,
-            values: {},
-          },
-        ]);
+        await dataStore.setRunStatus(runId, status);
+        await addRunToSession({ api, runId, sessionStore });
         await api
-          .patch(`/runs/run-id`)
+          .patch(`/runs/${runId}`)
           .set('content-type', apiMediaType)
           .send({
-            data: {
-              id: 'run-id',
-              type: 'runs',
-              attributes: { lastLogNumber: 15 },
-            },
+            data: { id: runId, type: 'runs', attributes: { lastLogNumber: 1 } },
           })
           .expect(403, {
             errors: [
@@ -628,226 +636,195 @@ describeForAll(
             ],
           })
           .expect('Content-Type', apiContentTypeRegExp);
-        expect(store.setRunStatus).not.toHaveBeenCalled();
-        expect(store.resumeRun).not.toHaveBeenCalled();
+        await expect(dataStore.getRuns({ runId })).resolves.toMatchObject([
+          { runId: runId, runName: null, runStatus: status },
+        ]);
+        await expect(
+          fromAsync(dataStore.getLogs({ runId })),
+        ).resolves.toMatchObject([
+          { number: 1, values: { v: 'v1' } },
+          { number: 2, values: { v: 'v2' } },
+          { number: 3, values: { v: 'v3' } },
+        ]);
       },
     );
 
     it("resumes an interrupted run if lastLogNumber has changed and new status is 'running'", async ({
       expect,
-      noRun: { api, setRuns, store, experiment },
+      context: { api, experimentId, dataStore, sessionStore },
     }) => {
-      setRuns([
-        {
-          experimentId: experiment,
-          runId: 'run-id',
-          runName: 'run-name',
-          runStatus: 'interrupted',
-          runCreatedAt: new Date(100100),
-        },
+      const { runId } = await dataStore.addRun({
+        experimentId,
+        runStatus: 'running',
+      });
+      await dataStore.addLogs(runId, [
+        { type: 'log-type', number: 1, values: { v: 'v1' } },
+        { type: 'log-type', number: 2, values: { v: 'v2' } },
+        { type: 'log-type', number: 3, values: { v: 'v3' } },
       ]);
-      store.getLastLogs.mockImplementation(async () => [
-        {
-          runId: 'run-id',
-          logId: 'log-id',
-          type: 'log-type',
-          number: 41,
-          values: {},
-        },
-      ]);
+      await dataStore.setRunStatus(runId, 'interrupted');
+      await addRunToSession({ api, runId, sessionStore });
       await api
-        .patch(`/runs/run-id`)
+        .patch(`/runs/${runId}`)
         .set('content-type', apiMediaType)
         .send({
           data: {
-            id: 'run-id',
+            id: runId,
             type: 'runs',
-            attributes: { lastLogNumber: 15, status: 'running' },
+            attributes: { status: 'running', lastLogNumber: 1 },
           },
         })
         .expect(200);
-      expect(store.setRunStatus).not.toHaveBeenCalled();
-      expect(store.resumeRun).toHaveBeenCalledWith('run-id', { after: 15 });
+      await expect(dataStore.getRuns({ runId })).resolves.toMatchObject([
+        { runId: runId, runName: null, runStatus: 'running' },
+      ]);
+      await expect(
+        fromAsync(dataStore.getLogs({ runId })),
+      ).resolves.toMatchObject([{ number: 1, values: { v: 'v1' } }]);
     });
   },
 );
 
 describeForAll(
   'LogServer: get /runs ($sessionType / $storeType)',
-  ({ test: it }) => {
-    it('returns a 200 with all runs when authenticated with role host', async ({
-      expect,
-      noRun: { api, store, sessionStore },
-    }) => {
-      sessionStore.mockGetData({ role: 'host', runs: [] });
-      store.getRuns.mockImplementation(async () => [
-        {
-          runId: 'run-id-1',
-          runName: 'run-name-1',
-          experimentId: 'exp-id',
-          runStatus: 'running' as const,
-          runCreatedAt: vi.getMockedSystemTime() ?? new Date(),
-        },
-        {
-          runId: 'run-id-2',
-          runName: 'run-name-2',
-          experimentId: 'exp-id',
-          runStatus: 'completed' as const,
-          runCreatedAt: vi.getMockedSystemTime() ?? new Date(),
-        },
-      ]);
-      store.getLastLogs.mockImplementation(async (filter) => {
-        const runId = firstStrict(arrayify(filter?.runId, true));
-        return [
-          {
-            logId: `log-${runId}-1`,
-            type: 'log-type',
-            number: runId === 'run-id-1' ? 5 : 10,
-            createdAt: new Date(),
-            values: {},
-            runId,
-          },
-        ];
+  ({ test: it, sessionType }) => {
+    it(
+      sessionType === 'host'
+        ? 'returns a 200 with all runs'
+        : 'returns a 200 with participant-owned runs',
+      async ({
+        expect,
+        context: { api, dataStore, sessionStore, experimentId },
+      }) => {
+        const baseRunOptions = { experimentId, runStatus: 'running' as const };
+        const { runId: r1 } = await dataStore.addRun({
+          ...baseRunOptions,
+          runName: 'run-1',
+        });
+        await dataStore.addLogs(r1, [
+          { type: 'log-type', number: 1, values: { v: 'r1l1' } },
+          { type: 'log-type', number: 2, values: { v: 'r1l2' } },
+        ]);
+        const { runId: r2 } = await dataStore.addRun({
+          ...baseRunOptions,
+          runName: 'run-2',
+        });
+        await dataStore.addLogs(r2, [
+          { type: 'log-type', number: 1, values: { v: 'r2l1' } },
+        ]);
+        await addRunToSession({ api, sessionStore, runId: r1 });
+        const response = await api
+          .get('/runs')
+          .expect(200)
+          .expect('Content-Type', apiContentTypeRegExp);
+        expect(response.body).toMatchSnapshot();
+      },
+    );
+
+    async function setup3runsIn2experiments(dataStore: DataStore) {
+      const { experimentId: e1 } = await dataStore.addExperiment({
+        experimentName: 'experiment-1',
       });
-      const response = await api
-        .get('/runs')
-        .expect(200)
-        .expect('Content-Type', apiContentTypeRegExp);
-      expect(response.body).toMatchSnapshot();
-      expect(store.getRuns.mock.calls).toMatchSnapshot();
-    });
-
-    it('returns a 200 with participant-owned runs when authenticated as participant', async ({
-      expect,
-      oneRun: { api, store, sessionStore, run },
-    }) => {
-      sessionStore.mockGetData({ role: 'participant', runs: [run] });
-      store.getLastLogs.mockImplementation(async () => [
-        {
-          logId: `log-${run}-1`,
-          type: 'log-type',
-          number: 15,
-          createdAt: new Date(0),
-          values: {},
-          runId: run,
-        },
+      const { runId: r1 } = await dataStore.addRun({
+        experimentId: e1,
+        runStatus: 'running',
+        runName: 'run-1',
+      });
+      await dataStore.addLogs(r1, [
+        { type: 'log-type', number: 1, values: { v: 'r1l1' } },
+        { type: 'log-type', number: 2, values: { v: 'r1l2' } },
       ]);
-      const response = await api
-        .get('/runs')
-        .expect(200)
-        .expect('Content-Type', apiContentTypeRegExp);
-      expect(response.body).toMatchSnapshot();
-      expect(store.getRuns.mock.calls).toMatchSnapshot();
-    });
-
-    it('returns a 200 with participant-owned runs when authenticated as participant', async ({
-      expect,
-      oneRun: { api, store, sessionStore, run },
-    }) => {
-      sessionStore.mockGetData({ role: 'participant', runs: [run] });
-      store.getLastLogs.mockImplementation(async () => [
-        {
-          logId: `log-${run}-1`,
-          type: 'log-type',
-          number: 15,
-          createdAt: new Date(0),
-          values: {},
-          runId: run,
-        },
+      const { runId: r2 } = await dataStore.addRun({
+        experimentId: e1,
+        runStatus: 'completed',
+        runName: 'run-2',
+      });
+      const { experimentId: e2 } = await dataStore.addExperiment({
+        experimentName: 'experiment-2',
+      });
+      const { runId: r3 } = await dataStore.addRun({
+        experimentId: e2,
+        runStatus: 'running',
+      });
+      await dataStore.addLogs(r3, [
+        { type: 'log-type', number: 1, values: { v: 'r3l1' } },
       ]);
-      const response = await api
-        .get('/runs')
-        .expect(200)
-        .expect('Content-Type', apiContentTypeRegExp);
-      expect(response.body).toMatchSnapshot();
-      expect(store.getRuns.mock.calls).toMatchSnapshot();
-    });
+      return {
+        experimentIds: [e1, e2] as const,
+        runIds: [r1, r2, r3] as const,
+      };
+    }
 
-    it('returns a 200 with participant-owned runs and requested related experiment', async ({
-      expect,
-      oneRun: { api, store, sessionStore, run },
-    }) => {
-      sessionStore.mockGetData({ role: 'participant', runs: [run] });
-      store.getLastLogs.mockImplementation(async () => [
-        {
-          logId: `log-${run}-1`,
-          type: 'log-type',
-          number: 15,
-          createdAt: new Date(0),
-          values: {},
-          runId: run,
-        },
-      ]);
-      const response = await api
-        .get('/runs')
-        .query({ include: 'experiment' })
-        .expect(200)
-        .expect('Content-Type', apiContentTypeRegExp);
-      expect(response.body).toMatchSnapshot();
-      expect(store.getRuns.mock.calls).toMatchSnapshot();
-    });
+    it(
+      sessionType === 'host'
+        ? 'returns a 200 with all runs with requested related experiment'
+        : 'returns a 200 with participant-owned runs with requested related experiment',
+      async ({ expect, context: { api, dataStore, sessionStore } }) => {
+        const {
+          runIds: [r1],
+        } = await setup3runsIn2experiments(dataStore);
+        await addRunToSession({ api, sessionStore, runId: r1 });
+        const response = await api
+          .get('/runs')
+          .query({ include: 'experiment' })
+          .expect(200)
+          .expect('Content-Type', apiContentTypeRegExp);
+        expect(response.body.included).toHaveLength(
+          sessionType === 'host' ? 2 : 1,
+        );
+        expect(response.body).toMatchSnapshot();
+      },
+    );
 
-    it('returns a 200 with participant-owned runs and requested related lastLogs', async ({
-      expect,
-      oneRun: { api, store, sessionStore, run },
-    }) => {
-      sessionStore.mockGetData({ role: 'participant', runs: [run] });
-      store.getLastLogs.mockImplementation(async () => [
-        {
-          logId: `log-${run}-1`,
-          type: 'log-type',
-          number: 15,
-          createdAt: new Date(0),
-          values: {},
-          runId: run,
-        },
-      ]);
-      const response = await api
-        .get('/runs')
-        .query({ include: 'lastLogs' })
-        .expect(200)
-        .expect('Content-Type', apiContentTypeRegExp);
-      expect(response.body).toMatchSnapshot();
-      expect(store.getRuns.mock.calls).toMatchSnapshot();
-    });
+    it(
+      sessionType === 'host'
+        ? 'returns a 200 with all runs with requested related lastLogs'
+        : 'returns a 200 with participant-owned runs with requested related lastLogs',
+      async ({ expect, context: { api, dataStore, sessionStore } }) => {
+        const {
+          runIds: [r1],
+        } = await setup3runsIn2experiments(dataStore);
+        await addRunToSession({ api, sessionStore, runId: r1 });
+        const response = await api
+          .get('/runs')
+          .query({ include: 'lastLogs' })
+          .expect(200)
+          .expect('Content-Type', apiContentTypeRegExp);
+        expect(response.body.included).toHaveLength(
+          sessionType === 'host' ? 2 : 1,
+        );
+        expect(response.body).toMatchSnapshot();
+      },
+    );
 
-    it('returns a 200 with participant-owned runs and requested related lastLogs and experiments', async ({
-      expect,
-      oneRun: { api, store, sessionStore, run },
-    }) => {
-      sessionStore.mockGetData({ role: 'participant', runs: [run] });
-      store.getLastLogs.mockImplementation(async () => [
-        {
-          logId: `log-${run}-1`,
-          type: 'log-type',
-          number: 15,
-          createdAt: new Date(0),
-          values: {},
-          runId: run,
-        },
-      ]);
-      const response = await api
-        .get('/runs')
-        .query({ include: ['lastLogs', 'experiment'] })
-        .expect(200)
-        .expect('Content-Type', apiContentTypeRegExp);
-      expect(response.body).toMatchSnapshot();
-      expect(store.getRuns.mock.calls).toMatchSnapshot();
-    });
+    it(
+      sessionType === 'host'
+        ? 'returns a 200 with all runs with requested related lastLogs'
+        : 'returns a 200 with participant-owned runs with requested related lastLogs',
+      async ({ expect, context: { api, dataStore, sessionStore } }) => {
+        const {
+          runIds: [r1],
+        } = await setup3runsIn2experiments(dataStore);
+        await addRunToSession({ api, sessionStore, runId: r1 });
+        const response = await api
+          .get('/runs')
+          .query({ include: ['lastLogs', 'experiment'] })
+          .expect(200)
+          .expect('Content-Type', apiContentTypeRegExp);
+        expect(response.body.included).toHaveLength(
+          sessionType === 'host' ? 4 : 2,
+        );
+        expect(response.body).toMatchSnapshot();
+      },
+    );
 
     it('returns a 200 with empty array when no runs found', async ({
-      expect,
-      noRun: { api, store, sessionStore },
+      context: { api },
     }) => {
-      sessionStore.mockGetData({ role: 'participant', runs: [] });
-      store.getRuns.mockImplementation(async () => []);
-      store.getExperiments.mockImplementation(async () => []);
-      const response = await api
+      await api
         .get('/runs')
-        .expect(200)
+        .expect(200, { data: [] })
         .expect('Content-Type', apiContentTypeRegExp);
-      expect(response.body).toEqual({ data: [] });
-      expect(store.getRuns.mock.calls).toMatchSnapshot();
     });
   },
 );
