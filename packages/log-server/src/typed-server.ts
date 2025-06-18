@@ -99,8 +99,8 @@ export type HandlerParameters<
 export interface HandlerResultBase {
   status: number;
   body: unknown;
-  contentType?: string;
-  headers?: Record<string, unknown>;
+  contentType?: string | undefined;
+  headers?: Record<string, unknown> | undefined;
 }
 
 export type HandlerResult<

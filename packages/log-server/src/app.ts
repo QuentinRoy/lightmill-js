@@ -7,7 +7,7 @@ import type {
   OpenAPIV3,
   ValidationErrorItem,
 } from 'express-openapi-validator/dist/framework/types.js';
-import session, { Store as SessionStore } from 'express-session';
+import session from 'express-session';
 import log from 'loglevel';
 import MemorySessionStoreModule from 'memorystore';
 import { experimentHandlers } from './app-experiments-handlers.js';
@@ -19,7 +19,7 @@ import type { DataStore } from './data-store.ts';
 import { createTypedExpressServer } from './typed-server.js';
 import { firstStrict } from './utils.js';
 
-const SESSION_COOKIE_NAME = 'lightmill-session-id';
+export const SESSION_COOKIE_NAME = 'lightmill-session-id';
 
 const MemorySessionStore = MemorySessionStoreModule(session);
 
@@ -31,7 +31,7 @@ type CreateLogServerOptions = {
   mode?: 'development' | 'production' | 'test' | (string & {}) | undefined;
   sessionKeys: string[];
   secureCookies?: boolean | undefined;
-  sessionStore?: SessionStore;
+  sessionStore?: session.Store;
   baseUrl?: string;
 };
 

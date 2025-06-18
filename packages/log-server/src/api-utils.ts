@@ -105,24 +105,27 @@ interface QueryParameter {
 }
 
 export interface RequestParameters {
-  path?: Record<string, string>;
-  query?: QueryParameter;
-  header?: Record<string, string>;
-  cookie?: Record<string, string>;
+  path?: Record<string, string> | undefined;
+  query?: QueryParameter | undefined;
+  header?: Record<string, string> | undefined;
+  cookie?: Record<string, string> | undefined;
 }
 
 interface BaseApiOperation {
   parameters: RequestParameters;
   responses: Record<
     HttpCode,
-    { headers?: Record<string, unknown>; content?: Record<string, unknown> }
+    {
+      headers?: Record<string, unknown> | undefined;
+      content?: Record<string, unknown> | undefined;
+    }
   >;
-  requestBody?: { content: Record<string, unknown> };
+  requestBody?: { content: Record<string, unknown> } | undefined;
 }
 
 export type Api<P extends string = string> = Record<
   P,
-  { [K2 in HttpMethod]?: BaseApiOperation }
+  { [K2 in HttpMethod]?: BaseApiOperation | undefined }
 >;
 
 export type ApiOperationParameters<O extends ApiOperation> = O['parameters'];
@@ -135,7 +138,7 @@ export type ApiOperationResponseContent<O extends ApiOperation> = {
     ? Merge<
         EntryAsObject<C, { key: 'contentType'; value: 'body' }>,
         Record<string, unknown> extends H
-          ? { status: Status; headers?: H }
+          ? { status: Status; headers?: H | undefined }
           : { status: Status; headers: H }
       >
     : never;

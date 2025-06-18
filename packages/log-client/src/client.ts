@@ -303,7 +303,7 @@ export class LightmillClient<ClientLog extends LogBase = AnyLog> {
       body: {
         data: {
           type: 'runs',
-          attributes: { name: runName, status: 'running' },
+          attributes: { name: runName ?? null, status: 'running' },
           relationships: {
             experiment: { data: { id: experiment.id, type: 'experiments' } },
           },

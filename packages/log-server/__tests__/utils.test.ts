@@ -5,7 +5,7 @@ import {
   removePrefix,
   startsWith,
   withSnakeCaseProps,
-} from '../src/utils.js';
+} from '../src/utils.ts';
 
 describe.concurrent('arrayify', () => {
   it('returns an array with the same value if it is not an array', () => {

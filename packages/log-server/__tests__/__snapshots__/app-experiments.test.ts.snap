@@ -1,0 +1,21 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`LogServer: get /experiments ('host' session, 'sqlite' store) > filters experiments by name when given filter[name] parameter 1`] = `
+[
+  [
+    {
+      "experimentName": "exp-2-name",
+    },
+  ],
+]
+`;
+
+exports[`LogServer: get /experiments ('participant' session, 'sqlite' store) > filters experiments by name when given filter[name] parameter 1`] = `
+[
+  [
+    {
+      "experimentName": "exp-2-name",
+    },
+  ],
+]
+`;

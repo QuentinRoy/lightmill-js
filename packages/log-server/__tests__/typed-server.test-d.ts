@@ -2,7 +2,7 @@ import type { Request, Response } from 'express';
 import { Readable } from 'node:stream';
 import type { Merge, Simplify } from 'type-fest';
 import { describe, expectTypeOf, it } from 'vitest';
-import { createTypedExpressServer } from '../src/typed-server.js';
+import { createTypedExpressServer } from '../src/typed-server.ts';
 
 type TestApi = {
   '/{id}': {

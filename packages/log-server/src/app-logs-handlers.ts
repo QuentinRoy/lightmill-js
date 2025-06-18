@@ -69,7 +69,7 @@ export const logHandlers = (): SubServerDescription<'/logs'> => ({
       let runNotFoundError = getErrorResponse({
         status: 403,
         code: 'RUN_NOT_FOUND',
-        detail: `Run '${runId}' not found`,
+        detail: `Run "${runId}" not found`,
       });
       let sessionRuns = request.session.data?.runs ?? [];
       if (
@@ -149,7 +149,7 @@ export const logHandlers = (): SubServerDescription<'/logs'> => ({
         return getErrorResponse({
           status: 404,
           code: 'LOG_NOT_FOUND',
-          detail: `Log '${path.id}' not found`,
+          detail: `Log "${path.id}" not found`,
         });
       }
       return {

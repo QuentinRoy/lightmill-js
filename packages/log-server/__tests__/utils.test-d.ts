@@ -7,7 +7,7 @@ import {
   removePrefix,
   startsWith,
   withSnakeCaseProps,
-} from '../src/utils.js';
+} from '../src/utils.ts';
 
 describe('startsWith', () => {
   it('should narrow types', () => {

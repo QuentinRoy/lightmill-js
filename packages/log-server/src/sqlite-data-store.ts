@@ -121,7 +121,7 @@ export class SQLiteDataStore implements DataStore {
     experimentId,
     runStatus = 'idle',
   }: {
-    runName?: string;
+    runName?: string | null | undefined;
     experimentId: ExperimentId;
     runStatus?: RunStatus | undefined;
   }): Promise<RunRecord> {
@@ -129,7 +129,7 @@ export class SQLiteDataStore implements DataStore {
       let result = await trx
         .insertInto('run')
         .values({
-          runName,
+          runName: runName ?? undefined,
           experimentId: toDbId(experimentId),
           runStatus,
           runCreatedAt: new Date().toISOString(),
@@ -137,8 +137,10 @@ export class SQLiteDataStore implements DataStore {
         .returningAll()
         .executeTakeFirstOrThrow()
         .catch((e) => {
+          if (!(e instanceof SQLiteDB.SqliteError)) {
+            throw e;
+          }
           if (
-            e instanceof SQLiteDB.SqliteError &&
             e.code === 'SQLITE_CONSTRAINT_TRIGGER' &&
             e.message.includes(
               'another run with the same name for the same experiment exists and is not canceled',
@@ -147,6 +149,15 @@ export class SQLiteDataStore implements DataStore {
             throw new DataStoreError(
               `A run named "${runName}" already exists for experiment ${experimentId}.`,
               DataStoreError.RUN_EXISTS,
+              { cause: e },
+            );
+          }
+          if (e.code === 'SQLITE_CONSTRAINT_FOREIGNKEY') {
+            // Only the experimentId is a foreign key, so we can assume
+            // that the experiment does not exist.
+            throw new DataStoreError(
+              `Experiment "${experimentId}" does not exist.`,
+              DataStoreError.EXPERIMENT_NOT_FOUND,
               { cause: e },
             );
           }
@@ -161,6 +172,7 @@ export class SQLiteDataStore implements DataStore {
         experimentId: fromDbId(result.experimentId),
         runId: fromDbId(result.runId),
         runCreatedAt: new Date(result.runCreatedAt),
+        runName: result.runName ?? null,
       };
     });
   }
@@ -262,6 +274,7 @@ export class SQLiteDataStore implements DataStore {
     return runs.map((run) => ({
       ...run,
       runId: fromDbId(run.runId),
+      runName: run.runName ?? null,
       experimentId: fromDbId(run.experimentId),
       runCreatedAt: new Date(run.runCreatedAt),
     }));

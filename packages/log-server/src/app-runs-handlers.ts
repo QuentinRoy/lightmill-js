@@ -33,16 +33,17 @@ export const runHandlers = (): SubServerDescription<'/runs'> => ({
         experimentName: parameters.query['filter[experiment.name]'],
         runName: parameters.query['filter[name]'],
       };
-      const { runs, ...included } = await getRunResources(store, { filter });
+      const { runs, ...otherResources } = await getRunResources(store, {
+        filter,
+      });
+      const included = getIncluded({
+        ...otherResources,
+        include: parameters.query.include,
+      });
       return {
         status: 200,
-        body: {
-          data: runs,
-          included: getIncluded({
-            ...included,
-            include: parameters.query.include,
-          }),
-        },
+        // included may not be undefined.
+        body: included == null ? { data: runs } : { data: runs, included },
       };
     },
 
@@ -109,7 +110,7 @@ export const runHandlers = (): SubServerDescription<'/runs'> => ({
         return getErrorResponse({
           status: 404,
           code: 'RUN_NOT_FOUND',
-          detail: `Run ${parameters.path.id} not found`,
+          detail: `Run "${parameters.path.id}" not found`,
         });
       }
       const { runs, experiments, lastLogs } = await getRunResources(store, {
@@ -120,19 +121,18 @@ export const runHandlers = (): SubServerDescription<'/runs'> => ({
         return getErrorResponse({
           status: 404,
           code: 'RUN_NOT_FOUND',
-          detail: `Run ${parameters.path.id} not found`,
+          detail: `Run "${parameters.path.id}" not found`,
         });
       }
+      const included = getIncluded({
+        experiments,
+        lastLogs,
+        include: parameters.query.include,
+      });
       return {
         status: 200,
-        body: {
-          data: run,
-          included: getIncluded({
-            experiments,
-            lastLogs,
-            include: parameters.query.include,
-          }),
-        },
+        // included may not be undefined.
+        body: included == null ? { data: run } : { data: run, included },
       };
     },
 
@@ -144,17 +144,10 @@ export const runHandlers = (): SubServerDescription<'/runs'> => ({
         path: { id: runId },
       },
     }): Promise<ServerHandlerResult<'/runs/{id}', 'patch'>> {
-      if (body.data.id !== runId) {
-        return getErrorResponse({
-          status: 403,
-          code: 'INVALID_RUN_ID',
-          detail: `A run's id cannot be changed`,
-        });
-      }
       const unknownRunAnswer = getErrorResponse({
         status: 404,
         code: 'RUN_NOT_FOUND',
-        detail: `Run ${runId} not found`,
+        detail: `Run "${runId}" not found`,
       });
       if (
         request.session.data?.role !== 'host' &&
@@ -166,6 +159,16 @@ export const runHandlers = (): SubServerDescription<'/runs'> => ({
       if (matchingRuns.length === 0) {
         return unknownRunAnswer;
       }
+
+      // Run not found errors must be handled before this.
+      if (body.data.id !== runId) {
+        return getErrorResponse({
+          status: 403,
+          code: 'INVALID_RUN_ID',
+          detail: `A run's id cannot be changed`,
+        });
+      }
+
       const targetRun = firstStrict(matchingRuns);
       const oldRunStatus = targetRun.runStatus;
       const newRunStatus = body.data.attributes?.status;

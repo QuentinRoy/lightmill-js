@@ -12,14 +12,9 @@ import {
   vi,
   it as vitestIt,
 } from 'vitest';
-import {
-  type DataStore,
-  type ExperimentId,
-  type LogId,
-  type RunId,
-} from '../src/data-store.ts';
+import type { ExperimentId, LogId, RunId } from '../src/data-store.ts';
 import { SQLiteDataStore } from '../src/sqlite-data-store.ts';
-import { fromAsync } from '../src/utils.js';
+import { fromAsync } from '../src/utils.ts';
 
 // Prevent kysely from logging anything.
 loglevel.setDefaultLevel('silent');
@@ -29,7 +24,7 @@ afterEach(() => {
 });
 
 interface Fixture {
-  store: DataStore;
+  store: SQLiteDataStore;
   experiment1: ExperimentId;
   experiment2: ExperimentId;
   experiment3: ExperimentId;
@@ -386,6 +381,17 @@ describe('SQLiteStore#addRun', () => {
     await expect(
       store.addRun({ experimentId: experiment1 }),
     ).resolves.toSatisfy(isAddRunResult);
+  });
+
+  it('throws with a meaningful error if the experiment does not exist', async ({
+    expect,
+    store: store,
+  }) => {
+    await expect(
+      store.addRun({ experimentId: 'doesNotExist' }),
+    ).rejects.toMatchInlineSnapshot(
+      `[StoreError: Experiment "doesNotExist" does not exist.]`,
+    );
   });
 });
 
@@ -1163,7 +1169,7 @@ describe('SQLiteStore#addLogs', () => {
 describe('SQLiteStore#getLastLogs', () => {
   type Fixture = {
     context: {
-      store: DataStore;
+      store: SQLiteDataStore;
       exp1run1: RunId;
       exp1run2: RunId;
       exp2run1: RunId;
