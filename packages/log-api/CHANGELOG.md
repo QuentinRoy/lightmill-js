@@ -1,5 +1,12 @@
 # @lightmill/log-api
 
+## 4.0.0
+
+### Major Changes
+
+- 36607bc: The API now requires the Content-Type header to be explicitly set to `application/vnd.api+json` on all requests. Previously, this header was optional. This change aligns our API with the JSON API specification requirements.
+- 4cdd8e6: The `name` attribute of the `run` resource is now mandatory. To improve consistency and avoid ambiguity, runs without a name must now explicitly set `name: null` instead of omitting the field.
+
 ## 3.0.0
 
 ### Major Changes
