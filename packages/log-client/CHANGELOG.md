@@ -1,5 +1,12 @@
 # @lightmill/log-client
 
+## 4.0.0
+
+### Major Changes
+
+- c038515: Include `name: null` as a run attribute in the POST request when creating a run without a name, to comply with changes in `@lightmill/log-api` that require unnamed runs to explicitly specify `null` for `name`.
+- 8b648f9: Changes the content type of every post or patch requests to `application/vnd.api+json` to match the new API.
+
 ## 3.1.1
 
 ### Patch Changes
