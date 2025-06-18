@@ -9,5 +9,4 @@ dist/
 node_modules/
 
 dist
-src/openapi.json
-src/openapi.ts
+temp

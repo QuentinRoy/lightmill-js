@@ -19,13 +19,10 @@
     "dist"
   ],
   "scripts": {
-    "generate-api-types": "openapi-typescript src/openapi.json --empty-objects-unknown --output src/openapi.ts",
-    "watch:generate-api-types": "onchange -i 'src/openapi.json' --no-exclude -- pnpm run generate-api-types",
+    "generate-api-types": "openapi-typescript temp/openapi.json --empty-objects-unknown --output temp/openapi.ts",
     "build-api": "tsp compile ./type-spec",
-    "watch:build-api": "pnpm run build-api --watch",
-    "build-js": "tsc -b tsconfig.json",
-    "watch:build-js": "pnpm run build-js --watch",
-    "build": "pnpm run build-api && pnpm run generate-api-types && pnpm run build-js",
+    "build-js": "cp -rf src/** temp/ && tsc -b tsconfig.build.json",
+    "build": "rm -rf temp && pnpm run build-api && pnpm run generate-api-types && pnpm run build-js",
     "watch:build": "onchange -i 'src/index.ts' 'type-spec/**/*' -- pnpm build",
     "prepublish": "pnpm run build"
   },
