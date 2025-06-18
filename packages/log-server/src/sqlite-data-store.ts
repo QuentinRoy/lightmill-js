@@ -121,7 +121,7 @@ export class SQLiteDataStore implements DataStore {
     experimentId,
     runStatus = 'idle',
   }: {
-    runName?: string;
+    runName?: string | null | undefined;
     experimentId: ExperimentId;
     runStatus?: RunStatus | undefined;
   }): Promise<RunRecord> {
@@ -129,7 +129,7 @@ export class SQLiteDataStore implements DataStore {
       let result = await trx
         .insertInto('run')
         .values({
-          runName,
+          runName: runName ?? undefined,
           experimentId: toDbId(experimentId),
           runStatus,
           runCreatedAt: new Date().toISOString(),
@@ -172,6 +172,7 @@ export class SQLiteDataStore implements DataStore {
         experimentId: fromDbId(result.experimentId),
         runId: fromDbId(result.runId),
         runCreatedAt: new Date(result.runCreatedAt),
+        runName: result.runName ?? null,
       };
     });
   }
@@ -273,6 +274,7 @@ export class SQLiteDataStore implements DataStore {
     return runs.map((run) => ({
       ...run,
       runId: fromDbId(run.runId),
+      runName: run.runName ?? null,
       experimentId: fromDbId(run.experimentId),
       runCreatedAt: new Date(run.runCreatedAt),
     }));

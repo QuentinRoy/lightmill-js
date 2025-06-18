@@ -78,7 +78,7 @@ type ReverseIdsMap = UnionToIntersection<
 export interface RunRecord {
   experimentId: ExperimentId;
   runId: RunId;
-  runName?: string;
+  runName: string | null;
   runStatus: RunStatus;
   runCreatedAt: Date;
 }
@@ -103,7 +103,9 @@ export interface DataStore {
    * @param filter Optional filter to apply
    * @returns Array of matching experiment records
    */
-  getExperiments(filter?: ExperimentFilter): Promise<ExperimentRecord[]>;
+  getExperiments(
+    filter?: ExperimentFilter | undefined,
+  ): Promise<ExperimentRecord[]>;
 
   /**
    * Adds a new run associated with an experiment
@@ -112,7 +114,7 @@ export interface DataStore {
    * @throws {StoreError} If a run with the same name already exists for the experiment
    */
   addRun(params: {
-    runName?: string;
+    runName?: string | null | undefined;
     experimentId: ExperimentId;
     runStatus?: RunStatus;
   }): Promise<RunRecord>;
@@ -159,7 +161,7 @@ export interface DataStore {
    * @param filter Optional filter to apply
    * @returns Array of log property names
    */
-  getLogValueNames(filter?: AllFilter): Promise<string[]>;
+  getLogValueNames(filter?: AllFilter | undefined): Promise<string[]>;
 
   /**
    * Gets the count of pending logs for runs matching the filter
@@ -176,7 +178,7 @@ export interface DataStore {
    * @returns Array of last logs
    */
   getLastLogs(
-    filter?: AllFilter,
+    filter?: AllFilter | undefined,
   ): Promise<
     Array<{
       runId: RunId;
@@ -192,7 +194,7 @@ export interface DataStore {
    * @param filter Optional filter to apply
    * @returns AsyncGenerator yielding log entries
    */
-  getLogs(filter?: AllFilter): AsyncGenerator<Log>;
+  getLogs(filter?: AllFilter | undefined): AsyncGenerator<Log>;
 
   /**
    * Migrates the database to the latest schema version
