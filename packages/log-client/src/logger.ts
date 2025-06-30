@@ -164,8 +164,7 @@ export class LightmillLogger<
     if (response.error != null) {
       throw new RequestError(response);
     }
-    const { missingLogNumbers } = response.data.data.attributes;
-    return missingLogNumbers;
+    return response.data.data.attributes.missingLogNumbers;
   }
 
   async completeRun() {

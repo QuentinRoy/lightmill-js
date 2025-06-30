@@ -283,26 +283,14 @@ describe('LogClient#flush', () => {
         body: { data: { id: `log-id-${reqManager.size() + 1}`, type: 'logs' } },
       });
     });
-    logger.addLog({
-      type: 'mock-log',
-      val: 1,
-      date: new Date('2021-06-03T02:00:00.000Z'),
-    });
-    logger.addLog({
-      type: 'mock-log',
-      val: 2,
-      date: new Date('2021-06-03T03:00:00.000Z'),
-    });
+    logger.addLog({ type: 'mock-log', val: 1 });
+    logger.addLog({ type: 'mock-log', val: 2 });
     let resolved = false;
     let flushPromise = logger.flush().then((result) => {
       resolved = true;
       return result;
     });
-    logger.addLog({
-      type: 'mock-log',
-      val: 3,
-      date: new Date('2021-06-03T04:00:00.000Z'),
-    });
+    logger.addLog({ type: 'mock-log', val: 3 });
     await reqManager.waitForRequests(2);
     expect(resolved).toBe(false);
     reqManager.resolveNextRequest();
@@ -328,36 +316,51 @@ describe('LogClient#flush', () => {
         body: { data: { id: `log-id-${defManager.size() + 1}`, type: 'logs' } },
       });
     });
-    logger.addLog({
-      type: 'mock-log',
-      val: 1,
-      date: new Date('2021-06-03T02:00:00.000Z'),
+    let oldGetRun = server.handlers['/runs/{id}'].get.getMockImplementation()!;
+    server.handlers['/runs/{id}'].get.mockImplementation(async (...args) => {
+      let result = await oldGetRun(...args);
+      if (result.status !== 200) return result;
+      result.body.data.attributes = {
+        ...result.body.data.attributes,
+        // Should be ignored by first flush call.
+        missingLogNumbers: [3],
+      };
+      return result;
     });
-    logger.addLog({
-      type: 'mock-log',
-      val: 2,
-      date: new Date('2021-06-03T03:00:00.000Z'),
-    });
+    logger.addLog({ type: 'mock-log', val: 1 });
+    logger.addLog({ type: 'mock-log', val: 2 });
     let flushPromise = logger.flush();
-    logger
-      .addLog({
-        type: 'mock-log',
-        val: 'fail',
-        date: new Date('2021-06-03T04:00:00.000Z'),
-      })
-      .catch(() => {
-        // Prevent vitest from catching the error and complaining about it.
-      });
-    logger.addLog({
-      type: 'mock-log',
-      val: 4,
-      date: new Date('2021-06-03T03:00:00.000Z'),
+    logger.addLog({ type: 'mock-log', val: 'fail' }).catch(() => {
+      // Prevent vitest from catching the error and complaining about it.
     });
+    logger.addLog({ type: 'mock-log', val: 4 });
     await defManager.waitForRequests(3);
     defManager.resolveAllRequests();
     await expect(flushPromise).resolves.toBeUndefined();
     await expect(logger.flush()).rejects.toThrowErrorMatchingInlineSnapshot(
       `[AddLogError: FORBIDDEN]`,
+    );
+  });
+
+  it('fails if there are still missing logs on the server', async ({
+    logger,
+    server,
+  }) => {
+    let oldGetRun = server.handlers['/runs/{id}'].get.getMockImplementation()!;
+    server.handlers['/runs/{id}'].get.mockImplementation(async (...args) => {
+      let result = await oldGetRun(...args);
+      if (result.status !== 200) return result;
+      result.body.data.attributes = {
+        ...result.body.data.attributes,
+        // Should be ignored by first flush call.
+        missingLogNumbers: [1],
+      };
+      return result;
+    });
+    logger.addLog({ type: 'mock-log', val: 1 });
+    logger.addLog({ type: 'mock-log', val: 2 });
+    await expect(logger.flush()).rejects.toThrowErrorMatchingInlineSnapshot(
+      `[FlushError: There are missing logs on server after flushing. Missing logs: 1]`,
     );
   });
 });

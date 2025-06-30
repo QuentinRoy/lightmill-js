@@ -305,7 +305,27 @@ export class MockServer {
 
       '/runs/{id}': {
         get: async () => {
-          throw new Error('Not implemented: GET /runs/{id}');
+          return {
+            status: 200,
+            body: {
+              data: {
+                id: 'default-run-id',
+                type: 'runs' as const,
+                attributes: {
+                  name: 'Default Run',
+                  status: 'idle',
+                  lastLogNumber: 0,
+                  missingLogNumbers: [],
+                },
+                relationships: {
+                  experiment: {
+                    data: { id: 'default-experiment-id', type: 'experiments' },
+                  },
+                  lastLogs: { data: [] },
+                },
+              },
+            },
+          };
         },
         patch: async ({ params, body }) => {
           const run = this.#runs.get(params.id as string);
