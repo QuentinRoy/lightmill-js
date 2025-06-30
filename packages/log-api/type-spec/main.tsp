@@ -147,6 +147,20 @@ namespace Experiment {
 
 @route("/runs")
 namespace Run {
+  model Attributes {
+    @minLength(1)
+    @visibility(Lifecycle.Read, Lifecycle.Create)
+    name: string | null;
+
+    status: Status;
+
+    @removeVisibility(Lifecycle.Create)
+    lastLogNumber: int32;
+
+    @visibility(Lifecycle.Read)
+    missingLogNumbers: int32[];
+  }
+
   model ResourceIdentifier is JsonApi.ResourceIdentifier<"runs">;
 
   model Resource is JsonApi.Resource<"runs", Attributes> {
@@ -171,17 +185,6 @@ namespace Run {
   }
 
   model ResourcePatch is JsonApi.ResourcePatch<"runs", Attributes>;
-
-  model Attributes {
-    @minLength(1)
-    @visibility(Lifecycle.Read, Lifecycle.Create)
-    name: string | null;
-
-    status: Status;
-
-    @removeVisibility(Lifecycle.Create)
-    lastLogNumber: int32;
-  }
 
   model Includes {
     @visibility(Lifecycle.Read)

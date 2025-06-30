@@ -449,25 +449,22 @@ export class SQLiteDataStore implements DataStore {
     return result.map((it) => it.logPropertyName);
   }
 
-  async getNumberOfPendingLogs(
+  async getMissingLogs(
     filter: RunFilter & ExperimentFilter,
-  ): Promise<{ runId: RunId; count: number }[]> {
-    let result = await this.#db
+  ): Promise<{ runId: RunId; logNumber: number }[]> {
+    const result = await this.#db
       .selectFrom('log')
       .innerJoin('logSequence', 'log.sequenceId', 'logSequence.sequenceId')
       .innerJoin('run', 'run.runId', 'logSequence.runId')
       .innerJoin('experiment', 'experiment.experimentId', 'run.experimentId')
+      .where('log.logType', 'is', null)
       .$call(createQueryFilterRun(filter, 'run'))
       .$call(createQueryFilterExperiment(filter, 'experiment'))
-      .select((eb) => [
-        'run.runId as runId',
-        eb.fn.countAll().filterWhere('log.logType', 'is', null).as('count'),
-      ])
-      .groupBy('run.runId')
+      .select(['run.runId as runId', 'log.logNumber as logNumber'])
       .execute();
-    return result.map((it) => ({
-      runId: fromDbId(it.runId),
-      count: Number(it.count),
+    return result.map((row) => ({
+      runId: fromDbId(row.runId),
+      logNumber: row.logNumber,
     }));
   }
 

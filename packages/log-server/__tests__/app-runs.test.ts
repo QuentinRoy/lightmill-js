@@ -249,6 +249,7 @@ describeForAll(
         { type: 'log-type-2', number: 6, values: {} },
         { type: 'log-type-2', number: 7, values: {} },
         { type: 'log-type-2', number: 8, values: { p2: 'v2' } },
+        { type: 'log-type-2', number: 10, values: { p3: 'v3' } },
       ]);
       await addRunToSession({ api, sessionStore, runId });
       const { body } = await api
@@ -259,7 +260,12 @@ describeForAll(
         data: {
           id: runId,
           type: 'runs',
-          attributes: { name: 'run-name', status: 'running', lastLogNumber: 8 },
+          attributes: {
+            name: 'run-name',
+            status: 'running',
+            lastLogNumber: 8,
+            missingLogNumbers: [9],
+          },
           relationships: {
             lastLogs: { data: expect.any(Array) },
             experiment: { data: { id: experimentId, type: 'experiments' } },
@@ -290,6 +296,8 @@ describeForAll(
       const logs = await dataStore.addLogs(runId, [
         { type: 'log-type', number: 1, values: {} },
         { type: 'log-type', number: 2, values: {} },
+        { type: 'log-type', number: 4, values: {} },
+        { type: 'log-type', number: 6, values: {} },
       ]);
       await addRunToSession({ api, sessionStore, runId });
       const { body } = await api
@@ -300,7 +308,12 @@ describeForAll(
         data: {
           id: runId,
           type: 'runs',
-          attributes: { status: 'running', lastLogNumber: 2, name: null },
+          attributes: {
+            status: 'running',
+            lastLogNumber: 2,
+            name: null,
+            missingLogNumbers: [3, 5],
+          },
           relationships: {
             lastLogs: { data: [{ id: logs[1]?.logId, type: 'logs' }] },
             experiment: { data: { id: experimentId, type: 'experiments' } },
@@ -704,6 +717,7 @@ describeForAll(
         await dataStore.addLogs(r1, [
           { type: 'log-type', number: 1, values: { v: 'r1l1' } },
           { type: 'log-type', number: 2, values: { v: 'r1l2' } },
+          { type: 'log-type', number: 4, values: { v: 'r1l4' } },
         ]);
         const { runId: r2 } = await dataStore.addRun({
           ...baseRunOptions,
@@ -733,6 +747,7 @@ describeForAll(
       await dataStore.addLogs(r1, [
         { type: 'log-type', number: 1, values: { v: 'r1l1' } },
         { type: 'log-type', number: 2, values: { v: 'r1l2' } },
+        { type: 'log-type', number: 4, values: { v: 'r1l4' } },
       ]);
       const { runId: r2 } = await dataStore.addRun({
         experimentId: e1,

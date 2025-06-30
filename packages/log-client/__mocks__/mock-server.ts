@@ -252,6 +252,7 @@ export class MockServer {
                       0,
                       ...r.lastLogs.map((log) => log.number),
                     ),
+                    missingLogNumbers: [],
                   },
                   relationships: {
                     experiment: {
@@ -337,6 +338,7 @@ export class MockServer {
                     0,
                     ...run.lastLogs.map((l) => l.number),
                   ),
+                  missingLogNumbers: [],
                 },
                 relationships: {
                   experiment: {
