@@ -1,5 +1,29 @@
 # @lightmill/log-server
 
+## 4.0.0
+
+### Major Changes
+
+- 4cdd8e6: Parameters passed to `addRun` may now explicitly specify `runName: null` to indicate that the run has no name. Omitting the `runName` parameter is still allowed—it will default to `null` if not provided. However, the promises returned by `addRun` and `getRuns` must now always include `runName: null` for unnamed runs, rather than using `undefined` or omitting the field. This improves consistency with the JSON API, where unnamed runs are represented with `name: null`.
+- 369b404: Renamed `SqliteStore` to `SqliteDataStore` to avoid confusion with other store types (e.g., session store) used in the system. This is a breaking change: consumers must update their imports to use `SqliteDataStore` instead of `SqliteStore`.
+- 0cd6985: The `store` option in `LogServer` has been renamed to `dataStore` to reduce confusion with the `sessionStore` option. To update, replace any usage of `store` in the `LogServer` config with `dataStore`.
+- 000d116: Update server to comply with new API contract. Post and put requests are now required to use `application/vnd.api+json` as content type. Responses' content type is now `application/vnd.api+json` (except when responding with CSV content).
+- 97f7410: `Store.migrateDatabase` now throws on error instead of resolving with a result. On success, it resolves with `void`. Previously, it returned Kysely’s migration result and did not throw on failure, which made it harder to implement alternative solutions without relying on Kysely.
+- e7f2da4: `GET /logs` handler now defaults to CSV format and only returns JSON when the Accept header is set to JSON. This change allows logs to be downloadable from HTML without requiring JavaScript to set the `Accept` header.
+
+### Minor Changes
+
+- 9d4c3b1: Run resources now include the list of missing log numbers for the run.
+
+### Patch Changes
+
+- 004aecf: Fix log query filter. Filtering by `experimentName` or `runName` is now propertly supported.
+- 4cdd8e6: Fix SqliteDataStore not throwing the proper DataStoreError when trying to create a run for an unknown experiment.
+- Updated dependencies [36607bc]
+- Updated dependencies [9d4c3b1]
+- Updated dependencies [4cdd8e6]
+  - @lightmill/log-api@4.0.0
+
 ## 3.2.0
 
 ### Minor Changes

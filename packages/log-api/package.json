@@ -1,6 +1,6 @@
 {
   "name": "@lightmill/log-api",
-  "version": "3.0.0",
+  "version": "4.0.0",
   "description": "API for Lightmill log server",
   "author": "Quentin Roy <contact@quentinroy.fr>",
   "license": "MIT",
