@@ -165,26 +165,23 @@ export const logHandlers = (): SubServerDescription<'/logs'> => ({
 interface GetResponseMimeTypeOptions {
   defaultMimeType?: LogResponseMimeType;
 }
+type LogResponseMimeType = 'json' | 'csv';
 function getResponseMimeType(
   acceptHeader: string | undefined,
   { defaultMimeType = 'json' }: GetResponseMimeTypeOptions = {},
 ): LogResponseMimeType {
-  let format: LogResponseMimeType = defaultMimeType;
   if (acceptHeader != null) {
     const acceptHeaderParts = parseAcceptHeader(acceptHeader);
     for (let accept of acceptHeaderParts) {
       if (accept.type.includes('csv')) {
-        format = 'csv';
-        break;
+        return 'csv';
       } else if (accept.type.includes('json')) {
-        format = 'json';
-        break;
+        return 'json';
       }
     }
   }
-  return format;
+  return defaultMimeType;
 }
-type LogResponseMimeType = 'json' | 'csv';
 
 function jsonResponseStream(
   store: DataStore,
