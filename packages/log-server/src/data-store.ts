@@ -168,9 +168,9 @@ export interface DataStore {
    * @param filter Filter to apply
    * @returns Array of run IDs with their pending log counts
    */
-  getNumberOfPendingLogs(
+  getMissingLogs(
     filter: Merge<RunFilter, Pick<ExperimentFilter, 'experimentName'>>,
-  ): Promise<{ runId: RunId; count: number }[]>;
+  ): Promise<{ runId: RunId; logNumber: number }[]>;
 
   /**
    * Gets the last log of each type for runs matching the filter

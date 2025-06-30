@@ -208,8 +208,8 @@ export const runHandlers = (): SubServerDescription<'/runs'> => ({
       const requestedLastLogNumber = body.data.attributes?.lastLogNumber;
 
       if (futureRunStatus === 'completed') {
-        let pendingLogs = await store.getNumberOfPendingLogs({ runId });
-        if (pendingLogs.length > 0 && firstStrict(pendingLogs).count > 0) {
+        let pendingLogs = await store.getMissingLogs({ runId });
+        if (pendingLogs.length > 0) {
           return getErrorResponse({
             status: 403,
             code: 'PENDING_LOGS',

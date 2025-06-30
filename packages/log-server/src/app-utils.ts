@@ -100,7 +100,8 @@ export async function getRunResources(
 ) {
   const runs =
     'runs' in options ? options.runs : await store.getRuns(options.filter);
-  const [experiments, lastLogs] = await Promise.all([
+  const runIds = runs.map((run) => run.runId);
+  const [experiments, lastLogs, missingLogs] = await Promise.all([
     store.getExperiments({
       experimentId: pipe(
         runs,
@@ -108,9 +109,11 @@ export async function getRunResources(
         map((run) => run.experimentId),
       ),
     }),
-    store.getLastLogs({ runId: runs.map((run) => run.runId) }),
+    store.getLastLogs({ runId: runIds }),
+    store.getMissingLogs({ runId: runIds }),
   ]);
   const groupedLastLogs = groupBy(lastLogs, (log) => log.runId);
+  const groupedMissingLogs = groupBy(missingLogs, (log) => log.runId);
 
   return {
     runs: runs.map((run) => {
@@ -122,6 +125,8 @@ export async function getRunResources(
           status: run.runStatus,
           name: run.runName,
           lastLogNumber: Math.max(0, ...runLastLogs.map((l) => l.number)),
+          missingLogNumbers:
+            groupedMissingLogs[run.runId]?.map((l) => l.logNumber) ?? [],
         },
         relationships: {
           lastLogs: {
