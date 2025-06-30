@@ -1,5 +1,14 @@
 # @lightmill/log-server
 
+## 4.0.1
+
+### Patch Changes
+
+- 0c369fc: Fixed handling of the `q=` weighting factor in the `Accept` header for `GET /logs`. Previously, it was not supported and could cause requests to fail. The server now correctly interprets `q=` values and returns the preferred media type accordingly.
+- 0c369fc: The `GET /logs` endpoint no longer fails when the `Accept` header is unrecognized. It now defaults to returning CSV format in such cases.
+- Updated dependencies [0c369fc]
+  - @lightmill/log-api@4.0.1
+
 ## 4.0.0
 
 ### Major Changes
