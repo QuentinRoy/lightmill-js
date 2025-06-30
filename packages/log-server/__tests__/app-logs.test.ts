@@ -310,24 +310,28 @@ describe.each(storeTypes)('LogServer: get /logs (%s)', (storeType) => {
     expect(result.text).toMatchSnapshot();
   });
 
-  it('returns a 400 error if the Accept header is not supported', async ({
+  it('respects the q weighting factor', async ({ expect, hostApi }) => {
+    let result = await hostApi
+      .get('/logs')
+      .set('Accept', `text/csv;q=0.1,${apiMediaType};q=0.9`)
+      .expect(200)
+      .expect('Content-Type', apiContentTypeRegExp);
+    expect(result.text).toMatchSnapshot();
+  });
+
+  it('returns logs as csv if no format specified in accept header is supported', async ({
+    expect,
     hostApi,
   }) => {
-    await hostApi
+    let result = await hostApi
       .get('/logs')
-      .set('Accept', 'application/xml,application/pdf,text/html')
-      .expect(400, {
-        errors: [
-          {
-            code: 'HEADERS_VALIDATION',
-            detail:
-              'must be equal to one of the allowed values: application/vnd.api+json, text/csv',
-            source: { header: 'accept' },
-            status: 'Bad Request',
-          },
-        ],
-      })
-      .expect('Content-Type', apiContentTypeRegExp);
+      .set(
+        'Accept',
+        'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+      )
+      .expect(200)
+      .expect('Content-Type', /^text\/csv/);
+    expect(result.text).toMatchSnapshot();
   });
 
   it('returns only logs a participant has access to', async ({

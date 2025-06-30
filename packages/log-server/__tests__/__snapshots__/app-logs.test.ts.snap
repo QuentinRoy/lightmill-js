@@ -448,6 +448,16 @@ exports[`LogServer: get /logs (sqlite) > filters logs by type (json) 1`] = `
 }
 `;
 
+exports[`LogServer: get /logs (sqlite) > respects the q weighting factor 1`] = `
+"{"data":[
+{"type":"logs","id":"4","attributes":{"logType":"log-type","number":1,"values":{"x":"x4","y":"y4"}},"relationships":{"run":{"data":{"type":"runs","id":"2"}}}},
+{"type":"logs","id":"5","attributes":{"logType":"log-type","number":2,"values":{"y":"y5","x":"x5"}},"relationships":{"run":{"data":{"type":"runs","id":"2"}}}},
+{"type":"logs","id":"1","attributes":{"logType":"log-type","number":1,"values":{"x":"x1","y":"y1"}},"relationships":{"run":{"data":{"type":"runs","id":"1"}}}},
+{"type":"logs","id":"2","attributes":{"logType":"log-type","number":2,"values":{"y":"y2","x":"x2"}},"relationships":{"run":{"data":{"type":"runs","id":"1"}}}},
+{"type":"logs","id":"3","attributes":{"logType":"log-type","number":3,"values":{"y":"y3","x":"x3"}},"relationships":{"run":{"data":{"type":"runs","id":"1"}}}}
+]}"
+`;
+
 exports[`LogServer: get /logs (sqlite) > returns logs as csv by default 1`] = `
 "type,experiment_name,run_name,run_status,x,y
 log-type,test-experiment,other-run,running,x4,y4
@@ -459,6 +469,16 @@ log-type,test-experiment,test-run,running,x3,y3
 `;
 
 exports[`LogServer: get /logs (sqlite) > returns logs as csv if csv is the first supported format in the Accept header 1`] = `
+"type,experiment_name,run_name,run_status,x,y
+log-type,test-experiment,other-run,running,x4,y4
+log-type,test-experiment,other-run,running,x5,y5
+log-type,test-experiment,test-run,running,x1,y1
+log-type,test-experiment,test-run,running,x2,y2
+log-type,test-experiment,test-run,running,x3,y3
+"
+`;
+
+exports[`LogServer: get /logs (sqlite) > returns logs as csv if no format specified in accept header is supported 1`] = `
 "type,experiment_name,run_name,run_status,x,y
 log-type,test-experiment,other-run,running,x4,y4
 log-type,test-experiment,other-run,running,x5,y5
