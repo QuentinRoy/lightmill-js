@@ -93,7 +93,7 @@ export class LightmillLogger<
         },
       );
     }
-    this.#error = this.#error == null ? error : this.#error;
+    this.#error = error ?? this.#error;
     // In the vast majority of cases we should find the log at the very
     // first position of the array, so indexOf lookup should be very fast.
     const index = this.#pendingLogs.indexOf(logNumber);
@@ -107,12 +107,17 @@ export class LightmillLogger<
   }
 
   async flush() {
-    if (this.#pendingLogs.length === 0) return;
+    if (this.#pendingLogs.length === 0) {
+      if (this.#error) {
+        throw this.#error;
+      }
+      return;
+    }
     const lastLogNumber = this.#lastLogNumber;
     await new Promise<void>((resolve, reject) => {
       const subscription = this.#logResponseSubject.subscribe({
-        next: (logNumber) => {
-          if (!this.#isTherePendingLogsBefore(logNumber)) {
+        next: () => {
+          if (!this.#isTherePendingLogsBefore(lastLogNumber)) {
             subscription.unsubscribe();
             resolve();
           }
