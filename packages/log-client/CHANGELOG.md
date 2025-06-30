@@ -1,5 +1,17 @@
 # @lightmill/log-client
 
+## 4.0.0
+
+### Major Changes
+
+- c038515: Include `name: null` as a run attribute in the POST request when creating a run without a name, to comply with changes in `@lightmill/log-api` that require unnamed runs to explicitly specify `null` for `name`.
+- f45d00d: `Logger#flush` now only waits for logs that were added before it was called. This allows users to continue adding logs while waiting for the flush to resolve, and makes its behavior more deterministic when logs are added continuously.
+- 8b648f9: Changes the content type of every post or patch requests to `application/vnd.api+json` to match the new API.
+
+### Minor Changes
+
+- e89e3d0: `Logger#flush` now checks for missing logs on the server and fails if any are missing that were added prior to the flush call. This is considered a minor change, as it primarily surfaces existing issues (such as communication errors) earlier.
+
 ## 3.1.1
 
 ### Patch Changes
