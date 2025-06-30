@@ -135,6 +135,16 @@ export class LightmillLogger<
         },
       });
     });
+    const missingLogs = await this.#fetchMissingLogs();
+    if (missingLogs.some((l) => l <= lastLogNumber)) {
+      // If we have missing logs that are before or at the last log number,
+      // then we know that there are missing logs on the server that we
+      // do not have in our pending logs, which means we lost some logs
+      // in the process.
+      throw new FlushError(
+        `There are missing logs on server after flushing. Missing logs: ${missingLogs.join(', ')}`,
+      );
+    }
   }
 
   #isTherePendingLogsBefore(logNumber: number): boolean {
@@ -143,6 +153,18 @@ export class LightmillLogger<
     // we found a pending log, otherwiser we know there won't be any.
     const first = this.#pendingLogs[0];
     return first != null && first <= logNumber;
+  }
+
+  async #fetchMissingLogs() {
+    const response = await this.#fetchClient.GET('/runs/{id}', {
+      credentials: 'include',
+      params: { path: { id: this.#runId } },
+      headers: { 'content-type': apiMediaType },
+    });
+    if (response.error != null) {
+      throw new RequestError(response);
+    }
+    return response.data.data.attributes.missingLogNumbers;
   }
 
   async completeRun() {
@@ -194,5 +216,12 @@ class AddLogError extends Error {
   ) {
     super(message, { cause });
     this.logNumber = logNumber;
+  }
+}
+
+class FlushError extends Error {
+  name = 'FlushError' as const;
+  constructor(message: string) {
+    super(message);
   }
 }
