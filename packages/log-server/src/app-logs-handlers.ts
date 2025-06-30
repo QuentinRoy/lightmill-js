@@ -1,6 +1,7 @@
 import type { components, operations } from '@lightmill/log-api';
 import { Readable } from 'node:stream';
 import type { JsonObject } from 'type-fest';
+import { parseAcceptHeader } from './accept-headers.ts';
 import {
   apiMediaType,
   getAllowedAndFilteredRunIds,
@@ -170,11 +171,12 @@ function getResponseMimeType(
 ): LogResponseMimeType {
   let format: LogResponseMimeType = defaultMimeType;
   if (acceptHeader != null) {
-    for (let accept of acceptHeader.split(',')) {
-      if (accept.includes('csv')) {
+    const acceptHeaderParts = parseAcceptHeader(acceptHeader);
+    for (let accept of acceptHeaderParts) {
+      if (accept.type.includes('csv')) {
         format = 'csv';
         break;
-      } else if (accept.includes('json')) {
+      } else if (accept.type.includes('json')) {
         format = 'json';
         break;
       }

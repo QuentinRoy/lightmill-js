@@ -383,7 +383,7 @@ namespace Log {
     @query `filter[run.name]`?: string | string[],
     @query `filter[run.id]`?: string | string[],
     @query include?: Include | Include[],
-    @header accept?: JsonApi.APIContentType | "text/csv",
+    @header accept?: string,
   ):
     | {
         @statusCode statusCode: 200;
