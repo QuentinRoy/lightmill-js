@@ -1,47 +1,37 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { type paths } from '@lightmill/log-api';
 import {
   http,
-  HttpHandler,
   HttpResponse,
-  type HttpResponseResolver,
   RequestHandler,
+  type JsonBodyType,
   type StrictRequest,
 } from 'msw';
 import { setupServer, SetupServerApi } from 'msw/node';
-import type { RequiredKeysOf } from 'type-fest';
-import { test } from 'vitest';
+import type { IsNever, RequiredKeysOf } from 'type-fest';
+import { test, vi, type Mock } from 'vitest';
 import { apiMediaType } from '../src/utils.js';
 
 export type ApiMediaType = typeof apiMediaType;
+const _httpMethods = [
+  'get',
+  'put',
+  'post',
+  'delete',
+  'options',
+  'head',
+  'patch',
+] as const;
+type HttpMethod = (typeof _httpMethods)[number];
 
-type ApiReponseCode<
-  Path extends keyof paths,
-  Method extends Exclude<RequiredKeysOf<paths[Path]>, 'parameters'>,
-> = paths extends {
-  [P in Path]: { [M in Method]: { responses: infer Responses } };
-}
-  ? keyof Responses
-  : never;
-
-type ApiResponse<
-  Path extends keyof paths,
-  Method extends Exclude<RequiredKeysOf<paths[Path]>, 'parameters'>,
-  Status extends ApiReponseCode<Path, Method> = ApiReponseCode<Path, Method>,
-> = paths extends {
-  [P in Path]: {
-    [M in Method]: {
-      responses: {
-        [S in Status]: { content: { [K in ApiMediaType]: infer R } };
-      };
-    };
-  };
-}
-  ? R
-  : never;
+type PathMethod<Path extends keyof paths> = Extract<
+  RequiredKeysOf<paths[Path]>,
+  HttpMethod
+>;
 
 type ApiRequestBody<
   Path extends keyof paths,
-  Method extends Exclude<RequiredKeysOf<paths[Path]>, 'parameters'>,
+  Method extends PathMethod<Path>,
 > = paths extends {
   [P in Path]: {
     [M in Method]: {
@@ -52,19 +42,85 @@ type ApiRequestBody<
   ? R
   : never;
 
+type ApiRequestPathParams<
+  Path extends keyof paths,
+  Method extends PathMethod<Path>,
+> = paths extends {
+  [P in Path]: { [M in Method]: { parameters: { path?: infer R } } };
+}
+  ? R extends object
+    ? R
+    : Record<PropertyKey, never>
+  : never;
+
+type BaseServerHandler<
+  Params = Record<string, string | readonly string[] | undefined>,
+  Body extends JsonBodyType = JsonBodyType,
+  Response extends { body: JsonBodyType; status: number } = {
+    body: JsonBodyType;
+    status: number;
+  },
+> = ({
+  params,
+  body,
+  request,
+}: {
+  params: Params;
+  body: Body;
+  request: StrictRequest<Body>;
+}) => Promise<Response> | Response;
+
+type ServerHandler<
+  Path extends keyof paths,
+  Method extends PathMethod<Path>,
+> = paths extends {
+  [P in Path]: { [M in Method]: { responses: infer Responses } };
+}
+  ? BaseServerHandler<
+      ApiRequestPathParams<Path, Method>,
+      IsNever<ApiRequestBody<Path, Method>> extends true
+        ? undefined
+        : ApiRequestBody<Path, Method>,
+      {
+        [Status in keyof Responses]: Responses[Status] extends {
+          content: { [K in ApiMediaType]: infer Body extends JsonBodyType };
+        }
+          ? { body: Body; status: Status extends number ? Status : never }
+          : never;
+      }[keyof Responses]
+    >
+  : never;
+
+type HandlerMap = {
+  [Path in keyof paths]: {
+    [Method in PathMethod<Path>]: ServerHandler<Path, Method>;
+  };
+};
+
+type MockedMethodsDeep<T> =
+  T extends Record<PropertyKey, unknown>
+    ? { [K in keyof T]: MockedMethodsDeep<T[K]> }
+    : T extends (...args: any) => any
+      ? Mock<T>
+      : T;
+
+type MockedHandlerMap = MockedMethodsDeep<HandlerMap>;
+
 export class MockServer {
   #baseUrl = 'https://server.test/api';
   #runs = new Map<string, Run>();
   #experiments = new Map<string, Experiment>();
   #server: SetupServerApi;
   #requests: Array<Request> = [];
+  handlers: MockedHandlerMap = this.#createMockedHandlersMap();
 
   getBaseUrl(): string {
     return this.#baseUrl;
   }
 
   constructor() {
-    this.#server = setupServer(...this.#getHandlers());
+    const serverHandlers = this.#createMswHandlers();
+    this.#server = setupServer(...serverHandlers);
     this.#server.events.on('request:start', ({ request }) => {
       // We need to clone the request because it is a stream and may be
       // consumed by the server.
@@ -72,258 +128,282 @@ export class MockServer {
     });
   }
 
-  #getHandlers(): RequestHandler[] {
-    const { get, delete: del, post, patch } = createMethods(this.#baseUrl);
-    return [
-      get('/experiments/:experimentId', ({ params }) => {
-        const experiment = this.#experiments.get(params.experimentId as string);
-        if (experiment == null) {
-          return HttpResponse.json(
-            { errors: [] } satisfies ApiResponse<
-              '/experiments/{id}',
-              'get',
-              404
-            >,
-            { status: 404 },
-          );
-        }
-        return HttpResponse.json(
-          {
-            data: {
-              id: experiment.id,
-              type: 'experiments',
-              attributes: { name: experiment.name },
-            },
-          } satisfies ApiResponse<'/experiments/{id}', 'get', 200>,
-          { status: 200 },
-        );
-      }),
-
-      get('/experiments', ({ request }) => {
-        const queryParams = parseUrlQuery(request.url);
-        return HttpResponse.json(
-          {
-            data: Array.from(this.#experiments.values())
-              .filter((e) => {
-                let nameFilter = queryParams['filter[name]'];
-                if (nameFilter == null) {
-                  return true;
-                }
-                return nameFilter.includes(e.name);
-              })
-              .map((experiment) => ({
+  #createMockedHandlersMap(): MockedHandlerMap {
+    const handlers: HandlerMap = {
+      '/experiments/{id}': {
+        get: async ({ params }) => {
+          const experiment = this.#experiments.get(params.id as string);
+          if (experiment == null) {
+            return {
+              body: {
+                errors: [{ status: 'Not Found', code: 'EXPERIMENT_NOT_FOUND' }],
+              },
+              status: 404,
+            };
+          }
+          return {
+            body: {
+              data: {
                 id: experiment.id,
                 type: 'experiments',
                 attributes: { name: experiment.name },
-              })),
-          } satisfies ApiResponse<'/experiments', 'get', 200>,
-          { status: 200 },
-        );
-      }),
-
-      get('/sessions/current', () =>
-        HttpResponse.json({
-          data: {
-            type: 'sessions',
-            id: 'current',
-            attributes: { role: 'participant' },
-            relationships: {
-              runs: {
-                data: Array.from(this.#runs.values(), (r) => ({
-                  type: 'runs',
-                  id: r.runId,
-                })),
               },
             },
-          },
-        } satisfies ApiResponse<'/sessions/{id}', 'get', 200>),
-      ),
+            status: 200,
+          };
+        },
+      },
 
-      del('/sessions/current', () =>
-        HttpResponse.json({ data: null } satisfies ApiResponse<
-          '/sessions/{id}',
-          'delete',
-          200
-        >),
-      ),
+      '/experiments': {
+        get: async ({ request }) => {
+          const queryParams = parseUrlQuery(request.url);
+          return {
+            body: {
+              data: Array.from(this.#experiments.values())
+                .filter((e) => {
+                  let nameFilter = queryParams['filter[name]'];
+                  if (nameFilter == null) {
+                    return true;
+                  }
+                  return nameFilter.includes(e.name);
+                })
+                .map((experiment) => ({
+                  id: experiment.id,
+                  type: 'experiments',
+                  attributes: { name: experiment.name },
+                })),
+            },
+            status: 200,
+          };
+        },
+        post: async () => {
+          throw new Error('Not implemented: POST /experiments');
+        },
+      },
 
-      get('/runs', async ({ request }) => {
-        const queryParams = parseUrlQuery(request.url);
-        return HttpResponse.json(
-          {
-            data: Array.from(this.#runs.values())
-              .filter((r) => {
-                let statusFilter = queryParams['filter[status]'];
-                if (statusFilter == null) {
-                  return true;
-                }
-                return statusFilter.includes(r.runStatus);
-              })
-              .map((r) => ({
-                type: 'runs',
-                id: r.runId,
+      '/logs': {
+        post: async () => {
+          return {
+            body: { data: { id: 'log-id', type: 'logs' } },
+            status: 201,
+          };
+        },
+        get: async () => {
+          throw new Error('Not implemented: GET /logs');
+        },
+      },
+
+      '/logs/{id}': {
+        get: async () => {
+          throw new Error('Not implemented: GET /logs/{id}');
+        },
+      },
+
+      '/sessions': {
+        post: async () => {
+          throw new Error('Not implemented: POST /sessions');
+        },
+      },
+
+      '/sessions/{id}': {
+        get: async () => {
+          const sessionRuns = Array.from(this.#runs.values(), (r) => ({
+            type: 'runs' as const,
+            id: r.runId,
+          }));
+          return {
+            status: 200,
+            body: {
+              data: {
+                type: 'sessions',
+                id: 'current',
+                attributes: { role: 'participant' },
+                relationships: { runs: { data: sessionRuns } },
+              },
+            },
+          };
+        },
+        delete: async () => {
+          return { status: 200, body: { data: null } };
+        },
+      },
+
+      '/runs': {
+        get: async ({ request }) => {
+          const queryParams = parseUrlQuery(request.url);
+          return {
+            status: 200,
+            body: {
+              data: Array.from(this.#runs.values())
+                .filter((r) => {
+                  let statusFilter = queryParams['filter[status]'];
+                  if (statusFilter == null) {
+                    return true;
+                  }
+                  return statusFilter.includes(r.runStatus);
+                })
+                .map((r) => ({
+                  type: 'runs' as const,
+                  id: r.runId,
+                  attributes: {
+                    status: r.runStatus,
+                    name: r.runName ?? null,
+                    lastLogNumber: Math.max(
+                      0,
+                      ...r.lastLogs.map((log) => log.number),
+                    ),
+                  },
+                  relationships: {
+                    experiment: {
+                      data: {
+                        type: 'experiments' as const,
+                        id: r.experimentId,
+                      },
+                    },
+                    lastLogs: {
+                      data: r.lastLogs.map((log) => ({
+                        type: 'logs' as const,
+                        id: log.id,
+                      })),
+                    },
+                  },
+                })),
+              included: [
+                ...Array.from(this.#runs.values()).flatMap((r) =>
+                  r.lastLogs.map((log) => ({
+                    type: 'logs' as const,
+                    id: log.id,
+                    attributes: {
+                      logType: log.type,
+                      number: log.number,
+                      values: log.values,
+                    },
+                    relationships: {
+                      run: { data: { type: 'runs' as const, id: r.runId } },
+                    },
+                  })),
+                ),
+                ...Array.from(this.#experiments.values()).map((e) => {
+                  return {
+                    type: 'experiments' as const,
+                    id: e.id,
+                    attributes: { name: e.name },
+                  };
+                }),
+              ],
+            },
+          };
+        },
+        post: async () => {
+          return {
+            body: { data: { type: 'runs', id: 'default-run-id' } },
+            status: 201,
+          };
+        },
+      },
+
+      '/runs/{id}': {
+        get: async () => {
+          throw new Error('Not implemented: GET /runs/{id}');
+        },
+        patch: async ({ params, body }) => {
+          const run = this.#runs.get(params.id as string);
+          if (run == null) {
+            return {
+              body: {
+                errors: [{ status: 'Not Found', code: 'RUN_NOT_FOUND' }],
+              },
+              status: 404,
+            };
+          }
+          run.runStatus = body.data.attributes?.status ?? run.runStatus;
+          const lastLogNumber = body.data.attributes?.lastLogNumber;
+          if (lastLogNumber != null) {
+            run.lastLogs = run.lastLogs.filter(
+              (l) => l.number <= lastLogNumber,
+            );
+          }
+
+          return {
+            status: 200,
+            body: {
+              data: {
+                id: run.runId,
+                type: 'runs' as const,
                 attributes: {
-                  status: r.runStatus,
-                  name: r.runName,
+                  name: run.runName ?? null,
+                  status: run.runStatus,
                   lastLogNumber: Math.max(
                     0,
-                    ...r.lastLogs.map((log) => log.number),
+                    ...run.lastLogs.map((l) => l.number),
                   ),
                 },
                 relationships: {
                   experiment: {
-                    data: { type: 'experiments', id: r.experimentId },
+                    data: { id: run.experimentId, type: 'experiments' },
                   },
                   lastLogs: {
-                    data: r.lastLogs.map((log) => ({
-                      type: 'logs',
-                      id: log.id,
-                    })),
+                    data: run.lastLogs.map((l) => ({ id: l.id, type: 'logs' })),
                   },
                 },
-              })),
-            included: [
-              ...Array.from(this.#runs.values()).flatMap((r) =>
-                r.lastLogs.map((log) => ({
-                  type: 'logs' as const,
-                  id: log.id,
-                  attributes: {
-                    logType: log.type,
-                    number: log.number,
-                    values: log.values,
-                  },
-                  relationships: {
-                    run: { data: { type: 'runs' as const, id: r.runId } },
-                  },
-                })),
-              ),
-              ...Array.from(this.#experiments.values()).map((e) => {
-                return {
-                  type: 'experiments' as const,
-                  id: e.id,
-                  attributes: { name: e.name },
-                };
-              }),
-            ],
-          } satisfies ApiResponse<'/runs', 'get', 200>,
-          { status: 200 },
-        );
-      }),
+              },
+            },
+          };
+        },
+      },
+    };
+    const mockedHandlers = {} as MockedHandlerMap;
+    for (const path of Object.keys(handlers) as Array<keyof HandlerMap>) {
+      // @ts-expect-error We will fill this in later.
+      mockedHandlers[path] = {};
+      for (const method in handlers[path]) {
+        // @ts-expect-error We know it will be a valid method.
+        mockedHandlers[path][method] = vi.fn(handlers[path][method]);
+      }
+    }
+    return mockedHandlers;
+  }
 
-      post('/runs', async () => {
+  *#createMswHandlers(): Generator<RequestHandler> {
+    for (const path of Object.keys(this.handlers) as Array<keyof HandlerMap>) {
+      for (const method of Object.keys(
+        this.handlers[path],
+      ) as Array<HttpMethod>) {
+        const handler: BaseServerHandler =
+          // @ts-expect-error We know it will be a valid handler.
+          this.handlers[path][method];
+        yield this.#createMswHandler(path, method as HttpMethod, handler);
+      }
+    }
+  }
+
+  #createMswHandler(
+    path: string,
+    method: HttpMethod,
+    requestHandler: BaseServerHandler,
+  ) {
+    const resolverPath = `${this.#baseUrl}${translatePath(path)}`;
+    return http[method](resolverPath, async (info) => {
+      try {
+        checkHeaders(info.request);
+      } catch (err: unknown) {
+        if (!(err instanceof Error)) {
+          throw new Error(
+            `Unexpected error type: ${typeof err}. Expected an Error.`,
+          );
+        }
         return HttpResponse.json(
-          {
-            data: { type: 'runs', id: 'default-run-id' },
-          } satisfies ApiResponse<'/runs', 'post', 201>,
-          { status: 201 },
+          { errors: [{ message: err.message }] },
+          { status: 400 },
         );
-      }),
-
-      get('/runs/:runId', ({ params, request }) => {
-        const run = this.#runs.get(params.runId as string);
-        if (run == null) {
-          return HttpResponse.json(
-            { errors: [] } satisfies ApiResponse<'/runs/{id}', 'get', 404>,
-            { status: 404 },
-          );
-        }
-        let included: ApiResponse<'/runs/{id}', 'get', 200>['included'];
-        let urlParams = parseUrlQuery(request.url);
-        if (urlParams.include?.includes('experiment')) {
-          included = included ?? [];
-          included.push({
-            type: 'experiments',
-            id: run.experimentId,
-            attributes: {
-              name:
-                this.#experiments.get(run.experimentId)?.name ??
-                'Unknown Experiment',
-            },
-          });
-        }
-        if (urlParams.include?.includes('lastLogs')) {
-          included = included ?? [];
-          included.push(
-            ...run.lastLogs.map((log) => ({
-              type: 'logs' as const,
-              id: log.id,
-              attributes: {
-                logType: log.type,
-                number: log.number,
-                values: log.values,
-              },
-              relationships: {
-                run: { data: { type: 'runs' as const, id: run.runId } },
-              },
-            })),
-          );
-        }
-        return HttpResponse.json({
-          data: {
-            type: 'runs',
-            id: run.runId,
-            attributes: {
-              name: run.runName,
-              status: run.runStatus,
-              lastLogNumber: Math.max(...run.lastLogs.map((l) => l.number)),
-            },
-            relationships: {
-              experiment: {
-                data: { type: 'experiments', id: run.experimentId },
-              },
-              lastLogs: {
-                data: run.lastLogs.map((log) => ({ type: 'logs', id: log.id })),
-              },
-            },
-          },
-          included,
-        } satisfies ApiResponse<'/runs/{id}', 'get', 200>);
-      }),
-
-      patch('/runs/:id', async ({ params, request }) => {
-        const body = (await request.json()) as ApiRequestBody<
-          '/runs/{id}',
-          'patch'
-        >;
-        const run = this.#runs.get(params.id as string);
-        if (run == null) {
-          return HttpResponse.json(
-            { errors: [] } satisfies ApiResponse<'/runs/{id}', 'patch', 404>,
-            { status: 404 },
-          );
-        }
-        run.runStatus = body.data.attributes?.status ?? run.runStatus;
-        const lastLogNumber = body.data.attributes?.lastLogNumber;
-        if (lastLogNumber != null) {
-          run.lastLogs = run.lastLogs.filter((l) => l.number <= lastLogNumber);
-        }
-
-        return HttpResponse.json({
-          data: {
-            id: run.runId,
-            type: 'runs' as const,
-            attributes: {
-              status: run.runStatus,
-              lastLogNumber: Math.max(0, ...run.lastLogs.map((l) => l.number)),
-            },
-            relationships: {
-              experiment: {
-                data: { id: run.experimentId, type: 'experiments' },
-              },
-              lastLogs: {
-                data: run.lastLogs.map((l) => ({ id: l.id, type: 'logs' })),
-              },
-            },
-          },
-        } satisfies ApiResponse<'/runs/{id}', 'patch', 200>);
-      }),
-
-      post('/logs', () => {
-        return HttpResponse.json({
-          data: { id: 'log-id', type: 'logs' },
-        } satisfies ApiResponse<'/logs', 'post', 201>);
-      }),
-    ];
+      }
+      const { body, status } = await requestHandler({
+        params: info.params,
+        body: info.request.body == null ? undefined : await info.request.json(),
+        request: info.request,
+      });
+      return HttpResponse.json(body, { status: status ?? 200 });
+    });
   }
 
   async waitForRequests() {
@@ -411,37 +491,6 @@ export class MockServer {
   }
 }
 
-function createMethods(baseUrl: string) {
-  let result: Record<
-    string,
-    (p: string, handler: HttpResponseResolver) => HttpHandler
-  > = {};
-  for (let method of ['get', 'put', 'post', 'patch', 'delete'] as const) {
-    result[method] = (path, handler) => {
-      return http[method](`${baseUrl}${path}`, (...args) => {
-        // The log server isn't as strict, but we want to ensure that the
-        // client is using the correct headers.
-        try {
-          checkHeaders(args[0].request);
-        } catch (err: unknown) {
-          if (!(err instanceof Error)) {
-            throw new Error(
-              `Unexpected error type: ${typeof err}. Expected an Error.`,
-            );
-          }
-          return HttpResponse.json(
-            { errors: [{ message: err.message }] },
-            { status: 400 },
-          );
-        }
-        return handler(...args);
-      });
-    };
-  }
-
-  return result;
-}
-
 type Run = {
   runId: string;
   runName?: string;
@@ -483,7 +532,6 @@ function parseUrlQuery(url: string) {
   }, {});
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function checkHeaders(request: StrictRequest<any>) {
   if (request.body == null) return;
   const actualContentType = request.headers.get('content-type');
@@ -492,4 +540,8 @@ function checkHeaders(request: StrictRequest<any>) {
       `Expected 'content-type' header to be '${apiMediaType}', but got '${actualContentType}'`,
     );
   }
+}
+
+function translatePath(str: string): string {
+  return str.replaceAll(/{([^}]+)}/g, (_, p1) => `:${p1}`);
 }
