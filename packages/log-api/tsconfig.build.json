@@ -2,5 +2,9 @@
   "$schema": "https://json.schemastore.org/tsconfig",
   "extends": "../../tsconfig.json",
   "include": ["./temp/**/*.ts"],
-  "compilerOptions": { "rootDir": "./temp", "outDir": "./dist" }
+  "compilerOptions": {
+    "rootDir": "./temp",
+    "outDir": "./dist",
+    "sourceMap": false
+  }
 }

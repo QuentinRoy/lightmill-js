@@ -15,7 +15,6 @@
     "./openapi.json": "./dist/openapi.json"
   },
   "files": [
-    "src",
     "dist"
   ],
   "scripts": {
