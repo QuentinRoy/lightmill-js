@@ -32,9 +32,10 @@ export type RunFilter = ReadonlyDeep<{
   runName?: string | string[] | undefined;
   runStatus?:
     | RunStatus
-    | RunStatus[]
     | `-${RunStatus}`
-    | `-${RunStatus}`[]
+    // Officially supports mixed inclusion and exclusion, but this is not
+    // recommended as it can lead to confusion.
+    | Array<RunStatus | `-${RunStatus}`>
     | undefined;
   runId?: RunId | RunId[] | undefined;
 }>;
