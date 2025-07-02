@@ -1,5 +1,15 @@
 # @lightmill/log-server
 
+## 4.1.0
+
+### Minor Changes
+
+- 6190db8: Updated `DataStore#getMissingLogs` so its filter argument is now optional, allowing calls without any parameters to get all missing logs.
+
+### Patch Changes
+
+- 95d944f: Fix DataStore#getMissingLogs returning canceled logs.
+
 ## 4.0.1
 
 ### Patch Changes
