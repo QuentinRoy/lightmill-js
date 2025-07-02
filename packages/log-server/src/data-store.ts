@@ -154,7 +154,7 @@ export interface DataStore {
   addLogs(
     runId: RunId,
     logs: Array<{ type: string; number: number; values: JsonObject }>,
-  ): Promise<{ logId: LogId }[]>;
+  ): Promise<Array<{ logId: LogId }>>;
 
   /**
    * Gets all unique log value property names that match the filter

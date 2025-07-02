@@ -1277,6 +1277,35 @@ describe('SQLiteStore#getLastLogs', () => {
     ]);
   });
 
+  it('ignores overwritten logs', async ({
+    expect,
+    context: { store, logBases, exp2run1, exp1run2 },
+  }) => {
+    // No logs from this run are actually confirmed since
+    // log number 1 and 2 are missing.
+    await store.addLogs(exp2run1, [
+      { number: 3, type: 'log3', values: { x: 51 } },
+      { number: 4, type: 'log2', values: { x: 50 } },
+      { number: 6, type: 'log3', values: { x: 52 } },
+    ]);
+
+    await store.addLogs(exp1run2, [
+      { number: 4, type: 'log2', values: { x: 54 } },
+      { number: 5, type: 'log2', values: { x: 55 } },
+      { number: 7, type: 'log3', values: { x: 57 } },
+      { number: 8, type: 'log1', values: { x: 58 } },
+    ]);
+
+    await store.resumeRun(exp1run2, { after: 3 });
+
+    await expect(store.getLastLogs()).resolves.toEqual([
+      { ...logBases.e1r1, type: 'log1', number: 3, values: { x: 11 } },
+      { ...logBases.e1r1, type: 'log2', number: 1, values: { x: 30 } },
+      { ...logBases.e1r2, type: 'log1', number: 3, values: { x: 42 } },
+      { ...logBases.e1r2, type: 'log2', number: 1, values: { x: 40 } },
+    ]);
+  });
+
   it('returns an empty array if there are no matching logs', async ({
     expect,
     context: { store },
@@ -1441,6 +1470,81 @@ describe('SQLiteStore#getLastLogs', () => {
     await expect(
       store.getLastLogs({ experimentName: 'unknown' }),
     ).resolves.toEqual([]);
+  });
+});
+
+describe('SQLiteStore#getMissingLogs', () => {
+  // I am intentionally hiding from the fixture every props from
+  // baseIt's fixture.
+  const it = baseIt;
+
+  it('returns the missing logs', async ({ expect, e1run1, store }) => {
+    const logBase = { runId: e1run1 };
+    await store.addLogs(e1run1, [
+      { number: 2, type: 'log1', values: { x: 'a' } },
+      { number: 3, type: 'log1', values: { x: 'b' } },
+      { number: 1, type: 'log2', values: { x: 'c' } },
+      { number: 8, type: 'log1', values: { x: 'd' } },
+      { number: 5, type: 'log1', values: { x: 'e' } },
+    ]);
+    await expect(store.getMissingLogs()).resolves.toEqual([
+      { ...logBase, logNumber: 4 },
+      { ...logBase, logNumber: 6 },
+      { ...logBase, logNumber: 7 },
+    ]);
+  });
+
+  it('ignores canceled logs with missing logs just after resume log numbers', async ({
+    expect,
+    e1run1,
+    store,
+  }) => {
+    const logBase = { runId: e1run1 };
+    await store.addLogs(e1run1, [
+      { number: 2, type: 'log1', values: { x: 'a' } },
+      { number: 3, type: 'log1', values: { x: 'b' } },
+      { number: 1, type: 'log2', values: { x: 'c' } },
+      { number: 8, type: 'log1', values: { x: 'd' } },
+    ]);
+    await store.addLogs(e1run1, [
+      { number: 5, type: 'log1', values: { x: 'e' } },
+    ]);
+    await store.resumeRun(e1run1, { after: 3 });
+    await store.addLogs(e1run1, [
+      { number: 6, type: 'log1', values: { x: 'e' } },
+    ]);
+    console.log(await fromAsync(store.getLogs()));
+    await expect(store.getMissingLogs()).resolves.toEqual([
+      { ...logBase, logNumber: 4 },
+      { ...logBase, logNumber: 5 },
+    ]);
+  });
+
+  it('ignores canceled logs with missing logs in the middle of the new sequence', async ({
+    expect,
+    e1run1,
+    store,
+  }) => {
+    const logBase = { runId: e1run1 };
+    await store.addLogs(e1run1, [
+      { number: 2, type: 'log1', values: { x: 'a' } },
+      { number: 3, type: 'log1', values: { x: 'b' } },
+      { number: 1, type: 'log2', values: { x: 'c' } },
+      { number: 8, type: 'log1', values: { x: 'd' } },
+    ]);
+    await store.addLogs(e1run1, [
+      { number: 5, type: 'log1', values: { x: 'e' } },
+    ]);
+    await store.resumeRun(e1run1, { after: 3 });
+    await store.addLogs(e1run1, [
+      { number: 4, type: 'log1', values: { x: 'e' } },
+      { number: 7, type: 'log1', values: { x: 'e' } },
+    ]);
+    console.log(await fromAsync(store.getLogs()));
+    await expect(store.getMissingLogs()).resolves.toEqual([
+      { ...logBase, logNumber: 5 },
+      { ...logBase, logNumber: 6 },
+    ]);
   });
 });
 

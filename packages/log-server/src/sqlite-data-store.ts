@@ -324,19 +324,29 @@ export class SQLiteDataStore implements DataStore {
   async addLogs(
     runId: RunId,
     logs: Array<{ type: string; number: number; values: JsonObject }>,
-  ): Promise<{ logId: LogId }[]> {
+  ): Promise<Array<{ logId: LogId }>> {
     const dbRunId = toDbId(runId);
     if (logs.length === 0) return [];
     return this.#db.transaction().execute(async (trx) => {
       let { start, sequenceId, lastLogNumber } = await trx
-        .selectFrom('logSequence as seq')
-        .having((eb) =>
+        .with('runSequence', (db) =>
+          db
+            .selectFrom('logSequence as seq')
+            .where('seq.runId', '=', dbRunId)
+            .select(['sequenceId', 'start', 'sequenceNumber']),
+        )
+        .selectFrom('runSequence as seq')
+        .where((eb) =>
           eb.and([
-            eb('seq.runId', '=', dbRunId),
-            eb('seq.sequenceNumber', '=', eb.fn.max('seq.sequenceNumber')),
+            eb(
+              'seq.sequenceNumber',
+              '=',
+              eb
+                .selectFrom('runSequence')
+                .select((eb) => eb.fn.max('sequenceNumber').as('maxSeqNumber')),
+            ),
           ]),
         )
-        .groupBy(['seq.runId'])
         .leftJoin('log', 'log.sequenceId', 'seq.sequenceId')
         .select((eb) => [
           'seq.sequenceId',
@@ -453,14 +463,11 @@ export class SQLiteDataStore implements DataStore {
     filter: RunFilter & ExperimentFilter = {},
   ): Promise<{ runId: RunId; logNumber: number }[]> {
     const result = await this.#db
-      .selectFrom('log')
-      .innerJoin('logSequence', 'log.sequenceId', 'logSequence.sequenceId')
-      .innerJoin('run', 'run.runId', 'logSequence.runId')
-      .innerJoin('experiment', 'experiment.experimentId', 'run.experimentId')
+      .selectFrom('runLogView as log')
+      .$call(createQueryFilterRun(filter, 'log'))
+      .$call(createQueryFilterExperiment(filter, 'log'))
       .where('log.logType', 'is', null)
-      .$call(createQueryFilterRun(filter, 'run'))
-      .$call(createQueryFilterExperiment(filter, 'experiment'))
-      .select(['run.runId as runId', 'log.logNumber as logNumber'])
+      .select(['log.runId as runId', 'log.logNumber as logNumber'])
       .execute();
     return result.map((row) => ({
       runId: fromDbId(row.runId),
