@@ -1179,7 +1179,7 @@ describe('SQLiteStore#getLastLogs', () => {
       logBases: { any: object; e1r1: object; e1r2: object; e2r1: object };
     };
   };
-  // I am intentionnally hiding from the fixture every props from
+  // I am intentionally hiding from the fixture every props from
   // baseIt's fixture.
   const it: TestAPI<Fixture> = baseIt.extend<Fixture>({
     context: async ({ store, experiment1, experiment2, expect }, use) => {
@@ -1219,13 +1219,6 @@ describe('SQLiteStore#getLastLogs', () => {
         { number: 2, type: 'log1', values: { x: 41 } },
         { number: 3, type: 'log1', values: { x: 42 } },
       ]);
-      // Not logs from this run are actually confirmed since
-      // log number 1 and 2 are missing.
-      await store.addLogs(exp2run1, [
-        { number: 3, type: 'log3', values: { x: 51 } },
-        { number: 4, type: 'log2', values: { x: 50 } },
-        { number: 6, type: 'log3', values: { x: 52 } },
-      ]);
       let anyLogBase = { logId: expect.any(String), runId: expect.any(String) };
       await use({
         exp1run1,
@@ -1254,6 +1247,33 @@ describe('SQLiteStore#getLastLogs', () => {
       { ...logBases.e1r1, type: 'log2', number: 1, values: { x: 30 } },
       { ...logBases.e1r2, type: 'log1', number: 3, values: { x: 42 } },
       { ...logBases.e1r2, type: 'log2', number: 1, values: { x: 40 } },
+    ]);
+  });
+
+  it('ignores any log following a missing log', async ({
+    expect,
+    context: { store, logBases, exp2run1, exp1run2 },
+  }) => {
+    // No logs from this run are actually confirmed since
+    // log number 1 and 2 are missing.
+    await store.addLogs(exp2run1, [
+      { number: 3, type: 'log3', values: { x: 51 } },
+      { number: 4, type: 'log2', values: { x: 50 } },
+      { number: 6, type: 'log3', values: { x: 52 } },
+    ]);
+
+    await store.addLogs(exp1run2, [
+      { number: 4, type: 'log2', values: { x: 54 } },
+      { number: 6, type: 'log2', values: { x: 56 } },
+      { number: 7, type: 'log3', values: { x: 57 } },
+      { number: 8, type: 'log1', values: { x: 58 } },
+    ]);
+
+    await expect(store.getLastLogs()).resolves.toEqual([
+      { ...logBases.e1r1, type: 'log1', number: 3, values: { x: 11 } },
+      { ...logBases.e1r1, type: 'log2', number: 1, values: { x: 30 } },
+      { ...logBases.e1r2, type: 'log1', number: 3, values: { x: 42 } },
+      { ...logBases.e1r2, type: 'log2', number: 4, values: { x: 54 } },
     ]);
   });
 
