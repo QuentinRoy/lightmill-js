@@ -450,7 +450,7 @@ export class SQLiteDataStore implements DataStore {
   }
 
   async getMissingLogs(
-    filter: RunFilter & ExperimentFilter,
+    filter: RunFilter & ExperimentFilter = {},
   ): Promise<{ runId: RunId; logNumber: number }[]> {
     const result = await this.#db
       .selectFrom('log')

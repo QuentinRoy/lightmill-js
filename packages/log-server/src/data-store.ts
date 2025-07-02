@@ -169,7 +169,7 @@ export interface DataStore {
    * @returns Array of run IDs with their pending log counts
    */
   getMissingLogs(
-    filter: Merge<RunFilter, Pick<ExperimentFilter, 'experimentName'>>,
+    filter?: Merge<RunFilter, Pick<ExperimentFilter, 'experimentName'>>,
   ): Promise<{ runId: RunId; logNumber: number }[]>;
 
   /**
