@@ -1,0 +1,250 @@
+import {
+  ExperimentResource,
+  ExperimentResourceIdentifier,
+} from './experiment-schemas.ts';
+import {
+  getDataDocumentSchema,
+  getErrorDocumentSchema,
+  getErrorSchema,
+  getResourceIdentifierSchema,
+  mediaType,
+} from './jsonapi.ts';
+import * as Log from './log-schemas.ts';
+import { StringOrArrayOfStrings } from './utils.ts';
+import { z, type RouteConfig } from './zod-openapi.ts';
+
+// Fix circular dependencies by using lazy evaluation, but since we are using
+// zod-to-openapi, we need to use the `openapi` method to ensure
+// the schemas are correctly referenced in the OpenAPI document.
+// C.f. https://github.com/asteasolutions/zod-to-openapi/issues/247
+const LogResourceIdentifier = z
+  .lazy(() => Log.LogResourceIdentifier)
+  .openapi({
+    type: 'object',
+    allOf: [{ $ref: '#/components/schemas/LogResourceIdentifier' }],
+  });
+
+const LogResource = z
+  .lazy(() => Log.LogResource)
+  .openapi({
+    type: 'object',
+    allOf: [{ $ref: '#/components/schemas/LogResource' }],
+  });
+
+// Resource schema
+// -----------------------------------------------------------------------------
+export const RunResourceIdentifier = getResourceIdentifierSchema(
+  'runs',
+).openapi('RunResourceIdentifier');
+const RunResourceIdentifierCreate = RunResourceIdentifier.omit({ id: true });
+const RunStatus = z
+  .enum(['idle', 'running', 'completed', 'interrupted', 'canceled'])
+  .openapi('RunStatus');
+const RunAttributes = z
+  .strictObject({
+    status: RunStatus.describe('Status of the run'),
+    name: z.union([z.string().min(1), z.null()]).describe('Name of the run'),
+    lastLogNumber: z.number().int().nonnegative(),
+    missingLogNumbers: z.array(z.number().int().nonnegative()),
+  })
+  .openapi('RunAttributes');
+const RunAttributesUpdate = RunAttributes.omit({
+  missingLogNumbers: true,
+}).partial();
+const RunAttributesCreate = RunAttributes.omit({
+  lastLogNumber: true,
+  missingLogNumbers: true,
+});
+const RunRelationships = z.strictObject({
+  experiment: z.strictObject({ data: ExperimentResourceIdentifier }),
+  lastLogs: z.strictObject({ data: z.array(LogResourceIdentifier) }),
+});
+const RunResourceCreate = z.strictObject({
+  ...RunResourceIdentifierCreate.shape,
+  attributes: RunAttributesCreate,
+  relationships: RunRelationships.pick({ experiment: true }),
+});
+const RunResourceUpdate = z.strictObject({
+  ...RunResourceIdentifier.shape,
+  attributes: RunAttributesUpdate.optional(),
+  relationships: RunRelationships.pick({ experiment: true })
+    .partial()
+    .optional(),
+});
+export const RunResource = z
+  .strictObject({
+    ...RunResourceIdentifier.shape,
+    attributes: RunAttributes,
+    relationships: RunRelationships,
+  })
+  .openapi('RunResource');
+
+// Request schemas
+// -----------------------------------------------------------------------------
+const RunPostRequest = getDataDocumentSchema({
+  data: RunResourceCreate,
+}).openapi('RunPostRequest');
+const RunPatchRequest = getDataDocumentSchema({
+  data: RunResourceUpdate,
+}).openapi('RunPatchRequest');
+
+// Query parameters schemas
+// -----------------------------------------------------------------------------
+const RunIncludeName = z.enum(['experiment', 'lastLogs']);
+const RunIncludeQuery = z.strictObject({
+  include: z.union([RunIncludeName, z.array(RunIncludeName)]).optional(),
+});
+const RunFilterQuery = z.strictObject({
+  'filter[experiment.id]': StringOrArrayOfStrings.optional(),
+  'filter[experiment.name]': StringOrArrayOfStrings.optional(),
+  'filter[id]': StringOrArrayOfStrings.optional(),
+  'filter[name]': StringOrArrayOfStrings.optional(),
+  'filter[status]': z.union([RunStatus, z.array(RunStatus)]).optional(),
+});
+
+// OK Response schemas
+// -----------------------------------------------------------------------------
+const RunPostResponse = getDataDocumentSchema({
+  data: RunResourceIdentifier,
+}).openapi('RunPostResponse');
+const RunInclude = z
+  .union([ExperimentResource, LogResource])
+  .openapi('RunInclude');
+const RunGetResponse = getDataDocumentSchema({
+  data: RunResource,
+  includes: RunInclude,
+}).openapi('RunGetResponse');
+const RunGetCollectionResponse = getDataDocumentSchema({
+  data: z.array(RunResource),
+  includes: RunInclude,
+}).openapi('RunGetCollectionResponse');
+
+// Error Response schemas
+// -----------------------------------------------------------------------------
+const runOnGoingErrorHttpCode = 403 as const;
+const CannotCreateRunErrorResponse = getErrorDocumentSchema(
+  getErrorSchema({
+    code: ['ONGOING_RUNS', 'EXPERIMENT_NOT_FOUND'],
+    statusCode: runOnGoingErrorHttpCode,
+  }),
+).openapi('CannotCreateRunErrorResponse');
+const runExistsErrorHttpCode = 409 as const;
+const RunExistsErrorResponse = getErrorDocumentSchema(
+  getErrorSchema({ code: 'RUN_EXISTS', statusCode: runExistsErrorHttpCode }),
+).openapi('RunExistsErrorReponse');
+const runNotFoundErrorHttpCode = 404 as const;
+const RunNotFoundErrorResponse = getErrorDocumentSchema(
+  getErrorSchema({
+    code: 'RUN_NOT_FOUND',
+    statusCode: runNotFoundErrorHttpCode,
+  }),
+).openapi('RunNotFoundErrorResponse');
+const RunInvalidUpdateErrorResponse = getErrorDocumentSchema(
+  getErrorSchema({
+    code: [
+      'INVALID_STATUS_TRANSITION',
+      'INVALID_LAST_LOG_NUMBER',
+      'PENDING_LOGS',
+      'INVALID_ROLE',
+      'INVALID_RUN_ID',
+    ],
+    statusCode: 403,
+  }),
+).openapi('RunInvalidUpdateErrorResponse');
+
+// Route configuration
+// -----------------------------------------------------------------------------
+export const runRoutes = {
+  '/': {
+    post: {
+      description: 'Create a new run',
+      request: {
+        body: {
+          required: true,
+          content: { [mediaType]: { schema: RunPostRequest } },
+        },
+      },
+      responses: {
+        201: {
+          description: 'Run created successfully',
+          headers: z.strictObject({ location: z.string() }),
+          content: { [mediaType]: { schema: RunPostResponse } },
+        },
+        403: {
+          description:
+            'Forbidden: run creation is invalid or user is not logged in',
+          content: { [mediaType]: { schema: CannotCreateRunErrorResponse } },
+        },
+        409: {
+          description: 'Run already exists',
+          content: { [mediaType]: { schema: RunExistsErrorResponse } },
+        },
+      },
+    },
+    get: {
+      description: 'List all runs',
+      request: {
+        query: z.strictObject({
+          ...RunFilterQuery.shape,
+          ...RunIncludeQuery.shape,
+        }),
+      },
+      responses: {
+        200: {
+          description: 'List of runs',
+          content: { [mediaType]: { schema: RunGetCollectionResponse } },
+        },
+      },
+    },
+  },
+  '/{id}': {
+    get: {
+      description: 'Get a run by its ID',
+      request: {
+        params: z.object({ id: z.string().describe('ID of the run') }),
+        query: RunIncludeQuery,
+      },
+      responses: {
+        200: {
+          description: 'Run retrieved successfully',
+          content: { [mediaType]: { schema: RunGetResponse } },
+        },
+        404: {
+          description: 'Run not found',
+          content: { [mediaType]: { schema: RunNotFoundErrorResponse } },
+        },
+      },
+    },
+    patch: {
+      description: 'Update a run by its ID',
+      request: {
+        params: z.object({ id: z.string().describe('ID of the run') }),
+        body: {
+          required: true,
+          content: { [mediaType]: { schema: RunPatchRequest } },
+        },
+      },
+      responses: {
+        200: {
+          description: 'Run updated successfully',
+          content: { [mediaType]: { schema: RunGetResponse } },
+        },
+        404: {
+          description: 'Run not found',
+          content: { [mediaType]: { schema: RunNotFoundErrorResponse } },
+        },
+        403: {
+          description: 'Run update is invalid or user is not logged in',
+          content: {
+            [mediaType]: {
+              schema: z.union([
+                CannotCreateRunErrorResponse,
+                RunInvalidUpdateErrorResponse,
+              ]),
+            },
+          },
+        },
+      },
+    },
+  },
+} satisfies RouteConfig;
