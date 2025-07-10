@@ -241,10 +241,10 @@ namespace Run {
         @body doc: JsonApi.DataDocument<ResourceIdentifier>;
         @header("Location") location: string;
         @header contentType: JsonApi.APIContentType;
-      }
-    | SessionRequiredErrorResponse
-    | ForbiddenErrorResponse
-    | OngoingRunsErrorResponse
+      } // OK
+    | SessionRequiredErrorResponse // OK
+    | ForbiddenErrorResponse //OK
+    | OngoingRunsErrorResponse //OK
     | {
         @statusCode statusCode: 409;
         @body doc: JsonApi.ErrorDocument<JsonApi.Error<
@@ -334,11 +334,7 @@ namespace Log {
     logType: string;
 
     /**
-     * The number of the log. This is a number that is unique for the run
-     * the log belongs to. Log numbers must be sequential and start at 1.
-     * Logs must not necessarily be created in order, but any missing log
-     * must be created before the run is completed, and any log
-     * following a missing log is considered pending.
+     * The number of the log. This is a number that is unique for the run the log belongs to. Log numbers must be sequential and start at 1. Logs must not necessarily be created in order, but any missing log must be created before the run is completed, and any log following a missing log is considered pending.
      */
     @minValue(1)
     number: int32;
@@ -389,7 +385,7 @@ namespace Log {
         @statusCode statusCode: 200;
         @body doc: JsonApi.DataDocument<Resource[]> & Includes;
         @header contentType: JsonApi.APIContentType;
-      }
+      } // OK
     | {
         @statusCode statusCode: 200;
         @header contentType: "text/csv";

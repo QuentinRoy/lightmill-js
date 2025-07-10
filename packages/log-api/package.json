@@ -19,11 +19,11 @@
   ],
   "scripts": {
     "generate-api-types": "openapi-typescript temp/openapi.json --empty-objects-unknown --output temp/openapi.ts",
-    "build-api": "tsp compile ./type-spec",
     "build-js": "cp -rf src/** temp/ && tsc -b tsconfig.build.json",
     "build": "rm -rf temp && pnpm run build-api && pnpm run generate-api-types && pnpm run build-js && rm -rf temp",
     "watch:build": "onchange -i 'src/index.ts' 'type-spec/**/*' -- pnpm build",
-    "prepublish": "pnpm run build"
+    "prepublish": "pnpm run build",
+    "generate-api": "node --experimental-strip-types scripts/build-api.ts > temp/openapi.json"
   },
   "devDependencies": {
     "@typespec/compiler": "1.0.0",
@@ -32,6 +32,11 @@
     "@typespec/openapi3": "1.0.0",
     "@typespec/rest": "^0.70.0",
     "onchange": "^7.1.0",
-    "openapi-typescript": "^7.6.1"
+    "openapi-typescript": "^7.8.0"
+  },
+  "dependencies": {
+    "@asteasolutions/zod-to-openapi": "8.0.0-beta.4",
+    "type-fest": "^4.41.0",
+    "zod": "^3.25.73"
   }
 }
