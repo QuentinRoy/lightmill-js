@@ -157,9 +157,7 @@ export class LightmillLogger<
 
   async #fetchMissingLogs() {
     const response = await this.#fetchClient.GET('/runs/{id}', {
-      credentials: 'include',
       params: { path: { id: this.#runId } },
-      headers: { 'content-type': apiMediaType },
     });
     if (response.error != null) {
       throw new RequestError(response);
@@ -187,9 +185,8 @@ export class LightmillLogger<
     }
     await this.flush();
     let response = await this.#fetchClient.PATCH('/runs/{id}', {
-      credentials: 'include',
       params: { path: { id: this.#runId } },
-      headers: { 'content-type': apiMediaType },
+      headers: { 'Content-Type': apiMediaType },
       body: {
         data: {
           type: 'runs',

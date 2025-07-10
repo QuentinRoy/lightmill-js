@@ -35,13 +35,16 @@ export class LightmillClient<ClientLog extends LogBase = AnyLog> {
     // If serializeLog is not provided, we know that InputLog is a subset of
     // AnyLog, so we can use the default serializer.
     this.#serializeLog = serializeLog ?? anyLogSerializer;
-    this.#fetchClient = createClient<paths>({ baseUrl: apiRoot });
+    this.#fetchClient = createClient<paths>({
+      baseUrl: apiRoot,
+      headers: { Accept: apiMediaType },
+      credentials: 'include',
+    });
   }
 
   async #getSession() {
     let response = await this.#fetchClient.GET('/sessions/{id}', {
       params: { path: { id: 'current' } },
-      credentials: 'include',
     });
     if (response.response.status === 404) {
       return null;
@@ -66,7 +69,6 @@ export class LightmillClient<ClientLog extends LogBase = AnyLog> {
       return [];
     }
     let response = await this.#fetchClient.GET('/runs', {
-      credentials: 'include',
       params: {
         query: {
           'filter[status]': ['running', 'interrupted'],
@@ -298,8 +300,7 @@ export class LightmillClient<ClientLog extends LogBase = AnyLog> {
       throw new Error(`Couldn't find experiment ${experimentName}`);
     }
     let response = await this.#fetchClient.POST('/runs', {
-      credentials: 'include',
-      headers: { 'content-type': apiMediaType },
+      headers: { 'Content-Type': apiMediaType },
       body: {
         data: {
           type: 'runs',
@@ -336,7 +337,7 @@ export class LightmillClient<ClientLog extends LogBase = AnyLog> {
     let session = await this.#getSession();
     if (session == null) {
       await this.#fetchClient.POST('/sessions', {
-        headers: { 'content-type': apiMediaType },
+        headers: { 'Content-Type': apiMediaType },
         body: {
           data: { type: 'sessions', attributes: { role: 'participant' } },
         },
