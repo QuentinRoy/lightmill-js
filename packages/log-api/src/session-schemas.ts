@@ -1,7 +1,6 @@
 import { ExperimentResource } from './experiment-schemas.ts';
 import {
   addIncludedToDataDocument,
-  baseRequestHeaders,
   EmptyDataDocument,
   getDataDocumentSchema,
   getErrorSchema,
@@ -11,7 +10,7 @@ import {
 } from './jsonapi.ts';
 import { LogResource } from './log-schemas.ts';
 import { RunResource, RunResourceIdentifier } from './run-schemas.ts';
-import { type RouteConfig, z } from './zod-openapi.ts';
+import { registry, type RouteConfig, z } from './zod-openapi.ts';
 
 export const UserRole = z.enum(['host', 'participant']);
 
@@ -64,7 +63,10 @@ const SessionExistsErrorResponse = getOneErrorDocumentSchema(
   getErrorSchema({ code: 'SESSION_EXISTS', statusCode: 409 }),
 ).openapi('SessionExistsErrorResponse');
 const InvalidCredentialErrorResponse = getOneErrorDocumentSchema(
-  getErrorSchema({ code: 'INVALID_CREDENTIALS', statusCode: 403 }),
+  getErrorSchema({
+    code: ['INVALID_CREDENTIALS', 'MISSING_CREDENTIALS'],
+    statusCode: 401,
+  }),
 ).openapi('InvalidCredentialErrorResponse');
 
 // Common answers
@@ -76,24 +78,27 @@ const sessionNotFoundResponse = {
   },
 };
 
+// Authentication
+// -----------------------------------------------------------------------------
+const basicAuth = registry.registerComponent('securitySchemes', 'basicAuth', {
+  type: 'http',
+  scheme: 'Basic',
+});
+
 // Route configuration
 // -----------------------------------------------------------------------------
 export const sessionRoutes = {
   '/': {
     post: {
       description: 'Create a new session',
+      security: [{ [basicAuth.name]: [] }],
       request: {
-        headers: baseRequestHeaders.extend({
-          Authorization: z
-            .string()
-            .optional()
-            .describe('Optional authorization token for the request'),
-        }),
         body: { content: { [mediaType]: { schema: SessionPostRequest } } },
       },
       responses: {
         201: {
-          description: 'Session created successfully',
+          description:
+            'Session created successfully.  If necessary, login and password are provided using the basic authentication scheme. The session ID is returned in a cookie to be used with cookie authentication.',
           content: { [mediaType]: { schema: SessionPostResponse } },
           headers: z.looseObject({
             Location: z
@@ -104,8 +109,13 @@ export const sessionRoutes = {
               .describe('Session cookie for the created session'),
           }),
         },
-        403: {
+        401: {
           description: 'Invalid credentials provided',
+          headers: z.looseObject({
+            'WWW-Authenticate': z
+              .string()
+              .describe('Authentication challenge for Basic Auth'),
+          }),
           content: { [mediaType]: { schema: InvalidCredentialErrorResponse } },
         },
         409: {
@@ -123,7 +133,6 @@ export const sessionRoutes = {
           id: z.string().describe('ID of the session to retrieve'),
         }),
         query: z.strictObject({ include: IncludesQuery }),
-        headers: baseRequestHeaders,
       },
       responses: {
         200: {
@@ -139,7 +148,6 @@ export const sessionRoutes = {
         params: z.strictObject({
           id: z.string().describe('ID of the session to remove'),
         }),
-        headers: baseRequestHeaders,
       },
       responses: {
         200: {

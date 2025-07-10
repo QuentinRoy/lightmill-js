@@ -1,9 +1,4 @@
-import {} from 'zod/v4';
-import {
-  loginRequiredResponse,
-  SessionRequiredErrorResponse,
-  StringOrArrayOfStrings,
-} from './common.ts';
+import { StringOrArrayOfStrings } from './common.ts';
 import { ExperimentResource } from './experiment-schemas.ts';
 import {
   getDataDocumentSchema,
@@ -12,24 +7,21 @@ import {
   getResourceIdentifierSchema,
   mediaType,
 } from './jsonapi.ts';
-import {
-  RunResourceIdentifier as RunResourceIdentifierImport,
-  RunResource as RunResourceImport,
-} from './run-schemas.ts';
+import * as Run from './run-schemas.ts';
 import { z, type RouteConfig } from './zod-openapi.ts';
 
 // Fix circular dependencies by using lazy evaluation, but since we are using
 // zod-to-openapi, we need to use the `openapi` method to ensure
 // the schemas are correctly referenced in the OpenAPI document.
 const RunResourceIdentifier = z
-  .lazy(() => RunResourceIdentifierImport)
+  .lazy(() => Run.RunResourceIdentifier)
   .openapi({
     type: 'object',
     allOf: [{ $ref: '#/components/schemas/RunResourceIdentifier' }],
     additionalProperties: false,
   });
 const RunResource = z
-  .lazy(() => RunResourceImport)
+  .lazy(() => Run.RunResource)
   .openapi({
     type: 'object',
     allOf: [{ $ref: '#/components/schemas/RunResource' }],
@@ -72,20 +64,15 @@ export const LogResource = LogResourceIdentifier.extend({
 // -----------------------------------------------------------------------------
 const LogIncludeName = z.enum(['run', 'run.experiment', 'run.lastLogs']);
 const LogQueryInclude = z.strictObject({
-  include: z
-    .union([LogIncludeName, z.array(LogIncludeName)])
-    .optional()
-    .openapi('LogIncludes'),
+  include: z.union([LogIncludeName, z.array(LogIncludeName)]).optional(),
 });
-const LogQueryFilter = z
-  .strictObject({
-    'filter[logType]': StringOrArrayOfStrings.optional(),
-    'filter[experiment.id]': StringOrArrayOfStrings.optional(),
-    'filter[experiment.name]': StringOrArrayOfStrings.optional(),
-    'filter[run.name]': StringOrArrayOfStrings.optional(),
-    'filter[run.id]': StringOrArrayOfStrings.optional(),
-  })
-  .openapi('LogQueryFilter');
+const LogQueryFilter = z.strictObject({
+  'filter[logType]': StringOrArrayOfStrings.optional(),
+  'filter[experiment.id]': StringOrArrayOfStrings.optional(),
+  'filter[experiment.name]': StringOrArrayOfStrings.optional(),
+  'filter[run.name]': StringOrArrayOfStrings.optional(),
+  'filter[run.id]': StringOrArrayOfStrings.optional(),
+});
 
 // Request schemas
 // -----------------------------------------------------------------------------
@@ -109,13 +96,13 @@ const LogGetCollectionResponse = getDataDocumentSchema({
 // Error Response schemas
 const LogNotFoundErrorResponse = getOneErrorDocumentSchema(
   getErrorSchema({ code: 'LOG_NOT_FOUND', statusCode: 404 }),
-);
+).openapi('LogNotFoundErrorResponse');
 
 export const logRoutes = {
   '/': {
     get: {
       request: {
-        // query: LogQueryFilter.extend(LogQueryIncludes),
+        query: LogQueryFilter.extend(LogQueryInclude.shape),
         headers: z.strictObject({
           Accept: z
             .string()
@@ -134,7 +121,6 @@ export const logRoutes = {
             },
           },
         },
-        ...loginRequiredResponse,
       },
     },
     post: {
@@ -145,21 +131,19 @@ export const logRoutes = {
       responses: {
         201: {
           description: 'Log created successfully',
+          headers: z.looseObject({ Location: z.string() }),
           content: { [mediaType]: { schema: LogGetResponse } },
         },
         403: {
           description: 'Forbidden',
           content: {
             [mediaType]: {
-              schema: z.union([
-                SessionRequiredErrorResponse,
-                getOneErrorDocumentSchema(
-                  getErrorSchema({
-                    code: ['RUN_NOT_FOUND', 'INVALID_RUN_STATUS'],
-                    statusCode: 403,
-                  }),
-                ),
-              ]),
+              schema: getOneErrorDocumentSchema(
+                getErrorSchema({
+                  code: ['RUN_NOT_FOUND', 'INVALID_RUN_STATUS'],
+                  statusCode: 403,
+                }),
+              ),
             },
           },
         },
@@ -172,6 +156,25 @@ export const logRoutes = {
               ),
             },
           },
+        },
+      },
+    },
+  },
+  '/{id}': {
+    get: {
+      description: 'Get a specific log by ID',
+      request: {
+        params: z.object({ id: z.string().describe('ID of the log') }),
+        query: LogQueryInclude,
+      },
+      responses: {
+        200: {
+          description: 'Log retrieved successfully',
+          content: { [mediaType]: { schema: LogGetResponse } },
+        },
+        404: {
+          description: 'Log not found',
+          content: { [mediaType]: { schema: LogNotFoundErrorResponse } },
         },
       },
     },

@@ -116,9 +116,6 @@ export function getOneErrorDocumentSchema<
 
 export const mediaType = 'application/vnd.api+json' as const;
 
-export const baseRequestHeaders = z
-  .looseObject({ 'Content-Type': z.literal(mediaType) })
-  .openapi('BaseRequestHeaders');
 export const EmptyDataDocument = getDataDocumentSchema({
   data: z.null(),
 }).openapi('EmptyDataDocument');

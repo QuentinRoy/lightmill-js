@@ -18,12 +18,12 @@
     "dist"
   ],
   "scripts": {
+    "build-api": "node --experimental-strip-types scripts/build-api.ts > temp/openapi.json",
     "generate-api-types": "openapi-typescript temp/openapi.json --empty-objects-unknown --output temp/openapi.ts",
     "build-js": "cp -rf src/** temp/ && tsc -b tsconfig.build.json",
-    "build": "rm -rf temp && pnpm run build-api && pnpm run generate-api-types && pnpm run build-js && rm -rf temp",
+    "build": "rm -rf temp && mkdir temp && pnpm run build-api && pnpm run generate-api-types && pnpm run build-js && rm -rf temp",
     "watch:build": "onchange -i 'src/index.ts' 'type-spec/**/*' -- pnpm build",
-    "prepublish": "pnpm run build",
-    "generate-api": "node --experimental-strip-types scripts/build-api.ts > temp/openapi.json"
+    "prepublish": "pnpm run build"
   },
   "devDependencies": {
     "@typespec/compiler": "1.0.0",

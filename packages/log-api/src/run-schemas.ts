@@ -1,8 +1,4 @@
-import {
-  loginRequiredResponse,
-  SessionRequiredErrorResponse,
-  StringOrArrayOfStrings,
-} from './common.ts';
+import { StringOrArrayOfStrings } from './common.ts';
 import {
   ExperimentResource,
   ExperimentResourceIdentifier,
@@ -14,10 +10,7 @@ import {
   getResourceIdentifierSchema,
   mediaType,
 } from './jsonapi.ts';
-import {
-  LogResourceIdentifier as LogResourceIdentifierImport,
-  LogResource as LogResourceImport,
-} from './log-schemas.ts';
+import * as Log from './log-schemas.ts';
 import { z, type RouteConfig } from './zod-openapi.ts';
 
 // Fix circular dependencies by using lazy evaluation, but since we are using
@@ -25,7 +18,7 @@ import { z, type RouteConfig } from './zod-openapi.ts';
 // the schemas are correctly referenced in the OpenAPI document.
 // C.f. https://github.com/asteasolutions/zod-to-openapi/issues/247
 const LogResourceIdentifier = z
-  .lazy(() => LogResourceIdentifierImport)
+  .lazy(() => Log.LogResourceIdentifier)
   .openapi({
     type: 'object',
     allOf: [{ $ref: '#/components/schemas/LogResourceIdentifier' }],
@@ -33,7 +26,7 @@ const LogResourceIdentifier = z
   });
 
 const LogResource = z
-  .lazy(() => LogResourceImport)
+  .lazy(() => Log.LogResource)
   .openapi({
     type: 'object',
     allOf: [{ $ref: '#/components/schemas/LogResource' }],
@@ -176,14 +169,7 @@ export const runRoutes = {
         403: {
           description:
             'Forbidden: run creation is invalid or user is not logged in',
-          content: {
-            [mediaType]: {
-              schema: z.union([
-                SessionRequiredErrorResponse,
-                CannotCreateRunErrorResponse,
-              ]),
-            },
-          },
+          content: { [mediaType]: { schema: CannotCreateRunErrorResponse } },
         },
         409: {
           description: 'Run already exists',
@@ -223,7 +209,6 @@ export const runRoutes = {
           description: 'Run not found',
           content: { [mediaType]: { schema: RunNotFoundErrorResponse } },
         },
-        ...loginRequiredResponse,
       },
     },
     patch: {
@@ -248,7 +233,6 @@ export const runRoutes = {
               schema: z.union([
                 CannotCreateRunErrorResponse,
                 RunInvalidUpdateErrorResponse,
-                SessionRequiredErrorResponse,
               ]),
             },
           },

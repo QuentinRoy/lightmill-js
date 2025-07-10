@@ -1,4 +1,4 @@
-import { loginRequiredResponse, StringOrArrayOfStrings } from './common.ts';
+import { StringOrArrayOfStrings } from './common.ts';
 import {
   getDataDocumentSchema,
   getErrorSchema,
@@ -68,11 +68,10 @@ export const experimentRoutes = {
           description: 'List of experiments',
           content: { [mediaType]: { schema: ExperimentGetCollectionResponse } },
         },
-        ...loginRequiredResponse,
       },
     },
     post: {
-      description: 'Create a new experiment',
+      description: 'Create a new experiment.',
       request: {
         body: { content: { [mediaType]: { schema: ExperimentPostRequest } } },
       },
@@ -80,12 +79,12 @@ export const experimentRoutes = {
         201: {
           description: 'Experiment created successfully',
           content: { [mediaType]: { schema: ExperimentGetResponse } },
+          headers: z.looseObject({ Location: z.string() }),
         },
         409: {
           description: 'Experiment already exists',
           content: { [mediaType]: { schema: ExperimentExistsErrorResponse } },
         },
-        ...loginRequiredResponse,
       },
     },
   },
@@ -104,7 +103,6 @@ export const experimentRoutes = {
           description: 'Experiment not found',
           content: { [mediaType]: { schema: ExperimentNotFoundErrorResponse } },
         },
-        ...loginRequiredResponse,
       },
     },
   },
