@@ -1,10 +1,10 @@
 import { OpenApiGeneratorV31 } from '@asteasolutions/zod-to-openapi';
 import type { Entries } from 'type-fest';
 import manifest from '../package.json' with { type: 'json' };
-import { serverResponses } from '../src/common.ts';
 import { mediaType } from '../src/jsonapi.ts';
 import { routes } from '../src/routes.ts';
 import { cookieAuth } from '../src/security.ts';
+import { ServerErrorResponse } from '../src/server-errors.ts';
 import { sessionRoutes } from '../src/session-schemas.ts';
 import { registry } from '../src/zod-openapi.ts';
 
@@ -18,9 +18,7 @@ for (const [path, pathMethods] of Object.entries(routes) as Entries<
   }
 }
 
-for (const [key, response] of Object.entries(serverResponses)) {
-  registry.register(`ServerResponse${key}`, response.content[mediaType].schema);
-}
+registry.register('ServerErrorResponse', ServerErrorResponse);
 
 const openApiDocument = new OpenApiGeneratorV31(
   registry.definitions,

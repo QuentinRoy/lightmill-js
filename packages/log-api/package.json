@@ -22,15 +22,10 @@
     "generate-api-types": "openapi-typescript temp/openapi.json --empty-objects-unknown --output temp/openapi.ts",
     "build-js": "cp -rf src/** temp/ && tsc -b tsconfig.build.json",
     "build": "rm -rf temp && mkdir temp && pnpm run build-api && pnpm run generate-api-types && pnpm run build-js && rm -rf temp",
-    "watch:build": "onchange -i 'src/index.ts' 'type-spec/**/*' -- pnpm build",
+    "watch:build": "onchange -i 'src/*' -- pnpm build",
     "prepublish": "pnpm run build"
   },
   "devDependencies": {
-    "@typespec/compiler": "1.0.0",
-    "@typespec/http": "1.0.1",
-    "@typespec/openapi": "1.0.0",
-    "@typespec/openapi3": "1.0.0",
-    "@typespec/rest": "^0.70.0",
     "onchange": "^7.1.0",
     "openapi-typescript": "^7.8.0"
   },

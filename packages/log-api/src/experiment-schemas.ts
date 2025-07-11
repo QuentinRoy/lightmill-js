@@ -1,4 +1,3 @@
-import { StringOrArrayOfStrings } from './common.ts';
 import {
   getDataDocumentSchema,
   getErrorSchema,
@@ -6,6 +5,7 @@ import {
   getResourceIdentifierSchema,
   mediaType,
 } from './jsonapi.ts';
+import { ForbiddenErrorResponse, StringOrArrayOfStrings } from './utils.ts';
 import { z, type RouteConfig } from './zod-openapi.ts';
 
 // Resource schema
@@ -19,9 +19,12 @@ const ExperimentAttributes = z
 // Zod recommend using the spread operator on the shape of a zod object
 // instead of using the `extend` method, but we then lose zod-to-openapi's
 // ability to generate inherited schemas.
-export const ExperimentResource = ExperimentResourceIdentifier.extend({
-  attributes: ExperimentAttributes,
-}).openapi('ExperimentResource');
+export const ExperimentResource = z
+  .strictObject({
+    ...ExperimentResourceIdentifier.shape,
+    attributes: ExperimentAttributes,
+  })
+  .openapi('ExperimentResource');
 const ExperimentResourceCreate = ExperimentResource.omit({ id: true }).openapi(
   'ExperimentResourceCreate',
 );
@@ -46,6 +49,9 @@ const ExperimentGetResponse = getDataDocumentSchema({
 const ExperimentGetCollectionResponse = getDataDocumentSchema({
   data: z.array(ExperimentResource),
 }).openapi('ExperimentGetCollectionResponse');
+const ExperimentPostResponse = getDataDocumentSchema({
+  data: ExperimentResourceIdentifier,
+}).openapi('ExperimentPostResponse');
 
 // Error Response schemas
 // -----------------------------------------------------------------------------
@@ -78,8 +84,12 @@ export const experimentRoutes = {
       responses: {
         201: {
           description: 'Experiment created successfully',
-          content: { [mediaType]: { schema: ExperimentGetResponse } },
+          content: { [mediaType]: { schema: ExperimentPostResponse } },
           headers: z.looseObject({ Location: z.string() }),
+        },
+        403: {
+          description: 'Forbidden',
+          content: { [mediaType]: { schema: ForbiddenErrorResponse } },
         },
         409: {
           description: 'Experiment already exists',

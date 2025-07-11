@@ -1,4 +1,3 @@
-import { StringOrArrayOfStrings } from './common.ts';
 import { ExperimentResource } from './experiment-schemas.ts';
 import {
   getDataDocumentSchema,
@@ -8,6 +7,7 @@ import {
   mediaType,
 } from './jsonapi.ts';
 import * as Run from './run-schemas.ts';
+import { StringOrArrayOfStrings } from './utils.ts';
 import { z, type RouteConfig } from './zod-openapi.ts';
 
 // Fix circular dependencies by using lazy evaluation, but since we are using
@@ -18,14 +18,12 @@ const RunResourceIdentifier = z
   .openapi({
     type: 'object',
     allOf: [{ $ref: '#/components/schemas/RunResourceIdentifier' }],
-    additionalProperties: false,
   });
 const RunResource = z
   .lazy(() => Run.RunResource)
   .openapi({
     type: 'object',
     allOf: [{ $ref: '#/components/schemas/RunResource' }],
-    additionalProperties: false,
   });
 
 // Resource schema
@@ -55,10 +53,13 @@ const LogAttributes = z.strictObject({
 const LogRelationships = z
   .strictObject({ run: z.strictObject({ data: RunResourceIdentifier }) })
   .openapi('LogRelationships');
-export const LogResource = LogResourceIdentifier.extend({
-  attributes: LogAttributes,
-  relationships: LogRelationships,
-}).openapi('LogResource');
+export const LogResource = z
+  .strictObject({
+    ...LogResourceIdentifier.shape,
+    attributes: LogAttributes,
+    relationships: LogRelationships,
+  })
+  .openapi('LogResource');
 
 // Query parameters schemas
 // -----------------------------------------------------------------------------
@@ -92,6 +93,9 @@ const LogGetCollectionResponse = getDataDocumentSchema({
   data: z.array(LogResource),
   includes: LogInclude,
 }).openapi('LogGetCollectionResponse');
+const LogPostResponse = getDataDocumentSchema({
+  data: LogResourceIdentifier,
+}).openapi('LogPostResponse');
 
 // Error Response schemas
 const LogNotFoundErrorResponse = getOneErrorDocumentSchema(
@@ -102,10 +106,14 @@ export const logRoutes = {
   '/': {
     get: {
       request: {
-        query: LogQueryFilter.extend(LogQueryInclude.shape),
+        query: z.strictObject({
+          ...LogQueryFilter.shape,
+          ...LogQueryInclude.shape,
+        }),
         headers: z.strictObject({
           Accept: z
             .string()
+            .optional()
             .describe(
               'This endpoint may return CSV (default) or JSON as a function of this header.',
             ),
@@ -121,6 +129,28 @@ export const logRoutes = {
             },
           },
         },
+        400: {
+          description: 'Not supported query parameters',
+          content: {
+            [mediaType]: {
+              schema: getOneErrorDocumentSchema(
+                z.strictObject({
+                  ...getErrorSchema({
+                    code: 'NOT_SUPPORTED_QUERY_PARAMETER',
+                    statusCode: 400,
+                  }).shape,
+                  source: z.strictObject({
+                    parameter: z
+                      .string()
+                      .describe(
+                        'Parameter in the request query that is invalid',
+                      ),
+                  }),
+                }),
+              ),
+            },
+          },
+        },
       },
     },
     post: {
@@ -132,7 +162,7 @@ export const logRoutes = {
         201: {
           description: 'Log created successfully',
           headers: z.looseObject({ Location: z.string() }),
-          content: { [mediaType]: { schema: LogGetResponse } },
+          content: { [mediaType]: { schema: LogPostResponse } },
         },
         403: {
           description: 'Forbidden',

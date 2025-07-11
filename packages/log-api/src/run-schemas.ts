@@ -1,4 +1,3 @@
-import { StringOrArrayOfStrings } from './common.ts';
 import {
   ExperimentResource,
   ExperimentResourceIdentifier,
@@ -11,6 +10,7 @@ import {
   mediaType,
 } from './jsonapi.ts';
 import * as Log from './log-schemas.ts';
+import { StringOrArrayOfStrings } from './utils.ts';
 import { z, type RouteConfig } from './zod-openapi.ts';
 
 // Fix circular dependencies by using lazy evaluation, but since we are using
@@ -22,7 +22,6 @@ const LogResourceIdentifier = z
   .openapi({
     type: 'object',
     allOf: [{ $ref: '#/components/schemas/LogResourceIdentifier' }],
-    additionalProperties: false,
   });
 
 const LogResource = z
@@ -30,7 +29,6 @@ const LogResource = z
   .openapi({
     type: 'object',
     allOf: [{ $ref: '#/components/schemas/LogResource' }],
-    additionalProperties: false,
   });
 
 // Resource schema
@@ -38,7 +36,7 @@ const LogResource = z
 export const RunResourceIdentifier = getResourceIdentifierSchema(
   'runs',
 ).openapi('RunResourceIdentifier');
-const RunResourceIdentifierWrite = RunResourceIdentifier.omit({ id: true });
+const RunResourceIdentifierCreate = RunResourceIdentifier.omit({ id: true });
 const RunStatus = z
   .enum(['idle', 'running', 'completed', 'interrupted', 'canceled'])
   .openapi('RunStatus');
@@ -52,31 +50,34 @@ const RunAttributes = z
   .openapi('RunAttributes');
 const RunAttributesUpdate = RunAttributes.omit({
   missingLogNumbers: true,
-  name: true,
-});
+}).partial();
 const RunAttributesCreate = RunAttributes.omit({
   lastLogNumber: true,
   missingLogNumbers: true,
 });
-// Zod recommend using the spread operator on the shape of a zod object
-// instead of using the `extend` method, but we then lose zod-to-openapi's
-// ability to generate inherited schemas.
 const RunRelationships = z.strictObject({
   experiment: z.strictObject({ data: ExperimentResourceIdentifier }),
   lastLogs: z.strictObject({ data: z.array(LogResourceIdentifier) }),
 });
-const RunResourceCreate = RunResourceIdentifierWrite.extend({
+const RunResourceCreate = z.strictObject({
+  ...RunResourceIdentifierCreate.shape,
   attributes: RunAttributesCreate,
   relationships: RunRelationships.pick({ experiment: true }),
 });
-const RunResourceUpdate = RunResourceIdentifierWrite.extend({
-  attributes: RunAttributesUpdate,
-  relationships: RunRelationships.pick({ experiment: true }),
+const RunResourceUpdate = z.strictObject({
+  ...RunResourceIdentifier.shape,
+  attributes: RunAttributesUpdate.optional(),
+  relationships: RunRelationships.pick({ experiment: true })
+    .partial()
+    .optional(),
 });
-export const RunResource = RunResourceIdentifier.extend({
-  attributes: RunAttributes,
-  relationships: RunRelationships,
-}).openapi('RunResource');
+export const RunResource = z
+  .strictObject({
+    ...RunResourceIdentifier.shape,
+    attributes: RunAttributes,
+    relationships: RunRelationships,
+  })
+  .openapi('RunResource');
 
 // Request schemas
 // -----------------------------------------------------------------------------
@@ -123,7 +124,7 @@ const RunGetCollectionResponse = getDataDocumentSchema({
 const runOnGoingErrorHttpCode = 403 as const;
 const CannotCreateRunErrorResponse = getOneErrorDocumentSchema(
   getErrorSchema({
-    code: ['ON_GOING_RUN', 'EXPERIMENT_NOT_FOUND'],
+    code: ['ONGOING_RUNS', 'EXPERIMENT_NOT_FOUND'],
     statusCode: runOnGoingErrorHttpCode,
   }),
 ).openapi('CannotCreateRunErrorResponse');

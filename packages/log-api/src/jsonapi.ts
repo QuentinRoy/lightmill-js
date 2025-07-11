@@ -111,7 +111,9 @@ export function getOneErrorDocumentSchema<
         }>[]
       >,
 >(errorSchema: ErrorSchema) {
-  return z.strictObject({ errors: z.tuple([errorSchema]) });
+  return z.strictObject({
+    errors: z.tuple([errorSchema]).openapi({ minItems: 1, maxItems: 1 }),
+  });
 }
 
 export const mediaType = 'application/vnd.api+json' as const;

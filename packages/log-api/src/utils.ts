@@ -1,3 +1,6 @@
+import { getErrorSchema, getOneErrorDocumentSchema } from './jsonapi.ts';
+import { z } from './zod-openapi.ts';
+
 export function mapKeys<
   T extends object,
   M extends (k: Extract<keyof T, string>) => PropertyKey,
@@ -19,3 +22,16 @@ export function prefixKeys<T extends Record<string, unknown>, P extends string>(
     return `${prefix}${k as keyof T & (string | number)}` as const;
   });
 }
+
+// Common types
+export const StringOrArrayOfStrings = z
+  .union([z.string(), z.array(z.string())])
+  .openapi('StringOrArrayOfStrings');
+
+export const ForbiddenErrorResponse = getOneErrorDocumentSchema(
+  getErrorSchema({
+    code: 'FORBIDDEN',
+    statusText: 'Forbidden',
+    statusCode: 403,
+  }),
+).openapi('ForbiddenErrorResponse');

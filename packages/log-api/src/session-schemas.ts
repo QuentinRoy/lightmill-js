@@ -10,6 +10,7 @@ import {
 } from './jsonapi.ts';
 import { LogResource } from './log-schemas.ts';
 import { RunResource, RunResourceIdentifier } from './run-schemas.ts';
+import { cookieAuth } from './security.ts';
 import { registry, type RouteConfig, z } from './zod-openapi.ts';
 
 export const UserRole = z.enum(['host', 'participant']);
@@ -19,18 +20,21 @@ export const UserRole = z.enum(['host', 'participant']);
 export const SessionResourceIdentifier = getResourceIdentifierSchema(
   'sessions',
 ).openapi('SessionResourceIdentifier');
-const SessionAttributes = z.strictObject({ role: z.string().optional() });
+const SessionAttributes = z.strictObject({ role: UserRole.optional() });
 const SessionRelationships = z.strictObject({
   runs: z.strictObject({ data: z.array(RunResourceIdentifier) }),
 });
-// Zod recommend using the spread operator on the shape of a zod object
-// instead of using the `extend` method, but we then lose zod-to-openapi's
-// ability to generate inherited schemas.
-export const SessionResource = SessionResourceIdentifier.extend({
-  attributes: SessionAttributes,
-  relationships: SessionRelationships,
-}).openapi('SessionResource');
-const SessionResourceCreate = SessionResource.omit({ id: true });
+export const SessionResource = z
+  .strictObject({
+    ...SessionResourceIdentifier.shape,
+    attributes: SessionAttributes,
+    relationships: SessionRelationships,
+  })
+  .openapi('SessionResource');
+const SessionResourceCreate = SessionResource.omit({
+  id: true,
+  relationships: true,
+});
 
 // Request schemas
 // -----------------------------------------------------------------------------
@@ -65,7 +69,7 @@ const SessionExistsErrorResponse = getOneErrorDocumentSchema(
 const InvalidCredentialErrorResponse = getOneErrorDocumentSchema(
   getErrorSchema({
     code: ['INVALID_CREDENTIALS', 'MISSING_CREDENTIALS'],
-    statusCode: 401,
+    statusCode: 403,
   }),
 ).openapi('InvalidCredentialErrorResponse');
 
@@ -80,7 +84,7 @@ const sessionNotFoundResponse = {
 
 // Authentication
 // -----------------------------------------------------------------------------
-const basicAuth = registry.registerComponent('securitySchemes', 'basicAuth', {
+const basicAuth = registry.registerComponent('securitySchemes', 'BasicAuth', {
   type: 'http',
   scheme: 'Basic',
 });
@@ -91,9 +95,17 @@ export const sessionRoutes = {
   '/': {
     post: {
       description: 'Create a new session',
-      security: [{ [basicAuth.name]: [] }],
+      security: [{}, { [basicAuth.name]: [] }],
       request: {
         body: { content: { [mediaType]: { schema: SessionPostRequest } } },
+        headers: z.looseObject({
+          Authorization: z
+            .string()
+            .optional()
+            .describe(
+              'Basic authentication header for host role. Format: "Basic base64(username:password)"',
+            ),
+        }),
       },
       responses: {
         201: {
@@ -109,13 +121,8 @@ export const sessionRoutes = {
               .describe('Session cookie for the created session'),
           }),
         },
-        401: {
+        403: {
           description: 'Invalid credentials provided',
-          headers: z.looseObject({
-            'WWW-Authenticate': z
-              .string()
-              .describe('Authentication challenge for Basic Auth'),
-          }),
           content: { [mediaType]: { schema: InvalidCredentialErrorResponse } },
         },
         409: {
@@ -127,6 +134,7 @@ export const sessionRoutes = {
   },
   '/{id}': {
     get: {
+      security: [{}, { [cookieAuth.name]: [] }],
       description: 'Get a session by ID',
       request: {
         params: z.strictObject({
@@ -143,6 +151,7 @@ export const sessionRoutes = {
       },
     },
     delete: {
+      security: [{}, { [cookieAuth.name]: [] }],
       description: 'Delete a session by ID',
       request: {
         params: z.strictObject({

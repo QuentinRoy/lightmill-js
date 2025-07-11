@@ -4,6 +4,6 @@ export const authCookieName = 'lightmill-session-id' as const;
 
 export const cookieAuth = registry.registerComponent(
   'securitySchemes',
-  'cookieAuth',
+  'CookieSessionAuth',
   { type: 'apiKey', in: 'cookie', name: authCookieName },
 );
