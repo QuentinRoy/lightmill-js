@@ -614,3 +614,315 @@ exports[`LogServer: get /runs ('participant' / 'sqlite') > returns a 200 with pa
   ],
 }
 `;
+
+exports[`LogServer: patch /runs/:run ('host' / 'sqlite') > refuses to change the status of a run from 'canceled' to 'completed' 1`] = `
+{
+  "errors": [
+    {
+      "code": "INVALID_STATUS_TRANSITION",
+      "detail": "Cannot change run status. Run status canceled is terminal.",
+      "status": "Forbidden",
+    },
+  ],
+}
+`;
+
+exports[`LogServer: patch /runs/:run ('host' / 'sqlite') > refuses to change the status of a run from 'canceled' to 'idle' 1`] = `
+{
+  "errors": [
+    {
+      "code": "INVALID_STATUS_TRANSITION",
+      "detail": "Cannot change run status. Run status canceled is terminal.",
+      "status": "Forbidden",
+    },
+  ],
+}
+`;
+
+exports[`LogServer: patch /runs/:run ('host' / 'sqlite') > refuses to change the status of a run from 'canceled' to 'interrupted' 1`] = `
+{
+  "errors": [
+    {
+      "code": "INVALID_STATUS_TRANSITION",
+      "detail": "Cannot change run status. Run status canceled is terminal.",
+      "status": "Forbidden",
+    },
+  ],
+}
+`;
+
+exports[`LogServer: patch /runs/:run ('host' / 'sqlite') > refuses to change the status of a run from 'canceled' to 'running' 1`] = `
+{
+  "errors": [
+    {
+      "code": "INVALID_STATUS_TRANSITION",
+      "detail": "Cannot change run status. Run status canceled is terminal.",
+      "status": "Forbidden",
+    },
+  ],
+}
+`;
+
+exports[`LogServer: patch /runs/:run ('host' / 'sqlite') > refuses to change the status of a run from 'completed' to 'idle' 1`] = `
+{
+  "errors": [
+    {
+      "code": "INVALID_STATUS_TRANSITION",
+      "detail": "Cannot change run status from completed to idle. Allowed transitions are: completed -> canceled.",
+      "status": "Forbidden",
+    },
+  ],
+}
+`;
+
+exports[`LogServer: patch /runs/:run ('host' / 'sqlite') > refuses to change the status of a run from 'completed' to 'interrupted' 1`] = `
+{
+  "errors": [
+    {
+      "code": "INVALID_STATUS_TRANSITION",
+      "detail": "Cannot change run status from completed to interrupted. Allowed transitions are: completed -> canceled.",
+      "status": "Forbidden",
+    },
+  ],
+}
+`;
+
+exports[`LogServer: patch /runs/:run ('host' / 'sqlite') > refuses to change the status of a run from 'completed' to 'running' 1`] = `
+{
+  "errors": [
+    {
+      "code": "INVALID_STATUS_TRANSITION",
+      "detail": "Cannot change run status from completed to running. Allowed transitions are: completed -> canceled.",
+      "status": "Forbidden",
+    },
+  ],
+}
+`;
+
+exports[`LogServer: patch /runs/:run ('host' / 'sqlite') > refuses to change the status of a run from 'idle' to 'completed' 1`] = `
+{
+  "errors": [
+    {
+      "code": "INVALID_STATUS_TRANSITION",
+      "detail": "Cannot change run status from idle to completed. Allowed transitions are: idle -> running or idle -> canceled.",
+      "status": "Forbidden",
+    },
+  ],
+}
+`;
+
+exports[`LogServer: patch /runs/:run ('host' / 'sqlite') > refuses to change the status of a run from 'idle' to 'interrupted' 1`] = `
+{
+  "errors": [
+    {
+      "code": "INVALID_STATUS_TRANSITION",
+      "detail": "Cannot change run status from idle to interrupted. Allowed transitions are: idle -> running or idle -> canceled.",
+      "status": "Forbidden",
+    },
+  ],
+}
+`;
+
+exports[`LogServer: patch /runs/:run ('host' / 'sqlite') > refuses to change the status of a run from 'interrupted' to 'completed' 1`] = `
+{
+  "errors": [
+    {
+      "code": "INVALID_STATUS_TRANSITION",
+      "detail": "Cannot change run status from interrupted to completed. Allowed transitions are: interrupted -> running or interrupted -> canceled.",
+      "status": "Forbidden",
+    },
+  ],
+}
+`;
+
+exports[`LogServer: patch /runs/:run ('host' / 'sqlite') > refuses to change the status of a run from 'interrupted' to 'idle' 1`] = `
+{
+  "errors": [
+    {
+      "code": "INVALID_STATUS_TRANSITION",
+      "detail": "Cannot change run status from interrupted to idle. Allowed transitions are: interrupted -> running or interrupted -> canceled.",
+      "status": "Forbidden",
+    },
+  ],
+}
+`;
+
+exports[`LogServer: patch /runs/:run ('host' / 'sqlite') > refuses to change the status of a run from 'running' to 'idle' 1`] = `
+{
+  "errors": [
+    {
+      "code": "INVALID_STATUS_TRANSITION",
+      "detail": "Cannot change run status from running to idle. Allowed transitions are: running -> interrupted, running -> canceled, or running -> completed.",
+      "status": "Forbidden",
+    },
+  ],
+}
+`;
+
+exports[`LogServer: patch /runs/:run ('host' / 'sqlite') > refuses to complete a run if there are pending logs 1`] = `
+{
+  "errors": [
+    {
+      "code": "PENDING_LOGS",
+      "detail": "Cannot complete run with pending logs. Ensure all logs are added to the run before completing it.",
+      "status": "Forbidden",
+    },
+  ],
+}
+`;
+
+exports[`LogServer: patch /runs/:run ('participant' / 'sqlite') > refuses to change the status of a run from 'canceled' to 'completed' 1`] = `
+{
+  "errors": [
+    {
+      "code": "INVALID_STATUS_TRANSITION",
+      "detail": "Cannot change run status. Run status canceled is terminal.",
+      "status": "Forbidden",
+    },
+  ],
+}
+`;
+
+exports[`LogServer: patch /runs/:run ('participant' / 'sqlite') > refuses to change the status of a run from 'canceled' to 'idle' 1`] = `
+{
+  "errors": [
+    {
+      "code": "INVALID_STATUS_TRANSITION",
+      "detail": "Cannot change run status. Run status canceled is terminal.",
+      "status": "Forbidden",
+    },
+  ],
+}
+`;
+
+exports[`LogServer: patch /runs/:run ('participant' / 'sqlite') > refuses to change the status of a run from 'canceled' to 'interrupted' 1`] = `
+{
+  "errors": [
+    {
+      "code": "INVALID_STATUS_TRANSITION",
+      "detail": "Cannot change run status. Run status canceled is terminal.",
+      "status": "Forbidden",
+    },
+  ],
+}
+`;
+
+exports[`LogServer: patch /runs/:run ('participant' / 'sqlite') > refuses to change the status of a run from 'canceled' to 'running' 1`] = `
+{
+  "errors": [
+    {
+      "code": "INVALID_STATUS_TRANSITION",
+      "detail": "Cannot change run status. Run status canceled is terminal.",
+      "status": "Forbidden",
+    },
+  ],
+}
+`;
+
+exports[`LogServer: patch /runs/:run ('participant' / 'sqlite') > refuses to change the status of a run from 'completed' to 'idle' 1`] = `
+{
+  "errors": [
+    {
+      "code": "INVALID_STATUS_TRANSITION",
+      "detail": "Cannot change run status from completed to idle. Allowed transitions are: completed -> canceled.",
+      "status": "Forbidden",
+    },
+  ],
+}
+`;
+
+exports[`LogServer: patch /runs/:run ('participant' / 'sqlite') > refuses to change the status of a run from 'completed' to 'interrupted' 1`] = `
+{
+  "errors": [
+    {
+      "code": "INVALID_STATUS_TRANSITION",
+      "detail": "Cannot change run status from completed to interrupted. Allowed transitions are: completed -> canceled.",
+      "status": "Forbidden",
+    },
+  ],
+}
+`;
+
+exports[`LogServer: patch /runs/:run ('participant' / 'sqlite') > refuses to change the status of a run from 'completed' to 'running' 1`] = `
+{
+  "errors": [
+    {
+      "code": "INVALID_STATUS_TRANSITION",
+      "detail": "Cannot change run status from completed to running. Allowed transitions are: completed -> canceled.",
+      "status": "Forbidden",
+    },
+  ],
+}
+`;
+
+exports[`LogServer: patch /runs/:run ('participant' / 'sqlite') > refuses to change the status of a run from 'idle' to 'completed' 1`] = `
+{
+  "errors": [
+    {
+      "code": "INVALID_STATUS_TRANSITION",
+      "detail": "Cannot change run status from idle to completed. Allowed transitions are: idle -> running or idle -> canceled.",
+      "status": "Forbidden",
+    },
+  ],
+}
+`;
+
+exports[`LogServer: patch /runs/:run ('participant' / 'sqlite') > refuses to change the status of a run from 'idle' to 'interrupted' 1`] = `
+{
+  "errors": [
+    {
+      "code": "INVALID_STATUS_TRANSITION",
+      "detail": "Cannot change run status from idle to interrupted. Allowed transitions are: idle -> running or idle -> canceled.",
+      "status": "Forbidden",
+    },
+  ],
+}
+`;
+
+exports[`LogServer: patch /runs/:run ('participant' / 'sqlite') > refuses to change the status of a run from 'interrupted' to 'completed' 1`] = `
+{
+  "errors": [
+    {
+      "code": "INVALID_STATUS_TRANSITION",
+      "detail": "Cannot change run status from interrupted to completed. Allowed transitions are: interrupted -> running or interrupted -> canceled.",
+      "status": "Forbidden",
+    },
+  ],
+}
+`;
+
+exports[`LogServer: patch /runs/:run ('participant' / 'sqlite') > refuses to change the status of a run from 'interrupted' to 'idle' 1`] = `
+{
+  "errors": [
+    {
+      "code": "INVALID_STATUS_TRANSITION",
+      "detail": "Cannot change run status from interrupted to idle. Allowed transitions are: interrupted -> running or interrupted -> canceled.",
+      "status": "Forbidden",
+    },
+  ],
+}
+`;
+
+exports[`LogServer: patch /runs/:run ('participant' / 'sqlite') > refuses to change the status of a run from 'running' to 'idle' 1`] = `
+{
+  "errors": [
+    {
+      "code": "INVALID_STATUS_TRANSITION",
+      "detail": "Cannot change run status from running to idle. Allowed transitions are: running -> interrupted, running -> canceled, or running -> completed.",
+      "status": "Forbidden",
+    },
+  ],
+}
+`;
+
+exports[`LogServer: patch /runs/:run ('participant' / 'sqlite') > refuses to complete a run if there are pending logs 1`] = `
+{
+  "errors": [
+    {
+      "code": "PENDING_LOGS",
+      "detail": "Cannot complete run with pending logs. Ensure all logs are added to the run before completing it.",
+      "status": "Forbidden",
+    },
+  ],
+}
+`;

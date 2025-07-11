@@ -1,7 +1,7 @@
 import express from 'express';
 import request from 'supertest';
 import { describe, it } from 'vitest';
-import { apiMediaType } from '../src/app-utils.ts';
+import { apiMediaType } from '../src/api.ts';
 import { LogServer } from '../src/app.ts';
 import { createServerContext, storeTypes } from './test-utils.ts';
 

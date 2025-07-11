@@ -1,4 +1,5 @@
-import type { components, operations } from '@lightmill/log-api';
+import type { routes } from '@lightmill/log-api';
+import type { StandardSchemaV1 } from '@standard-schema/spec';
 import { Readable } from 'node:stream';
 import type { JsonObject } from 'type-fest';
 import { parseAcceptHeader } from './accept-headers.ts';
@@ -8,29 +9,28 @@ import {
   getErrorResponse,
   getRunResources,
   type ApiMediaType,
-  type ServerHandlerResult,
-  type SubServerDescription,
-} from './app-utils.js';
+} from './api.ts';
 import { csvExportStream } from './csv-export.js';
 import type { AllFilter } from './data-filters.ts';
 import { DataStoreError } from './data-store-errors.ts';
 import type { DataStore } from './data-store.ts';
+import type { HandlerResponseFromRoute, PathHandlers } from './router.ts';
 import { arrayify, firstStrict } from './utils.js';
 
-export const logHandlers = (): SubServerDescription<'/logs'> => ({
+export const logHandlers = (): PathHandlers<'/logs'> => ({
   '/logs': {
     async get({
-      request,
-      store,
+      sessionData,
+      dataStore: store,
       parameters: { query, headers },
-    }): Promise<ServerHandlerResult<'/logs', 'get'>> {
+    }): Promise<HandlerResponseFromRoute<'/logs', 'get'>> {
       let responseMimeType = getResponseMimeType(headers.accept, {
         defaultMimeType: 'csv',
       });
       let filter: AllFilter = {
         logType: query['filter[logType]'],
         runId: getAllowedAndFilteredRunIds(
-          request.session.data,
+          sessionData,
           query['filter[run.id]'],
         ),
         experimentId: query['filter[experiment.id]'],
@@ -41,9 +41,11 @@ export const logHandlers = (): SubServerDescription<'/logs'> => ({
       if (responseMimeType === 'csv') {
         if (includeQuery.length > 0) {
           return getErrorResponse({
-            status: 400,
-            code: 'INVALID_QUERY_PARAMETER',
-            detail: `CSV content does not support include query parameter`,
+            status: 'Bad Request',
+            code: 'NOT_SUPPORTED_QUERY_PARAMETER',
+            detail:
+              `Include query parameter is not supported with CSV log format.` +
+              ` Remove the 'include' query parameter, or set 'accept' header to '${apiMediaType}' to get logs in JSON format.`,
             source: { parameter: 'include' },
           });
         }
@@ -65,18 +67,14 @@ export const logHandlers = (): SubServerDescription<'/logs'> => ({
       };
     },
 
-    async post({ store, body, request }) {
+    async post({ dataStore: store, body, sessionData, protocol, host }) {
       let runId = body.data.relationships.run.data.id;
       let runNotFoundError = getErrorResponse({
-        status: 403,
+        status: 'Forbidden',
         code: 'RUN_NOT_FOUND',
         detail: `Run "${runId}" not found`,
       });
-      let sessionRuns = request.session.data?.runs ?? [];
-      if (
-        request.session.data?.role !== 'host' &&
-        !sessionRuns.includes(runId)
-      ) {
+      if (sessionData.role !== 'host' && !sessionData.runs.includes(runId)) {
         return runNotFoundError;
       }
       let matchingRuns = await store.getRuns({ runId });
@@ -87,9 +85,9 @@ export const logHandlers = (): SubServerDescription<'/logs'> => ({
       if (run == null) return runNotFoundError;
       if (run.runStatus != 'running') {
         return getErrorResponse({
-          status: 403,
+          status: 'Forbidden',
           code: 'INVALID_RUN_STATUS',
-          detail: `Cannot add logs to run '${runId}', run is not running`,
+          detail: `Cannot add logs to run '${runId}', run is not running. Ensure the run is running before adding logs.`,
         });
       }
       try {
@@ -98,7 +96,8 @@ export const logHandlers = (): SubServerDescription<'/logs'> => ({
             {
               number: body.data.attributes.number,
               type: body.data.attributes.logType,
-              // values is necessarily a JsonObject since it's coming from the request body.
+              // values is necessarily a JsonObject since it's coming from the
+              // request body.
               values: body.data.attributes.values as JsonObject,
             },
           ]),
@@ -106,7 +105,7 @@ export const logHandlers = (): SubServerDescription<'/logs'> => ({
         return {
           status: 201,
           headers: {
-            location: `${request.protocol + '://' + request.get('host')}/logs/${insertedLogId}`,
+            location: `${protocol + '://' + host}/logs/${insertedLogId}`,
           },
           body: { data: { id: insertedLogId, type: 'logs' } },
         };
@@ -116,9 +115,9 @@ export const logHandlers = (): SubServerDescription<'/logs'> => ({
           e.code === 'LOG_NUMBER_EXISTS_IN_SEQUENCE'
         ) {
           return getErrorResponse({
-            status: 409,
+            status: 'Conflict',
             code: 'LOG_NUMBER_EXISTS',
-            detail: `Cannot add log to run '${runId}', log number ${body.data.attributes.number} already exists`,
+            detail: `Cannot add log to run '${runId}', log number ${body.data.attributes.number} already exists. Ensure the log number is unique within the run.`,
           });
         }
         throw e;
@@ -127,9 +126,9 @@ export const logHandlers = (): SubServerDescription<'/logs'> => ({
   },
 
   '/logs/{id}': {
-    async get({ request, store, parameters: { path, query } }) {
-      let isHost = request.session.data?.role === 'host';
-      let runFilter = isHost ? undefined : (request.session.data?.runs ?? []);
+    async get({ sessionData, dataStore: store, parameters: { path, query } }) {
+      let isHost = sessionData.role === 'host';
+      let runFilter = isHost ? undefined : (sessionData.runs ?? []);
       let filter: AllFilter = { runId: runFilter, logId: path.id };
       let includeQuery = arrayify(query['include'], true);
       let dataString = '';
@@ -140,15 +139,13 @@ export const logHandlers = (): SubServerDescription<'/logs'> => ({
       })) {
         dataString += chunk;
       }
-      let data = JSON.parse(
-        dataString,
-      ) as operations['Log_getCollection']['responses']['200']['content'][ApiMediaType];
+      let data = JSON.parse(dataString);
       if (data.data.length > 1) {
         throw new Error(`More than one log found for id '${path.id}'`);
       }
       if (data.data.length === 0) {
         return getErrorResponse({
-          status: 404,
+          status: 'Not Found',
           code: 'LOG_NOT_FOUND',
           detail: `Log "${path.id}" not found`,
         });
@@ -191,17 +188,24 @@ function jsonResponseStream(
   return Readable.from(jsonResponseChunkGenerator(store, filter, includes));
 }
 
+type RunResource = StandardSchemaV1.InferOutput<
+  (typeof routes)['/runs/{id}']['get']['responses'][200]['content'][ApiMediaType]['schema']
+>['data'];
+type ExperimentResource = StandardSchemaV1.InferOutput<
+  (typeof routes)['/experiments/{id}']['get']['responses'][200]['content'][ApiMediaType]['schema']
+>['data'];
+type LogResource = StandardSchemaV1.InferOutput<
+  (typeof routes)['/logs/{id}']['get']['responses'][200]['content'][ApiMediaType]['schema']
+>['data'];
+
 async function* jsonResponseChunkGenerator(
   store: DataStore,
   filter: Omit<AllFilter, 'runStatus'>,
   includes: { run?: boolean; experiment?: boolean; lastLogs?: boolean },
 ) {
-  let runs = new Map<string, components['schemas']['Run.Resource'] | null>();
-  let experiments = new Map<
-    string,
-    components['schemas']['Experiment.Resource']
-  >();
-  let includedLogs = new Array<components['schemas']['Log.Resource']>();
+  let runs = new Map<string, RunResource | null>();
+  let experiments = new Map<string, ExperimentResource | null>();
+  let includedLogs = new Array<LogResource>();
   let logs = await store.getLogs({ ...filter, runStatus: '-canceled' });
   yield '{"data":[';
   let started = false;
@@ -218,7 +222,7 @@ async function* jsonResponseChunkGenerator(
           values: log.values,
         },
         relationships: { run: { data: { type: 'runs', id: log.runId } } },
-      } satisfies components['schemas']['Log.Resource'],
+      } satisfies LogResource,
       stringifyDateSerializer,
     );
     if (

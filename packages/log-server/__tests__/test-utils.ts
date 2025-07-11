@@ -8,9 +8,8 @@ import { last } from 'remeda';
 import request from 'supertest';
 import type { RequiredKeysOf, Simplify, ValueOf } from 'type-fest';
 import { test, vi, type Mock, type TestAPI } from 'vitest';
-import type { HttpMethod } from '../src/api-utils.ts';
-import { apiMediaType } from '../src/app-utils.ts';
-import { LogServer, SESSION_COOKIE_NAME } from '../src/app.ts';
+import { apiMediaType, type HttpMethod } from '../src/api.ts';
+import { LogServer } from '../src/app.ts';
 import type { DataStore, RunId, RunStatus } from '../src/data-store.ts';
 import { SQLiteDataStore } from '../src/sqlite-data-store.ts';
 

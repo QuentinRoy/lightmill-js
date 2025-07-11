@@ -4,7 +4,7 @@ import express, { type Application } from 'express';
 import { Store as SessionStore } from 'express-session';
 import request from 'supertest';
 import { describe, test as vitestTest } from 'vitest';
-import { apiMediaType, type ServerRequestContent } from '../src/app-utils.ts';
+import { apiMediaType } from '../src/api.ts';
 import { LogServer } from '../src/app.ts';
 import type { DataStore } from '../src/data-store.ts';
 import {
@@ -43,7 +43,7 @@ const suite = storeTypes.map((storeType) => ({
         secureCookies: false,
       });
       let app = express().use(server.middleware);
-      await use(app satisfies Application);
+      await use(app);
     },
     api: async ({ app }, use) => {
       let api = request.agent(app);
@@ -61,7 +61,7 @@ describe.for(suite)(
         .set('content-type', apiMediaType)
         .send({
           data: { type: 'sessions', attributes: { role: 'participant' } },
-        } satisfies ServerRequestContent<'/sessions', 'post'>['body'])
+        })
         .expect(201, {
           data: {
             id: 'current',
@@ -82,7 +82,7 @@ describe.for(suite)(
             type: 'sessions',
             attributes: { role: 'something-else' as 'participant' },
           },
-        } satisfies ServerRequestContent<'/sessions', 'post'>['body'])
+        })
         .expect(400);
     });
 
@@ -145,7 +145,7 @@ describe.for(suite)(
             {
               status: 'Forbidden',
               code: 'INVALID_CREDENTIALS',
-              detail: 'Invalid credentials for role: host',
+              detail: 'Invalid credentials for role: host. Check the password.',
             },
           ],
         })
@@ -164,8 +164,9 @@ describe.for(suite)(
           errors: [
             {
               status: 'Forbidden',
-              code: 'INVALID_CREDENTIALS',
-              detail: 'Invalid credentials for role: host',
+              code: 'MISSING_CREDENTIALS',
+              detail:
+                'Authentication is required for role: host. Provide credentials in the "authorization" header.',
             },
           ],
         })
@@ -194,7 +195,7 @@ describe.for(suite)(
             {
               status: 'Conflict',
               code: 'SESSION_EXISTS',
-              detail: 'Session already exists, delete it first',
+              detail: 'A session already exists. Delete it first.',
             },
           ],
         })
@@ -216,7 +217,7 @@ describe.for(suite)(
             {
               status: 'Not Found',
               code: 'SESSION_NOT_FOUND',
-              detail: 'Session "current" not found',
+              detail: 'Session "current" not found.',
             },
           ],
         })
@@ -240,7 +241,7 @@ describe.for(suite)(
             {
               status: 'Not Found',
               code: 'SESSION_NOT_FOUND',
-              detail: 'Session "something-else" not found',
+              detail: 'Session "something-else" not found.',
             },
           ],
         })

@@ -1,7 +1,7 @@
 import type { Store as SessionStore } from 'express-session';
 import request from 'supertest';
 import { beforeEach, describe } from 'vitest';
-import { apiMediaType } from '../src/app-utils.ts';
+import { apiMediaType } from '../src/api.ts';
 import { DataStoreError } from '../src/data-store-errors.ts';
 import type { DataStore, ExperimentId, RunId } from '../src/data-store.ts';
 import {
@@ -248,7 +248,9 @@ describe.each(storeTypes)('LogServer: post /logs (%s)', (storeType) => {
             {
               status: 'Conflict',
               code: 'LOG_NUMBER_EXISTS',
-              detail: `Cannot add log to run '${runId}', log number 2 already exists`,
+              detail:
+                `Cannot add log to run '1', log number 2 already exists.` +
+                ` Ensure the log number is unique within the run.`,
             },
           ],
         })

@@ -1,22 +1,15 @@
-import {
-  getErrorResponse,
-  type ServerHandlerBody,
-  type ServerHandlerResult,
-  type SubServerDescription,
-} from './app-utils.js';
+import { getErrorResponse } from './api.ts';
 import { DataStoreError } from './data-store-errors.ts';
+import type { PathHandlers } from './router.ts';
 
-export const experimentHandlers = (): SubServerDescription<'/experiments'> => ({
+export const experimentHandlers = (): PathHandlers<'/experiments'> => ({
   '/experiments': {
-    async post({
-      body,
-      store,
-      request,
-    }): Promise<ServerHandlerResult<'/experiments', 'post'>> {
-      if (request.session.data?.role !== 'host') {
+    async post({ body, dataStore: store, sessionData, protocol, host }) {
+      if (sessionData.role !== 'host') {
         return getErrorResponse({
-          status: 403,
-          detail: 'Only hosts can create experiments',
+          status: 'Forbidden',
+          detail:
+            'Only hosts can create experiments. Log in as a host to create an experiment.',
           code: 'FORBIDDEN',
         });
       }
@@ -27,7 +20,7 @@ export const experimentHandlers = (): SubServerDescription<'/experiments'> => ({
           status: 201,
           body: { data: { id: experimentId.toString(), type: 'experiments' } },
           headers: {
-            location: `${request.protocol + '://' + request.get('host')}/experiments/${experimentId}`,
+            location: `${protocol + '://' + host}/experiments/${experimentId}`,
           },
         };
       } catch (error) {
@@ -36,8 +29,8 @@ export const experimentHandlers = (): SubServerDescription<'/experiments'> => ({
           error.code === DataStoreError.EXPERIMENT_EXISTS
         ) {
           return getErrorResponse({
-            status: 409,
-            detail: `An experiment named "${experimentName}" already exists`,
+            status: 'Conflict',
+            detail: `An experiment named "${experimentName}" already exists. Choose a different name.`,
             code: 'EXPERIMENT_EXISTS',
           });
         }
@@ -45,42 +38,39 @@ export const experimentHandlers = (): SubServerDescription<'/experiments'> => ({
       }
     },
 
-    async get({ store, parameters: { query } }) {
+    async get({ dataStore: store, parameters: { query } }) {
+      // Note: There is currently no restrictions on who can access this
+      // endpoint.
       const experiments = await store.getExperiments({
         experimentName: query['filter[name]'],
       });
-      const data: Extract<
-        ServerHandlerBody<'/experiments', 'get'>,
-        { data: unknown }
-      >['data'] = [];
-      for (const experiment of experiments) {
-        data.push({
-          id: experiment.experimentId,
-          type: 'experiments',
-          attributes: { name: experiment.experimentName },
-        });
-      }
-      return { status: 200, body: { data } };
+      return {
+        status: 200,
+        body: {
+          data: experiments.map((experiment) => ({
+            id: experiment.experimentId,
+            type: 'experiments' as const,
+            attributes: { name: experiment.experimentName },
+          })),
+        },
+      };
     },
   },
 
   '/experiments/{id}': {
-    async get({ request, parameters: { path }, store }) {
-      if (request.session.data == null) {
-        throw new Error('Session data is not initialized');
-      }
+    async get({ parameters: { path }, dataStore: store }) {
       const experiments = await store.getExperiments({ experimentId: path.id });
       if (experiments.length > 1) {
+        // This should not happen, but we handle it gracefully.
         throw new Error('Multiple experiments found for the given ID');
       }
       const experiment = experiments[0];
-      const notFoundErrorResponse = getErrorResponse({
-        status: 404,
-        detail: `Experiment ${path.id} not found`,
-        code: 'EXPERIMENT_NOT_FOUND',
-      });
       if (experiment == null) {
-        return notFoundErrorResponse;
+        return getErrorResponse({
+          status: 'Not Found',
+          detail: `Experiment "${path.id}" not found.`,
+          code: 'EXPERIMENT_NOT_FOUND',
+        });
       }
       return {
         status: 200,

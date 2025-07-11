@@ -4,7 +4,7 @@ import type { Store as SessionStore } from 'express-session';
 import { prop, sortBy } from 'remeda';
 import request from 'supertest';
 import { test as baseTest, beforeEach, describe, vi } from 'vitest';
-import { apiMediaType } from '../src/app-utils.ts';
+import { apiMediaType } from '../src/api.ts';
 import type { DataStore, ExperimentId, RunStatus } from '../src/data-store.ts';
 import { fromAsync } from '../src/utils.ts';
 import {
@@ -466,7 +466,7 @@ describeForAll(
           runStatus: originalStatus,
         });
         await addRunToSession({ api, runId, sessionStore });
-        await api
+        let result = await api
           .patch(`/runs/${runId}`)
           .set('content-type', apiMediaType)
           .send({
@@ -476,16 +476,9 @@ describeForAll(
               attributes: { status: targetStatus },
             },
           })
-          .expect(403, {
-            errors: [
-              {
-                status: 'Forbidden',
-                code: 'INVALID_STATUS_TRANSITION',
-                detail: `Cannot transition run status from ${originalStatus} to ${targetStatus}`,
-              },
-            ],
-          })
+          .expect(403)
           .expect('Content-Type', apiContentTypeRegExp);
+        expect(result.body).toMatchSnapshot();
         const [runRecord] = await dataStore.getRuns({ runId });
         expect(runRecord!.runStatus).toBe(originalStatus);
       },
@@ -556,7 +549,7 @@ describeForAll(
         { type: 'log-type', number: 3, values: {} },
       ]);
       await addRunToSession({ api, runId: runRecord.runId, sessionStore });
-      await api
+      let answer = await api
         .patch(`/runs/${runRecord.runId}`)
         .set('content-type', apiMediaType)
         .send({
@@ -566,16 +559,9 @@ describeForAll(
             attributes: { status: 'completed' },
           },
         })
-        .expect(403, {
-          errors: [
-            {
-              status: 'Forbidden',
-              code: 'PENDING_LOGS',
-              detail: 'Cannot complete run with pending logs',
-            },
-          ],
-        })
+        .expect(403)
         .expect('Content-Type', apiContentTypeRegExp);
+      expect(answer.body).toMatchSnapshot();
       const [r1] = await dataStore.getRuns({ runId: runRecord.runId });
       expect(r1).toEqual(runRecord);
     });
@@ -644,7 +630,7 @@ describeForAll(
                 status: 'Forbidden',
                 code: 'INVALID_LAST_LOG_NUMBER',
                 detail:
-                  'Updating last log number is only allowed when resuming a run',
+                  'Updating last log number is only allowed when resuming a run.',
               },
             ],
           })

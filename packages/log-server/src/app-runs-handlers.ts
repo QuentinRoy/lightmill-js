@@ -2,11 +2,10 @@ import {
   getAllowedAndFilteredRunIds,
   getErrorResponse,
   getRunResources,
-  type ServerHandlerResult,
-  type SubServerDescription,
-} from './app-utils.js';
+} from './api.ts';
 import { DataStoreError } from './data-store-errors.ts';
 import { type RunStatus } from './data-store.ts';
+import type { HandlerResponseFromRoute, PathHandlers } from './router.ts';
 import { arrayify, firstStrict } from './utils.js';
 
 const allowedStatusTransitions = [
@@ -20,12 +19,12 @@ const allowedStatusTransitions = [
   { from: 'completed', to: 'canceled' },
 ] as const satisfies Array<{ from: RunStatus; to: RunStatus }>;
 
-export const runHandlers = (): SubServerDescription<'/runs'> => ({
+export const runHandlers = (): PathHandlers<'/runs'> => ({
   '/runs': {
-    async get({ request, parameters, store }) {
+    async get({ sessionData, parameters, dataStore: store }) {
       const filter = {
         runId: getAllowedAndFilteredRunIds(
-          request.session.data,
+          sessionData,
           parameters.query['filter[id]'],
         ),
         runStatus: parameters.query['filter[status]'],
@@ -46,25 +45,17 @@ export const runHandlers = (): SubServerDescription<'/runs'> => ({
         body: included == null ? { data: runs } : { data: runs, included },
       };
     },
-
-    async post({
-      store,
-      request: req,
-      body,
-    }): Promise<ServerHandlerResult<'/runs', 'post'>> {
+    async post({ dataStore: store, sessionData, body, protocol, host }) {
       const { status, name } = body.data.attributes;
       const { id: experimentId } = body.data.relationships.experiment.data;
-      if (req.session.data == null) {
-        throw new Error('No session data');
-      }
       try {
         const onGoingRuns = await store.getRuns({
-          runId: req.session.data.runs,
+          runId: sessionData.runs,
           runStatus: ['running', 'interrupted'],
         });
         if (onGoingRuns.length > 0) {
           return getErrorResponse({
-            status: 403,
+            status: 'Forbidden',
             code: 'ONGOING_RUNS',
             detail: 'Client already has ongoing runs, end them first',
           });
@@ -74,12 +65,15 @@ export const runHandlers = (): SubServerDescription<'/runs'> => ({
           experimentId: experimentId,
           runName: name,
         });
-        req.session.data.runs = [...req.session.data.runs, run.runId];
         return {
+          sessionData: {
+            ...sessionData,
+            runs: [...sessionData.runs, run.runId],
+          },
           status: 201,
           body: { data: { id: run.runId, type: 'runs' } },
           headers: {
-            location: `${req.protocol + '://' + req.get('host')}/runs/${run.runId}`,
+            location: `${protocol + '://' + host}/runs/${run.runId}` as const,
           },
         };
       } catch (e) {
@@ -89,7 +83,7 @@ export const runHandlers = (): SubServerDescription<'/runs'> => ({
         ) {
           return getErrorResponse({
             code: 'RUN_EXISTS',
-            status: 409,
+            status: 'Conflict',
             detail: `A run named ${name} already exists for experiment ${experimentId}`,
           });
         }
@@ -99,16 +93,13 @@ export const runHandlers = (): SubServerDescription<'/runs'> => ({
   },
 
   '/runs/{id}': {
-    async get({ request, parameters, store }) {
-      if (request.session.data == null) {
-        throw new Error('No session data');
-      }
+    async get({ sessionData, parameters, dataStore: store }) {
       if (
-        request.session.data.role !== 'host' &&
-        !request.session.data.runs.includes(parameters.path.id)
+        sessionData.role !== 'host' &&
+        !sessionData.runs.includes(parameters.path.id)
       ) {
         return getErrorResponse({
-          status: 404,
+          status: 'Not Found',
           code: 'RUN_NOT_FOUND',
           detail: `Run "${parameters.path.id}" not found`,
         });
@@ -119,7 +110,7 @@ export const runHandlers = (): SubServerDescription<'/runs'> => ({
       const run = runs[0];
       if (run === undefined) {
         return getErrorResponse({
-          status: 404,
+          status: 'Not Found',
           code: 'RUN_NOT_FOUND',
           detail: `Run "${parameters.path.id}" not found`,
         });
@@ -137,22 +128,19 @@ export const runHandlers = (): SubServerDescription<'/runs'> => ({
     },
 
     async patch({
-      request,
-      store,
+      sessionData,
+      dataStore: store,
       body,
       parameters: {
         path: { id: runId },
       },
-    }): Promise<ServerHandlerResult<'/runs/{id}', 'patch'>> {
+    }): Promise<HandlerResponseFromRoute<'/runs/{id}', 'patch'>> {
       const unknownRunAnswer = getErrorResponse({
-        status: 404,
+        status: 'Not Found',
         code: 'RUN_NOT_FOUND',
         detail: `Run "${runId}" not found`,
       });
-      if (
-        request.session.data?.role !== 'host' &&
-        !request.session.data?.runs.includes(runId)
-      ) {
+      if (sessionData.role !== 'host' && !sessionData.runs.includes(runId)) {
         return unknownRunAnswer;
       }
       let matchingRuns = await store.getRuns({ runId });
@@ -163,9 +151,9 @@ export const runHandlers = (): SubServerDescription<'/runs'> => ({
       // Run not found errors must be handled before this.
       if (body.data.id !== runId) {
         return getErrorResponse({
-          status: 403,
+          status: 'Forbidden',
           code: 'INVALID_RUN_ID',
-          detail: `A run's id cannot be changed`,
+          detail: `A run's id cannot be changed. Remove the 'id' attribute from the request body.`,
         });
       }
 
@@ -173,32 +161,42 @@ export const runHandlers = (): SubServerDescription<'/runs'> => ({
       const oldRunStatus = targetRun.runStatus;
       const newRunStatus = body.data.attributes?.status;
 
+      const allowedNextStatus: RunStatus[] = allowedStatusTransitions
+        .filter((t) => t.from === oldRunStatus)
+        .map((t) => t.to);
       if (
         newRunStatus !== undefined &&
         newRunStatus !== oldRunStatus &&
-        !allowedStatusTransitions.some(
-          (t) => t.from === oldRunStatus && t.to === newRunStatus,
-        )
+        !allowedNextStatus.includes(newRunStatus)
       ) {
+        let listFormat = new Intl.ListFormat('en', {
+          style: 'long',
+          type: 'disjunction',
+        });
+        let message =
+          allowedNextStatus.length > 0
+            ? `Cannot change run status from ${oldRunStatus} to ${newRunStatus}.` +
+              ` Allowed transitions are: ${listFormat.format(
+                allowedNextStatus.map((s) => `${oldRunStatus} -> ${s}`),
+              )}.`
+            : `Cannot change run status. Run status ${oldRunStatus} is terminal.`;
         return getErrorResponse({
-          status: 403,
+          status: 'Forbidden',
           code: 'INVALID_STATUS_TRANSITION',
-          detail: `Cannot transition run status from ${oldRunStatus} to ${newRunStatus}`,
+          detail: message,
         });
       }
 
       if (newRunStatus !== 'canceled') {
         let otherOngoingRuns = await store.getRuns({
           runStatus: ['running', 'interrupted'],
-          runId: (request.session.data?.runs ?? []).filter(
-            (r) => r !== targetRun.runId,
-          ),
+          runId: (sessionData.runs ?? []).filter((r) => r !== targetRun.runId),
         });
         if (otherOngoingRuns.length > 0) {
           return getErrorResponse({
-            status: 403,
+            status: 'Forbidden',
             code: 'ONGOING_RUNS',
-            detail: `Client already has ongoing runs, end them first`,
+            detail: `Client already has ongoing runs. End them first before updating this run.`,
           });
         }
       }
@@ -211,9 +209,9 @@ export const runHandlers = (): SubServerDescription<'/runs'> => ({
         let pendingLogs = await store.getMissingLogs({ runId });
         if (pendingLogs.length > 0) {
           return getErrorResponse({
-            status: 403,
+            status: 'Forbidden',
             code: 'PENDING_LOGS',
-            detail: `Cannot complete run with pending logs`,
+            detail: `Cannot complete run with pending logs. Ensure all logs are added to the run before completing it.`,
           });
         }
       }
@@ -226,16 +224,18 @@ export const runHandlers = (): SubServerDescription<'/runs'> => ({
           requestedLastLogNumber !== lastLogNumber
         ) {
           return getErrorResponse({
-            status: 403,
+            status: 'Forbidden',
             code: 'INVALID_LAST_LOG_NUMBER',
-            detail: `Updating last log number is only allowed when resuming a run`,
+            detail: `Updating last log number is only allowed when resuming a run.`,
           });
         }
         if (lastLogNumber < requestedLastLogNumber) {
           return getErrorResponse({
-            status: 403,
+            status: 'Forbidden',
             code: 'INVALID_LAST_LOG_NUMBER',
-            detail: `Cannot set last log number to ${requestedLastLogNumber}, run has only ${lastLogNumber} logs`,
+            detail:
+              `Cannot set last log number to ${requestedLastLogNumber}, run has only ${lastLogNumber} logs.` +
+              ` Ensure the last log number is less than or equal to the last log number of the run.`,
           });
         }
         await store.resumeRun(targetRun.runId, {
