@@ -161,14 +161,17 @@ interface OperationHandlerParameters<Op extends ApiOperation> {
 }
 
 type OperationHandlerResult<Op extends ApiOperation> = Simplify<
-  RemoveSetCookiesFromHeaders<
-    LowerCaseHeaders<
-      AddReadableStreamToBody<
-        SetOptionalJsonContentType<ApiOperationResponseContent<Op>>
+  MakeAllOptionalPropObjectOptional<
+    'headers',
+    RemoveSetCookiesFromHeaders<
+      LowerCaseHeaders<
+        AddReadableStreamToBody<
+          SetOptionalJsonContentType<ApiOperationResponseContent<Op>>
+        >
       >
-    >
-  > &
-    HandlerResultBase
+    > &
+      HandlerResultBase
+  >
 >;
 
 type SetOptionalJsonContentType<T> = T extends { contentType: ApiMediaType }
@@ -186,6 +189,15 @@ type RemoveSetCookiesFromHeaders<T> = T extends {
   headers: infer Headers extends { 'set-cookie': string };
 }
   ? Merge<Omit<T, 'headers'>, { headers: SetOptional<Headers, 'set-cookie'> }>
+  : T;
+
+type MakeAllOptionalPropObjectOptional<
+  PropName extends PropertyKey,
+  T,
+> = T extends { [P in PropName]: infer Obj }
+  ? Partial<Obj> extends Obj
+    ? Merge<Omit<T, 'headers'>, { headers?: Obj }>
+    : T
   : T;
 
 type AddReadableStreamToBody<T extends object> = AddTypeToProp<

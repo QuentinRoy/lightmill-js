@@ -43,7 +43,7 @@ const suite = storeTypes.map((storeType) => ({
         secureCookies: false,
       });
       let app = express().use(server.middleware);
-      await use(app satisfies Application);
+      await use(app);
     },
     api: async ({ app }, use) => {
       let api = request.agent(app);
@@ -164,8 +164,8 @@ describe.for(suite)(
           errors: [
             {
               status: 'Forbidden',
-              code: 'INVALID_CREDENTIALS',
-              detail: 'Invalid credentials for role: host',
+              code: 'MISSING_CREDENTIALS',
+              detail: 'Authentication is required for role: host',
             },
           ],
         })

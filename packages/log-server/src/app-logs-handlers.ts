@@ -1,4 +1,4 @@
-import type { components, operations } from '@lightmill/log-api';
+import type { components, paths } from '@lightmill/log-api';
 import { Readable } from 'node:stream';
 import type { JsonObject } from 'type-fest';
 import { parseAcceptHeader } from './accept-headers.ts';
@@ -42,7 +42,7 @@ export const logHandlers = (): SubServerDescription<'/logs'> => ({
         if (includeQuery.length > 0) {
           return getErrorResponse({
             status: 400,
-            code: 'INVALID_QUERY_PARAMETER',
+            code: 'NOT_SUPPORTED_QUERY_PARAMETER',
             detail: `CSV content does not support include query parameter`,
             source: { parameter: 'include' },
           });
@@ -142,7 +142,7 @@ export const logHandlers = (): SubServerDescription<'/logs'> => ({
       }
       let data = JSON.parse(
         dataString,
-      ) as operations['Log_getCollection']['responses']['200']['content'][ApiMediaType];
+      ) as paths['/logs']['get']['responses']['200']['content'][ApiMediaType];
       if (data.data.length > 1) {
         throw new Error(`More than one log found for id '${path.id}'`);
       }
@@ -196,12 +196,12 @@ async function* jsonResponseChunkGenerator(
   filter: Omit<AllFilter, 'runStatus'>,
   includes: { run?: boolean; experiment?: boolean; lastLogs?: boolean },
 ) {
-  let runs = new Map<string, components['schemas']['Run.Resource'] | null>();
+  let runs = new Map<string, components['schemas']['RunResource'] | null>();
   let experiments = new Map<
     string,
-    components['schemas']['Experiment.Resource']
+    components['schemas']['ExperimentResource']
   >();
-  let includedLogs = new Array<components['schemas']['Log.Resource']>();
+  let includedLogs = new Array<components['schemas']['LogResource']>();
   let logs = await store.getLogs({ ...filter, runStatus: '-canceled' });
   yield '{"data":[';
   let started = false;
@@ -218,7 +218,7 @@ async function* jsonResponseChunkGenerator(
           values: log.values,
         },
         relationships: { run: { data: { type: 'runs', id: log.runId } } },
-      } satisfies components['schemas']['Log.Resource'],
+      } satisfies components['schemas']['LogResource'],
       stringifyDateSerializer,
     );
     if (

@@ -29,14 +29,23 @@ export const sessionHandlers = ({
       const { role: requestedRole = 'participant' } =
         body.data?.attributes ?? {};
 
-      // TODO: create a middleware to deal with Basic Auth.
-      let isAuthorized =
-        requestedRole === 'participant' ||
-        (requestedRole === 'host' &&
-          (hostPassword == null ||
-            checkBasicAuth(headers.authorization, hostUser, hostPassword)));
+      if (
+        requestedRole === 'host' &&
+        hostPassword != null &&
+        headers.authorization == null
+      ) {
+        return getErrorResponse({
+          status: 403,
+          code: 'MISSING_CREDENTIALS',
+          detail: `Authentication is required for role: ${requestedRole}`,
+        });
+      }
 
-      if (!isAuthorized) {
+      if (
+        requestedRole === 'host' &&
+        hostPassword != null &&
+        !checkBasicAuth(headers.authorization, hostUser, hostPassword)
+      ) {
         return getErrorResponse({
           status: 403,
           code: 'INVALID_CREDENTIALS',

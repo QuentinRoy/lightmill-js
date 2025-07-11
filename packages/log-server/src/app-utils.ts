@@ -76,7 +76,7 @@ export function getErrorResponse<
   } = { ...structuredClone(option), status: httpStatuses[option.status] };
   return {
     status: option.status as T['status'],
-    body: { errors: [error] },
+    body: { errors: [error] as [typeof error] },
     contentType: apiMediaType,
   };
 }

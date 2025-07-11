@@ -171,11 +171,11 @@ export function LogServer({
           errors: [
             {
               status: 'Internal Server Error',
-              code: 'INTERNAL_SERVER',
+              code: 'INTERNAL_SERVER_ERROR',
               detail: err.message,
             },
           ],
-        } satisfies components['schemas']['NonRouterErrorDocument']);
+        } satisfies components['schemas']['ServerErrorResponse']);
     },
   );
 
@@ -183,8 +183,11 @@ export function LogServer({
 }
 
 type NonRouterError =
-  components['schemas']['NonRouterErrorDocument']['errors'][number];
-type SessionRequiredError = components['schemas']['Utils.SessionRequiredError'];
+  components['schemas']['ServerErrorResponse']['errors'][number];
+type SessionRequiredError = Extract<
+  NonRouterError,
+  { code: 'SESSION_REQUIRED' }
+>;
 
 function getErrorEntry(options: {
   errorItem: ValidationErrorItem;
@@ -241,7 +244,7 @@ function getErrorEntry(options: {
           statusCode: 400,
           content: {
             status: 'Bad Request',
-            code: 'HEADERS_VALIDATION',
+            code: 'INVALID_REQUEST_HEADERS',
             detail: errorItem.message,
             source: { header: errorItem.path.substring('/headers/'.length) },
           },
@@ -254,7 +257,7 @@ function getErrorEntry(options: {
         statusCode: 400,
         content: {
           status: 'Bad Request',
-          code: 'BODY_VALIDATION',
+          code: 'INVALID_REQUEST_BODY',
           detail: errorItem.message,
           source: { pointer: errorItem.path.substring('/body'.length) },
         },
@@ -266,7 +269,7 @@ function getErrorEntry(options: {
         statusCode: 400,
         content: {
           status: 'Bad Request',
-          code: 'QUERY_VALIDATION',
+          code: 'INVALID_REQUEST_QUERY',
           detail: errorItem.message,
           source: { parameter: errorItem.path.substring('/query/'.length) },
         },
