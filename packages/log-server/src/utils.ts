@@ -1,6 +1,7 @@
 import { mapKeys, toSnakeCase } from 'remeda';
 import type {
   ArrayIndices,
+  Entries,
   IsNever,
   Merge,
   UnionToIntersection,
@@ -261,3 +262,36 @@ export async function fromAsync<T, O>(
   }
   return values;
 }
+
+/**
+ * This is a wrapper around `Object.entries` with typed key and values of the
+ * entries.
+ * WARNING: This is unsafe because it assumes the object does not contain any
+ * extra properties that are not in the type `T`. Only use when you are sure
+ * that the object does not have any extra properties that the ones specified in
+ * its type.
+ *
+ * For example, `let x = { a: 'foo', b: 42 }; let y: { a: string } = x;` is
+ * correct (and common) in TypeScript. y in this case contains an extra
+ * property, `b`, that TS isn't aware of, making the result type of
+ * `unsafeEntries` incorrect.
+ *
+ * @param obj - The object to get entries from
+ * @returns The entries of the object as an array of key-value pairs.
+ */
+export function unsafeEntries<const T extends object>(obj: T): Entries<T> {
+  return Object.entries(obj) as Entries<T>;
+}
+
+export type ConditionalOptionalProps<
+  T extends object,
+  V,
+  K extends PropertyKey = keyof T,
+> = { [P in Exclude<keyof T, ConditionalKeys<T, V> & K>]: T[P] } & {
+  [P in ConditionalKeys<T, V> & K]?: T[P] | undefined;
+};
+
+export type ConditionalKeys<T extends object, V> = Extract<
+  keyof T,
+  { [K in keyof T]-?: Required<T>[K] extends V ? K : never }[keyof T]
+>;

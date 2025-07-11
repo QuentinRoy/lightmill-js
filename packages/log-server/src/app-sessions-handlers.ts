@@ -1,14 +1,6 @@
-import type express from 'express';
-import { promisify } from 'node:util';
-import type { Writable } from 'type-fest';
-import {
-  getErrorResponse,
-  getRunResources,
-  type ServerHandlerBody,
-  type ServerHandlerResult,
-  type SubServerDescription,
-} from './app-utils.js';
-import { type DataStore } from './data-store.ts';
+import { getErrorResponse, getRunResources, type UserRole } from './api.ts';
+import { type DataStore, type RunId } from './data-store.ts';
+import type { PathHandlers } from './router.ts';
 import { arrayify, checkBasicAuth } from './utils.js';
 
 type SessionHandlerOptions = {
@@ -18,84 +10,94 @@ type SessionHandlerOptions = {
 export const sessionHandlers = ({
   hostPassword,
   hostUser,
-}: SessionHandlerOptions): SubServerDescription<'/sessions'> => ({
+}: SessionHandlerOptions): PathHandlers<'/sessions'> => ({
   '/sessions': {
     async post({
-      request,
+      sessionData,
       body,
       parameters: { headers },
-      store,
-    }): Promise<ServerHandlerResult<'/sessions', 'post'>> {
+      dataStore: store,
+      protocol,
+      host,
+    }) {
       const { role: requestedRole = 'participant' } =
         body.data?.attributes ?? {};
 
-      // TODO: create a middleware to deal with Basic Auth.
-      let isAuthorized =
-        requestedRole === 'participant' ||
-        (requestedRole === 'host' &&
-          (hostPassword == null ||
-            checkBasicAuth(headers.authorization, hostUser, hostPassword)));
-
-      if (!isAuthorized) {
+      if (
+        requestedRole === 'host' &&
+        hostPassword != null &&
+        headers.authorization == null
+      ) {
         return getErrorResponse({
-          status: 403,
+          status: 'Forbidden',
+          code: 'MISSING_CREDENTIALS',
+          detail:
+            `Authentication is required for role: ${requestedRole}.` +
+            ` Provide credentials in the "authorization" header.`,
+        });
+      }
+
+      if (
+        requestedRole === 'host' &&
+        hostPassword != null &&
+        !checkBasicAuth(headers.authorization, hostUser, hostPassword)
+      ) {
+        return getErrorResponse({
+          status: 'Forbidden',
           code: 'INVALID_CREDENTIALS',
-          detail: `Invalid credentials for role: ${requestedRole}`,
+          detail: `Invalid credentials for role: ${requestedRole}. Check the password.`,
         });
       }
 
-      if (request.session.data != null) {
+      if (sessionData != null) {
         return getErrorResponse({
-          status: 409,
+          status: 'Conflict',
           code: 'SESSION_EXISTS',
-          detail: `Session already exists, delete it first`,
+          detail: `A session already exists. Delete it first.`,
         });
       }
-
-      request.session.data = { role: requestedRole, runs: [] };
+      sessionData = { role: requestedRole, runs: [] };
       return {
-        headers: {
-          location: `${request.protocol + '://' + request.get('host')}/sessions/current`,
-        },
+        sessionData,
+        headers: { location: `${protocol + '://' + host}/sessions/current` },
         status: 201,
-        body: await getSessionResource(request, store),
+        body: await getSessionResource(sessionData, store),
       };
     },
   },
 
   '/sessions/{id}': {
-    async get({ request, parameters: { path, query }, store }) {
-      if (path.id !== 'current' || request.session.data == null) {
+    async get({ sessionData, parameters: { path, query }, dataStore: store }) {
+      if (path.id !== 'current' || sessionData == null) {
         return getErrorResponse({
-          status: 404,
+          status: 'Not Found',
           code: 'SESSION_NOT_FOUND',
-          detail: `Session "${path.id}" not found`,
+          detail: `Session "${path.id}" not found.`,
         });
       }
       return {
         status: 200,
-        body: await getSessionResource(request, store, {
+        body: await getSessionResource(sessionData, store, {
           includeRuns: arrayify(query.include, true).includes('runs'),
         }),
       };
     },
 
-    async delete({ request, parameters: { path } }) {
-      if (path.id !== 'current' || request.session.data == null) {
+    async delete({ sessionData, parameters: { path } }) {
+      if (path.id !== 'current' || sessionData == null) {
         return getErrorResponse({
-          status: 404,
+          status: 'Not Found',
           code: 'SESSION_NOT_FOUND',
-          detail: `Session "${path.id}" not found`,
+          detail: `Session "${path.id}" not found.`,
         });
       }
-      await promisify(request.session.destroy.bind(request.session))();
-      return { status: 200, body: { data: null } };
+      return { status: 200, sessionData: null, body: { data: null } };
     },
   },
 });
 
 async function getSessionResource(
-  req: express.Request,
+  sessionData: { runs: RunId[]; role: UserRole },
   store: DataStore,
   {
     includeRuns = false,
@@ -107,7 +109,6 @@ async function getSessionResource(
     includeRunLastLogs?: boolean;
   } = {},
 ) {
-  let sessionData = req.session.data;
   if (sessionData == null) {
     throw new Error('Session not populated');
   }
@@ -119,25 +120,27 @@ async function getSessionResource(
       }),
     },
   };
-  let result: Writable<
-    Extract<ServerHandlerBody<'/sessions/{id}', 'get'>, { data: unknown }>
-  > = {
+  let included;
+  if (includeRuns || includeExperiment || includeRunLastLogs) {
+    let { runs, experiments, lastLogs } = await getRunResources(store, {
+      filter: { runId: sessionData.runs },
+    });
+    included = [
+      ...(includeRuns ? runs : []),
+      ...(includeExperiment ? experiments : []),
+      ...(includeRunLastLogs ? lastLogs : []),
+    ];
+  } else {
+    included = undefined;
+  }
+
+  return {
     data: {
       type: 'sessions' as const,
       id: 'current' as const,
       attributes,
       relationships,
     },
+    included,
   };
-  if (includeRuns || includeExperiment || includeRunLastLogs) {
-    let { runs, experiments, lastLogs } = await getRunResources(store, {
-      filter: { runId: sessionData.runs },
-    });
-    result.included = [
-      ...(includeRuns ? runs : []),
-      ...(includeExperiment ? experiments : []),
-      ...(includeRunLastLogs ? lastLogs : []),
-    ];
-  }
-  return result;
 }

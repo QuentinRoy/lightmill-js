@@ -1,5 +1,5 @@
 import { afterEach, describe, vi } from 'vitest';
-import { apiMediaType } from '../src/app-utils.ts';
+import { apiMediaType } from '../src/api.ts';
 import {
   apiContentTypeRegExp,
   createSessionTest,
@@ -41,25 +41,29 @@ describe.for(hostTests)(
 
     it('refuses to create an experiment if there are name conflicts', async ({
       session: { api, dataStore },
+      expect,
     }) => {
       await dataStore.addExperiment({ experimentName: 'exp-name' });
 
-      await api
+      const answer = await api
         .post('/experiments')
         .set('Content-Type', apiMediaType)
         .send({
           data: { type: 'experiments', attributes: { name: 'exp-name' } },
         })
-        .expect(409, {
-          errors: [
+        .expect(409)
+        .expect('Content-Type', apiContentTypeRegExp);
+      expect(answer.body).toMatchInlineSnapshot(`
+        {
+          "errors": [
             {
-              status: 'Conflict',
-              code: 'EXPERIMENT_EXISTS',
-              detail: 'An experiment named "exp-name" already exists',
+              "code": "EXPERIMENT_EXISTS",
+              "detail": "An experiment named "exp-name" already exists. Choose a different name.",
+              "status": "Conflict",
             },
           ],
-        })
-        .expect('Content-Type', apiContentTypeRegExp);
+        }
+      `);
     });
   },
 );
@@ -67,23 +71,29 @@ describe.for(hostTests)(
 describe.for(participantTests)(
   'LogServer: post /experiments ($sessionType session, $storeType store)',
   ({ test: it }) => {
-    it('refuses to create an experiment', async ({ session: { api } }) => {
-      await api
+    it('refuses to create an experiment', async ({
+      expect,
+      session: { api },
+    }) => {
+      const answer = await api
         .post('/experiments')
         .set('Content-Type', apiMediaType)
         .send({
           data: { type: 'experiments', attributes: { name: 'exp-name' } },
         })
-        .expect(403, {
-          errors: [
+        .expect(403)
+        .expect('Content-Type', apiContentTypeRegExp);
+      expect(answer.body).toMatchInlineSnapshot(`
+        {
+          "errors": [
             {
-              status: 'Forbidden',
-              code: 'FORBIDDEN',
-              detail: 'Only hosts can create experiments',
+              "code": "FORBIDDEN",
+              "detail": "Only hosts can create experiments. Log in as a host to create an experiment.",
+              "status": "Forbidden",
             },
           ],
-        })
-        .expect('Content-Type', apiContentTypeRegExp);
+        }
+      `);
     });
   },
 );
@@ -194,7 +204,7 @@ describe.for(allTests)(
             {
               status: 'Not Found',
               code: 'EXPERIMENT_NOT_FOUND',
-              detail: 'Experiment non-existent not found',
+              detail: 'Experiment "non-existent" not found.',
             },
           ],
         })

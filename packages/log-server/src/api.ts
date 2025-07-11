@@ -1,90 +1,27 @@
-import type { paths } from '@lightmill/log-api';
 import type { SessionData } from 'express-session';
 import { groupBy, intersection, map, pipe, uniqueBy } from 'remeda';
-import type { Simplify, WritableDeep } from 'type-fest';
-import {
-  type ApiPath,
-  type HttpMethod,
-  httpStatuses,
-  type HttpStatusMap,
-} from './api-utils.js';
-import type { DataStore, RunId } from './data-store.ts';
-import type {
-  Handler,
-  HandlerParameters,
-  HandlerResult,
-  RequestContent,
-  ServerDescription,
-} from './typed-server.js';
-import { arrayify } from './utils.js';
-
-declare module 'express-session' {
-  interface SessionData {
-    data: { role: 'participant' | 'host'; runs: RunId[] };
-  }
-}
-
-// This needs to be a type (not an interface) so we can use it with
-// typed-server... I don't know why, but it's not worth investigating.
-export type ServerApi = Simplify<paths>;
-
-export type ServerHandler<
-  Path extends ApiPath<ServerApi>,
-  Method extends HttpMethod,
-> = Handler<ServerApi, Path, Method>;
-
-export type ServerHandlerResult<
-  Path extends ApiPath<ServerApi>,
-  Method extends HttpMethod,
-> = HandlerResult<ServerApi, Path, Method>;
-
-export type ServerHandlerBody<
-  Path extends ApiPath<ServerApi>,
-  Method extends HttpMethod,
-> = ServerHandlerResult<Path, Method>['body'];
-
-export type ServerHandlerIncluded<
-  Path extends ApiPath<ServerApi>,
-  Method extends HttpMethod,
-> =
-  ServerHandlerBody<Path, Method> extends infer B
-    ? B extends { readonly included?: infer I }
-      ? I
-      : never
-    : never;
-
-export type ServerHandlerParameter<
-  Path extends ApiPath<ServerApi>,
-  Method extends HttpMethod,
-> = HandlerParameters<ServerApi, Path, Method>;
-
-export type ServerRequestContent<
-  Path extends ApiPath<ServerApi>,
-  Method extends HttpMethod,
-> = RequestContent<ServerApi, Path, Method>;
+import type { ConditionalKeys } from 'type-fest';
+import type { DataStore } from './data-store.ts';
+import { arrayify } from './utils.ts';
 
 export function getErrorResponse<
-  const T extends {
-    status: keyof HttpStatusMap;
-    code: string;
-    detail?: string;
-    source?: object;
-  },
->(option: T) {
-  let error: WritableDeep<Omit<T, 'status'>> & {
-    status: HttpStatusMap[T['status']];
-  } = { ...structuredClone(option), status: httpStatuses[option.status] };
+  const Error extends { code: string; status: HttpStatusText },
+>(
+  errors: Array<Error> | Error,
+  statusCode?: HttpStatusCodeFromText<Error['status']>,
+) {
+  errors = Array.isArray(errors) ? errors : [errors];
+  let firstError = errors[0];
+  if (firstError == null) {
+    throw new Error('No errors provided');
+  }
   return {
-    status: option.status as T['status'],
-    body: { errors: [error] },
     contentType: apiMediaType,
+    status:
+      statusCode ?? httpStatusCodeFromText<Error['status']>(firstError.status),
+    body: { errors },
   };
 }
-
-export type SubServerDescription<K extends string> = Pick<
-  ServerDescription<ServerApi>,
-  Extract<keyof ServerDescription<ServerApi>, `${K}${string}`>
->;
 
 type GetRunResourcesOptions =
   | { filter: Parameters<DataStore['getRuns']>[0] }
@@ -175,3 +112,67 @@ export function getAllowedAndFilteredRunIds(
 
 export const apiMediaType = 'application/vnd.api+json' as const;
 export type ApiMediaType = typeof apiMediaType;
+
+export function parseCookies(cookieHeader: string | undefined) {
+  if (cookieHeader == null) return {};
+  return Object.fromEntries(
+    cookieHeader.split(';').map((cookie) => {
+      const [key, value] = cookie
+        .split('=')
+        .map((part) => decodeURIComponent(part.trim()));
+      if (key == null || value == null) {
+        throw new Error(
+          `Invalid cookie format: "${cookie}". Expected "key=value" format.`,
+        );
+      }
+      return [key, value];
+    }),
+  );
+}
+
+export const httpStatuses = {
+  200: 'OK',
+  201: 'Created',
+  202: 'Accepted',
+  204: 'No Content',
+  400: 'Bad Request',
+  401: 'Unauthorized',
+  403: 'Forbidden',
+  404: 'Not Found',
+  405: 'Method Not Allowed',
+  406: 'Not Acceptable',
+  409: 'Conflict',
+  415: 'Unsupported Media Type',
+  500: 'Internal Server Error',
+} as const;
+export const reverseHttpStatuses = Object.fromEntries(
+  Object.entries(httpStatuses).map(([code, text]) => [text, Number(code)]),
+) as ReverseHttpStatusMap;
+
+export function httpStatusCodeFromText<const Text extends HttpStatusText>(
+  status: Text,
+): HttpStatusCodeFromText<Text> {
+  return reverseHttpStatuses[status];
+}
+
+export function httpStatusTextFromCode<Code extends HttpStatusCode>(
+  status: Code,
+): HttpStatusTextFromCode<Code> {
+  return httpStatuses[status];
+}
+
+export type HttpStatusMap = typeof httpStatuses;
+export type ReverseHttpStatusMap = {
+  [Text in HttpStatusText]: ConditionalKeys<HttpStatusMap, Text>;
+};
+export type HttpStatusCodeFromText<Text extends HttpStatusText> =
+  ReverseHttpStatusMap[Text];
+export type HttpStatusTextFromCode<Code extends HttpStatusCode> =
+  HttpStatusMap[Code];
+export type HttpStatusCode = keyof HttpStatusMap;
+export type HttpStatusText = HttpStatusMap[HttpStatusCode];
+
+export type UserRole = 'host' | 'participant';
+
+export const httpMethods = ['get', 'post', 'put', 'patch', 'delete'] as const;
+export type HttpMethod = (typeof httpMethods)[number];
