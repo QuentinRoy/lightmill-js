@@ -41,7 +41,7 @@ import { getStrict } from './utils.ts';
 
 const __dirname = url.fileURLToPath(new URL('.', import.meta.url));
 
-const DEFAULT_SELECT_QUERY_LIMIT = 1_000_000;
+const DEFAULT_SELECT_QUERY_LIMIT = 100_000;
 const MIGRATION_FOLDER = path.join(__dirname, 'db-migrations');
 
 export class SQLiteDataStore implements DataStore {
@@ -598,7 +598,8 @@ export class SQLiteDataStore implements DataStore {
         .orderBy('experimentName')
         .orderBy('runName')
         .orderBy('logNumber')
-        .limit(this.#selectQueryLimit)
+        // I think this may help in the initial response to start eagerly.
+        .limit(isFirst ? 1 : this.#selectQueryLimit)
         .$if(!isFirst, (qb) =>
           qb.where((eb) => {
             if (lastRow === null) throw new Error('lastRow is null');
@@ -621,17 +622,15 @@ export class SQLiteDataStore implements DataStore {
       lastRow = last(result) ?? null;
       for (const logResult of result) {
         yield {
-          ...pick(logResult, [
-            'experimentName',
-            'runName',
-            'runStatus',
-            'number',
-            'type',
-          ]),
-          values: parseJsonObject(logResult.values),
-          experimentId: fromDbId(logResult.experimentId),
-          runId: fromDbId(logResult.runId),
           logId: fromDbId(logResult.logId),
+          runId: fromDbId(logResult.runId),
+          experimentId: fromDbId(logResult.experimentId),
+          runName: logResult.runName,
+          experimentName: logResult.experimentName,
+          runStatus: logResult.runStatus,
+          number: logResult.number,
+          type: logResult.type,
+          values: parseJsonObject(logResult.values),
         };
       }
     }
