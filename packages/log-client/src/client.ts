@@ -1,5 +1,5 @@
-import type { components, paths } from '@lightmill/log-api';
 import createClient from 'openapi-fetch';
+import type { components, paths } from './generated/openapi.js';
 import { anyLogSerializer } from './log-serializer.js';
 import { LightmillLogger } from './logger.js';
 import type {
@@ -207,13 +207,12 @@ export class LightmillClient<ClientLog extends LogBase = AnyLog> {
     let response = await this.#fetchClient.GET('/experiments', {
       params: { query: { 'filter[name]': experimentName } },
     });
-    if (response.data != null) return response.data.data[0];
-    if (response.response.status === 404) return null;
-    let error = response.error.errors[0];
-    throw new Error(
-      error.detail ??
-        `Could not fetch experiment: server returned ${error.code}`,
-    );
+    // Checking the length isn't strictly necessary, but it makes the
+    // intention clearer, and let typescript know that it may return null.
+    if (response.data != null) {
+      return response.data.data.length > 0 ? response.data.data[0] : null;
+    }
+    throw new RequestError(response);
   }
 
   async #getRunFromName(
@@ -231,12 +230,12 @@ export class LightmillClient<ClientLog extends LogBase = AnyLog> {
         },
       },
     });
-    if (response.data != null) return response.data.data[0];
-    if (response.response.status === 404) return null;
-    let error = response.error.errors[0];
-    throw new Error(
-      error.detail ?? `Could not fetch run: server returned ${error.code}`,
-    );
+    // Checking the length isn't strictly necessary, but it makes the
+    // intention clearer, and let typescript know that it may return null.
+    if (response.data != null) {
+      return response.data.data.length > 0 ? response.data.data[0] : null;
+    }
+    throw new RequestError(response);
   }
 
   async #getRunIdFromName(
@@ -355,5 +354,5 @@ export class LightmillClient<ClientLog extends LogBase = AnyLog> {
   }
 }
 
-type ExperimentResource = components['schemas']['Experiment.Resource'];
-type LogResource = components['schemas']['Log.Resource'];
+type ExperimentResource = components['schemas']['ExperimentResource'];
+type LogResource = components['schemas']['LogResource'];

@@ -25,6 +25,7 @@
     "cross-env": "^7.0.3",
     "msw": "^2.7.3",
     "onchange": "^7.1.0",
+    "openapi-typescript": "^7.8.0",
     "type-fest": "^4.39.1",
     "typescript": "catalog:",
     "vitest": "catalog:"
@@ -34,7 +35,9 @@
   },
   "scripts": {
     "test": "cross-env NODE_ENV=test vitest",
-    "build": "tsc -b tsconfig.build.json",
+    "generate-openapi-types": "openapi-typescript node_modules/@lightmill/log-api/dist/openapi.yaml --output src/generated/openapi.ts",
+    "build-ts": "tsc -b tsconfig.build.json",
+    "build": "pnpm run generate-openapi-types && pnpm run build-ts",
     "prepublish": "pnpm run build"
   },
   "keywords": [
