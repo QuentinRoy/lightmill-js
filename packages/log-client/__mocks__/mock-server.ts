@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { type paths } from '@lightmill/log-api';
 import {
   http,
   HttpResponse,
@@ -10,6 +9,7 @@ import {
 import { setupServer, SetupServerApi } from 'msw/node';
 import type { IsNever, RequiredKeysOf } from 'type-fest';
 import { test, vi, type Mock } from 'vitest';
+import { type paths } from '../src/generated/openapi.js';
 import { apiMediaType } from '../src/utils.js';
 
 export type ApiMediaType = typeof apiMediaType;
@@ -32,14 +32,18 @@ type PathMethod<Path extends keyof paths> = Extract<
 type ApiRequestBody<
   Path extends keyof paths,
   Method extends PathMethod<Path>,
-> = paths extends {
-  [P in Path]: {
-    [M in Method]: {
-      requestBody: { content: { [K in ApiMediaType]: infer R } };
-    };
-  };
-}
-  ? R
+> = paths extends { [P in Path]: { [M in Method]: infer Route } }
+  ? Route extends {
+      requestBody: { content: { [K in ApiMediaType]: infer Content } };
+    }
+    ? Content
+    : Route extends { requestBody?: never }
+      ? undefined
+      : Route extends {
+            requestBody?: { content: { [K in ApiMediaType]: infer Content } };
+          }
+        ? Content | undefined
+        : never
   : never;
 
 type ApiRequestPathParams<

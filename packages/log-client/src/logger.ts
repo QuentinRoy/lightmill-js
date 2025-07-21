@@ -1,6 +1,6 @@
-import type { paths } from '@lightmill/log-api';
 import type { Client as FetchClient } from 'openapi-fetch';
 import type { JsonValue } from 'type-fest';
+import type { paths } from './generated/openapi.js';
 import { Subject } from './subject.ts';
 import type { LogValuesSerializer, RunStatus } from './types.js';
 import { apiMediaType, RequestError } from './utils.js';
