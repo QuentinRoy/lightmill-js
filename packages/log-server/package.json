@@ -48,7 +48,7 @@
   },
   "peerDependencies": {
     "@lightmill/log-api": "workspace:*",
-    "express": "^5.1.0"
+    "express": "^5.2.0"
   },
   "dependencies": {
     "@standard-schema/spec": "^1.0.0",
@@ -56,7 +56,7 @@
     "cors": "^2.8.5",
     "csv": "^6.3.11",
     "dotenv": "^16.5.0",
-    "express": "^5.1.0",
+    "express": "^5.2.0",
     "express-session": "^1.18.1",
     "kysely": "^0.28.2",
     "loglevel": "^1.9.2",
