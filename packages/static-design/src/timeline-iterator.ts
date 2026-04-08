@@ -8,12 +8,24 @@ export type TimelineIteratorOptions<Task extends BaseTask> = {
   resumeWith?: Task;
 };
 
+/**
+ * Iterator over tasks of a run with optional resume behavior.
+ *
+ * @typeParam Task - Task model containing at least an `id` field.
+ */
 export default class TimelineIterator<Task extends BaseTask>
   implements Iterator<Task, undefined, undefined>
 {
   #iterator: Iterator<Task>;
   #runId: string;
 
+  /**
+   * Creates a timeline iterator.
+   *
+   * @param run Run descriptor with `id` and ordered timeline.
+   * @param options Resume options.
+   * @throws {Error} If `resumeAfter` references an unknown task ID.
+   */
   constructor(
     { id, timeline }: Run<Task>,
     {
@@ -40,10 +52,20 @@ export default class TimelineIterator<Task extends BaseTask>
     this.#iterator = tasks[Symbol.iterator]();
   }
 
+  /**
+   * Returns the next task in the timeline.
+   *
+   * @returns Iterator result containing either the next task or completion.
+   */
   next() {
     return this.#iterator.next();
   }
 
+  /**
+   * Gets the run identifier associated with this iterator.
+   *
+   * @returns Run identifier.
+   */
   getRunId() {
     return this.#runId;
   }

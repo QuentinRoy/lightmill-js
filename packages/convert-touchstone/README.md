@@ -1,20 +1,22 @@
 # @lightmill/convert-touchstone
 
-Convert a touchstone XML design file as produced by [touchstone](https://www.lri.fr/%7Eappert/website/touchstone/touchstone.html)'s [design platform](https://github.com/jdfekete/touchstone-platforms/tree/master/design-platform) to a format that can be directly provided to [@lightmill/static-design](../static-design).
+Convert a TouchStone XML design file into a Lightmill static design object.
+
+This package is useful when your experiment design is authored in TouchStone and
+you want to execute it with Lightmill packages such as
+[@lightmill/static-design](../static-design) and [@lightmill/runner](../runner).
 
 ## Install
-
-### NPM
 
 ```sh
 npm install @lightmill/convert-touchstone
 ```
 
-Note: You might not need to install @lightmill/convert-touchstone, [`npx`](https://www.npmjs.com/package/npx) can be used to download and immediately run the program.
+You can also run it without installing through `npx`.
 
 ### Direct download
 
-Download the latest version then, then in your html file:
+Download the latest version, then in your HTML file:
 
 ```html
 <script src="lightmill-convert-touchstone.js"></script>
@@ -24,49 +26,94 @@ The library will be injected in `lightmill.convertTouchstone`.
 
 ## Usage
 
+### CLI
+
 ```sh
 lightmill-convert-touchstone <input-file>
 ```
 
-Or (if you do not need to install it and prefer to use `npx`):
+or:
 
 ```sh
 npx @lightmill/convert-touchstone <input-file>
 ```
 
-## API
+### JavaScript API
 
-| Param               | Type                                                                                      | Default                        | Description                                                                                        |
-| ------------------- | ----------------------------------------------------------------------------------------- | ------------------------------ | -------------------------------------------------------------------------------------------------- |
-| touchStoneXML       | <code>String</code> \| <code>stream.Readable</code>                                       |                                | The XML to parse.                                                                                  |
-| [options]           | <code>object</code>                                                                       |                                | Options                                                                                            |
-| [options.preBlock]  | <code>string</code> \| <code>object</code> \| <code>array</code> \| <code>function</code> |                                | The type of the task to insert before each block or a function to map the block values to task(s). |
-| [options.postBlock] | <code>string</code> \| <code>object</code> \| <code>array</code> \| <code>function</code> |                                | The type of the task to insert after each block or a function to map the block values to task(s).  |
-| [options.preRun]    | <code>string</code> \| <code>object</code> \| <code>array</code> \| <code>function</code> |                                | The type of the task to insert before each run or a function to map the run values to task(s).     |
-| [options.postRun]   | <code>string</code> \| <code>object</code> \| <code>array</code> \| <code>function</code> |                                | The type of the task to insert after each run or a function to map the run values to task(s).      |
-| [options.trial]     | <code>string</code> \| <code>object</code> \| <code>array</code> \| <code>function</code> | <code>&quot;trial&quot;</code> | The type of the task to insert for each trial or a function to map the trial values to task(s).    |
+```ts
+import convertTouchstone from '@lightmill/convert-touchstone';
+
+const design = await convertTouchstone(xml, {
+  preRun: 'pre-run',
+  trial: (trial) => ({ ...trial, type: 'trial' }),
+});
+```
+
+## API Reference
+
+### `convertTouchstone(touchStoneXML, options?)`
+
+Parse TouchStone XML and return a Lightmill static design:
+
+```ts
+Promise<{
+  id: string;
+  author: string;
+  description: string;
+  runs: Array<{ id: string; timeline: Array<{ id: string; type: string }> }>;
+}>;
+```
+
+Parameters:
+
+| Param           | Type                                       | Description                                                        |
+| --------------- | ------------------------------------------ | ------------------------------------------------------------------ |
+| `touchStoneXML` | `string \| stream-like object with pipe()` | TouchStone XML content or stream.                                  |
+| `options`       | `object`                                   | Mapper hooks used to inject tasks around runs, blocks, and trials. |
+
+Supported mapper options:
+
+| Option      | Description                                                                        |
+| ----------- | ---------------------------------------------------------------------------------- |
+| `preRun`    | Add task(s) before each run timeline.                                              |
+| `postRun`   | Add task(s) after each run timeline.                                               |
+| `preBlock`  | Add task(s) before each block.                                                     |
+| `postBlock` | Add task(s) after each block.                                                      |
+| `trial`     | Map each trial into one or more tasks. Defaults to a built-in `trial` task mapper. |
+
+Mapper values can be:
+
+1. A string task type.
+2. A task object.
+3. An array of string/task values.
+4. A function returning one of the above.
+
+When a task does not provide `id`, the converter generates one.
 
 ## Example
 
 ```js
-// Map each run to a task to insert before the trials of the run.
-const preRun = (run, experiment) => ({
-  ...run,
-  type: 'pre-run'
-});
-// Mappers can also be strings...
-const postRun = 'post-run';  // This is the same as above.
-// ...arrays (if several tasks need to be inserted)...
-const preBlock = [
-  { type: 'pre-block-1' },
-  { type: 'pre-block-2' }
-];
-// ...or functions that returns arrays.
+import convertTouchstone from '@lightmill/convert-touchstone';
+
+// Map each run to a task inserted before run trials.
+const preRun = (run, experiment) => ({ ...run, type: 'pre-run' });
+
+// Mappers can also be strings.
+const postRun = 'post-run';
+
+// ...arrays (if several tasks should be inserted)...
+const preBlock = [{ type: 'pre-block-1' }, { type: 'pre-block-2' }];
+
+// ...or functions returning arrays.
 const postBlock = (block, run, experiment) => [
   { type: 'post-block-1', runId: run.id },
-  { ...block , type: 'post-block-2' }
-  'post-block-2' // This is the same as above.
+  { ...block, type: 'post-block-2' },
 ];
-convertTouchStone(data, { preBlock, postBlock, postRun, preRun })
-  .then(doSomething);
+
+const design = await convertTouchstone(xml, {
+  preBlock,
+  postBlock,
+  preRun,
+  postRun,
+});
 ```

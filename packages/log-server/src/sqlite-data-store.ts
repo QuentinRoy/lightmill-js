@@ -44,10 +44,21 @@ const __dirname = url.fileURLToPath(new URL('.', import.meta.url));
 const DEFAULT_SELECT_QUERY_LIMIT = 1_000_000;
 const MIGRATION_FOLDER = path.join(__dirname, 'db-migrations');
 
+/**
+ * SQLite-backed implementation of the Lightmill `DataStore` interface.
+ */
 export class SQLiteDataStore implements DataStore {
   #db: Kysely<Database>;
   #selectQueryLimit: number;
 
+  /**
+   * Creates a SQLite datastore.
+   *
+   * @param db Path to the SQLite database file.
+   * @param options Datastore options.
+   * @param options.logLevel Log level used for SQL and error logging.
+   * @param options.selectQueryLimit Maximum rows returned by large select queries.
+   */
   constructor(
     db: string,
     {

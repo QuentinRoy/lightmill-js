@@ -11,6 +11,11 @@ export type TimelineRunnerParams<Task> = {
   onTimelineCompleted?: () => void;
 };
 
+/**
+ * Controls iterative execution of a timeline and emits lifecycle callbacks.
+ *
+ * @typeParam Task - Task type yielded by the timeline iterator.
+ */
 export class TimelineRunner<Task> {
   onTimelineStarted?: () => void;
   onLoading?: () => void;
@@ -30,6 +35,11 @@ export class TimelineRunner<Task> {
     | 'crashed' = 'idle';
   #currentTask: Task | null = null;
 
+  /**
+   * Creates a timeline runner.
+   *
+   * @param options Runner options and lifecycle callbacks.
+   */
   constructor(options: TimelineRunnerParams<Task>) {
     if (Symbol.iterator in options.timeline) {
       this.#iterator = options.timeline[Symbol.iterator]();
@@ -47,10 +57,19 @@ export class TimelineRunner<Task> {
     this.onTimelineCanceled = options.onTimelineCanceled;
   }
 
+  /**
+   * Current runner status.
+   */
   get status() {
     return this.#status;
   }
 
+  /**
+   * Starts consuming tasks from the timeline.
+   *
+   * @returns The runner instance.
+   * @throws {Error} If the runner has already started.
+   */
   start() {
     if (this.#status !== 'idle') {
       throw new Error('Runner has already started');
@@ -61,6 +80,12 @@ export class TimelineRunner<Task> {
     return this;
   }
 
+  /**
+   * Marks the current task as completed and advances to the next one.
+   *
+   * @returns The runner instance.
+   * @throws {Error} If there is no running task or if the timeline is canceled.
+   */
   completeTask() {
     if (this.#status === 'canceled') {
       throw new Error('Cannot complete task when timeline is canceled');
@@ -76,6 +101,12 @@ export class TimelineRunner<Task> {
     return this;
   }
 
+  /**
+   * Cancels the timeline.
+   *
+   * @returns The runner instance.
+   * @throws {Error} If the timeline is already canceled or completed.
+   */
   cancel() {
     if (this.#status === 'canceled') {
       throw new Error('TimelineRunner is already canceled');

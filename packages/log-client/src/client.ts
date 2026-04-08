@@ -11,10 +11,22 @@ import type {
 import { assertNever, RequestError } from './utils.js';
 import { apiMediaType } from './utils.ts';
 
+/**
+ * Client used to discover runs and create loggers against a Lightmill log server.
+ *
+ * @typeParam ClientLog - Shape of logs accepted by loggers created by this client.
+ */
 export class LightmillClient<ClientLog extends LogBase = AnyLog> {
   #fetchClient;
   #serializeLog;
 
+  /**
+   * Creates a Lightmill API client.
+   *
+   * @param options Client configuration.
+   * @param options.apiRoot Base URL of the log server API.
+   * @param options.serializeLog Optional custom serializer for log values.
+   */
   constructor({
     apiRoot,
     serializeLog,
@@ -52,6 +64,16 @@ export class LightmillClient<ClientLog extends LogBase = AnyLog> {
     return response.data.data;
   }
 
+  /**
+   * Retrieves runs for the current session that can be resumed based on log types.
+   *
+   * @typeParam T - Log type union used to detect resumable checkpoints.
+   * @param options Query options.
+   * @param options.experimentName Optional experiment filter.
+   * @param options.runName Optional run name filter.
+   * @param options.resumableLogTypes Log types considered valid resume points.
+   * @returns Resumable run metadata including last resumable log.
+   */
   async getResumableRuns<T extends ClientLog['type']>({
     experimentName,
     runName,
@@ -182,6 +204,12 @@ export class LightmillClient<ClientLog extends LogBase = AnyLog> {
     };
   }
 
+  /**
+   * Starts a new run or resumes an existing run.
+   *
+   * @param options Run start or resume options.
+   * @returns Logger bound to the started run.
+   */
   async startRun(
     options:
       | {
@@ -343,6 +371,11 @@ export class LightmillClient<ClientLog extends LogBase = AnyLog> {
     }
   }
 
+  /**
+   * Ends the current session on the server.
+   *
+   * @returns Promise resolved once the session is deleted.
+   */
   async logout() {
     let response = await this.#fetchClient.DELETE('/sessions/{id}', {
       params: { path: { id: 'current' } },
