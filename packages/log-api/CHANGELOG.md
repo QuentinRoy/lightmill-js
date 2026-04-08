@@ -1,5 +1,17 @@
 # @lightmill/log-api
 
+## 5.0.0
+
+### Major Changes
+
+- 6651c93: Removes typescript-openapi type export. The prefered way to rely on our contract's type is now to use the zod schemas directly. openapi.yaml is still being generated so typescript-openapi types can be generated from it if needed.
+- 6651c93: Switch openapi.json export to openapi.yaml. This aligns with openapi most widespread use. Author should update their code to use openapi.yamd instead of .json, and switch to corresponding parser.
+- 6651c93: Update validation error codes to be more explicit. Refer to openapi.yaml or the exported schemas to update your code if needed.
+
+### Minor Changes
+
+- 6651c93: Export zod schemas that may be used to validate request and reponses.
+
 ## 4.0.1
 
 ### Patch Changes

@@ -1,5 +1,11 @@
 # @lightmill/log-client
 
+## 5.0.0
+
+### Minor Changes
+
+- 9f107be: Slightly improve some client's errors.
+
 ## 4.0.0
 
 ### Major Changes
