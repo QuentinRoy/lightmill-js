@@ -1,5 +1,19 @@
 # @lightmill/log-server
 
+## 5.0.0
+
+### Major Changes
+
+- 72effc7: Change some validation error codes to match new log-api. Please refer to @lightmill/log-api openapi.yaml for the new validation error codes.
+
+### Patch Changes
+
+- Updated dependencies [6651c93]
+- Updated dependencies [6651c93]
+- Updated dependencies [6651c93]
+- Updated dependencies [6651c93]
+  - @lightmill/log-api@5.0.0
+
 ## 4.1.0
 
 ### Minor Changes
