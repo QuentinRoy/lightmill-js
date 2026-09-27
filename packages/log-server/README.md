@@ -23,6 +23,7 @@ import { LogServer, SQLiteDataStore } from '@lightmill/log-server';
 const app = express();
 const dataStore = new SQLiteDataStore('./lightmill.db');
 await dataStore.migrateDatabase();
+await dataStore.addExperiment({ experimentName: 'my-experiment' });
 
 const { middleware } = LogServer({
   dataStore,
@@ -32,6 +33,12 @@ const { middleware } = LogServer({
 app.use('/api', middleware);
 app.listen(3000);
 ```
+
+Create each experiment before participants call `startRun` with its name.
+For an embedded server, call `dataStore.addExperiment` as shown above. A host
+can also send `POST /experiments` with
+`{ "data": { "type": "experiments", "attributes": { "name": "my-experiment" } } }`.
+The API returns a conflict if the name already exists.
 
 ## API Reference
 
@@ -119,5 +126,9 @@ Keep that file and the `--session-key` (or `SESSION_KEY`) stable to allow
 resumption after a restart. For example:
 
 ```sh
+log-server experiment add my-experiment --database ./data.sqlite
 log-server start --database ./data.sqlite --session-key your-secret --session-max-age-days 30
 ```
+
+`experiment add` creates the database if needed and reports an error if the
+name already exists. Use the same `--database` path for both commands.
