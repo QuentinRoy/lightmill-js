@@ -1,6 +1,6 @@
 import type { Store as SessionStore } from 'express-session';
 import request from 'supertest';
-import { beforeEach, describe } from 'vitest';
+import { beforeEach, describe, expect } from 'vitest';
 import { apiMediaType } from '../src/api.ts';
 import { DataStoreError } from '../src/data-store-errors.ts';
 import type { DataStore, ExperimentId, RunId } from '../src/data-store.ts';
@@ -26,7 +26,7 @@ function createTest(storeType: StoreType) {
     storeType,
     sessionType: 'host',
   }).extend<TestContext>({
-    experimentId: async ({ expect, hostApi }, use) => {
+    experimentId: async ({ hostApi }, use) => {
       const response = await hostApi
         .post('/experiments')
         .set('Content-Type', apiMediaType)
@@ -41,7 +41,7 @@ function createTest(storeType: StoreType) {
       use(response.body.data.id);
     },
 
-    runId: async ({ expect, experimentId, participantApi }, use) => {
+    runId: async ({ experimentId, participantApi }, use) => {
       const response = await participantApi
         .post('/runs')
         .set('Content-Type', apiMediaType)

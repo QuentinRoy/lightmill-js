@@ -2081,7 +2081,7 @@ exports[`convert > pres, posts, and trials options can be specified as functions
 `;
 
 exports[`convert > pres, posts, and trials options can be specified as functions > postBlock 1`] = `
-[MockFunction spy] {
+[MockFunction] {
   "calls": [
     [
       {
@@ -2312,7 +2312,7 @@ exports[`convert > pres, posts, and trials options can be specified as functions
 `;
 
 exports[`convert > pres, posts, and trials options can be specified as functions > postRun 1`] = `
-[MockFunction spy] {
+[MockFunction] {
   "calls": [
     [
       {
@@ -2357,7 +2357,7 @@ exports[`convert > pres, posts, and trials options can be specified as functions
 `;
 
 exports[`convert > pres, posts, and trials options can be specified as functions > preBlock 1`] = `
-[MockFunction spy] {
+[MockFunction] {
   "calls": [
     [
       {
@@ -2588,7 +2588,7 @@ exports[`convert > pres, posts, and trials options can be specified as functions
 `;
 
 exports[`convert > pres, posts, and trials options can be specified as functions > preRun 1`] = `
-[MockFunction spy] {
+[MockFunction] {
   "calls": [
     [
       {
@@ -2633,7 +2633,7 @@ exports[`convert > pres, posts, and trials options can be specified as functions
 `;
 
 exports[`convert > pres, posts, and trials options can be specified as functions > trial 1`] = `
-[MockFunction spy] {
+[MockFunction] {
   "calls": [
     [
       {
