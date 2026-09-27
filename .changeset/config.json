@@ -1,6 +1,9 @@
 {
-  "$schema": "https://unpkg.com/@changesets/config@2.2.0/schema.json",
-  "changelog": "@changesets/cli/changelog",
+  "$schema": "https://unpkg.com/@changesets/config@3.0.3/schema.json",
+  "changelog": [
+    "@changesets/changelog-github",
+    { "repo": "QuentinRoy/lightmill-js", "disableThanks": true }
+  ],
   "commit": false,
   "fixed": [],
   "linked": [["@lightmill/log-server", "@lightmill/log-client"]],

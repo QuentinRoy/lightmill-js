@@ -17,9 +17,11 @@
     "publint": "node ./scripts/publint.js"
   },
   "devDependencies": {
-    "@changesets/cli": "^2.29.5",
+    "@changesets/changelog-github": "^1.0.1",
+    "@changesets/cli": "^3.0.3",
     "@eslint/js": "^9.30.1",
     "@types/eslint-config-prettier": "^6.11.3",
+    "@typescript/native": "catalog:",
     "eslint": "^9.30.1",
     "eslint-config-prettier": "10.1.2",
     "eslint-plugin-jsdoc": "^50.8.0",
@@ -29,7 +31,6 @@
     "prettier": "3.5.3",
     "prettier-plugin-organize-imports": "^4.1.0",
     "publint": "^0.3.12",
-    "@typescript/native": "catalog:",
     "typescript": "catalog:",
     "typescript-eslint": "^8.70.1",
     "vitest": "catalog:"
