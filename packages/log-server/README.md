@@ -57,26 +57,19 @@ await dataStore.migrateDatabase();
 await dataStore.addExperiment({ experimentName: 'pointing-study' });
 ```
 
-If the server is already running, create a host session and then post the
-experiment to the API. For example, with the API at
-`https://example.com/api`:
+For a running server, create a host session with `POST /sessions` and then
+send `POST /experiments` with the session cookie and this body:
 
-```sh
-curl -u host -c host-cookies.txt \
-  -H 'Content-Type: application/vnd.api+json' \
-  -d '{"data":{"type":"sessions","attributes":{"role":"host"}}}' \
-  https://example.com/api/sessions
-
-curl -b host-cookies.txt \
-  -H 'Content-Type: application/vnd.api+json' \
-  -d '{"data":{"type":"experiments","attributes":{"name":"pointing-study"}}}' \
-  https://example.com/api/experiments
+```json
+{
+  "data": { "type": "experiments", "attributes": { "name": "pointing-study" } }
+}
 ```
 
-`curl -u host` prompts for the host password. Omit it if `hostPassword` is
-unset. If you set a custom `hostUser`, use that name instead of `host`.
-The cookie file keeps the host session for the second request. A participant
-session cannot create experiments.
+Set the `Content-Type` header to `application/vnd.api+json`. A host session
+uses `role: "host"`; a participant session cannot create experiments. If
+`hostPassword` is set, authenticate as `hostUser` (default `host`) when
+creating the host session.
 
 ## API Reference
 
