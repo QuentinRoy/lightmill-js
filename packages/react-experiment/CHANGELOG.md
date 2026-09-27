@@ -1,5 +1,11 @@
 # @lightmill/react-experiment
 
+## 3.1.0-beta.0
+
+### Minor Changes
+
+- [#287](https://github.com/QuentinRoy/lightmill-js/pull/287) [`f7898e2`](https://github.com/QuentinRoy/lightmill-js/commit/f7898e253bef954e80f99e6f487d77d3e2533de1) - Support React 19.
+
 ## 3.0.0
 
 ### Major Changes
