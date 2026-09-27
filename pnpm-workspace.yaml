@@ -8,7 +8,7 @@ catalog:
   vite: ^6.4.1
   vitest: 4.1.11
   '@vitest/ui': 4.1.11
-  '@types/node': ^26.6.3
+  '@types/node': ^22.18.0
 
 onlyBuiltDependencies:
   - better-sqlite3

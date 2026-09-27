@@ -20,11 +20,11 @@ jobs:
         with:
           run_install: false
 
-      - name: Install Node.js 26.x
+      - name: Install Node.js 22.x
         uses: actions/setup-node@v4
         with:
           cache: 'pnpm'
-          node-version: 26.x
+          node-version: 22.x
 
       - run: pnpm install
 
@@ -40,6 +40,9 @@ jobs:
   test:
     needs: ['build']
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [22.x, 24.x, 26.x]
     steps:
       - uses: actions/checkout@v4
 
@@ -48,11 +51,11 @@ jobs:
         with:
           run_install: false
 
-      - name: Install Node.js 26.x
+      - name: Install Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v4
         with:
           cache: 'pnpm'
-          node-version: 26.x
+          node-version: ${{ matrix.node-version }}
 
       - run: pnpm install
 
@@ -72,11 +75,11 @@ jobs:
         uses: pnpm/action-setup@v4
         with:
           run_install: false
-      - name: Install Node.js 26.x
+      - name: Install Node.js 22.x
         uses: actions/setup-node@v4
         with:
           cache: 'pnpm'
-          node-version: 26.x
+          node-version: 22.x
       - run: pnpm install
       - run: pnpm run lint
 
@@ -89,11 +92,11 @@ jobs:
         uses: pnpm/action-setup@v4
         with:
           run_install: false
-      - name: Install Node.js 26.x
+      - name: Install Node.js 22.x
         uses: actions/setup-node@v4
         with:
           cache: 'pnpm'
-          node-version: 26.x
+          node-version: 22.x
       - run: pnpm install
       - run: pnpm run build-all
       - uses: actions/download-artifact@v4
