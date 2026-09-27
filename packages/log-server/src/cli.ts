@@ -12,6 +12,7 @@ import * as url from 'node:url';
 import yargs from 'yargs';
 import { z } from 'zod';
 import { csvExportStream } from './csv-export.ts';
+import { DataStoreError } from './data-store-errors.ts';
 import { LogServer, SQLiteDataStore } from './index.ts';
 import { SQLiteSessionStore } from './sqlite-session-store.ts';
 
@@ -175,6 +176,30 @@ async function migrateDatabase({ database }: MigrateDatabaseParameter) {
   await store.migrateDatabase();
 }
 
+type AddExperimentParameter = { database: string; name: string };
+async function addExperiment({ database, name }: AddExperimentParameter) {
+  let store = new SQLiteDataStore(database);
+  try {
+    await store.migrateDatabase();
+    try {
+      await store.addExperiment({ experimentName: name });
+    } catch (error) {
+      if (
+        error instanceof DataStoreError &&
+        error.code === DataStoreError.EXPERIMENT_EXISTS
+      ) {
+        throw new Error(
+          `An experiment named "${name}" already exists. Choose a different name.`,
+        );
+      }
+      throw error;
+    }
+    log.info(`Created experiment "${name}".`);
+  } finally {
+    await store.close();
+  }
+}
+
 // Command line interface
 // ----------------------
 
@@ -242,6 +267,35 @@ export function cli() {
           .help()
           .alias('help', 'h'),
       (argv) => migrateDatabase(argv).catch(handleError),
+    )
+    .command('experiment', 'Manage experiments', (yargs) =>
+      yargs
+        .command(
+          'add <name>',
+          'Create an experiment',
+          (yargs) =>
+            yargs
+              .positional('name', {
+                desc: 'Experiment name',
+                type: 'string',
+                demandOption: true,
+              })
+              .option('database', {
+                alias: 'd',
+                desc: 'Path to the database file',
+                type: 'string',
+                normalize: true,
+                default: dbPath,
+              })
+              .strict()
+              .help()
+              .alias('help', 'h'),
+          (argv) => addExperiment(argv).catch(handleError),
+        )
+        .demandCommand(1)
+        .strict()
+        .help()
+        .alias('help', 'h'),
     )
     .command(
       'export',
