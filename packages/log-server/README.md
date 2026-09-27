@@ -23,7 +23,6 @@ import { LogServer, SQLiteDataStore } from '@lightmill/log-server';
 const app = express();
 const dataStore = new SQLiteDataStore('./lightmill.db');
 await dataStore.migrateDatabase();
-await dataStore.addExperiment({ experimentName: 'my-experiment' });
 
 const { middleware } = LogServer({
   dataStore,
@@ -34,17 +33,50 @@ app.use('/api', middleware);
 app.listen(3000);
 ```
 
-Create each experiment before participants call `startRun` with its name.
-For a standalone server, create it in the database used by `log-server start`:
+## Create an experiment before the first run
+
+Create each experiment once, before a participant calls `startRun` with its
+name. The client looks up the experiment; it does not create one. Creating an
+experiment with an existing name returns a conflict error.
+
+With the standalone server, create the experiment in the database used by
+`log-server start`:
 
 ```sh
-log-server experiment add my-experiment --database ./data.sqlite
+log-server experiment add pointing-study --database ./data.sqlite
 ```
 
-For an embedded server, call `dataStore.addExperiment` as shown above. A host
-can also send `POST /experiments` with
-`{ "data": { "type": "experiments", "attributes": { "name": "my-experiment" } } }`.
-The API returns a conflict if the name already exists.
+The command creates the database if needed. An existing name produces an error
+and exit code 1.
+
+If you embed `LogServer`, add the experiment to the datastore after migrating
+the database and before accepting runs. Run this setup only once for each name:
+
+```ts
+await dataStore.migrateDatabase();
+await dataStore.addExperiment({ experimentName: 'pointing-study' });
+```
+
+If the server is already running, create a host session and then post the
+experiment to the API. For example, with the API at
+`https://example.com/api`:
+
+```sh
+curl -u host -c host-cookies.txt \
+  -H 'Content-Type: application/vnd.api+json' \
+  -d '{"data":{"type":"sessions","attributes":{"role":"host"}}}' \
+  https://example.com/api/sessions
+
+curl -b host-cookies.txt \
+  -H 'Content-Type: application/vnd.api+json' \
+  -d '{"data":{"type":"experiments","attributes":{"name":"pointing-study"}}}' \
+  https://example.com/api/experiments
+```
+
+`curl -u host` prompts for the host password. Omit it if `hostPassword` is
+unset. If you set a custom `hostUser`, use that name instead of `host`.
+The cookie file keeps the host session for the second request. A participant
+session cannot create experiments.
 
 ## API Reference
 
@@ -132,9 +164,5 @@ Keep that file and the `--session-key` (or `SESSION_KEY`) stable to allow
 resumption after a restart. For example:
 
 ```sh
-log-server experiment add my-experiment --database ./data.sqlite
 log-server start --database ./data.sqlite --session-key your-secret --session-max-age-days 30
 ```
-
-`experiment add` creates the database if needed and reports an error if the
-name already exists. Use the same `--database` path for both commands.
