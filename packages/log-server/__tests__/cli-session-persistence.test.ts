@@ -9,7 +9,7 @@ import { expect, it } from 'vitest';
 import { apiMediaType } from '../src/api.ts';
 
 const packageDir = url.fileURLToPath(new URL('..', import.meta.url));
-const cliPath = path.join(packageDir, 'dist', 'start-cli.js');
+const cliPath = path.join(packageDir, 'dist', 'cli.js');
 
 async function unusedPort(): Promise<number> {
   const server = createServer();
