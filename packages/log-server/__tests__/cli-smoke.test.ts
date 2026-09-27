@@ -28,14 +28,14 @@ it('the packed log-server command prints its help', () => {
 
   let output = execFileSync(
     'node',
-    [path.join(tmpDir, 'package', 'dist', 'start-cli.js'), '--help'],
+    [path.join(tmpDir, 'package', 'dist', 'cli.js'), '--help'],
     { encoding: 'utf8' },
   );
   expect(output).toContain('Usage: log-server <command> [options]');
 
   let startHelp = execFileSync(
     'node',
-    [path.join(tmpDir, 'package', 'dist', 'start-cli.js'), 'start', '--help'],
+    [path.join(tmpDir, 'package', 'dist', 'cli.js'), 'start', '--help'],
     { encoding: 'utf8' },
   );
   expect(startHelp).toContain('--same-origin');
