@@ -1182,7 +1182,7 @@ describe('SQLiteStore#getLastLogs', () => {
   // I am intentionally hiding from the fixture every props from
   // baseIt's fixture.
   const it: TestAPI<Fixture> = baseIt.extend<Fixture>({
-    context: async ({ store, experiment1, experiment2, expect }, use) => {
+    context: async ({ store, experiment1, experiment2 }, use) => {
       let { runId: exp1run1 } = await store.addRun({
         runName: 'run1',
         experimentId: experiment1,

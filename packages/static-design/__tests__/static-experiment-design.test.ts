@@ -24,7 +24,7 @@ const TimelineIterator = UntypedTimelineIterator as MockedClass<
 let design: StaticExperimentDesign<{ id: string }>;
 beforeEach(() => {
   // @ts-expect-error This is a mock.
-  TimelineIterator.mockImplementation((timeline: Run<unknown>) => {
+  TimelineIterator.mockImplementation(function (timeline: Run<unknown>) {
     return { id: `mock-iterator-${timeline.id}` };
   });
   design = new StaticExperimentDesign({
