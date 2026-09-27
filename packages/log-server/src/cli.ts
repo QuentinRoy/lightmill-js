@@ -23,7 +23,7 @@ const env = z
   .object({
     SESSION_KEY: z.string().optional(),
     HOST_PASSWORD: z.string().optional(),
-    PORT: z.number().default(3000),
+    PORT: z.coerce.number().default(3000),
     DB_PATH: z.string().default('./data.sqlite'),
     LOG_LEVEL: z
       .enum(['trace', 'debug', 'info', 'warn', 'error'])
@@ -248,7 +248,8 @@ export function cli() {
     .usage('Usage: $0 <command> [options]')
     .help()
     .alias('help', 'h')
-    .strict();
+    .strict()
+    .parse();
 }
 
 function handleError(error: unknown) {
