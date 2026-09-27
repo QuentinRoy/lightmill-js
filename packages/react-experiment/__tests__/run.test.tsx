@@ -13,7 +13,7 @@ function wait(ms: number) {
 type Task = { type: 'A'; a: string } | { type: 'B'; b: number };
 
 describe('run', () => {
-  let Task: (props: { type: string; dataProp: string }) => JSX.Element;
+  let Task: (props: { type: string; dataProp: string }) => React.ReactElement;
   const asyncTaskGen = async function* (
     taskLoadingTime: number,
     tasks: Task[],
