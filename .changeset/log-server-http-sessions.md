@@ -1,5 +1,5 @@
 ---
-'@lightmill/log-server': patch
+'@lightmill/log-server': minor
 ---
 
 Add a `--same-origin` option to the `log-server start` command so sessions
