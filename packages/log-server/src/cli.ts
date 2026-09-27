@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 import cors from 'cors';
 import dotenv from 'dotenv';
 import express from 'express';
@@ -281,4 +283,8 @@ export function cli() {
 function handleError(error: unknown) {
   log.error(error);
   process.exit(1);
+}
+
+if (import.meta.main) {
+  cli();
 }

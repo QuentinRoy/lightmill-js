@@ -18,14 +18,14 @@
     "dist"
   ],
   "bin": {
-    "log-server": "./dist/start-cli.js"
+    "log-server": "./dist/cli.js"
   },
   "scripts": {
     "build": "rm -rf dist && tsc -b tsconfig.build.json",
     "prepublish": "pnpm run build",
     "test": "cross-env NODE_ENV=test vitest --typecheck",
-    "cli": "node ./src/start-cli.ts",
-    "cli-watch": "node --watch ./src/start-cli.ts"
+    "cli": "node ./src/cli.ts",
+    "cli-watch": "node --watch ./src/cli.ts"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",
