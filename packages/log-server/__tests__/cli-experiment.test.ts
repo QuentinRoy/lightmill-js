@@ -6,9 +6,7 @@ import * as url from 'node:url';
 import { expect, it } from 'vitest';
 import { SQLiteDataStore } from '../src/sqlite-data-store.ts';
 
-const cliPath = url.fileURLToPath(
-  new URL('../src/start-cli.ts', import.meta.url),
-);
+const cliPath = url.fileURLToPath(new URL('../src/cli.ts', import.meta.url));
 
 it('creates an experiment in a new database and reports duplicate names', async () => {
   const directory = mkdtempSync(
