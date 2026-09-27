@@ -50,12 +50,14 @@ type StartParameter = {
   port: number;
   sessionKey: string | undefined;
   hostPassword?: string | undefined;
+  sameOrigin: boolean;
 };
 async function start({
   database: dbPath,
   port,
   sessionKey,
   hostPassword,
+  sameOrigin,
 }: StartParameter) {
   if (sessionKey == null) {
     log.error(
@@ -71,13 +73,15 @@ async function start({
   if (!doesDbExist) {
     await store.migrateDatabase();
   }
-  let server = express()
-    .use(cors())
+  let app = express();
+  if (!sameOrigin) app.use(cors());
+  let server = app
     .use(
       LogServer({
         dataStore: store,
         sessionKeys: sessionKey.split(':'),
         hostPassword,
+        ...(sameOrigin ? { allowCrossOrigin: false } : {}),
       }).middleware,
     )
     .listen(port, () => {
@@ -191,6 +195,11 @@ export function cli() {
             desc: 'Password for the host user',
             type: 'string',
             default: env.HOST_PASSWORD,
+          })
+          .option('same-origin', {
+            desc: 'Use same-origin cookies for a server on HTTP',
+            type: 'boolean',
+            default: false,
           })
           .help()
           .alias('help', 'h')

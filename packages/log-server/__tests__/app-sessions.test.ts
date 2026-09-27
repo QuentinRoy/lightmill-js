@@ -3,7 +3,7 @@
 import express, { type Application } from 'express';
 import { Store as SessionStore } from 'express-session';
 import request from 'supertest';
-import { describe, test as vitestTest } from 'vitest';
+import { describe, expect, test as vitestTest } from 'vitest';
 import { apiMediaType } from '../src/api.ts';
 import { LogServer } from '../src/app.ts';
 import type { DataStore } from '../src/data-store.ts';
@@ -40,6 +40,7 @@ const suite = storeTypes.map((storeType) => ({
         sessionKeys: ['secret'],
         hostPassword: 'host password',
         hostUser: 'host user',
+        allowCrossOrigin: false,
         secureCookies: false,
       });
       let app = express().use(server.middleware);
@@ -51,6 +52,39 @@ const suite = storeTypes.map((storeType) => ({
     },
   }),
 }));
+
+vitestTest('same-origin sessions set a usable cookie on HTTP', async () => {
+  let dataStore = await dataStoreCreators[storeTypes[0]]();
+  let app = express().use(
+    LogServer({ dataStore, sessionKeys: ['secret'], allowCrossOrigin: false })
+      .middleware,
+  );
+  let api = request.agent(app);
+  let response = await api
+    .post('/sessions')
+    .set('content-type', apiMediaType)
+    .send({ data: { type: 'sessions', attributes: { role: 'participant' } } })
+    .expect(201);
+
+  expect(response.headers['set-cookie']).toEqual([
+    expect.stringMatching(/; HttpOnly; SameSite=Strict$/),
+  ]);
+  await api.get('/sessions/current').expect(200);
+});
+
+vitestTest('default sessions require HTTPS for a cookie', async () => {
+  let dataStore = await dataStoreCreators[storeTypes[0]]();
+  let app = express().use(
+    LogServer({ dataStore, sessionKeys: ['secret'] }).middleware,
+  );
+  let response = await request(app)
+    .post('/sessions')
+    .set('content-type', apiMediaType)
+    .send({ data: { type: 'sessions', attributes: { role: 'participant' } } })
+    .expect(201);
+
+  expect(response.headers['set-cookie']).toBeUndefined();
+});
 
 describe.for(suite)(
   'LogServer: post /sessions ($storeType)',
