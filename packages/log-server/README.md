@@ -50,6 +50,7 @@ Common optional options:
 - `allowCrossOrigin`
 - `secureCookies`
 - `sessionStore`
+- `sessionMaxAge` (cookie lifetime in milliseconds)
 - `mode`
 - `trustProxy`
 
@@ -58,6 +59,26 @@ For a page and API served from the same origin over HTTP, set
 `allowCrossOrigin: false`. This also turns off secure cookies. Browsers
 reject cross-origin cookies without the `Secure` attribute, so
 `secureCookies: false` cannot be used with cross-origin cookies.
+
+### Resuming runs after a restart
+
+Participant sessions keep the list of runs they can access. By default,
+`LogServer` stores sessions in memory, so restarting the server loses that
+list. Run logs in `SQLiteDataStore` remain, but a participant can no longer
+find or resume those runs through the client.
+
+If participants need to resume after a server restart when embedding
+`LogServer`, pass a persistent `express-session` compatible store as
+`sessionStore`. Set `sessionMaxAge` if the browser cookie must also survive
+closing and reopening the browser. Keep `sessionKeys` stable across restarts
+so existing cookies remain valid. The keys sign cookies; they do not store
+session data.
+
+The standalone `log-server start` command stores sessions in its
+`--database` SQLite file and gives its browser cookie a 30-day lifetime by
+default. Use `--session-max-age-days` or `SESSION_MAX_AGE_DAYS` to change
+that lifetime. Existing sessions are lost if the browser deletes its cookie
+or if the session signing key changes.
 
 ### `class SQLiteDataStore`
 
@@ -92,3 +113,11 @@ Pass `--same-origin` only when the browser loads the page and calls the API
 from the same origin over HTTP. This can be arranged with a reverse proxy;
 the CLI does not serve the page or make a separately hosted page share
 the API's origin.
+
+The CLI stores logs and participant sessions in the same database file.
+Keep that file and the `--session-key` (or `SESSION_KEY`) stable to allow
+resumption after a restart. For example:
+
+```sh
+log-server start --database ./data.sqlite --session-key your-secret --session-max-age-days 30
+```

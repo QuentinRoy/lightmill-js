@@ -11,6 +11,7 @@ import yargs from 'yargs';
 import { z } from 'zod';
 import { csvExportStream } from './csv-export.ts';
 import { LogServer, SQLiteDataStore } from './index.ts';
+import { SQLiteSessionStore } from './sqlite-session-store.ts';
 
 // Constants and setup
 // -------------------
@@ -25,6 +26,7 @@ const env = z
     HOST_PASSWORD: z.string().optional(),
     PORT: z.coerce.number().default(3000),
     DB_PATH: z.string().default('./data.sqlite'),
+    SESSION_MAX_AGE_DAYS: z.coerce.number().positive().finite().default(30),
     LOG_LEVEL: z
       .enum(['trace', 'debug', 'info', 'warn', 'error'])
       .default('info'),
@@ -49,6 +51,7 @@ type StartParameter = {
   database: string;
   port: number;
   sessionKey: string | undefined;
+  sessionMaxAgeDays: number;
   hostPassword?: string | undefined;
   sameOrigin: boolean;
 };
@@ -56,6 +59,7 @@ async function start({
   database: dbPath,
   port,
   sessionKey,
+  sessionMaxAgeDays,
   hostPassword,
   sameOrigin,
 }: StartParameter) {
@@ -65,6 +69,10 @@ async function start({
     );
     process.exit(1);
   }
+  const sessionMaxAge = sessionMaxAgeDays * 24 * 60 * 60 * 1000;
+  if (!Number.isSafeInteger(sessionMaxAge) || sessionMaxAge <= 0) {
+    throw new Error('Session max age must be a positive number of days');
+  }
   let doesDbExist = await fs.access(dbPath, fs.constants.F_OK).then(
     () => true,
     () => false,
@@ -73,12 +81,15 @@ async function start({
   if (!doesDbExist) {
     await store.migrateDatabase();
   }
+  let sessionStore = new SQLiteSessionStore(dbPath);
   let app = express();
   if (!sameOrigin) app.use(cors());
   let server = app
     .use(
       LogServer({
         dataStore: store,
+        sessionStore,
+        sessionMaxAge,
         sessionKeys: sessionKey.split(':'),
         hostPassword,
         ...(sameOrigin ? { allowCrossOrigin: false } : {}),
@@ -88,17 +99,18 @@ async function start({
       log.info(`Listening on port ${port}`);
     });
   process.on('SIGTERM', () => {
-    server.close((error) => {
+    server.close(async (error) => {
       if (error != null) {
         log.error(error);
       }
-      store.close().catch((error) => {
-        log.error(error);
-        process.exit(1);
-      });
-      if (error != null) {
+      try {
+        sessionStore.close();
+        await store.close();
+      } catch (closeError) {
+        log.error(closeError);
         process.exit(1);
       }
+      if (error != null) process.exit(1);
     });
   });
 }
@@ -189,6 +201,11 @@ export function cli() {
             desc: 'Secret to use for signing client cookies',
             type: 'string',
             default: env.SESSION_KEY,
+          })
+          .option('session-max-age-days', {
+            desc: 'Days a browser session remains valid (default: 30)',
+            type: 'number',
+            default: env.SESSION_MAX_AGE_DAYS,
           })
           .option('host-password', {
             alias: 'w',
