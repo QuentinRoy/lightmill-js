@@ -4,6 +4,11 @@
   "description": "Server, and middleware to receive, store and export lightmill logs",
   "author": "Quentin Roy <contact@quentinroy.fr>",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/QuentinRoy/lightmill-js.git",
+    "directory": "packages/log-server"
+  },
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
