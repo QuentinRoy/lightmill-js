@@ -1,5 +1,36 @@
 # @lightmill/log-server
 
+## 5.0.0-beta.0
+
+### Major Changes
+
+- [#270](https://github.com/QuentinRoy/lightmill-js/pull/270) [`72effc7`](https://github.com/QuentinRoy/lightmill-js/commit/72effc7f42038179e7120ba0ab0beb7691a46b8a) - Change some validation error codes to match new log-api. Please refer to @lightmill/log-api openapi.yaml for the new validation error codes.
+
+- [#290](https://github.com/QuentinRoy/lightmill-js/pull/290) [`7bb7c48`](https://github.com/QuentinRoy/lightmill-js/commit/7bb7c48d6a455d3c907b81f7c806b96a8909014f) - Switch to better-sqlite3 13, which ships prebuilt binaries for current Node versions, including Node 26. Installing on Node 26 used to fail while compiling better-sqlite3 11 from source.
+
+- [#290](https://github.com/QuentinRoy/lightmill-js/pull/290) [`273096e`](https://github.com/QuentinRoy/lightmill-js/commit/273096edb0b11133ac6470d20c4c8fe0e0e33d0b) - Require Node 22.18 or later on Node 22, or Node 24.3 or later. Node 22.0 to 22.17, Node 23, and Node 24.0 to 24.2 are no longer supported.
+
+### Minor Changes
+
+- [#298](https://github.com/QuentinRoy/lightmill-js/pull/298) [`f54b83d`](https://github.com/QuentinRoy/lightmill-js/commit/f54b83d6d35d81890104584115084ab3f7d2f3fe) - Add `log-server experiment add` to create experiments in a SQLite database before participants start runs.
+
+- [#293](https://github.com/QuentinRoy/lightmill-js/pull/293) [`cd263f5`](https://github.com/QuentinRoy/lightmill-js/commit/cd263f52a573a2de3ebd1e36830a5bb8dd6c5477) - Add a `--same-origin` option to the `log-server start` command so sessions
+  work when the browser loads the page and calls the API from one HTTP origin.
+  Rule out cookie settings that browsers reject, and document when HTTPS is
+  required.
+
+- [#294](https://github.com/QuentinRoy/lightmill-js/pull/294) [`d324658`](https://github.com/QuentinRoy/lightmill-js/commit/d3246586243b8fcdedfbf30cf8f17f219c8270a5) - Participants can now resume runs after restarting `log-server start`, as long
+  as they return with the same browser session. Browser sessions can last up to
+  30 days by default; use `--session-max-age-days` to change that period.
+
+### Patch Changes
+
+- [#285](https://github.com/QuentinRoy/lightmill-js/pull/285) [`754ab7a`](https://github.com/QuentinRoy/lightmill-js/commit/754ab7a99fa4e7502705f1796668b138ec78f683) - Fix the `log-server` command, which failed at startup. It now runs its commands, and accepts a `PORT` environment variable.
+
+- [#291](https://github.com/QuentinRoy/lightmill-js/pull/291) [`ad7294d`](https://github.com/QuentinRoy/lightmill-js/commit/ad7294d552d7e3754374a6241e930dbb9bfafed5) - Make `@lightmill/log-api` a regular dependency instead of a peer dependency. You no longer need to install it next to `@lightmill/log-server`.
+- Updated dependencies [[`6651c93`](https://github.com/QuentinRoy/lightmill-js/commit/6651c93dadb2403ac084f61676df2a792f01891c), [`6651c93`](https://github.com/QuentinRoy/lightmill-js/commit/6651c93dadb2403ac084f61676df2a792f01891c), [`6651c93`](https://github.com/QuentinRoy/lightmill-js/commit/6651c93dadb2403ac084f61676df2a792f01891c), [`6651c93`](https://github.com/QuentinRoy/lightmill-js/commit/6651c93dadb2403ac084f61676df2a792f01891c)]:
+  - @lightmill/log-api@5.0.0-beta.0
+
 ## 4.1.0
 
 ### Minor Changes

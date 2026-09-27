@@ -1,5 +1,11 @@
 # Change Log
 
+## 4.0.0-beta.0
+
+### Major Changes
+
+- [#290](https://github.com/QuentinRoy/lightmill-js/pull/290) [`273096e`](https://github.com/QuentinRoy/lightmill-js/commit/273096edb0b11133ac6470d20c4c8fe0e0e33d0b) - Require Node 22.18 or later on Node 22, or Node 24.3 or later. Node 22.0 to 22.17, Node 23, and Node 24.0 to 24.2 are no longer supported.
+
 ## 3.0.0
 
 ### Major Changes

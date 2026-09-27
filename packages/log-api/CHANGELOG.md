@@ -1,5 +1,19 @@
 # @lightmill/log-api
 
+## 5.0.0-beta.0
+
+### Major Changes
+
+- [#270](https://github.com/QuentinRoy/lightmill-js/pull/270) [`6651c93`](https://github.com/QuentinRoy/lightmill-js/commit/6651c93dadb2403ac084f61676df2a792f01891c) - Removes typescript-openapi type export. The prefered way to rely on our contract's type is now to use the zod schemas directly. openapi.yaml is still being generated so typescript-openapi types can be generated from it if needed.
+
+- [#270](https://github.com/QuentinRoy/lightmill-js/pull/270) [`6651c93`](https://github.com/QuentinRoy/lightmill-js/commit/6651c93dadb2403ac084f61676df2a792f01891c) - Switch `openapi.json` export to `openapi.yaml`. This aligns with openapi most widespread use. Author should update their code to use `openapi.yaml` instead of `openapi.json`, and switch to corresponding parser.
+
+- [#270](https://github.com/QuentinRoy/lightmill-js/pull/270) [`6651c93`](https://github.com/QuentinRoy/lightmill-js/commit/6651c93dadb2403ac084f61676df2a792f01891c) - Update validation error codes to be more explicit. Refer to openapi.yaml or the exported schemas to update your code if needed.
+
+### Minor Changes
+
+- [#270](https://github.com/QuentinRoy/lightmill-js/pull/270) [`6651c93`](https://github.com/QuentinRoy/lightmill-js/commit/6651c93dadb2403ac084f61676df2a792f01891c) - Export zod schemas that may be used to validate request and reponses.
+
 ## 4.0.1
 
 ### Patch Changes

@@ -1,5 +1,11 @@
 # @lightmill/log-client
 
+## 5.0.0-beta.0
+
+### Minor Changes
+
+- [#270](https://github.com/QuentinRoy/lightmill-js/pull/270) [`9f107be`](https://github.com/QuentinRoy/lightmill-js/commit/9f107bec5b15ddb4b35e26c49f1f50f37599d7fd) - Slightly improve some client's errors.
+
 ## 4.0.0
 
 ### Major Changes
