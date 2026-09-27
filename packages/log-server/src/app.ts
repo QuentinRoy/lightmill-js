@@ -23,6 +23,7 @@ type CreateLogServerOptions = {
   mode?: 'development' | 'production' | 'test' | (string & {}) | undefined;
   sessionKeys: string[];
   sessionStore?: session.Store;
+  sessionMaxAge?: number | undefined;
   baseUrl?: string;
   trustProxy?: boolean | undefined;
 } & (
@@ -39,6 +40,7 @@ export function LogServer({
   secureCookies = allowCrossOrigin,
   mode = process.env.NODE_ENV ?? 'production',
   sessionStore = new MemorySessionStore({ checkPeriod: 1000 * 60 * 60 * 24 }),
+  sessionMaxAge,
   trustProxy = true,
 }: CreateLogServerOptions): { middleware: express.RequestHandler } {
   const app = express();
@@ -72,6 +74,7 @@ export function LogServer({
         sameSite: allowCrossOrigin ? 'none' : 'strict',
         secure: secureCookies,
         httpOnly: true,
+        ...(sessionMaxAge === undefined ? {} : { maxAge: sessionMaxAge }),
       },
       name: SESSION_COOKIE_NAME,
       resave: false,
