@@ -25,7 +25,7 @@ export function Run<const T extends RegisteredTask>({
   elements,
   confirmBeforeUnload = true,
   ...useRunParameter
-}: RunProps<T, RegisteredLog>): JSX.Element | null {
+}: RunProps<T, RegisteredLog>): React.JSX.Element | null {
   const { onLog, ...state } = useRun(useRunParameter);
   useConfirmBeforeUnload(confirmBeforeUnload && state.status !== 'completed');
 
