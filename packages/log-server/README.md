@@ -35,6 +35,12 @@ app.listen(3000);
 ```
 
 Create each experiment before participants call `startRun` with its name.
+For a standalone server, create it in the database used by `log-server start`:
+
+```sh
+log-server experiment add my-experiment --database ./data.sqlite
+```
+
 For an embedded server, call `dataStore.addExperiment` as shown above. A host
 can also send `POST /experiments` with
 `{ "data": { "type": "experiments", "attributes": { "name": "my-experiment" } } }`.
