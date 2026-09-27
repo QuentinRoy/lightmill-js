@@ -141,6 +141,6 @@ async function getSessionResource(
       attributes,
       relationships,
     },
-    included,
+    ...(included === undefined ? {} : { included }),
   };
 }

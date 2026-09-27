@@ -46,7 +46,7 @@ export function validateHandlers({
           return unsafeEntries(response.content).map(
             ([contentType, content]) => ({
               contentType,
-              status,
+              status: Number(status),
               body: content.schema,
             }),
           );
@@ -290,7 +290,8 @@ function validateHandler({
     if (!validateResponse || response.body instanceof Stream) return response;
     const responseSchema = schemas.responses.find(
       (r) =>
-        r.status === response.status && r.contentType === response.contentType,
+        r.status === response.status &&
+        r.contentType === (response.contentType ?? apiMediaType),
     );
     if (responseSchema == null) {
       throw new Error(
