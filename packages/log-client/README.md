@@ -35,6 +35,9 @@ await logger.addLog({ type: 'trial-end', trialId: '1', durationMs: 812 });
 await logger.completeRun();
 ```
 
+Before calling `startRun`, create `pointing-study` on the server. See
+[create an experiment before the first run](../log-server/README.md#create-an-experiment-before-the-first-run).
+
 ## API Reference
 
 ### `class Client<Log>`
