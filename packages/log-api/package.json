@@ -4,6 +4,11 @@
   "description": "API for Lightmill log server",
   "author": "Quentin Roy <contact@quentinroy.fr>",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/QuentinRoy/lightmill-js.git",
+    "directory": "packages/log-api"
+  },
   "type": "module",
   "exports": {
     ".": {

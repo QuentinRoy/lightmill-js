@@ -11,6 +11,10 @@ jobs:
   release:
     name: Release
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      id-token: write # npm trusted publishing
     steps:
       - uses: actions/checkout@v4
       - name: Setup pnpm
@@ -22,15 +26,15 @@ jobs:
         with:
           cache: 'pnpm'
           node-version: 22.x
+      # Trusted publishing requires npm >= 11.5.1.
+      - name: Update npm
+        run: npm install -g npm@^11.5.1
       - name: Install dependencies
         run: pnpm install
       - name: Create Release Pull Request or Publish to npm
         id: changesets
-        uses: changesets/action@v1
+        uses: changesets/action@v2
         with:
-          publish: pnpm run release
-          version: pnpm run version
-          commit: version packages
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          publish-script: pnpm run release
+          version-script: pnpm run version
+          commit-message: version packages

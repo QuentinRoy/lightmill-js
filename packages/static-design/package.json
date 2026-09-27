@@ -5,6 +5,11 @@
   "description": "Select timelines and control the flow of trials based on a static design.",
   "author": "Quentin Roy <contact@quentinroy.fr>",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/QuentinRoy/lightmill-js.git",
+    "directory": "packages/static-design"
+  },
   "access": "public",
   "devDependencies": {
     "cross-env": "7.0.3",

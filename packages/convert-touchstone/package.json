@@ -17,6 +17,11 @@
   },
   "author": "Quentin Roy <contact@quentinroy.fr>",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/QuentinRoy/lightmill-js.git",
+    "directory": "packages/convert-touchstone"
+  },
   "access": "public",
   "dependencies": {
     "sax": "^1.2.4",
