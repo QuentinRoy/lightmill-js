@@ -26,7 +26,7 @@ type CreateLogServerOptions = {
   baseUrl?: string;
   trustProxy?: boolean | undefined;
 } & (
-  | { allowCrossOrigin?: true | undefined; secureCookies?: true | undefined }
+  | { allowCrossOrigin?: boolean | undefined; secureCookies?: true | undefined }
   | { allowCrossOrigin: false; secureCookies?: boolean | undefined }
 );
 
