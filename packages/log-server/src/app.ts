@@ -16,18 +16,19 @@ export const SESSION_COOKIE_NAME = 'lightmill-session-id';
 
 const MemorySessionStore = MemorySessionStoreModule(session);
 
-interface CreateLogServerOptions {
+type CreateLogServerOptions = {
   dataStore: DataStore;
   hostUser?: string | undefined;
   hostPassword?: string | undefined;
-  allowCrossOrigin?: boolean | undefined;
   mode?: 'development' | 'production' | 'test' | (string & {}) | undefined;
   sessionKeys: string[];
-  secureCookies?: boolean | undefined;
   sessionStore?: session.Store;
   baseUrl?: string;
   trustProxy?: boolean | undefined;
-}
+} & (
+  | { allowCrossOrigin?: boolean | undefined; secureCookies?: true | undefined }
+  | { allowCrossOrigin: false; secureCookies?: boolean | undefined }
+);
 
 export function LogServer({
   dataStore,

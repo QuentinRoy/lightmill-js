@@ -94,7 +94,11 @@ export const apiContentTypeRegExp = new RegExp(
   `^${apiMediaType.replaceAll(/(\.|\/|\+)/g, '\\$1')}(;\\s*charset=[^\\s]+)?$`,
 );
 
-const baseServerOptions = { sessionKeys: ['secret'], secureCookies: false };
+const baseServerOptions = {
+  sessionKeys: ['secret'],
+  allowCrossOrigin: false as const,
+  secureCookies: false,
+};
 
 type ServerOptions = { hostPassword?: string; hostUser?: string };
 async function createServerContextFromStores<

@@ -53,6 +53,12 @@ Common optional options:
 - `mode`
 - `trustProxy`
 
+By default, `LogServer` uses cross-origin cookies, which require HTTPS.
+For a page and API served from the same origin over HTTP, set
+`allowCrossOrigin: false`. This also turns off secure cookies. Browsers
+reject cross-origin cookies without the `Secure` attribute, so
+`secureCookies: false` cannot be used with cross-origin cookies.
+
 ### `class SQLiteDataStore`
 
 SQLite implementation of the `DataStore` interface.
@@ -81,3 +87,8 @@ Contract for custom datastore implementations. Includes methods such as:
 ## CLI
 
 This package also provides a `log-server` binary via package `bin` output.
+The `start` command serves only the API and uses the HTTPS defaults.
+Pass `--same-origin` only when the browser loads the page and calls the API
+from the same origin over HTTP. This can be arranged with a reverse proxy;
+the CLI does not serve the page or make a separately hosted page share
+the API's origin.

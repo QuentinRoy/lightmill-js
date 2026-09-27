@@ -32,4 +32,11 @@ it('the packed log-server command prints its help', () => {
     { encoding: 'utf8' },
   );
   expect(output).toContain('Usage: log-server <command> [options]');
+
+  let startHelp = execFileSync(
+    'node',
+    [path.join(tmpDir, 'package', 'dist', 'start-cli.js'), 'start', '--help'],
+    { encoding: 'utf8' },
+  );
+  expect(startHelp).toContain('--same-origin');
 }, 30_000);
