@@ -29,16 +29,17 @@
     "prettier": "3.5.3",
     "prettier-plugin-organize-imports": "^4.1.0",
     "publint": "^0.3.12",
+    "@typescript/native": "catalog:",
     "typescript": "catalog:",
-    "typescript-eslint": "^8.35.1",
+    "typescript-eslint": "^8.70.1",
     "vitest": "catalog:"
   },
   "packageManager": "pnpm@10.13.1",
   "engines": {
-    "node": "^22.x.x"
+    "node": ">=26"
   },
   "dependencies": {
     "@tsconfig/node-ts": "^23.6.1",
-    "@tsconfig/node22": "^22.0.2"
+    "@tsconfig/node26": "^26.0.1"
   }
 }

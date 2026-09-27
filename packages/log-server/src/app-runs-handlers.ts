@@ -6,7 +6,7 @@ import {
 import { DataStoreError } from './data-store-errors.ts';
 import { type RunStatus } from './data-store.ts';
 import type { HandlerResponseFromRoute, PathHandlers } from './router.ts';
-import { arrayify, firstStrict } from './utils.js';
+import { arrayify, firstStrict } from './utils.ts';
 
 const allowedStatusTransitions = [
   { from: 'interrupted', to: 'running' },

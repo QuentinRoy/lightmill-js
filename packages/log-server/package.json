@@ -24,8 +24,8 @@
     "build": "rm -rf dist && tsc -b tsconfig.build.json",
     "prepublish": "pnpm run build",
     "test": "cross-env NODE_ENV=test vitest --typecheck",
-    "cli": "tsx ./src/start-cli.ts",
-    "cli-watch": "tsx --watch ./src/start-cli.ts"
+    "cli": "node ./src/start-cli.ts",
+    "cli-watch": "node --watch ./src/start-cli.ts"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",
@@ -41,7 +41,6 @@
     "onchange": "^7.1.0",
     "string-dedent": "^3.0.1",
     "supertest": "^7.1.1",
-    "tsx": "catalog:",
     "type-fest": "^4.41.0",
     "typescript": "catalog:",
     "vitest": "catalog:"
@@ -52,7 +51,7 @@
   },
   "dependencies": {
     "@standard-schema/spec": "^1.0.0",
-    "better-sqlite3": "^11.10.0",
+    "better-sqlite3": "^13.0.3",
     "cors": "^2.8.5",
     "csv": "^6.3.11",
     "dotenv": "^16.5.0",
@@ -66,6 +65,6 @@
     "zod": "^3.25.7"
   },
   "engines": {
-    "node": "^22.x.x"
+    "node": ">=26"
   }
 }

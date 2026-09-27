@@ -1,10 +1,12 @@
 {
   "$schema": "https://json.schemastore.org/tsconfig",
   "extends": [
-    "@tsconfig/node22/tsconfig.json",
+    "@tsconfig/node26/tsconfig.json",
     "@tsconfig/node-ts/tsconfig.json"
   ],
   "compilerOptions": {
+    "target": "es2022",
+    "types": [],
     "sourceMap": true,
     "declaration": true,
     "forceConsistentCasingInFileNames": true,
