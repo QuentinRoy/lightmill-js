@@ -5,6 +5,7 @@
     "@tsconfig/node-ts/tsconfig.json"
   ],
   "compilerOptions": {
+    "types": [],
     "sourceMap": true,
     "declaration": true,
     "forceConsistentCasingInFileNames": true,

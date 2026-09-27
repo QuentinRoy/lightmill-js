@@ -3,7 +3,7 @@ import { pipeline, Readable } from 'node:stream';
 import { mapKeys, pickBy, pipe } from 'remeda';
 import type { AllFilter } from './data-filters.ts';
 import type { DataStore, Log } from './data-store.ts';
-import { withSnakeCaseProps } from './utils.js';
+import { withSnakeCaseProps } from './utils.ts';
 
 const csvLogColumns: Array<keyof Log> = [
   'type',

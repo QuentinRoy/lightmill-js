@@ -1,7 +1,7 @@
 import { getErrorResponse, getRunResources, type UserRole } from './api.ts';
 import { type DataStore, type RunId } from './data-store.ts';
 import type { PathHandlers } from './router.ts';
-import { arrayify, checkBasicAuth } from './utils.js';
+import { arrayify, checkBasicAuth } from './utils.ts';
 
 type SessionHandlerOptions = {
   hostUser: string;

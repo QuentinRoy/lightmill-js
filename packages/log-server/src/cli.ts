@@ -9,8 +9,8 @@ import { Transform } from 'node:stream';
 import * as url from 'node:url';
 import yargs from 'yargs';
 import { z } from 'zod';
-import { csvExportStream } from './csv-export.js';
-import { LogServer, SQLiteDataStore } from './index.js';
+import { csvExportStream } from './csv-export.ts';
+import { LogServer, SQLiteDataStore } from './index.ts';
 
 // Constants and setup
 // -------------------

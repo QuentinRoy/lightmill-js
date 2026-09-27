@@ -10,12 +10,12 @@ import {
   getRunResources,
   type ApiMediaType,
 } from './api.ts';
-import { csvExportStream } from './csv-export.js';
+import { csvExportStream } from './csv-export.ts';
 import type { AllFilter } from './data-filters.ts';
 import { DataStoreError } from './data-store-errors.ts';
 import type { DataStore } from './data-store.ts';
 import type { HandlerResponseFromRoute, PathHandlers } from './router.ts';
-import { arrayify, firstStrict } from './utils.js';
+import { arrayify, firstStrict } from './utils.ts';
 
 export const logHandlers = (): PathHandlers<'/logs'> => ({
   '/logs': {

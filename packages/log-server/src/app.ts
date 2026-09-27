@@ -5,10 +5,10 @@ import session from 'express-session';
 import log from 'loglevel';
 import MemorySessionStoreModule from 'memorystore';
 import { apiMediaType } from './api.ts';
-import { experimentHandlers } from './app-experiments-handlers.js';
-import { logHandlers } from './app-logs-handlers.js';
-import { runHandlers } from './app-runs-handlers.js';
-import { sessionHandlers } from './app-sessions-handlers.js';
+import { experimentHandlers } from './app-experiments-handlers.ts';
+import { logHandlers } from './app-logs-handlers.ts';
+import { runHandlers } from './app-runs-handlers.ts';
+import { sessionHandlers } from './app-sessions-handlers.ts';
 import type { DataStore } from './data-store.ts';
 import { createRouter, validateHandlers } from './router.ts';
 
