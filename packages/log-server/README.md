@@ -59,6 +59,25 @@ For a page and API served from the same origin over HTTP, set
 reject cross-origin cookies without the `Secure` attribute, so
 `secureCookies: false` cannot be used with cross-origin cookies.
 
+### Resuming runs after a restart
+
+Participant sessions keep the list of runs they can access. By default,
+`LogServer` stores sessions in memory, so restarting the server loses that
+list. Run logs in `SQLiteDataStore` remain, but a participant can no longer
+find or resume those runs through the client.
+
+If participants need to resume after a server restart, pass a persistent
+`express-session` compatible store as `sessionStore` when creating
+`LogServer`. Keep `sessionKeys` stable across restarts so existing cookies
+remain valid. The keys sign cookies; they do not store session data. The
+`log-server start` command does not currently accept a session store, so
+this setup requires using `LogServer` in your own server.
+
+The session cookie has no `maxAge` setting and may be deleted when the
+browser closes. If a browser loses its cookie, its participant session
+cannot be recovered through the client even when the server uses a
+persistent session store.
+
 ### `class SQLiteDataStore`
 
 SQLite implementation of the `DataStore` interface.

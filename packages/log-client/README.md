@@ -65,3 +65,8 @@ Main operations:
 - Requests use JSON:API media type `application/vnd.api+json`.
 - For non-JSON-compatible values, provide a custom `serializeLog`.
 - `flush()` only waits for logs queued before it was called.
+- `getResumableRuns()` only finds runs in the browser's current participant
+  session. It returns an empty list if that session is gone. By default,
+  server restarts erase sessions even when run logs remain in SQLite. See
+  [resuming runs after a restart](../log-server/README.md#resuming-runs-after-a-restart)
+  for the server setup and browser cookie limit.
