@@ -87,5 +87,8 @@ Contract for custom datastore implementations. Includes methods such as:
 ## CLI
 
 This package also provides a `log-server` binary via package `bin` output.
-The `start` command uses the HTTPS defaults. Pass `--same-origin` when
-serving a page and the API from the same origin over HTTP.
+The `start` command serves only the API and uses the HTTPS defaults.
+Pass `--same-origin` only when the browser loads the page and calls the API
+from the same origin over HTTP. This can be arranged with a reverse proxy;
+the CLI does not serve the page or make a separately hosted page share
+the API's origin.

@@ -197,7 +197,7 @@ export function cli() {
             default: env.HOST_PASSWORD,
           })
           .option('same-origin', {
-            desc: 'Use same-origin cookies for a server on HTTP',
+            desc: 'Use HTTP cookies when the browser shares the API origin',
             type: 'boolean',
             default: false,
           })
