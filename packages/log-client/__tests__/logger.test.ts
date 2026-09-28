@@ -323,7 +323,7 @@ describe('LogClient#flush', () => {
       result.body.data.attributes = {
         ...result.body.data.attributes,
         // Should be ignored by first flush call.
-        missingLogNumbers: [3],
+        firstMissingLogNumber: 3,
       };
       return result;
     });
@@ -352,15 +352,14 @@ describe('LogClient#flush', () => {
       if (result.status !== 200) return result;
       result.body.data.attributes = {
         ...result.body.data.attributes,
-        // Should be ignored by first flush call.
-        missingLogNumbers: [1],
+        firstMissingLogNumber: 1,
       };
       return result;
     });
     logger.addLog({ type: 'mock-log', val: 1 });
     logger.addLog({ type: 'mock-log', val: 2 });
     await expect(logger.flush()).rejects.toThrowErrorMatchingInlineSnapshot(
-      `[FlushError: There are missing logs on server after flushing. Missing logs: 1]`,
+      `[FlushError: Log number 1 is missing on the server after flushing. Add it if you still have it; otherwise resume the run after log number 0 (this cancels later logs).]`,
     );
   });
 });

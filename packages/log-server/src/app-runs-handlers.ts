@@ -209,8 +209,8 @@ export const runHandlers = (): PathHandlers<'/runs'> => ({
         if (targetRun.firstMissingLogNumber != null) {
           return getErrorResponse({
             status: 'Forbidden',
-            code: 'PENDING_LOGS',
-            detail: `Cannot complete run with pending logs. Ensure all logs are added to the run before completing it.`,
+            code: 'MISSING_LOGS',
+            detail: `Cannot complete run: log number ${targetRun.firstMissingLogNumber} is missing. Add all logs before completing the run.`,
           });
         }
       }

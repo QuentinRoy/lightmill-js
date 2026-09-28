@@ -5,10 +5,8 @@ exports[`LogServer: get /runs ('host' / 'sqlite') > returns a 200 with all runs 
   "data": [
     {
       "attributes": {
+        "firstMissingLogNumber": 3,
         "lastLogNumber": 2,
-        "missingLogNumbers": [
-          3,
-        ],
         "name": "run-1",
         "status": "running",
       },
@@ -33,8 +31,8 @@ exports[`LogServer: get /runs ('host' / 'sqlite') > returns a 200 with all runs 
     },
     {
       "attributes": {
+        "firstMissingLogNumber": null,
         "lastLogNumber": 1,
-        "missingLogNumbers": [],
         "name": "run-2",
         "status": "running",
       },
@@ -66,10 +64,8 @@ exports[`LogServer: get /runs ('host' / 'sqlite') > returns a 200 with all runs 
   "data": [
     {
       "attributes": {
+        "firstMissingLogNumber": 3,
         "lastLogNumber": 2,
-        "missingLogNumbers": [
-          3,
-        ],
         "name": "run-1",
         "status": "running",
       },
@@ -94,8 +90,8 @@ exports[`LogServer: get /runs ('host' / 'sqlite') > returns a 200 with all runs 
     },
     {
       "attributes": {
+        "firstMissingLogNumber": null,
         "lastLogNumber": 0,
-        "missingLogNumbers": [],
         "name": "run-2",
         "status": "completed",
       },
@@ -115,8 +111,8 @@ exports[`LogServer: get /runs ('host' / 'sqlite') > returns a 200 with all runs 
     },
     {
       "attributes": {
+        "firstMissingLogNumber": null,
         "lastLogNumber": 1,
-        "missingLogNumbers": [],
         "name": null,
         "status": "running",
       },
@@ -164,10 +160,8 @@ exports[`LogServer: get /runs ('host' / 'sqlite') > returns a 200 with all runs 
   "data": [
     {
       "attributes": {
+        "firstMissingLogNumber": 3,
         "lastLogNumber": 2,
-        "missingLogNumbers": [
-          3,
-        ],
         "name": "run-1",
         "status": "running",
       },
@@ -192,8 +186,8 @@ exports[`LogServer: get /runs ('host' / 'sqlite') > returns a 200 with all runs 
     },
     {
       "attributes": {
+        "firstMissingLogNumber": null,
         "lastLogNumber": 0,
-        "missingLogNumbers": [],
         "name": "run-2",
         "status": "completed",
       },
@@ -213,8 +207,8 @@ exports[`LogServer: get /runs ('host' / 'sqlite') > returns a 200 with all runs 
     },
     {
       "attributes": {
+        "firstMissingLogNumber": null,
         "lastLogNumber": 1,
-        "missingLogNumbers": [],
         "name": null,
         "status": "running",
       },
@@ -286,10 +280,8 @@ exports[`LogServer: get /runs ('host' / 'sqlite') > returns a 200 with all runs 
   "data": [
     {
       "attributes": {
+        "firstMissingLogNumber": 3,
         "lastLogNumber": 2,
-        "missingLogNumbers": [
-          3,
-        ],
         "name": "run-1",
         "status": "running",
       },
@@ -314,8 +306,8 @@ exports[`LogServer: get /runs ('host' / 'sqlite') > returns a 200 with all runs 
     },
     {
       "attributes": {
+        "firstMissingLogNumber": null,
         "lastLogNumber": 0,
-        "missingLogNumbers": [],
         "name": "run-2",
         "status": "completed",
       },
@@ -335,8 +327,8 @@ exports[`LogServer: get /runs ('host' / 'sqlite') > returns a 200 with all runs 
     },
     {
       "attributes": {
+        "firstMissingLogNumber": null,
         "lastLogNumber": 1,
-        "missingLogNumbers": [],
         "name": null,
         "status": "running",
       },
@@ -422,10 +414,8 @@ exports[`LogServer: get /runs ('participant' / 'sqlite') > returns a 200 with pa
   "data": [
     {
       "attributes": {
+        "firstMissingLogNumber": 3,
         "lastLogNumber": 2,
-        "missingLogNumbers": [
-          3,
-        ],
         "name": "run-1",
         "status": "running",
       },
@@ -457,10 +447,8 @@ exports[`LogServer: get /runs ('participant' / 'sqlite') > returns a 200 with pa
   "data": [
     {
       "attributes": {
+        "firstMissingLogNumber": 3,
         "lastLogNumber": 2,
-        "missingLogNumbers": [
-          3,
-        ],
         "name": "run-1",
         "status": "running",
       },
@@ -501,10 +489,8 @@ exports[`LogServer: get /runs ('participant' / 'sqlite') > returns a 200 with pa
   "data": [
     {
       "attributes": {
+        "firstMissingLogNumber": 3,
         "lastLogNumber": 2,
-        "missingLogNumbers": [
-          3,
-        ],
         "name": "run-1",
         "status": "running",
       },
@@ -557,10 +543,8 @@ exports[`LogServer: get /runs ('participant' / 'sqlite') > returns a 200 with pa
   "data": [
     {
       "attributes": {
+        "firstMissingLogNumber": 3,
         "lastLogNumber": 2,
-        "missingLogNumbers": [
-          3,
-        ],
         "name": "run-1",
         "status": "running",
       },
@@ -759,12 +743,12 @@ exports[`LogServer: patch /runs/:run ('host' / 'sqlite') > refuses to change the
 }
 `;
 
-exports[`LogServer: patch /runs/:run ('host' / 'sqlite') > refuses to complete a run if there are pending logs 1`] = `
+exports[`LogServer: patch /runs/:run ('host' / 'sqlite') > refuses to complete a run if there are missing logs 1`] = `
 {
   "errors": [
     {
-      "code": "PENDING_LOGS",
-      "detail": "Cannot complete run with pending logs. Ensure all logs are added to the run before completing it.",
+      "code": "MISSING_LOGS",
+      "detail": "Cannot complete run: log number 2 is missing. Add all logs before completing the run.",
       "status": "Forbidden",
     },
   ],
@@ -915,12 +899,12 @@ exports[`LogServer: patch /runs/:run ('participant' / 'sqlite') > refuses to cha
 }
 `;
 
-exports[`LogServer: patch /runs/:run ('participant' / 'sqlite') > refuses to complete a run if there are pending logs 1`] = `
+exports[`LogServer: patch /runs/:run ('participant' / 'sqlite') > refuses to complete a run if there are missing logs 1`] = `
 {
   "errors": [
     {
-      "code": "PENDING_LOGS",
-      "detail": "Cannot complete run with pending logs. Ensure all logs are added to the run before completing it.",
+      "code": "MISSING_LOGS",
+      "detail": "Cannot complete run: log number 2 is missing. Add all logs before completing the run.",
       "status": "Forbidden",
     },
   ],

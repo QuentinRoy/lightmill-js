@@ -45,15 +45,15 @@ const RunAttributes = z
     status: RunStatus.describe('Status of the run'),
     name: z.union([z.string().min(1), z.null()]).describe('Name of the run'),
     lastLogNumber: z.number().int().nonnegative(),
-    missingLogNumbers: z.array(z.number().int().nonnegative()),
+    firstMissingLogNumber: z.union([z.number().int().positive(), z.null()]),
   })
   .openapi('RunAttributes');
 const RunAttributesUpdate = RunAttributes.omit({
-  missingLogNumbers: true,
+  firstMissingLogNumber: true,
 }).partial();
 const RunAttributesCreate = RunAttributes.omit({
   lastLogNumber: true,
-  missingLogNumbers: true,
+  firstMissingLogNumber: true,
 });
 const RunRelationships = z.strictObject({
   experiment: z.strictObject({ data: ExperimentResourceIdentifier }),
@@ -144,7 +144,7 @@ const RunInvalidUpdateErrorResponse = getErrorDocumentSchema(
     code: [
       'INVALID_STATUS_TRANSITION',
       'INVALID_LAST_LOG_NUMBER',
-      'PENDING_LOGS',
+      'MISSING_LOGS',
       'INVALID_ROLE',
       'INVALID_RUN_ID',
     ],

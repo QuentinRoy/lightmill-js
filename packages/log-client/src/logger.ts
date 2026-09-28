@@ -135,14 +135,15 @@ export class LightmillLogger<
         },
       });
     });
-    const missingLogs = await this.#fetchMissingLogs();
-    if (missingLogs.some((l) => l <= lastLogNumber)) {
-      // If we have missing logs that are before or at the last log number,
-      // then we know that there are missing logs on the server that we
-      // do not have in our in-flight logs, which means we lost some logs
-      // in the process.
+    const firstMissingLogNumber = await this.#fetchFirstMissingLogNumber();
+    // A missing log number at or before lastLogNumber is not in flight
+    // anymore, so that log was lost.
+    if (
+      firstMissingLogNumber != null &&
+      firstMissingLogNumber <= lastLogNumber
+    ) {
       throw new FlushError(
-        `There are missing logs on server after flushing. Missing logs: ${missingLogs.join(', ')}`,
+        `Log number ${firstMissingLogNumber} is missing on the server after flushing. Add it if you still have it; otherwise resume the run after log number ${firstMissingLogNumber - 1} (this cancels later logs).`,
       );
     }
   }
@@ -155,7 +156,7 @@ export class LightmillLogger<
     return first != null && first <= logNumber;
   }
 
-  async #fetchMissingLogs() {
+  async #fetchFirstMissingLogNumber() {
     const response = await this.#fetchClient.GET('/runs/{id}', {
       credentials: 'include',
       params: { path: { id: this.#runId } },
@@ -164,7 +165,7 @@ export class LightmillLogger<
     if (response.error != null) {
       throw new RequestError(response);
     }
-    return response.data.data.attributes.missingLogNumbers;
+    return response.data.data.attributes.firstMissingLogNumber;
   }
 
   async completeRun() {
