@@ -117,7 +117,7 @@ export class LightmillLogger<
     await new Promise<void>((resolve, reject) => {
       const subscription = this.#logResponseSubject.subscribe({
         next: () => {
-          if (!this.#isThereInFlightLogsBefore(lastLogNumber)) {
+          if (!this.#hasInFlightLogsUpTo(lastLogNumber)) {
             subscription.unsubscribe();
             resolve();
           }
@@ -147,7 +147,7 @@ export class LightmillLogger<
     }
   }
 
-  #isThereInFlightLogsBefore(logNumber: number): boolean {
+  #hasInFlightLogsUpTo(logNumber: number): boolean {
     // Since in-flight log numbers are always increasing, we only need to check
     // the very first one. If it is smaller than the target, then
     // we found an in-flight log, otherwise we know there won't be any.
