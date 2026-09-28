@@ -1,5 +1,19 @@
 # @lightmill/log-server
 
+## 5.0.0-beta.1
+
+### Major Changes
+
+- [#314](https://github.com/QuentinRoy/lightmill-js/pull/314) [`299fd2b`](https://github.com/QuentinRoy/lightmill-js/commit/299fd2b08895c944e0ec6524f5e07bc7c540c798) - A log number far ahead of a run's other logs no longer crashes the server. `DataStore#getMissingLogs` is removed, since listing every missing log number is what made such logs crash it: read `firstMissingLogNumber` and `lastLogNumber` from `DataStore#getRuns` records instead, and provide them in custom `DataStore` implementations.
+
+- [#315](https://github.com/QuentinRoy/lightmill-js/pull/315) [`6200bd3`](https://github.com/QuentinRoy/lightmill-js/commit/6200bd3952d87a3976c28a3b94d2f588ab75104b) - Run resources replace `missingLogNumbers` with `firstMissingLogNumber`: the lowest missing log number in the run's current log sequence, or `null` when none is missing. Listing every missing log number could not scale to a log number far ahead of the others. Completing a run with missing logs now fails with error code `MISSING_LOGS` instead of `PENDING_LOGS`, and its detail names the missing log number. `Logger#flush()` reads `firstMissingLogNumber`, so `@lightmill/log-client` needs a server of the same version; its `FlushError` now names the missing log number and says how to recover. Read `firstMissingLogNumber` where you read `missingLogNumbers[0]`, and match `MISSING_LOGS` where you matched `PENDING_LOGS`.
+
+### Patch Changes
+
+- [#314](https://github.com/QuentinRoy/lightmill-js/pull/314) [`299fd2b`](https://github.com/QuentinRoy/lightmill-js/commit/299fd2b08895c944e0ec6524f5e07bc7c540c798) - Fix a log being lost when it arrived before logs with lower numbers. For example, sending logs 11 and 33, then 22 and 44, used to erase log 33. Logs already erased this way cannot be recovered.
+- Updated dependencies [[`6200bd3`](https://github.com/QuentinRoy/lightmill-js/commit/6200bd3952d87a3976c28a3b94d2f588ab75104b)]:
+  - @lightmill/log-api@5.0.0-beta.1
+
 ## 5.0.0-beta.0
 
 ### Major Changes
