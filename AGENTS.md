@@ -4,7 +4,7 @@
 
 ### Issue tracker
 
-GitHub issues and PRs are for humans; beads (`bd`) are for agents. See [`docs/agents/issue-tracker.md`](docs/agents/issue-tracker.md). Before writing code, make sure the work has a GitHub issue and a bead.
+GitHub issues and PRs are for humans; beads (`bd`) are for agents. See [`docs/agents/issue-tracker.md`](docs/agents/issue-tracker.md). Create a bead before writing code.
 
 ### Domain docs
 
