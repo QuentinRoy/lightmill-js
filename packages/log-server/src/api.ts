@@ -51,12 +51,7 @@ export async function getRunResources(
           status: run.runStatus,
           name: run.runName,
           lastLogNumber: run.lastLogNumber,
-          // log-client only checks whether some missing number is at most
-          // the last log number, so the first one is enough.
-          missingLogNumbers:
-            run.firstMissingLogNumber == null
-              ? []
-              : [run.firstMissingLogNumber],
+          firstMissingLogNumber: run.firstMissingLogNumber,
         },
         relationships: {
           lastLogs: {

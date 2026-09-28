@@ -256,7 +256,7 @@ export class MockServer {
                       0,
                       ...r.lastLogs.map((log) => log.number),
                     ),
-                    missingLogNumbers: [],
+                    firstMissingLogNumber: null,
                   },
                   relationships: {
                     experiment: {
@@ -319,7 +319,7 @@ export class MockServer {
                   name: 'Default Run',
                   status: 'idle',
                   lastLogNumber: 0,
-                  missingLogNumbers: [],
+                  firstMissingLogNumber: null,
                 },
                 relationships: {
                   experiment: {
@@ -362,7 +362,7 @@ export class MockServer {
                     0,
                     ...run.lastLogs.map((l) => l.number),
                   ),
-                  missingLogNumbers: [],
+                  firstMissingLogNumber: null,
                 },
                 relationships: {
                   experiment: {

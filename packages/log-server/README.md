@@ -139,7 +139,7 @@ Contract for custom datastore implementations. Includes methods such as:
 
 - `addExperiment`, `getExperiments`
 - `addRun`, `resumeRun`, `setRunStatus`, `getRuns`
-- `addLogs`, `getLogs`, `getLastLogs`, `getMissingLogs`
+- `addLogs`, `getLogs`, `getLastLogs`
 - `getLogValueNames`
 - `migrateDatabase`, `close`
 

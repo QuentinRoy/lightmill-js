@@ -264,7 +264,7 @@ describeForAll(
             name: 'run-name',
             status: 'running',
             lastLogNumber: 8,
-            missingLogNumbers: [9],
+            firstMissingLogNumber: 9,
           },
           relationships: {
             lastLogs: { data: expect.any(Array) },
@@ -312,8 +312,7 @@ describeForAll(
             status: 'running',
             lastLogNumber: 2,
             name: null,
-            // Only the first missing log number is reported.
-            missingLogNumbers: [3],
+            firstMissingLogNumber: 3,
           },
           relationships: {
             lastLogs: { data: [{ id: logs[1]?.logId, type: 'logs' }] },
@@ -536,7 +535,7 @@ describeForAll(
       },
     );
 
-    it('refuses to complete a run if there are pending logs', async ({
+    it('refuses to complete a run if there are missing logs', async ({
       expect,
       context: { api, dataStore, sessionStore, experimentId },
     }) => {
@@ -546,7 +545,7 @@ describeForAll(
       });
       await dataStore.addLogs(runRecord.runId, [
         { type: 'log-type', number: 1, values: {} },
-        // Log with number 2 is missing, so there are pending logs.
+        // Log with number 2 is missing, so there are missing logs.
         { type: 'log-type', number: 3, values: {} },
       ]);
       await addRunToSession({ api, runId: runRecord.runId, sessionStore });
@@ -571,6 +570,46 @@ describeForAll(
       });
     });
 
+    it('refuses to complete a run after a far-ahead log number', async ({
+      expect,
+      context: { api, dataStore, sessionStore, experimentId },
+    }) => {
+      const { runId } = await dataStore.addRun({
+        experimentId,
+        runStatus: 'running',
+      });
+      await dataStore.addLogs(runId, [
+        { type: 'log-type', number: 1, values: {} },
+        { type: 'log-type', number: 10 ** 12, values: {} },
+      ]);
+      await addRunToSession({ api, runId, sessionStore });
+      const { body } = await api.get(`/runs/${runId}`).expect(200);
+      expect(body.data.attributes).toMatchObject({
+        lastLogNumber: 1,
+        firstMissingLogNumber: 2,
+      });
+      await api
+        .patch(`/runs/${runId}`)
+        .set('content-type', apiMediaType)
+        .send({
+          data: {
+            id: runId,
+            type: 'runs',
+            attributes: { status: 'completed' },
+          },
+        })
+        .expect(403, {
+          errors: [
+            {
+              status: 'Forbidden',
+              code: 'MISSING_LOGS',
+              detail:
+                'Cannot complete run: log number 2 is missing. Add all logs before completing the run.',
+            },
+          ],
+        });
+    });
+
     it('updates logs according to lastLogNumber when resuming', async ({
       expect,
       context: { api, experimentId, dataStore, sessionStore },
@@ -583,7 +622,7 @@ describeForAll(
         { type: 'log-type', number: 1, values: { v: 1 } },
         { type: 'log-type', number: 2, values: { v: 2 } },
         { type: 'log-type', number: 3, values: { v: 3 } },
-        // Log with number 4 is missing, so there are pending logs.
+        // Log with number 4 is missing, so there are missing logs.
         { type: 'log-type', number: 6, values: { v: 6 } },
         { type: 'log-type', number: 7, values: { v: 7 } },
       ]);
