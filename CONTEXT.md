@@ -21,8 +21,8 @@ The highest log number in a run that isn't stranded, or 0 if there is none.
 _Avoid_: max log number
 
 **In-flight log**:
-A log a client has sent but the server has not yet acknowledged. Client-side only.
-_Avoid_: pending log, missing log
+A log added to a client that the server has not yet acknowledged, whether queued, being sent, or held after a failure. Client-side only.
+_Avoid_: pending log, missing log, unsent log
 
 **Resume**:
 Restarting a run's logging after a given log number, canceling every log above it. Only allowed after a number no higher than the run's last log number.
