@@ -8,3 +8,13 @@ packages/log-api/src/openapi.*
 pnpm-lock.yaml
 .vscode
 .changeset
+# Vendored agent skills, hash-checked by skills-lock.json; local skills are
+# re-included below.
+.agents/skills/*
+!.agents/skills/changeset/
+
+# Generated and updated by bd (beads).
+.beads/
+.cursor/
+.claude/settings.json
+AGENTS.md

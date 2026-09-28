@@ -1,0 +1,7 @@
+{
+  "database": "dolt",
+  "backend": "dolt",
+  "dolt_mode": "embedded",
+  "dolt_database": "lightmill_js",
+  "project_id": "9f60518b-83e3-442c-83d2-f82d1f6774c3"
+}
