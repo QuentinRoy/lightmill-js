@@ -23,3 +23,10 @@ _Avoid_: max log number
 **In-flight log**:
 A log a client has sent but the server has not yet acknowledged. Client-side only.
 _Avoid_: pending log, missing log
+
+**Resume**:
+Restarting a run's logging after a given log number, canceling every log above it. Only allowed after a number no higher than the run's last log number.
+_Avoid_: rewind, restart
+
+**Canceled log**:
+A log whose number is at or above where a later resume of its run starts. It no longer counts toward the run.
