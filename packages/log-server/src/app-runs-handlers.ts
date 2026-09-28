@@ -206,8 +206,7 @@ export const runHandlers = (): PathHandlers<'/runs'> => ({
       const requestedLastLogNumber = body.data.attributes?.lastLogNumber;
 
       if (futureRunStatus === 'completed') {
-        let pendingLogs = await store.getMissingLogs({ runId });
-        if (pendingLogs.length > 0) {
+        if (targetRun.firstMissingLogNumber != null) {
           return getErrorResponse({
             status: 'Forbidden',
             code: 'PENDING_LOGS',
@@ -217,8 +216,7 @@ export const runHandlers = (): PathHandlers<'/runs'> => ({
       }
 
       if (requestedLastLogNumber != null) {
-        const logSummary = await store.getLastLogs({ runId: targetRun.runId });
-        const lastLogNumber = Math.max(0, ...logSummary.map((l) => l.number));
+        const { lastLogNumber } = targetRun;
         if (
           futureRunStatus !== 'running' &&
           requestedLastLogNumber !== lastLogNumber

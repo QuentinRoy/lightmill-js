@@ -23,22 +23,13 @@ export function getErrorResponse<
   };
 }
 
-type GetRunResourcesOptions =
-  | { filter: Parameters<DataStore['getRuns']>[0] }
-  | {
-      runs: Omit<
-        Awaited<ReturnType<DataStore['getRuns']>>[number],
-        'runCreatedAt'
-      >[];
-    };
 export async function getRunResources(
   store: DataStore,
-  options: GetRunResourcesOptions,
+  { filter }: { filter: Parameters<DataStore['getRuns']>[0] },
 ) {
-  const runs =
-    'runs' in options ? options.runs : await store.getRuns(options.filter);
+  const runs = await store.getRuns(filter);
   const runIds = runs.map((run) => run.runId);
-  const [experiments, lastLogs, missingLogs] = await Promise.all([
+  const [experiments, lastLogs] = await Promise.all([
     store.getExperiments({
       experimentId: pipe(
         runs,
@@ -47,10 +38,8 @@ export async function getRunResources(
       ),
     }),
     store.getLastLogs({ runId: runIds }),
-    store.getMissingLogs({ runId: runIds }),
   ]);
   const groupedLastLogs = groupBy(lastLogs, (log) => log.runId);
-  const groupedMissingLogs = groupBy(missingLogs, (log) => log.runId);
 
   return {
     runs: runs.map((run) => {
@@ -61,9 +50,13 @@ export async function getRunResources(
         attributes: {
           status: run.runStatus,
           name: run.runName,
-          lastLogNumber: Math.max(0, ...runLastLogs.map((l) => l.number)),
+          lastLogNumber: run.lastLogNumber,
+          // log-client only checks whether some missing number is at most
+          // the last log number, so the first one is enough.
           missingLogNumbers:
-            groupedMissingLogs[run.runId]?.map((l) => l.logNumber) ?? [],
+            run.firstMissingLogNumber == null
+              ? []
+              : [run.firstMissingLogNumber],
         },
         relationships: {
           lastLogs: {

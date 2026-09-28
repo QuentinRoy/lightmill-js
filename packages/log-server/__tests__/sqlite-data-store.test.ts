@@ -408,6 +408,8 @@ describe('SQLiteStore#getRuns', () => {
         runName: 'run1',
         experimentId: experiment1,
         runStatus: 'running',
+        firstMissingLogNumber: null,
+        lastLogNumber: 0,
         runCreatedAt: new Date('2023-01-01T00:00:00.000Z'),
         runId: runs[0],
       },
@@ -417,6 +419,8 @@ describe('SQLiteStore#getRuns', () => {
         runName: 'run2',
         experimentId: experiment1,
         runStatus: 'idle',
+        firstMissingLogNumber: null,
+        lastLogNumber: 0,
         runCreatedAt: new Date('2023-01-01T00:00:00.000Z'),
         runId: runs[1],
       },
@@ -426,6 +430,8 @@ describe('SQLiteStore#getRuns', () => {
         runName: 'run1',
         experimentId: experiment2,
         runStatus: 'idle',
+        firstMissingLogNumber: null,
+        lastLogNumber: 0,
         runCreatedAt: new Date('2023-01-01T00:00:00.000Z'),
         runId: runs[2],
       },
@@ -454,6 +460,8 @@ describe('SQLiteStore#getRuns', () => {
         runId: runs[0],
         runName: 'run1',
         runStatus: 'running',
+        firstMissingLogNumber: null,
+        lastLogNumber: 0,
       },
       {
         experimentId: experiment1,
@@ -461,6 +469,8 @@ describe('SQLiteStore#getRuns', () => {
         runId: runs[1],
         runName: 'run2',
         runStatus: 'idle',
+        firstMissingLogNumber: null,
+        lastLogNumber: 0,
       },
       {
         experimentId: experiment2,
@@ -468,6 +478,8 @@ describe('SQLiteStore#getRuns', () => {
         runId: runs[2],
         runName: 'run1',
         runStatus: 'idle',
+        firstMissingLogNumber: null,
+        lastLogNumber: 0,
       },
     ]);
   });
@@ -488,6 +500,8 @@ describe('SQLiteStore#getRuns', () => {
         runId: runs[2],
         runName: 'run1',
         runStatus: 'idle',
+        firstMissingLogNumber: null,
+        lastLogNumber: 0,
       },
     ]);
     await expect(
@@ -499,6 +513,8 @@ describe('SQLiteStore#getRuns', () => {
         runId: runs[0],
         runName: 'run1',
         runStatus: 'running',
+        firstMissingLogNumber: null,
+        lastLogNumber: 0,
       },
       {
         experimentId: experiment1,
@@ -506,6 +522,8 @@ describe('SQLiteStore#getRuns', () => {
         runId: runs[1],
         runName: 'run2',
         runStatus: 'idle',
+        firstMissingLogNumber: null,
+        lastLogNumber: 0,
       },
     ]);
     await expect(
@@ -517,6 +535,8 @@ describe('SQLiteStore#getRuns', () => {
         runId: runs[0],
         runName: 'run1',
         runStatus: 'running',
+        firstMissingLogNumber: null,
+        lastLogNumber: 0,
       },
       {
         experimentId: experiment1,
@@ -524,6 +544,8 @@ describe('SQLiteStore#getRuns', () => {
         runId: runs[1],
         runName: 'run2',
         runStatus: 'idle',
+        firstMissingLogNumber: null,
+        lastLogNumber: 0,
       },
       {
         experimentId: experiment2,
@@ -531,6 +553,8 @@ describe('SQLiteStore#getRuns', () => {
         runId: runs[2],
         runName: 'run1',
         runStatus: 'idle',
+        firstMissingLogNumber: null,
+        lastLogNumber: 0,
       },
     ]);
   });
@@ -549,6 +573,8 @@ describe('SQLiteStore#getRuns', () => {
         runId: runs[1],
         runName: 'run2',
         runStatus: 'idle',
+        firstMissingLogNumber: null,
+        lastLogNumber: 0,
       },
     ]);
     await expect(store.getRuns({ runName: 'run1' })).resolves.toEqual([
@@ -558,6 +584,8 @@ describe('SQLiteStore#getRuns', () => {
         runId: runs[0],
         runName: 'run1',
         runStatus: 'running',
+        firstMissingLogNumber: null,
+        lastLogNumber: 0,
       },
       {
         experimentId: experiment2,
@@ -565,6 +593,8 @@ describe('SQLiteStore#getRuns', () => {
         runId: runs[2],
         runName: 'run1',
         runStatus: 'idle',
+        firstMissingLogNumber: null,
+        lastLogNumber: 0,
       },
     ]);
     await expect(store.getRuns({ runName: ['run1', 'run2'] })).resolves.toEqual(
@@ -575,6 +605,8 @@ describe('SQLiteStore#getRuns', () => {
           runId: runs[0],
           runName: 'run1',
           runStatus: 'running',
+          firstMissingLogNumber: null,
+          lastLogNumber: 0,
         },
         {
           experimentId: experiment1,
@@ -582,6 +614,8 @@ describe('SQLiteStore#getRuns', () => {
           runId: runs[1],
           runName: 'run2',
           runStatus: 'idle',
+          firstMissingLogNumber: null,
+          lastLogNumber: 0,
         },
         {
           experimentId: experiment2,
@@ -589,6 +623,8 @@ describe('SQLiteStore#getRuns', () => {
           runId: runs[2],
           runName: 'run1',
           runStatus: 'idle',
+          firstMissingLogNumber: null,
+          lastLogNumber: 0,
         },
       ],
     );
@@ -608,6 +644,8 @@ describe('SQLiteStore#getRuns', () => {
         runId: runs[0],
         runName: 'run1',
         runStatus: 'running',
+        firstMissingLogNumber: null,
+        lastLogNumber: 0,
       },
     ]);
     await expect(store.getRuns({ runStatus: '-idle' })).resolves.toEqual([
@@ -617,6 +655,8 @@ describe('SQLiteStore#getRuns', () => {
         runId: runs[0],
         runName: 'run1',
         runStatus: 'running',
+        firstMissingLogNumber: null,
+        lastLogNumber: 0,
       },
     ]);
     await expect(
@@ -628,6 +668,8 @@ describe('SQLiteStore#getRuns', () => {
         runId: runs[1],
         runName: 'run2',
         runStatus: 'idle',
+        firstMissingLogNumber: null,
+        lastLogNumber: 0,
       },
       {
         experimentId: experiment2,
@@ -635,6 +677,8 @@ describe('SQLiteStore#getRuns', () => {
         runId: runs[2],
         runName: 'run1',
         runStatus: 'idle',
+        firstMissingLogNumber: null,
+        lastLogNumber: 0,
       },
     ]);
     await expect(
@@ -646,6 +690,8 @@ describe('SQLiteStore#getRuns', () => {
         runId: runs[0],
         runName: 'run1',
         runStatus: 'running',
+        firstMissingLogNumber: null,
+        lastLogNumber: 0,
       },
       {
         experimentId: experiment1,
@@ -653,6 +699,8 @@ describe('SQLiteStore#getRuns', () => {
         runId: runs[1],
         runName: 'run2',
         runStatus: 'idle',
+        firstMissingLogNumber: null,
+        lastLogNumber: 0,
       },
       {
         experimentId: experiment2,
@@ -660,6 +708,8 @@ describe('SQLiteStore#getRuns', () => {
         runId: runs[2],
         runName: 'run1',
         runStatus: 'idle',
+        firstMissingLogNumber: null,
+        lastLogNumber: 0,
       },
     ]);
   });
@@ -678,6 +728,8 @@ describe('SQLiteStore#getRuns', () => {
         runId: runs[0],
         runName: 'run1',
         runStatus: 'running',
+        firstMissingLogNumber: null,
+        lastLogNumber: 0,
       },
       {
         experimentId: experiment1,
@@ -685,6 +737,8 @@ describe('SQLiteStore#getRuns', () => {
         runId: runs[1],
         runName: 'run2',
         runStatus: 'idle',
+        firstMissingLogNumber: null,
+        lastLogNumber: 0,
       },
       {
         experimentId: experiment2,
@@ -692,6 +746,8 @@ describe('SQLiteStore#getRuns', () => {
         runId: runs[2],
         runName: 'run1',
         runStatus: 'idle',
+        firstMissingLogNumber: null,
+        lastLogNumber: 0,
       },
     ]);
   });
@@ -725,8 +781,227 @@ describe('SQLiteStore#getRuns', () => {
         runName: [],
         experimentId: experiment1,
         runStatus: 'completed',
+        firstMissingLogNumber: null,
+        lastLogNumber: 0,
       }),
     ).resolves.toEqual([]);
+  });
+});
+
+describe('SQLiteStore#getRuns log numbers', () => {
+  async function getLogNumbers(store: SQLiteDataStore, runId: RunId) {
+    const [run] = await store.getRuns({ runId });
+    if (run == null) throw new Error(`Run ${runId} not found`);
+    return {
+      firstMissingLogNumber: run.firstMissingLogNumber,
+      lastLogNumber: run.lastLogNumber,
+    };
+  }
+  function logs(...numbers: number[]) {
+    return numbers.map((number) => ({ type: 'log', number, values: {} }));
+  }
+
+  it('reports the last log number of a run without missing logs', async ({
+    expect,
+    store,
+    e1run1: run,
+  }) => {
+    await store.addLogs(run, logs(1, 2, 3));
+    await expect(getLogNumbers(store, run)).resolves.toEqual({
+      firstMissingLogNumber: null,
+      lastLogNumber: 3,
+    });
+  });
+
+  it('reports a missing log number behind a skipped one', async ({
+    expect,
+    store,
+    e1run1: run,
+  }) => {
+    await store.addLogs(run, logs(1, 5));
+    await expect(getLogNumbers(store, run)).resolves.toEqual({
+      firstMissingLogNumber: 2,
+      lastLogNumber: 1,
+    });
+  });
+
+  it('accepts a log number far ahead of the others', async ({
+    expect,
+    store,
+    e1run1: run,
+  }) => {
+    await store.addLogs(run, logs(1, 1e12));
+    await expect(getLogNumbers(store, run)).resolves.toEqual({
+      firstMissingLogNumber: 2,
+      lastLogNumber: 1,
+    });
+    await store.addLogs(run, logs(Number.MAX_SAFE_INTEGER));
+    await store.addLogs(run, logs(2));
+    await expect(getLogNumbers(store, run)).resolves.toEqual({
+      firstMissingLogNumber: 3,
+      lastLogNumber: 2,
+    });
+  });
+
+  it('drops missing log numbers canceled by a resume', async ({
+    expect,
+    store,
+    e1run1: run,
+  }) => {
+    await store.addLogs(run, logs(1, 2, 5, 9));
+    await store.resumeRun(run, { after: 2 });
+    await expect(getLogNumbers(store, run)).resolves.toEqual({
+      firstMissingLogNumber: null,
+      lastLogNumber: 2,
+    });
+    await store.addLogs(run, logs(3, 4));
+    await expect(getLogNumbers(store, run)).resolves.toEqual({
+      firstMissingLogNumber: null,
+      lastLogNumber: 4,
+    });
+  });
+
+  it('tracks missing log numbers through a split, a resume, and a fill', async ({
+    expect,
+    store,
+    e1run1: run,
+  }) => {
+    await store.addLogs(run, logs(1, 10, 5));
+    await store.resumeRun(run, { after: 1 });
+    await store.addLogs(run, logs(3));
+    await expect(getLogNumbers(store, run)).resolves.toEqual({
+      firstMissingLogNumber: 2,
+      lastLogNumber: 1,
+    });
+    await store.addLogs(run, logs(2));
+    await expect(getLogNumbers(store, run)).resolves.toEqual({
+      firstMissingLogNumber: null,
+      lastLogNumber: 3,
+    });
+  });
+
+  it('tracks missing log numbers through a fill, a resume, and a far-ahead log', async ({
+    expect,
+    store,
+    e1run1: run,
+  }) => {
+    await store.addLogs(run, logs(1, 3));
+    await store.addLogs(run, logs(2));
+    await store.resumeRun(run, { after: 3 });
+    await expect(getLogNumbers(store, run)).resolves.toEqual({
+      firstMissingLogNumber: null,
+      lastLogNumber: 3,
+    });
+    await store.addLogs(run, logs(1e12));
+    await expect(getLogNumbers(store, run)).resolves.toEqual({
+      firstMissingLogNumber: 4,
+      lastLogNumber: 3,
+    });
+  });
+
+  it('reports the last log number after rewinding over many logs', async ({
+    expect,
+    store,
+    e1run1: run,
+  }) => {
+    await store.addLogs(run, logs(1, 2, 3, 4, 5, 6));
+    await store.resumeRun(run, { after: 1 });
+    await expect(getLogNumbers(store, run)).resolves.toEqual({
+      firstMissingLogNumber: null,
+      lastLogNumber: 1,
+    });
+    await store.resumeRun(run, { after: 0 });
+    await expect(getLogNumbers(store, run)).resolves.toEqual({
+      firstMissingLogNumber: null,
+      lastLogNumber: 0,
+    });
+  });
+
+  it('ignores missing log numbers canceled by a resume', async ({
+    expect,
+    store,
+    e1run1: run,
+  }) => {
+    await store.addLogs(run, logs(2, 3, 1, 8));
+    await store.addLogs(run, logs(5));
+    await store.resumeRun(run, { after: 3 });
+    await store.addLogs(run, logs(6));
+    await expect(getLogNumbers(store, run)).resolves.toEqual({
+      firstMissingLogNumber: 4,
+      lastLogNumber: 3,
+    });
+    await store.addLogs(run, logs(4));
+    await expect(getLogNumbers(store, run)).resolves.toEqual({
+      firstMissingLogNumber: 5,
+      lastLogNumber: 4,
+    });
+  });
+
+  it('fills a missing log number from the bottom of a gap', async ({
+    expect,
+    store,
+    e1run1: run,
+  }) => {
+    await store.addLogs(run, logs(1, 5));
+    await store.addLogs(run, logs(2));
+    await expect(getLogNumbers(store, run)).resolves.toEqual({
+      firstMissingLogNumber: 3,
+      lastLogNumber: 2,
+    });
+  });
+
+  it('fills a missing log number from the top of a gap', async ({
+    expect,
+    store,
+    e1run1: run,
+  }) => {
+    await store.addLogs(run, logs(1, 5));
+    await store.addLogs(run, logs(4));
+    await expect(getLogNumbers(store, run)).resolves.toEqual({
+      firstMissingLogNumber: 2,
+      lastLogNumber: 1,
+    });
+    await store.addLogs(run, logs(2, 3));
+    await expect(getLogNumbers(store, run)).resolves.toEqual({
+      firstMissingLogNumber: null,
+      lastLogNumber: 5,
+    });
+  });
+
+  it('splits a gap when a log fills a number in its middle', async ({
+    expect,
+    store,
+    e1run1: run,
+  }) => {
+    await store.addLogs(run, logs(1, 10));
+    await store.addLogs(run, logs(5));
+    await expect(getLogNumbers(store, run)).resolves.toEqual({
+      firstMissingLogNumber: 2,
+      lastLogNumber: 1,
+    });
+    await store.addLogs(run, logs(2, 3, 4));
+    await expect(getLogNumbers(store, run)).resolves.toEqual({
+      firstMissingLogNumber: 6,
+      lastLogNumber: 5,
+    });
+  });
+
+  it('closes a gap once all its log numbers are filled', async ({
+    expect,
+    store,
+    e1run1: run,
+  }) => {
+    await store.addLogs(run, logs(1, 3, 6));
+    await store.addLogs(run, logs(2));
+    await expect(getLogNumbers(store, run)).resolves.toEqual({
+      firstMissingLogNumber: 4,
+      lastLogNumber: 3,
+    });
+    await store.addLogs(run, logs(5, 4));
+    await expect(getLogNumbers(store, run)).resolves.toEqual({
+      firstMissingLogNumber: null,
+      lastLogNumber: 6,
+    });
   });
 });
 
@@ -884,6 +1159,28 @@ describe('SQLiteStore#resumeRun', () => {
       store.resumeRun(run, { after: 4 }),
     ).rejects.toThrowErrorMatchingInlineSnapshot(
       `[StoreError: Cannot resume run 1 after log number 4 because it would leave log number 3 missing.]`,
+    );
+  });
+
+  it('resumes a run right after its last log number', async ({
+    expect,
+    store,
+    runWithTwoLogs: { run },
+  }) => {
+    await store.addLogs(run, [{ type: 'log', number: 5, values: { x: 2 } }]);
+    await expect(store.resumeRun(run, { after: 2 })).resolves.toBeUndefined();
+  });
+
+  it('refuses to resume one log number after its last log number', async ({
+    expect,
+    store,
+    runWithTwoLogs: { run },
+  }) => {
+    await store.addLogs(run, [{ type: 'log', number: 5, values: { x: 2 } }]);
+    await expect(
+      store.resumeRun(run, { after: 3 }),
+    ).rejects.toThrowErrorMatchingInlineSnapshot(
+      `[StoreError: Cannot resume run 1 after log number 3 because it would leave log number 3 missing.]`,
     );
   });
 
@@ -1277,6 +1574,20 @@ describe('SQLiteStore#getLastLogs', () => {
     ]);
   });
 
+  it('ignores missing logs canceled by a resume', async ({
+    expect,
+    context: { store, logBases, exp1run1 },
+  }) => {
+    await store.resumeRun(exp1run1, { after: 3 });
+    await store.addLogs(exp1run1, [
+      { number: 4, type: 'log1', values: { x: 60 } },
+    ]);
+    await expect(store.getLastLogs({ runId: exp1run1 })).resolves.toEqual([
+      { ...logBases.e1r1, type: 'log1', number: 4, values: { x: 60 } },
+      { ...logBases.e1r1, type: 'log2', number: 1, values: { x: 30 } },
+    ]);
+  });
+
   it('ignores overwritten logs', async ({
     expect,
     context: { store, logBases, exp2run1, exp1run2 },
@@ -1470,81 +1781,6 @@ describe('SQLiteStore#getLastLogs', () => {
     await expect(
       store.getLastLogs({ experimentName: 'unknown' }),
     ).resolves.toEqual([]);
-  });
-});
-
-describe('SQLiteStore#getMissingLogs', () => {
-  // I am intentionally hiding from the fixture every props from
-  // baseIt's fixture.
-  const it = baseIt;
-
-  it('returns the missing logs', async ({ expect, e1run1, store }) => {
-    const logBase = { runId: e1run1 };
-    await store.addLogs(e1run1, [
-      { number: 2, type: 'log1', values: { x: 'a' } },
-      { number: 3, type: 'log1', values: { x: 'b' } },
-      { number: 1, type: 'log2', values: { x: 'c' } },
-      { number: 8, type: 'log1', values: { x: 'd' } },
-      { number: 5, type: 'log1', values: { x: 'e' } },
-    ]);
-    await expect(store.getMissingLogs()).resolves.toEqual([
-      { ...logBase, logNumber: 4 },
-      { ...logBase, logNumber: 6 },
-      { ...logBase, logNumber: 7 },
-    ]);
-  });
-
-  it('ignores canceled logs with missing logs just after resume log numbers', async ({
-    expect,
-    e1run1,
-    store,
-  }) => {
-    const logBase = { runId: e1run1 };
-    await store.addLogs(e1run1, [
-      { number: 2, type: 'log1', values: { x: 'a' } },
-      { number: 3, type: 'log1', values: { x: 'b' } },
-      { number: 1, type: 'log2', values: { x: 'c' } },
-      { number: 8, type: 'log1', values: { x: 'd' } },
-    ]);
-    await store.addLogs(e1run1, [
-      { number: 5, type: 'log1', values: { x: 'e' } },
-    ]);
-    await store.resumeRun(e1run1, { after: 3 });
-    await store.addLogs(e1run1, [
-      { number: 6, type: 'log1', values: { x: 'e' } },
-    ]);
-    console.log(await fromAsync(store.getLogs()));
-    await expect(store.getMissingLogs()).resolves.toEqual([
-      { ...logBase, logNumber: 4 },
-      { ...logBase, logNumber: 5 },
-    ]);
-  });
-
-  it('ignores canceled logs with missing logs in the middle of the new sequence', async ({
-    expect,
-    e1run1,
-    store,
-  }) => {
-    const logBase = { runId: e1run1 };
-    await store.addLogs(e1run1, [
-      { number: 2, type: 'log1', values: { x: 'a' } },
-      { number: 3, type: 'log1', values: { x: 'b' } },
-      { number: 1, type: 'log2', values: { x: 'c' } },
-      { number: 8, type: 'log1', values: { x: 'd' } },
-    ]);
-    await store.addLogs(e1run1, [
-      { number: 5, type: 'log1', values: { x: 'e' } },
-    ]);
-    await store.resumeRun(e1run1, { after: 3 });
-    await store.addLogs(e1run1, [
-      { number: 4, type: 'log1', values: { x: 'e' } },
-      { number: 7, type: 'log1', values: { x: 'e' } },
-    ]);
-    console.log(await fromAsync(store.getLogs()));
-    await expect(store.getMissingLogs()).resolves.toEqual([
-      { ...logBase, logNumber: 5 },
-      { ...logBase, logNumber: 6 },
-    ]);
   });
 });
 

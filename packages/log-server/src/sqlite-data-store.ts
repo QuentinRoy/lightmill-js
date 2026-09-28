@@ -3,7 +3,6 @@ import {
   CamelCasePlugin,
   DeduplicateJoinsPlugin,
   FileMigrationProvider,
-  type InsertObject,
   Kysely,
   Migrator,
   sql,
@@ -37,7 +36,6 @@ import {
   type RunStatus,
   toDbId,
 } from './data-store.ts';
-import { getStrict } from './utils.ts';
 
 const __dirname = url.fileURLToPath(new URL('.', import.meta.url));
 
@@ -184,6 +182,8 @@ export class SQLiteDataStore implements DataStore {
         runId: fromDbId(result.runId),
         runCreatedAt: new Date(result.runCreatedAt),
         runName: result.runName ?? null,
+        firstMissingLogNumber: null,
+        lastLogNumber: 0,
       };
     });
   }
@@ -204,47 +204,27 @@ export class SQLiteDataStore implements DataStore {
             'RUN_NOT_FOUND',
           );
         });
-      let { lastSeqNumber, firstMissingLogNumber, lastLogNumber } = await trx
-        .selectFrom('logSequence as seq')
-        .leftJoin('runLogView as log', (join) =>
-          join.onRef('log.runId', '=', 'seq.runId'),
-        )
-        .where((eb) => eb('seq.runId', '=', dbRunId))
-        .select((eb) => [
-          eb.fn.max('seq.sequenceNumber').as('lastSeqNumber'),
-          eb.fn
-            .max('log.logNumber')
-            .filterWhere('log.logType', 'is not', null)
-            .as('lastLogNumber'),
-          eb.fn
-            .min('log.logNumber')
-            .filterWhere('log.logType', 'is', null)
-            .as('firstMissingLogNumber'),
-        ])
+      const lastSequence = await trx
+        .selectFrom('lastLogSequenceView')
+        .where('runId', '=', dbRunId)
+        .select(['sequenceNumber', 'lastLogNumber'])
         .executeTakeFirstOrThrow(
           () => new Error(`Could not find a sequence for run ${runId}.`),
         );
-      let minResumeFrom = 1;
-      if (firstMissingLogNumber != null) {
-        minResumeFrom = firstMissingLogNumber;
-      } else if (lastLogNumber != null) {
-        minResumeFrom = lastLogNumber + 1;
-      }
-      if (minResumeFrom <= resumeAfter) {
+      if (resumeAfter > lastSequence.lastLogNumber) {
         throw new DataStoreError(
-          `Cannot resume run ${runId} after log number ${resumeAfter} because it would leave log number ${minResumeFrom} missing.`,
-          'INVALID_LOG_NUMBER',
+          `Cannot resume run ${runId} after log number ${resumeAfter} because it would leave log number ${lastSequence.lastLogNumber + 1} missing.`,
+          DataStoreError.INVALID_LOG_NUMBER,
         );
       }
       await trx
         .insertInto('logSequence')
         .values({
           runId: dbRunId,
-          sequenceNumber: lastSeqNumber + 1,
+          sequenceNumber: lastSequence.sequenceNumber + 1,
           start: resumeAfter + 1,
         })
-        .returning(['runId'])
-        .executeTakeFirstOrThrow();
+        .execute();
     });
   }
 
@@ -273,6 +253,11 @@ export class SQLiteDataStore implements DataStore {
           );
       })
       .$call(createQueryFilterRun(filter, 'run'))
+      .innerJoin(
+        'lastLogSequenceView as lastSequence',
+        'lastSequence.runId',
+        'run.runId',
+      )
       .orderBy('runCreatedAt', 'desc')
       .select([
         'run.runId',
@@ -280,6 +265,8 @@ export class SQLiteDataStore implements DataStore {
         'run.runName',
         'run.runStatus',
         'run.runCreatedAt',
+        'lastSequence.firstMissingLogNumber',
+        'lastSequence.lastLogNumber',
       ])
       .execute();
     return runs.map((run) => ({
@@ -339,31 +326,10 @@ export class SQLiteDataStore implements DataStore {
     const dbRunId = toDbId(runId);
     if (logs.length === 0) return [];
     return this.#db.transaction().execute(async (trx) => {
-      let { start, sequenceId, lastLogNumber } = await trx
-        .with('runSequence', (db) =>
-          db
-            .selectFrom('logSequence as seq')
-            .where('seq.runId', '=', dbRunId)
-            .select(['sequenceId', 'start', 'sequenceNumber']),
-        )
-        .selectFrom('runSequence as seq')
-        .where((eb) =>
-          eb.and([
-            eb(
-              'seq.sequenceNumber',
-              '=',
-              eb
-                .selectFrom('runSequence')
-                .select((eb) => eb.fn.max('sequenceNumber').as('maxSeqNumber')),
-            ),
-          ]),
-        )
-        .leftJoin('log', 'log.sequenceId', 'seq.sequenceId')
-        .select((eb) => [
-          'seq.sequenceId',
-          'seq.start',
-          eb.fn.max('log.logNumber').as('lastLogNumber'),
-        ])
+      let { sequenceId } = await trx
+        .selectFrom('lastLogSequenceView')
+        .where('runId', '=', dbRunId)
+        .select('sequenceId')
         .executeTakeFirstOrThrow(
           () =>
             new DataStoreError(
@@ -371,57 +337,23 @@ export class SQLiteDataStore implements DataStore {
               DataStoreError.RUN_NOT_FOUND,
             ),
         );
-      let newLogNumbers = logs.map((log) => log.number);
-      let insertStartNumber = Math.min(
-        ...newLogNumbers,
-        lastLogNumber == null ? start : lastLogNumber + 1,
-      );
-      let insertEndNumber = Math.max(...newLogNumbers);
-
-      // Prepopulating the array to insert with missing logs.
-      let logRows: Array<InsertObject<Database, 'log'>> = Array.from(
-        { length: insertEndNumber - insertStartNumber + 1 },
-        (_v, i) => ({ sequenceId, logNumber: i + insertStartNumber }),
-      );
-      for (const log of logs) {
-        let logToInsert = getStrict(logRows, log.number - insertStartNumber);
-        // Sanity check.
-        if (logToInsert.logNumber !== log.number) {
-          throw new Error(
-            `Log number mismatch: expected ${log.number}, got ${logToInsert.logNumber}`,
-          );
-        }
-        if (logToInsert.logType != null) {
-          throw new DataStoreError(
-            `Cannot add log: duplicated log number in the sequence.`,
-            DataStoreError.LOG_NUMBER_EXISTS_IN_SEQUENCE,
-          );
-        }
-        logToInsert.logType = log.type;
-        logToInsert.logValues = json(log.values);
-      }
       let dbLogs = await trx
         .insertInto('log')
-        .values(logRows)
-        .onConflict((cb) =>
-          cb
-            .columns(['sequenceId', 'logNumber'])
-            .doUpdateSet((ub) => ({
-              logType: ub.ref('excluded.logType'),
-              logValues: ub.ref('excluded.logValues'),
-            })),
+        .values(
+          logs.map((log) => ({
+            sequenceId,
+            logNumber: log.number,
+            logType: log.type,
+            logValues: json(log.values),
+          })),
         )
-        .returning(['logId', 'logNumber', 'logType'])
+        .returning(['logId', 'logNumber'])
         .execute()
         .catch((e) => {
           if (
-            e instanceof Error &&
-            'code' in e &&
+            e instanceof SQLiteDB.SqliteError &&
             (e.code === 'SQLITE_CONSTRAINT_PRIMARYKEY' ||
-              e.code === 'SQLITE_CONSTRAINT_UNIQUE' ||
-              (e.code === 'SQLITE_CONSTRAINT_TRIGGER' &&
-                (e.message === 'Cannot change log values once set' ||
-                  e.message === 'Cannot change log type once set')))
+              e.code === 'SQLITE_CONSTRAINT_UNIQUE')
           ) {
             throw new DataStoreError(
               `Cannot add log: duplicated log number in the sequence.`,
@@ -470,22 +402,6 @@ export class SQLiteDataStore implements DataStore {
     return result.map((it) => it.logPropertyName);
   }
 
-  async getMissingLogs(
-    filter: RunFilter & ExperimentFilter = {},
-  ): Promise<{ runId: RunId; logNumber: number }[]> {
-    const result = await this.#db
-      .selectFrom('runLogView as log')
-      .$call(createQueryFilterRun(filter, 'log'))
-      .$call(createQueryFilterExperiment(filter, 'log'))
-      .where('log.logType', 'is', null)
-      .select(['log.runId as runId', 'log.logNumber as logNumber'])
-      .execute();
-    return result.map((row) => ({
-      runId: fromDbId(row.runId),
-      logNumber: row.logNumber,
-    }));
-  }
-
   async getLastLogs(
     filter: AllFilter = {},
   ): Promise<
@@ -498,58 +414,27 @@ export class SQLiteDataStore implements DataStore {
     }>
   > {
     let result = await this.#db
-      .with('lastConfirmedLog', (db) =>
+      .with('lastLog', (db) =>
         db
-          .selectFrom('runLogView as lv')
-          .$call(createQueryFilterAll(filter, 'lv'))
-          .leftJoin(
-            // Grouping by sequence instead of run should
-            // be fine because non canceled missing logs
-            // should all be on the last sequence
-            ({ selectFrom }) =>
-              selectFrom('log as l')
-                .where('l.logType', 'is', null)
-                .where('canceledBy', 'is', null)
-                .select((eb) => [
-                  'sequenceId',
-                  eb.fn.min('l.logNumber').as('logNumber'),
-                ])
-                .groupBy('sequenceId')
-                .as('firstMissing'),
-            (join) =>
-              join.onRef('lv.sequenceId', '=', 'firstMissing.sequenceId'),
+          .selectFrom('runLogView as runLog')
+          .$call(createQueryFilterAll(filter, 'runLog'))
+          .innerJoin(
+            'lastLogSequenceView as lastSequence',
+            'lastSequence.runId',
+            'runLog.runId',
           )
-          .where((eb) =>
-            eb.and([
-              eb('lv.logType', 'is not', null),
-              eb.or([
-                eb('firstMissing.logNumber', 'is', null),
-                eb('lv.logNumber', '<', eb.ref('firstMissing.logNumber')),
-              ]),
-            ]),
-          )
+          // Logs above the last log number are stranded.
+          .whereRef('runLog.logNumber', '<=', 'lastSequence.lastLogNumber')
+          // SQLite takes bare columns from the row holding the max.
           .select((eb) => [
-            'lv.logType',
-            'lv.sequenceId',
-            'lv.runId',
-            eb.fn
-              .max('lv.logNumber')
-              .filterWhere(
-                eb.or([
-                  eb('firstMissing.logNumber', 'is', null),
-                  eb('lv.logNumber', '<', eb.ref('firstMissing.logNumber')),
-                ]),
-              )
-              .as('lastNumber'),
+            'runLog.runId',
+            'runLog.logId',
+            eb.fn.max('runLog.logNumber').as('logNumber'),
           ])
-          .groupBy(['lv.runId', 'lv.logType']),
+          .groupBy(['runLog.runId', 'runLog.logType']),
       )
       .selectFrom('log')
-      .innerJoin('lastConfirmedLog as last', (join) =>
-        join
-          .onRef('log.sequenceId', '=', 'last.sequenceId')
-          .onRef('log.logNumber', '=', 'last.lastNumber'),
-      )
+      .innerJoin('lastLog as last', 'log.logId', 'last.logId')
       .select((eb) => [
         'last.runId',
         'log.logId',
@@ -561,7 +446,6 @@ export class SQLiteDataStore implements DataStore {
           .$castTo<string>()
           .as('jsonValues'),
       ])
-      .$narrowType<{ type: string }>()
       .execute();
 
     return result.map(({ jsonValues, runId, logId, ...rest }) => {
@@ -586,12 +470,6 @@ export class SQLiteDataStore implements DataStore {
       let result = await this.#db
         .selectFrom('runLogView as l')
         .$call(createQueryFilterAll(filter, 'l'))
-        .where((wb) =>
-          wb.and([
-            wb('l.logType', 'is not', null),
-            wb('l.logValues', 'is not', null),
-          ]),
-        )
         .select((eb) => [
           'l.experimentId as experimentId',
           'l.experimentName as experimentName',
@@ -603,9 +481,6 @@ export class SQLiteDataStore implements DataStore {
           'l.logNumber as number',
           eb.ref('l.logValues', '->').key('$').$castTo<string>().as('values'),
         ])
-        // We filtered out logs with no type, so we can safely narrow the type.
-        // This needs to come after the select or it will not work.
-        .$narrowType<{ type: string }>()
         .orderBy('experimentName')
         .orderBy('runName')
         .orderBy('logNumber')
