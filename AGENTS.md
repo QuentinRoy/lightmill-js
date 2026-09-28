@@ -28,6 +28,10 @@ Use comments to explain why code is written a certain way, not what it does. Onl
 
 Enforce invariants in code: narrow at runtime and throw (`instanceof` with a `TypeError`), or reshape the types so the invariant holds by construction (two nullables always set together become one nullable object). Keep an `as` only when it is the cleanest option, with a comment saying why.
 
+### Data loss
+
+Data loss is the worst failure. Every path that can drop data a caller handed over (an error, a limit, a timeout, ending a run) keeps that data recoverable by the caller or fails loudly to them. Data is discarded only when the caller explicitly asks.
+
 ## Finishing
 
 Before handing off, run `pnpm lint` and `pnpm test` (which also typechecks). A pull request that implements an issue says `Fixes #N` in its body. Leave merging to the maintainer.
