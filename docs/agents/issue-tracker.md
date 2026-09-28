@@ -1,6 +1,13 @@
-# Issue tracker: beads
+# Issue tracker: GitHub Issues and beads
 
-Issues and specs live in beads, driven by the `bd` CLI; `bd prime` is the command reference. GitHub Issues (QuentinRoy/lightmill-js) receive external bug reports: a bare `#<n>` is a GitHub issue (`gh issue view <n> --comments`), and a bead links one with `--external-ref gh-<n>`.
+GitHub issues and PRs are for humans; beads are for agents. Humans follow and discuss work on GitHub Issues (QuentinRoy/lightmill-js): a bare `#<n>` is a GitHub issue (`gh issue view <n> --comments`). Agents track the ongoing work behind an issue in beads, driven by the `bd` CLI (`bd prime` is the command reference), so its sub-parts stay out of GitHub.
+
+## GitHub issue or bead
+
+- Each piece of work that ends in its own PR has a GitHub issue, and that PR says `Fixes #<n>`. Create the issue if it is missing.
+- Stacked PRs are the exception: when fixing one issue takes several PRs, make them a GitHub stack with `gh stack` (`gh stack --help`). Each says `Part of #<n>`, and the top one says `Fixes #<n>`.
+- Each GitHub issue has one root bead, linked with `--external-ref gh-<n>`. Its children (sub-tasks, wayfinder tickets, research, prototypes) are beads only.
+- PRs, commits, and changesets are for humans too: they name GitHub issues only, never bead ids.
 
 ## Gotchas
 
@@ -22,7 +29,7 @@ Issues and specs live in beads, driven by the `bd` CLI; `bd prime` is the comman
 
 Used by `/wayfinder`. The **map** is an epic with one **child** bead per ticket.
 
-- **Map**: an epic labelled `wayfinder:map`, holding the Destination / Notes / Decisions-so-far / Not-yet-specified / Out-of-scope body. Edit it with `bd update <map-id> --body-file <file>`.
+- **Map**: an epic labelled `wayfinder:map`, the root bead of a GitHub issue (create one at charting, its body the Destination; when the map reaches its destination, post the result there), holding the Destination / Notes / Decisions-so-far / Not-yet-specified / Out-of-scope body. Edit it with `bd update <map-id> --body-file <file>`.
 - **Child ticket**: `bd create "<title>" --parent <map-id> -t task -l wayfinder:<type> --no-inherit-labels`, where `<type>` is `research`/`prototype`/`grilling`/`task`; `--no-inherit-labels` keeps `wayfinder:map` off the child. The body is the `## Question`.
 - **Blocking**: `bd dep add <blocked-id> <blocker-id>`. A ticket is unblocked when every blocker is closed.
 - **Frontier**: the map's unassigned children (`bd children <map-id>`) that appear in `bd ready`; first by id wins.
