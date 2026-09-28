@@ -24,8 +24,8 @@ export class LightmillLogger<
   #runStatus: RunStatus = 'running';
   #lastLogNumber: number;
   #fetchClient: FetchClient<paths, `${string}/${string}`>;
-  // The pendingLogs array needs to be kept sorted.
-  #pendingLogs: Array<number> = [];
+  // The #inFlightLogs array needs to be kept sorted.
+  #inFlightLogs: Array<number> = [];
   #error: Error | null = null;
   #logResponseSubject = new Subject<number>();
 
@@ -59,7 +59,7 @@ export class LightmillLogger<
     }
     const logNumber = this.#lastLogNumber + 1;
     this.#lastLogNumber = logNumber;
-    this.#pendingLogs.push(logNumber);
+    this.#inFlightLogs.push(logNumber);
     let error: Error | null = null;
     try {
       let response = await this.#fetchClient.POST('/logs', {
@@ -96,8 +96,8 @@ export class LightmillLogger<
     this.#error = error ?? this.#error;
     // In the vast majority of cases we should find the log at the very
     // first position of the array, so indexOf lookup should be very fast.
-    const index = this.#pendingLogs.indexOf(logNumber);
-    this.#pendingLogs.splice(index, 1);
+    const index = this.#inFlightLogs.indexOf(logNumber);
+    this.#inFlightLogs.splice(index, 1);
     if (error == null) {
       this.#logResponseSubject.next(logNumber);
     } else {
@@ -107,7 +107,7 @@ export class LightmillLogger<
   }
 
   async flush() {
-    if (this.#pendingLogs.length === 0) {
+    if (this.#inFlightLogs.length === 0) {
       if (this.#error) {
         throw this.#error;
       }
@@ -117,7 +117,7 @@ export class LightmillLogger<
     await new Promise<void>((resolve, reject) => {
       const subscription = this.#logResponseSubject.subscribe({
         next: () => {
-          if (!this.#isTherePendingLogsBefore(lastLogNumber)) {
+          if (!this.#hasInFlightLogsUpTo(lastLogNumber)) {
             subscription.unsubscribe();
             resolve();
           }
@@ -139,7 +139,7 @@ export class LightmillLogger<
     if (missingLogs.some((l) => l <= lastLogNumber)) {
       // If we have missing logs that are before or at the last log number,
       // then we know that there are missing logs on the server that we
-      // do not have in our pending logs, which means we lost some logs
+      // do not have in our in-flight logs, which means we lost some logs
       // in the process.
       throw new FlushError(
         `There are missing logs on server after flushing. Missing logs: ${missingLogs.join(', ')}`,
@@ -147,11 +147,11 @@ export class LightmillLogger<
     }
   }
 
-  #isTherePendingLogsBefore(logNumber: number): boolean {
-    // Since pending log numbers are always increasing, we only need to check
+  #hasInFlightLogsUpTo(logNumber: number): boolean {
+    // Since in-flight log numbers are always increasing, we only need to check
     // the very first one. If it is smaller than the target, then
-    // we found a pending log, otherwiser we know there won't be any.
-    const first = this.#pendingLogs[0];
+    // we found an in-flight log, otherwise we know there won't be any.
+    const first = this.#inFlightLogs[0];
     return first != null && first <= logNumber;
   }
 
