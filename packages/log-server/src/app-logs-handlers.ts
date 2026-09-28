@@ -233,16 +233,7 @@ async function* jsonResponseChunkGenerator(
     }
     let runResources =
       includes.run || includes.lastLogs
-        ? await getRunResources(store, {
-            runs: [
-              {
-                runId: log.runId,
-                runStatus: log.runStatus,
-                runName: log.runName,
-                experimentId: log.experimentId,
-              },
-            ],
-          })
+        ? await getRunResources(store, { filter: { runId: log.runId } })
         : { runs: [], experiments: [], lastLogs: [] };
 
     if (includes.run) {

@@ -14,7 +14,7 @@ import {
   type RunLogView,
   type RunStatus,
   type RunTable,
-} from './db-migrations/2025-05-21-cancel-completed.ts';
+} from './db-migrations/2026-09-28-gap-ranges.ts';
 
 export {
   runStatuses,
@@ -81,6 +81,11 @@ export interface RunRecord {
   runName: string | null;
   runStatus: RunStatus;
   runCreatedAt: Date;
+  // The run's first missing log number, if any.
+  firstMissingLogNumber: number | null;
+  // The highest log number in the run that isn't stranded, or 0 if there is
+  // none.
+  lastLogNumber: number;
 }
 
 export interface ExperimentRecord {
@@ -162,15 +167,6 @@ export interface DataStore {
    * @returns Array of log property names
    */
   getLogValueNames(filter?: AllFilter | undefined): Promise<string[]>;
-
-  /**
-   * Gets the count of pending logs for runs matching the filter
-   * @param filter Filter to apply
-   * @returns Array of run IDs with their pending log counts
-   */
-  getMissingLogs(
-    filter?: Merge<RunFilter, Pick<ExperimentFilter, 'experimentName'>>,
-  ): Promise<{ runId: RunId; logNumber: number }[]>;
 
   /**
    * Gets the last log of each type for runs matching the filter

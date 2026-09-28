@@ -312,7 +312,8 @@ describeForAll(
             status: 'running',
             lastLogNumber: 2,
             name: null,
-            missingLogNumbers: [3, 5],
+            // Only the first missing log number is reported.
+            missingLogNumbers: [3],
           },
           relationships: {
             lastLogs: { data: [{ id: logs[1]?.logId, type: 'logs' }] },
@@ -563,7 +564,11 @@ describeForAll(
         .expect('Content-Type', apiContentTypeRegExp);
       expect(answer.body).toMatchSnapshot();
       const [r1] = await dataStore.getRuns({ runId: runRecord.runId });
-      expect(r1).toEqual(runRecord);
+      expect(r1).toEqual({
+        ...runRecord,
+        firstMissingLogNumber: 2,
+        lastLogNumber: 1,
+      });
     });
 
     it('updates logs according to lastLogNumber when resuming', async ({
