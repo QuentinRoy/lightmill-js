@@ -4,8 +4,9 @@ GitHub issues and PRs are for humans; beads are for agents. Humans follow and di
 
 ## GitHub issue or bead
 
-- Each piece of work that ends in its own PR has a GitHub issue, and that PR says `Fixes #<n>`. Create the issue if it is missing.
-- Stacked PRs are the exception: when fixing one issue takes several PRs, make them a GitHub stack with `gh stack` (`gh stack --help`). Each says `Part of #<n>`, and the top one says `Fixes #<n>`.
+- Open a GitHub issue for work left for later: a bug report, something to remember to do, an effort spanning several PRs or sessions (a wayfinder map). The PR that completes it says `Fixes #<n>`.
+- Work done right away needs no issue: the PR carries the why.
+- When fixing one issue takes several PRs, make them a GitHub stack with `gh stack` (`gh stack --help`). Each says `Part of #<n>`, and the top one says `Fixes #<n>`.
 - Each GitHub issue has one root bead, linked with `--external-ref gh-<n>`. Its children (sub-tasks, wayfinder tickets, research, prototypes) are beads only.
 - PRs, commits, and changesets are for humans too: they name GitHub issues only, never bead ids.
 
