@@ -1309,7 +1309,7 @@ describe('SQLiteStore#addLogs', () => {
     ]);
   });
 
-  it('refuses a duplicate log with a different type and stores nothing of its batch', async ({
+  it('refuses a conflicting log (same number, different type) and stores nothing of its batch', async ({
     expect,
     store,
     e1run1,

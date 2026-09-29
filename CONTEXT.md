@@ -32,5 +32,4 @@ _Avoid_: rewind, restart
 A log whose number is at or above where a later resume of its run starts. It no longer counts toward the run.
 
 **Duplicate log**:
-A log sent with the number, type, and values of a log the server already holds in the run's current log sequence. Storing it again changes nothing.
-_Avoid_: conflicting log (same number, different content)
+A log sent with the number, type, and values of a log the server already holds in the run's current log sequence. Storing it again changes nothing. A log with the same number but different content is a conflict, not a duplicate.
