@@ -272,7 +272,7 @@ describe.each(storeTypes)('LogServer: post /logs (%s)', (storeType) => {
               status: 'Conflict',
               code: 'LOG_NUMBER_EXISTS',
               detail:
-                `Cannot add log to run '1', log number 2 already exists.` +
+                `Cannot add log to run '1', log number 2 already exists with a different type or values.` +
                 ` Ensure the log number is unique within the run.`,
             },
           ],

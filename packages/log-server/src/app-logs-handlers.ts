@@ -117,7 +117,7 @@ export const logHandlers = (): PathHandlers<'/logs'> => ({
           return getErrorResponse({
             status: 'Conflict',
             code: 'LOG_NUMBER_EXISTS',
-            detail: `Cannot add log to run '${runId}', log number ${body.data.attributes.number} already exists. Ensure the log number is unique within the run.`,
+            detail: `Cannot add log to run '${runId}', log number ${body.data.attributes.number} already exists with a different type or values. Ensure the log number is unique within the run.`,
           });
         }
         throw e;
