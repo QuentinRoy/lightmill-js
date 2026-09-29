@@ -1328,6 +1328,33 @@ describe('SQLiteStore#addLogs', () => {
     ).resolves.toEqual(anyLogResult(1, expect));
   });
 
+  it('compares a resent log with the run current sequence only', async ({
+    expect,
+    store,
+    e1run1,
+  }) => {
+    await store.addLogs(e1run1, [
+      { type: 'log', number: 1, values: {} },
+      { type: 'log', number: 2, values: { x: 'canceled' } },
+    ]);
+    await store.resumeRun(e1run1, { after: 1 });
+    const [added] = await store.addLogs(e1run1, [
+      { type: 'log', number: 2, values: { x: 'kept' } },
+    ]);
+    await expect(
+      store.addLogs(e1run1, [
+        { type: 'log', number: 2, values: { x: 'kept' } },
+      ]),
+    ).resolves.toEqual([added]);
+    await expect(
+      store.addLogs(e1run1, [
+        { type: 'log', number: 2, values: { x: 'canceled' } },
+      ]),
+    ).rejects.toThrowErrorMatchingInlineSnapshot(
+      `[StoreError: Cannot add log: duplicated log number in the sequence.]`,
+    );
+  });
+
   it('refuses to add two logs with the same number for the same run when added in the same requests', async ({
     expect,
     runningRuns: [e1run1],
