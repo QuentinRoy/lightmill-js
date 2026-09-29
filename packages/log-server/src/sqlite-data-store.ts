@@ -457,6 +457,8 @@ export class SQLiteDataStore implements DataStore {
         'log.logId',
         'log.logType as type',
         'log.logNumber as number',
+        // logValues is a jsonb blob: `->` '$' makes SQLite return it as JSON text,
+        // which Kysely can't infer, so the type is asserted for parseJsonObject.
         eb
           .ref('log.logValues', '->')
           .key('$')
@@ -496,6 +498,8 @@ export class SQLiteDataStore implements DataStore {
           'l.logId as logId',
           'l.logType as type',
           'l.logNumber as number',
+          // logValues is a jsonb blob: `->` '$' makes SQLite return it as JSON text,
+          // which Kysely can't infer, so the type is asserted for parseJsonObject.
           eb.ref('l.logValues', '->').key('$').$castTo<string>().as('values'),
         ])
         .orderBy('experimentName')
@@ -598,6 +602,8 @@ async function findDuplicateIds(
       'logId',
       'logNumber',
       'logType',
+      // logValues is a jsonb blob: `->` '$' makes SQLite return it as JSON text,
+      // which Kysely can't infer, so the type is asserted for parseJsonObject.
       eb.ref('logValues', '->').key('$').$castTo<string>().as('values'),
     ])
     .execute();
