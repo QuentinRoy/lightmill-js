@@ -7,6 +7,7 @@ import {
   Migrator,
   sql,
   SqliteDialect,
+  type Transaction,
 } from 'kysely';
 import loglevel, { type LogLevelDesc } from 'loglevel';
 import fs from 'node:fs/promises';
@@ -338,21 +339,23 @@ export class SQLiteDataStore implements DataStore {
               DataStoreError.RUN_NOT_FOUND,
             ),
         );
-      const insertLogs = (batch: typeof logs) =>
-        trx
-          .insertInto('log')
-          .values(
-            batch.map((log) => ({
-              sequenceId,
-              logNumber: log.number,
-              logType: log.type,
-              logValues: json(log.values),
-            })),
-          )
-          .returning(['logId', 'logNumber'])
-          .execute();
+      const insertLogs = async (batch: typeof logs) =>
+        batch.length === 0
+          ? []
+          : trx
+              .insertInto('log')
+              .values(
+                batch.map((log) => ({
+                  sequenceId,
+                  logNumber: log.number,
+                  logType: log.type,
+                  logValues: json(log.values),
+                })),
+              )
+              .returning(['logId', 'logNumber'])
+              .execute();
       // Ids of the logs that were already stored (duplicates).
-      let storedIds = new Map<number, number>();
+      let duplicateIds = new Map<number, number>();
       let dbLogs: Array<{ logId: number; logNumber: number }>;
       try {
         dbLogs = await insertLogs(logs);
@@ -367,46 +370,15 @@ export class SQLiteDataStore implements DataStore {
           throw e;
         }
         // The failed statement was rolled back, the transaction is still
-        // usable. A log that is already stored with the same type and values
-        // (a resent one) is not a conflict.
-        if (new Set(logs.map((l) => l.number)).size !== logs.length) {
-          throw createLogNumberExistsError(e);
-        }
-        const stored = await trx
-          .selectFrom('log')
-          .where('sequenceId', '=', sequenceId)
-          .where(
-            'logNumber',
-            'in',
-            logs.map((l) => l.number),
-          )
-          .select((eb) => [
-            'logId',
-            'logNumber',
-            'logType',
-            eb.ref('logValues', '->').key('$').$castTo<string>().as('values'),
-          ])
-          .execute();
-        const storedByNumber = new Map(stored.map((l) => [l.logNumber, l]));
-        for (const log of logs) {
-          const s = storedByNumber.get(log.number);
-          if (
-            s != null &&
-            (s.logType !== log.type ||
-              !isDeepStrictEqual(parseJsonObject(s.values), log.values))
-          ) {
-            throw createLogNumberExistsError(e);
-          }
-        }
-        storedIds = new Map(stored.map((l) => [l.logNumber, l.logId]));
-        const toInsert = logs.filter((l) => !storedByNumber.has(l.number));
-        dbLogs = toInsert.length > 0 ? await insertLogs(toInsert) : [];
+        // usable.
+        duplicateIds = await findDuplicateIds(trx, sequenceId, logs, e);
+        dbLogs = await insertLogs(
+          logs.filter((l) => !duplicateIds.has(l.number)),
+        );
       }
       // We are working on a single run and log sequence, so all lognumbers should be unique.
-      const logMap = new Map([
-        ...storedIds,
-        ...dbLogs.map((log) => [log.logNumber, log.logId] as const),
-      ]);
+      const logMap = new Map(duplicateIds);
+      for (const log of dbLogs) logMap.set(log.logNumber, log.logId);
       // Map input logs to logs ids. We cannot rely on the order of
       // dbLogs because it is not guaranteed to be the same as the order of
       // the logs we inserted.
@@ -595,6 +567,54 @@ export class SQLiteDataStore implements DataStore {
   async close() {
     await this.#db.destroy();
   }
+}
+
+/**
+ * Called after inserting `logs` hit a unique violation. A log that is already
+ * stored with the same type and values (a resent one) is a duplicate, not a
+ * conflict. Returns the ids of the duplicates by log number, and throws if any
+ * log conflicts with a stored one.
+ */
+async function findDuplicateIds(
+  trx: Transaction<Database>,
+  sequenceId: number,
+  logs: Array<{ type: string; number: number; values: JsonObject }>,
+  cause: unknown,
+) {
+  // The unique constraint can't tell a repeat inside the batch from a stored
+  // log, and a repeat is never a resend.
+  if (new Set(logs.map((l) => l.number)).size !== logs.length) {
+    throw createLogNumberExistsError(cause);
+  }
+  const storedLogs = await trx
+    .selectFrom('log')
+    .where('sequenceId', '=', sequenceId)
+    .where(
+      'logNumber',
+      'in',
+      logs.map((l) => l.number),
+    )
+    .select((eb) => [
+      'logId',
+      'logNumber',
+      'logType',
+      eb.ref('logValues', '->').key('$').$castTo<string>().as('values'),
+    ])
+    .execute();
+  const storedByNumber = new Map(storedLogs.map((l) => [l.logNumber, l]));
+  const duplicateIds = new Map<number, number>();
+  for (const log of logs) {
+    const stored = storedByNumber.get(log.number);
+    if (stored == null) continue;
+    if (
+      stored.logType !== log.type ||
+      !isDeepStrictEqual(parseJsonObject(stored.values), log.values)
+    ) {
+      throw createLogNumberExistsError(cause);
+    }
+    duplicateIds.set(log.number, stored.logId);
+  }
+  return duplicateIds;
 }
 
 function createLogNumberExistsError(cause: unknown) {
