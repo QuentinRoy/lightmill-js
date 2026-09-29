@@ -1200,7 +1200,7 @@ describe('SQLiteStore#resumeRun', () => {
 
 describe('SQLiteStore#addLogs', () => {
   function anyLogResult(n: number, e: ExpectStatic = expect) {
-    let o = { logId: e.any(String) };
+    let o = { logId: e.any(String), created: true };
     return times(n, () => o);
   }
 
@@ -1282,7 +1282,7 @@ describe('SQLiteStore#addLogs', () => {
         // Key order does not matter.
         { type: 'log', number: 1, values: { y: { b: [2], a: 1 }, x: 1 } },
       ]),
-    ).resolves.toEqual([first]);
+    ).resolves.toEqual([{ logId: first.logId, created: false }]);
     await expect(store.getLogValueNames({ runId: e1run1 })).resolves.toEqual([
       'x',
       'y',
@@ -1301,8 +1301,9 @@ describe('SQLiteStore#addLogs', () => {
       { type: 'log', number: 2, values: { z: 1 } },
       { type: 'log', number: 1, values: { x: 1 } },
     ]);
-    expect(result[1]).toEqual(first);
-    expect(result[0]).not.toEqual(first);
+    expect(result[1]).toEqual({ logId: first.logId, created: false });
+    expect(result[0]).toMatchObject({ created: true });
+    expect(result[0].logId).not.toEqual(first.logId);
     await expect(store.getLogValueNames({ runId: e1run1 })).resolves.toEqual([
       'x',
       'z',
@@ -1345,7 +1346,7 @@ describe('SQLiteStore#addLogs', () => {
       store.addLogs(e1run1, [
         { type: 'log', number: 2, values: { x: 'kept' } },
       ]),
-    ).resolves.toEqual([added]);
+    ).resolves.toEqual([{ logId: added.logId, created: false }]);
     await expect(
       store.addLogs(e1run1, [
         { type: 'log', number: 2, values: { x: 'canceled' } },

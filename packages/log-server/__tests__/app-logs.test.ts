@@ -124,7 +124,7 @@ describe.each(storeTypes)('LogServer: post /logs (%s)', (storeType) => {
     },
   );
 
-  it('accepts a resent log and refuses a conflicting one', async ({
+  it('answers 200 to a resent log and refuses a conflicting one', async ({
     expect,
     participantApi,
     runId,
@@ -141,7 +141,8 @@ describe.each(storeTypes)('LogServer: post /logs (%s)', (storeType) => {
           },
         });
     const first = await post({ x: 1, y: 2 }).expect(201);
-    const resent = await post({ y: 2, x: 1 }).expect(201);
+    // Nothing is created for a resend.
+    const resent = await post({ y: 2, x: 1 }).expect(200);
     expect(resent.body).toEqual(first.body);
     expect(resent.headers.location).toBe(first.headers.location);
     await post({ x: 2 }).expect(409);

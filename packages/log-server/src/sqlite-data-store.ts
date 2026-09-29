@@ -324,7 +324,7 @@ export class SQLiteDataStore implements DataStore {
   async addLogs(
     runId: RunId,
     logs: Array<{ type: string; number: number; values: JsonObject }>,
-  ): Promise<Array<{ logId: LogId }>> {
+  ): Promise<Array<{ logId: LogId; created: boolean }>> {
     const dbRunId = toDbId(runId);
     if (logs.length === 0) return [];
     return this.#db.transaction().execute(async (trx) => {
@@ -389,12 +389,15 @@ export class SQLiteDataStore implements DataStore {
             `Log with number ${log.number} at index ${index} wasn't inserted`,
           );
         }
-        return { logId, values: log.values };
+        return {
+          logId,
+          values: log.values,
+          created: !duplicateIds.has(log.number),
+        };
       });
       // Stored duplicates already have their property names.
-      const insertedIds = new Set(dbLogs.map((l) => l.logId));
-      const logValues = result.flatMap(({ logId, values }) => {
-        if (!insertedIds.has(logId)) return [];
+      const logValues = result.flatMap(({ logId, values, created }) => {
+        if (!created) return [];
         return Object.keys(values).map((logPropertyName) => ({
           logId,
           logPropertyName,
@@ -403,7 +406,10 @@ export class SQLiteDataStore implements DataStore {
       if (logValues.length > 0) {
         await trx.insertInto('logPropertyName').values(logValues).execute();
       }
-      return result.map((l) => ({ logId: fromDbId(l.logId) }));
+      return result.map(({ logId, created }) => ({
+        logId: fromDbId(logId),
+        created,
+      }));
     });
   }
 
