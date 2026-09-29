@@ -100,6 +100,23 @@ export function getAllowedAndFilteredRunIds(
 
 export const apiMediaType = 'application/vnd.api+json' as const;
 export type ApiMediaType = typeof apiMediaType;
+export const atomicMediaType =
+  `${apiMediaType};ext="https://jsonapi.org/ext/atomic"` as const;
+export type AtomicMediaType = typeof atomicMediaType;
+
+/**
+ * Whether a Content-Type header is `expected`, ignoring case and whitespace
+ * around the parameters (`type; ext="..."` is `type;ext="..."`).
+ */
+export function isContentType(header: string, expected: string) {
+  const normalize = (value: string) =>
+    value
+      .split(';')
+      .map((part) => part.trim())
+      .join(';')
+      .toLowerCase();
+  return normalize(header) === normalize(expected);
+}
 
 export function parseCookies(cookieHeader: string | undefined) {
   if (cookieHeader == null) return {};

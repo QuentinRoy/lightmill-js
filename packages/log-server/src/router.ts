@@ -8,8 +8,12 @@ import type { Simplify } from 'type-fest';
 import { z } from 'zod/v4';
 import {
   apiMediaType,
+  atomicMediaType,
   httpStatusCodeFromText,
+  isContentType,
   parseCookies,
+  type ApiMediaType,
+  type AtomicMediaType,
   type HttpStatusCodeFromText,
   type HttpStatusText,
   type UserRole,
@@ -58,7 +62,7 @@ export function validateHandlers({
       );
       let bodySchema;
       if ('body' in routeRequest) {
-        bodySchema = routeRequest.body.content[apiMediaType].schema;
+        bodySchema = Object.values(routeRequest.body.content)[0].schema;
         let isRequired =
           'required' in routeRequest.body &&
           routeRequest.body.required === true;
@@ -123,18 +127,24 @@ export function createRouter({
     for (const [method, handler] of unsafeEntries(methods)) {
       route[method](async (request, response) => {
         const { headers, params, query, body, session } = request;
+        const expectedMediaType = getRequestMediaType(
+          LogApi.routes[path][
+            method as keyof (typeof LogApi.routes)[typeof path]
+          ],
+        );
+        const contentType = headers['content-type'];
         if (
-          ('content-type' in headers &&
-            headers['content-type'] != apiMediaType) ||
-          (request.body != null && !('content-type' in headers))
+          (contentType != null &&
+            !isContentType(contentType, expectedMediaType)) ||
+          (request.body != null && contentType == null)
         ) {
           await processResponse({
             result: getErrorResponse({
               status: 'Unsupported Media Type',
               code: 'UNSUPPORTED_MEDIA_TYPE',
               detail:
-                `Content type must be '${apiMediaType}'.` +
-                ` Set 'Content-Type' header to '${apiMediaType}'.`,
+                `Content type must be '${expectedMediaType}'.` +
+                ` Set 'Content-Type' header to '${expectedMediaType}'.`,
             }),
             request,
             response,
@@ -151,7 +161,18 @@ export function createRouter({
           protocol: request.protocol,
           host: request.host,
         });
-        await processResponse({ result, request, response });
+        await processResponse({
+          // Errors raised outside the handler (e.g. validation) don't know
+          // about the extension, but a response to a request using one must
+          // carry it too.
+          result:
+            expectedMediaType === atomicMediaType &&
+            (result.contentType ?? apiMediaType) === apiMediaType
+              ? { ...result, contentType: atomicMediaType }
+              : result,
+          request,
+          response,
+        });
       });
     }
     route.all(async (request, response) => {
@@ -191,6 +212,23 @@ export function createRouter({
   });
 
   return router;
+}
+
+// A route accepts a single request media type: the plain one unless its body
+// is declared with another (the atomic operations extension).
+function getRequestMediaType(route: {
+  request: object;
+}): ApiMediaType | AtomicMediaType {
+  const content =
+    'body' in route.request &&
+    typeof route.request.body === 'object' &&
+    route.request.body != null &&
+    'content' in route.request.body &&
+    typeof route.request.body.content === 'object' &&
+    route.request.body.content != null
+      ? route.request.body.content
+      : {};
+  return atomicMediaType in content ? atomicMediaType : apiMediaType;
 }
 
 function validateHandler({
@@ -508,24 +546,22 @@ type RequestSchemas<
 
 type RequestBodySchemaFromRoute<P extends Path, M extends keyof Routes[P]> =
   RequestSchemas<P, M> extends {
-    body: {
-      required?: infer Required;
-      content: {
-        [K in typeof apiMediaType]: {
-          schema: infer B extends StandardSchemaV1;
-        };
-      };
-    };
+    body: { required?: infer Required; content: infer Content };
   }
-    ? Required extends true
-      ? StandardSchemaV1<
-          StandardSchemaV1.InferInput<B>,
-          StandardSchemaV1.InferOutput<B>
-        >
-      : StandardSchemaV1<
-          StandardSchemaV1.InferInput<B> | null,
-          StandardSchemaV1.InferOutput<B> | null
-        >
+    ? Content extends Record<
+        string,
+        { schema: infer B extends StandardSchemaV1 }
+      >
+      ? Required extends true
+        ? StandardSchemaV1<
+            StandardSchemaV1.InferInput<B>,
+            StandardSchemaV1.InferOutput<B>
+          >
+        : StandardSchemaV1<
+            StandardSchemaV1.InferInput<B> | null,
+            StandardSchemaV1.InferOutput<B> | null
+          >
+      : never
     : StandardSchemaV1<null>;
 
 type RequestParameterSchemaFromRoute<

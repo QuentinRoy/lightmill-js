@@ -12,13 +12,16 @@ const dataStoreErrorCodeList = [
 type DataStoreErrorCode = (typeof dataStoreErrorCodeList)[number];
 
 export class DataStoreError extends ErrorWithCodes(dataStoreErrorCodeList) {
+  /** For LOG_NUMBER_EXISTS_IN_SEQUENCE: the number of the conflicting log. */
+  logNumber?: number | undefined;
   constructor(
     message: string,
     code: DataStoreErrorCode,
-    options?: ErrorOptions,
+    options?: ErrorOptions & { logNumber?: number | undefined },
   ) {
     super(message, code, options);
     this.name = 'StoreError';
+    this.logNumber = options?.logNumber;
   }
 }
 

@@ -622,18 +622,18 @@ async function findDuplicateIds(
       stored.logType !== log.type ||
       !isDeepStrictEqual(parseJsonObject(stored.values), log.values)
     ) {
-      throw createLogNumberExistsError(cause);
+      throw createLogNumberExistsError(cause, log.number);
     }
     duplicateIds.set(log.number, stored.logId);
   }
   return duplicateIds;
 }
 
-function createLogNumberExistsError(cause: unknown) {
+function createLogNumberExistsError(cause: unknown, logNumber?: number) {
   return new DataStoreError(
     `Cannot add log: duplicated log number in the sequence.`,
     DataStoreError.LOG_NUMBER_EXISTS_IN_SEQUENCE,
-    { cause },
+    { cause, logNumber },
   );
 }
 
