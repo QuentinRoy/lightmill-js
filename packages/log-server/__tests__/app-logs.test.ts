@@ -124,6 +124,29 @@ describe.each(storeTypes)('LogServer: post /logs (%s)', (storeType) => {
     },
   );
 
+  it('accepts a resent log and refuses a conflicting one', async ({
+    expect,
+    participantApi,
+    runId,
+  }) => {
+    const post = (values: object) =>
+      participantApi
+        .post('/logs')
+        .set('Content-Type', apiMediaType)
+        .send({
+          data: {
+            type: 'logs',
+            attributes: { number: 1, logType: 'test', values },
+            relationships: { run: { data: { type: 'runs', id: runId } } },
+          },
+        });
+    const first = await post({ x: 1, y: 2 }).expect(201);
+    const resent = await post({ y: 2, x: 1 }).expect(201);
+    expect(resent.body).toEqual(first.body);
+    expect(resent.headers.location).toBe(first.headers.location);
+    await post({ x: 2 }).expect(409);
+  });
+
   it('refuses to add logs if client does not have access to the run', async ({
     expect,
     participantApi,
