@@ -1,5 +1,6 @@
 import { experimentRoutes } from './experiment-schemas.ts';
 import { logRoutes } from './log-schemas.ts';
+import { operationRoutes } from './operation-schemas.ts';
 import { runRoutes } from './run-schemas.ts';
 import { sessionRoutes } from './session-schemas.ts';
 import { mapKeys } from './utils.ts';
@@ -27,4 +28,5 @@ export const routes = {
   ...mountRoute(experimentRoutes, '/experiments'),
   ...mountRoute(runRoutes, '/runs'),
   ...mountRoute(logRoutes, '/logs'),
+  ...mountRoute(operationRoutes, '/operations'),
 };
