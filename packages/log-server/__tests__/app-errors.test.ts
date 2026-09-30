@@ -138,6 +138,28 @@ describe.for(storeTypes)('LogServer Errors (%s server)', (storeType) => {
     },
   );
 
+  it('returns a 415 error if the body of a request has an encoding the server cannot decode', async ({
+    api,
+    expect,
+  }) => {
+    const response = await api
+      .post('/logs')
+      .set('Content-Type', apiMediaType)
+      .set('Content-Encoding', 'not-an-encoding')
+      .send('{}')
+      .expect('Content-Type', apiContentTypeRegExp)
+      .expect(415);
+    expect(response.body).toEqual({
+      errors: [
+        {
+          status: 'Unsupported Media Type',
+          code: 'UNSUPPORTED_MEDIA_TYPE',
+          detail: expect.any(String),
+        },
+      ],
+    });
+  });
+
   it('returns a 405 error if an unsupported method is used with an existing resource', async ({
     api,
     expect,

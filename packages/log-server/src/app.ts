@@ -2,6 +2,7 @@ import type {
   InternalServerErrorResponse,
   RequestBodyTooLargeErrorResponse,
   RequestValidationErrorResponse,
+  UnsupportedMediaTypeErrorResponse,
 } from '@lightmill/log-api';
 import type { StandardSchemaV1 } from '@standard-schema/spec';
 import express, { type NextFunction } from 'express';
@@ -154,8 +155,12 @@ export function LogServer({
 }
 
 function getBodyParserError(err: Error) {
-  // body-parser throws http-errors: `type` tells which one, `status` is 4xx.
-  const { type, status } = err as Error & { type?: unknown; status?: unknown };
+  // body-parser throws http-errors: `status` is 4xx for what the client got
+  // wrong, `type` names it.
+  const status =
+    'status' in err && typeof err.status === 'number' ? err.status : 0;
+  if (status < 400 || status >= 500) return null;
+  const type = 'type' in err ? err.type : undefined;
   if (type === 'entity.too.large') {
     return {
       status: 413,
@@ -172,23 +177,38 @@ function getBodyParserError(err: Error) {
       >,
     };
   }
-  if (status === 400) {
+  if (status === 415) {
+    // An encoding or charset body-parser cannot decode.
     return {
-      status: 400,
+      status: 415,
       body: {
         errors: [
           {
-            status: 'Bad Request',
-            code: 'INVALID_REQUEST_BODY',
+            status: 'Unsupported Media Type',
+            code: 'UNSUPPORTED_MEDIA_TYPE',
             detail: err.message,
-            // The body is not even a JSON document: the error is its root.
-            source: { pointer: '' },
           },
         ],
       } satisfies StandardSchemaV1.InferOutput<
-        typeof RequestValidationErrorResponse
+        typeof UnsupportedMediaTypeErrorResponse
       >,
     };
   }
-  return null;
+  // Malformed JSON, aborted request, wrong length: nothing to retry either.
+  return {
+    status: 400,
+    body: {
+      errors: [
+        {
+          status: 'Bad Request',
+          code: 'INVALID_REQUEST_BODY',
+          detail: err.message,
+          // The body is not a valid JSON document: the error is its root.
+          source: { pointer: '' },
+        },
+      ],
+    } satisfies StandardSchemaV1.InferOutput<
+      typeof RequestValidationErrorResponse
+    >,
+  };
 }
