@@ -131,8 +131,16 @@ Returns a logger function bound to `Run`'s `onLog`.
 
 ```tsx
 import { useEffect, useState, useSyncExternalStore } from 'react';
+import type { Logger } from '@lightmill/log-client';
+import { Run } from '@lightmill/react-experiment';
 
-function Experiment({ logger, timeline }) {
+function Experiment({
+  logger,
+  timeline,
+}: {
+  logger: Logger;
+  timeline: Task[];
+}) {
   const state = useSyncExternalStore(logger.subscribe, () => logger.state);
   const [timelineCompleted, setTimelineCompleted] = useState(false);
 
@@ -147,13 +155,15 @@ function Experiment({ logger, timeline }) {
   return (
     <Run
       timeline={timeline}
-      // Rejections are handled here: a rejected `onLog` throws in `Run`.
-      onLog={(log) => logger.addLog(log).catch(() => {})}
+      // A rejected `onLog` throws in `Run`. The logs a pause rejects are kept
+      // by the logger, so only other errors are rethrown.
+      onLog={(log) =>
+        logger.addLog(log).catch((error) => {
+          if (logger.state.status !== 'paused') throw error;
+        })
+      }
       onCompleted={() => setTimelineCompleted(true)}
       paused={state.status === 'paused'}
-      confirmBeforeUnload={
-        !['completed', 'canceled', 'interrupted'].includes(state.status)
-      }
       elements={{
         tasks: { intro: <IntroTask />, trial: <TrialTask /> },
         paused: <Paused logger={logger} />,
@@ -162,7 +172,7 @@ function Experiment({ logger, timeline }) {
   );
 }
 
-function Paused({ logger }) {
+function Paused({ logger }: { logger: Logger }) {
   return (
     <div>
       <p>Your answers could not be saved. Check your connection.</p>
