@@ -4,6 +4,7 @@ export class RequestError extends Error {
   #name = 'RequestError';
   #status: number;
   #statusText: string;
+  #headers: Headers;
   #errors: ErrorResource[];
 
   constructor(fetchResponse: {
@@ -31,6 +32,11 @@ export class RequestError extends Error {
     }
     this.#status = fetchResponse.response.status;
     this.#statusText = fetchResponse.response.statusText;
+    this.#headers = fetchResponse.response.headers;
+  }
+
+  get headers() {
+    return this.#headers;
   }
 
   get errors() {

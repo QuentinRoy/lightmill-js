@@ -44,12 +44,12 @@ Before calling `startRun`, create `pointing-study` on the server. See
 
 Exported as `Client` (implemented by `LightmillClient`).
 
-| Method                                                               | Description                                                       |
-| -------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| `new Client({ apiRoot, serializeLog?, requestThrottle? })`           | Create a client bound to an API root.                             |
-| `getResumableRuns({ resumableLogTypes, experimentName?, runName? })` | Fetch current-session runs that can resume from a known log type. |
-| `startRun(options)`                                                  | Start a new run or resume an existing one, returns a logger.      |
-| `logout()`                                                           | Delete current session on the server.                             |
+| Method                                                                      | Description                                                       |
+| --------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| `new Client({ apiRoot, serializeLog?, requestThrottle?, requestTimeout? })` | Create a client bound to an API root.                             |
+| `getResumableRuns({ resumableLogTypes, experimentName?, runName? })`        | Fetch current-session runs that can resume from a known log type. |
+| `startRun(options)`                                                         | Start a new run or resume an existing one, returns a logger.      |
+| `logout()`                                                                  | Delete current session on the server.                             |
 
 ### `Logger` type
 
@@ -60,8 +60,39 @@ Main operations:
 - `addLog(log)`
 - `flush()`
 - `completeRun()`
-- `cancelRun()`
-- `interruptRun()`
+- `cancelRun({ discardInFlightLogs? })`
+- `interruptRun({ discardInFlightLogs? })`
+- `retry()`
+- `state`, `subscribe(listener)`
+- `inFlightLogs`
+
+## Failures
+
+The logger retries a batch that fails with a network error, a timeout, a 5xx,
+a `408` or a `429` (waiting for `Retry-After`), for up to 2 minutes. A request
+times out after `requestTimeout.base` ms (default `10000`) plus
+`requestTimeout.perKilobyte` ms per kilobyte sent (default `100`). A batch
+rejected with `413` is resent in halves.
+
+When retries run out, or the server answers with another error, the logger
+pauses. It never drops logs on its own:
+
+- the failed batch's `addLog()` promises reject;
+- every other in-flight log is held, its `addLog()` promise pending;
+- `logger.inFlightLogs` lists the logs not stored yet, e.g. to offer a download;
+- `logger.retry()` sends them again, and resolves once they are stored;
+- `flush()` and `completeRun()` reject while logs are held; `cancelRun()` and
+  `interruptRun()` too, unless passed `{ discardInFlightLogs: true }`.
+
+`logger.state` reports delivery: `idle`, `sending`, `retrying` (with `error`,
+`attempt` and `delayMs`), `paused` (with `error`), or the ended run's status.
+It stays the same object until it changes, and `logger.subscribe(listener)`
+calls `listener` on each change, so they work with React's
+`useSyncExternalStore`:
+
+```ts
+const state = useSyncExternalStore(logger.subscribe, () => logger.state);
+```
 
 ## Notes
 

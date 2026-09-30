@@ -1,8 +1,9 @@
 import type { paths } from '@lightmill/log-api';
+import { HttpResponse } from 'msw';
 import createClient from 'openapi-fetch';
-import { describe, expect, vi } from 'vitest';
+import { beforeEach, describe, expect, vi } from 'vitest';
 import { MockServer, serverTest } from '../__mocks__/mock-server.js';
-import { LightmillLogger } from '../src/logger.js';
+import { LightmillLogger, type LoggerState } from '../src/logger.js';
 import { DeferManager } from './test-utils.ts';
 
 const it = serverTest.extend<{
@@ -357,7 +358,7 @@ describe('LogClient#flush', () => {
     defManager.resolveNextRequest();
     await expect(flushPromise).resolves.toBeUndefined();
     await expect(logger.flush()).rejects.toThrowErrorMatchingInlineSnapshot(
-      `[AddLogError: RUN_NOT_FOUND]`,
+      `[RequestError: RUN_NOT_FOUND]`,
     );
   });
 
@@ -489,6 +490,10 @@ describe('LogClient batches', () => {
         }),
       },
     ]);
+    expect(logger.state).toEqual({
+      status: 'paused',
+      error: expect.objectContaining({ status: 403 }),
+    });
   });
 
   it('does not use a log number when serializing fails', async ({
@@ -510,6 +515,212 @@ describe('LogClient batches', () => {
     ).rejects.toThrow('Cannot serialize');
     await logger.addLog({ type: 'mock-log' });
     expect(getBatches(server)).toEqual([[1]]);
+  });
+});
+
+describe('LogClient retries', () => {
+  beforeEach(() => {
+    // Makes every backoff delay its maximum: 250 ms, 500 ms, 1 s, ...
+    const random = vi.spyOn(Math, 'random').mockReturnValue(1);
+    return () => random.mockRestore();
+  });
+
+  it('retries a batch that fails with a 5xx', async ({ logger, server }) => {
+    const post = server.handlers['/operations'].post;
+    post.mockImplementationOnce(() => rawResponse(503));
+    const states: LoggerState[] = [];
+    logger.subscribe(() => states.push(logger.state));
+    const p1 = logger.addLog({ type: 'mock-log' });
+    await vi.advanceTimersByTimeAsync(249);
+    expect(post).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(1);
+    await expect(p1).resolves.toBeUndefined();
+    expect(getBatches(server)).toEqual([[1], [1]]);
+    expect(states).toEqual([
+      { status: 'sending' },
+      {
+        status: 'retrying',
+        error: expect.objectContaining({ status: 503 }),
+        attempt: 1,
+        delayMs: 250,
+      },
+      { status: 'idle' },
+    ]);
+  });
+
+  it('waits for Retry-After on a 429', async ({ logger, server }) => {
+    const post = server.handlers['/operations'].post;
+    post.mockImplementationOnce(() =>
+      rawResponse(429, { headers: { 'Retry-After': '5' } }),
+    );
+    const p1 = logger.addLog({ type: 'mock-log' });
+    await vi.advanceTimersByTimeAsync(4999);
+    expect(post).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(1);
+    await expect(p1).resolves.toBeUndefined();
+    expect(post).toHaveBeenCalledTimes(2);
+  });
+
+  it('retries after a network error', async ({ logger, server }) => {
+    const post = server.handlers['/operations'].post;
+    post.mockImplementationOnce(() => ({ raw: HttpResponse.error() }));
+    const p1 = logger.addLog({ type: 'mock-log' });
+    await vi.advanceTimersByTimeAsync(250);
+    await expect(p1).resolves.toBeUndefined();
+    expect(post).toHaveBeenCalledTimes(2);
+  });
+
+  it('retries a request the server does not answer in time', async ({
+    logger,
+    server,
+  }) => {
+    const post = server.handlers['/operations'].post;
+    post.mockImplementationOnce(() => new Promise(() => {}));
+    const p1 = logger.addLog({ type: 'mock-log' });
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(post).toHaveBeenCalledTimes(1);
+    // The log is under 1 kB, so the timeout is under 10.1 s.
+    await vi.advanceTimersByTimeAsync(100 + 250);
+    await expect(p1).resolves.toBeUndefined();
+    expect(post).toHaveBeenCalledTimes(2);
+  });
+
+  it('pauses and holds logs after two minutes of failures, until retry()', async ({
+    logger,
+    server,
+  }) => {
+    const post = server.handlers['/operations'].post;
+    const ok = post.getMockImplementation()!;
+    post.mockImplementation(() => rawResponse(503));
+    const r1 = logger.addLog({ type: 'mock-log', val: 1 }).catch((e) => e);
+    await vi.advanceTimersByTimeAsync(0);
+    let p2Resolved = false;
+    const p2 = logger.addLog({ type: 'mock-log', val: 2 }).then(() => {
+      p2Resolved = true;
+    });
+    // The last attempt starts after 2 minutes of 10 s backoffs.
+    await vi.advanceTimersByTimeAsync(2 * 60_000 + 10_000);
+    await expect(r1).resolves.toMatchObject({
+      name: 'AddLogError',
+      logNumber: 1,
+      cause: expect.objectContaining({ status: 503 }),
+    });
+    expect(logger.state).toEqual({
+      status: 'paused',
+      error: expect.objectContaining({ status: 503 }),
+    });
+    expect(logger.inFlightLogs).toEqual([
+      { type: 'mock-log', val: 1 },
+      { type: 'mock-log', val: 2 },
+    ]);
+    const callCount = post.mock.calls.length;
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(post).toHaveBeenCalledTimes(callCount);
+    await expect(logger.flush()).rejects.toMatchObject({ status: 503 });
+    await expect(logger.completeRun()).rejects.toMatchObject({ status: 503 });
+    expect(p2Resolved).toBe(false);
+
+    post.mockImplementation(ok);
+    await expect(logger.retry()).resolves.toBeUndefined();
+    await expect(p2).resolves.toBeUndefined();
+    expect(getBatches(server).at(-1)).toEqual([1, 2]);
+    expect(logger.state).toEqual({ status: 'idle' });
+    expect(logger.inFlightLogs).toEqual([]);
+    await expect(logger.flush()).resolves.toBeUndefined();
+  });
+
+  it('halves a batch that gets a 413', async ({ logger, server }) => {
+    const post = server.handlers['/operations'].post;
+    const ok = post.getMockImplementation()!;
+    post.mockImplementation((request) =>
+      request.body['atomic:operations'].length > 2
+        ? rawResponse(413)
+        : ok(request),
+    );
+    await Promise.all([
+      logger.addLog({ type: 'mock-log' }),
+      logger.addLog({ type: 'mock-log' }),
+      logger.addLog({ type: 'mock-log' }),
+      logger.addLog({ type: 'mock-log' }),
+    ]);
+    expect(getBatches(server)).toEqual([
+      [1, 2, 3, 4],
+      [1, 2],
+      [3, 4],
+    ]);
+  });
+
+  it('pauses when a single log gets a 413', async ({ logger, server }) => {
+    server.handlers['/operations'].post.mockImplementation(() =>
+      rawResponse(413),
+    );
+    await expect(logger.addLog({ type: 'mock-log' })).rejects.toMatchObject({
+      name: 'AddLogError',
+    });
+    expect(logger.state).toMatchObject({ status: 'paused' });
+  });
+
+  it('reports a server without POST /operations', async ({
+    logger,
+    server,
+  }) => {
+    server.handlers['/operations'].post.mockImplementation(() =>
+      rawResponse(404),
+    );
+    await expect(
+      logger.addLog({ type: 'mock-log' }),
+    ).rejects.toThrowErrorMatchingInlineSnapshot(
+      `[AddLogError: The server does not serve POST /operations. Update @lightmill/log-server.]`,
+    );
+  });
+
+  it('pauses when the server answers with the wrong number of results', async ({
+    logger,
+    server,
+  }) => {
+    server.handlers['/operations'].post.mockImplementation(() => ({
+      status: 200,
+      body: { 'atomic:results': [] },
+    }));
+    await expect(
+      logger.addLog({ type: 'mock-log' }),
+    ).rejects.toThrowErrorMatchingInlineSnapshot(
+      `[AddLogError: The server answered a batch of 1 logs with 0 results]`,
+    );
+    expect(logger.state).toMatchObject({ status: 'paused' });
+  });
+
+  it('retries ending a run', async ({ logger, server }) => {
+    const patch = server.handlers['/runs/{id}'].patch;
+    patch.mockImplementationOnce(() => rawResponse(503));
+    const completion = logger.completeRun();
+    await vi.advanceTimersByTimeAsync(250);
+    await expect(completion).resolves.toBeUndefined();
+    expect(patch).toHaveBeenCalledTimes(2);
+  });
+
+  it('only ends a paused run when asked to discard in-flight logs', async ({
+    logger,
+    server,
+  }) => {
+    server.handlers['/operations'].post.mockImplementation(() =>
+      rawResponse(503),
+    );
+    const r1 = logger.addLog({ type: 'mock-log' }).catch((e) => e);
+    // The last attempt starts after 2 minutes of 10 s backoffs.
+    await vi.advanceTimersByTimeAsync(2 * 60_000 + 10_000);
+    await r1;
+    const r2 = logger.addLog({ type: 'mock-log' }).catch((e) => e);
+    await expect(logger.cancelRun()).rejects.toMatchObject({ status: 503 });
+    await expect(
+      logger.cancelRun({ discardInFlightLogs: true }),
+    ).resolves.toBeUndefined();
+    await expect(r2).resolves.toMatchObject({
+      name: 'AddLogError',
+      logNumber: 2,
+    });
+    expect(logger.inFlightLogs).toEqual([]);
+    expect(logger.state).toEqual({ status: 'canceled' });
   });
 });
 
@@ -572,6 +783,10 @@ function okOperationsResponse(body: {
       })),
     },
   };
+}
+
+function rawResponse(status: number, init?: ResponseInit) {
+  return { raw: new HttpResponse(null, { ...init, status }) };
 }
 
 function getBatches(server: MockServer) {
