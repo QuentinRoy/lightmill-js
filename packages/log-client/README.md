@@ -82,12 +82,15 @@ pauses. It never drops logs on its own:
 - `logger.inFlightLogs` lists the logs not stored yet, e.g. to offer a download;
 - `logger.retry()` sends them again, and resolves once they are stored;
 - `flush()` and `completeRun()` reject while logs are held; `cancelRun()` and
-  `interruptRun()` too, unless passed `{ discardInFlightLogs: true }`.
+  `interruptRun()` too, unless passed `{ discardInFlightLogs: true }` (a batch
+  already being sent is not aborted, so the server may still store it).
 - while `completeRun()`, `cancelRun()` or `interruptRun()` ends the run,
   `addLog()` and other calls ending it reject.
 
 `logger.state` reports delivery: `idle`, `sending`, `retrying` (with `error`,
 `attempt` and `delayMs`), `paused` (with `error`), or the ended run's status.
+Only log batches count: retries while `flush()` checks for missing logs or a
+call ends the run show in that call's promise only.
 It stays the same object until it changes, and `logger.subscribe(listener)`
 calls `listener` on each change, so they work with React's
 `useSyncExternalStore`:

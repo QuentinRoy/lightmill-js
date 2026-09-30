@@ -20,7 +20,8 @@ interface AnyLog extends Typed, OptionallyDated, JsonObjectAndDate {}
  * in flight, `retrying` that the last batch failed and will be sent again,
  * `paused` that retries ran out and in-flight logs are held until `retry()`.
  * Once the run ends, the state is its status: `completed`, `canceled`, or
- * `interrupted`.
+ * `interrupted`. Only log batches count: while `flush()` checks for missing
+ * logs or a call ends the run, retries show in that call's promise only.
  */
 export type LoggerState = Readonly<
   | { status: 'idle' }
@@ -522,6 +523,8 @@ export class LightmillLogger<
    * Flushes the logger, then marks the run as canceled. Rejects if logs
    * cannot be stored, unless `discardInFlightLogs` is true: in-flight logs
    * are then dropped instead of flushed, and their `addLog()` promises reject.
+   * A batch already being sent is not aborted, so the server may still store
+   * it.
    */
   async cancelRun({ discardInFlightLogs = false } = {}) {
     await this.#endRun('canceled', discardInFlightLogs);
@@ -531,6 +534,8 @@ export class LightmillLogger<
    * Flushes the logger, then marks the run as interrupted. Rejects if logs
    * cannot be stored, unless `discardInFlightLogs` is true: in-flight logs
    * are then dropped instead of flushed, and their `addLog()` promises reject.
+   * A batch already being sent is not aborted, so the server may still store
+   * it.
    */
   async interruptRun({ discardInFlightLogs = false } = {}) {
     await this.#endRun('interrupted', discardInFlightLogs);
