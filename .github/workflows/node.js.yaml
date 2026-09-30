@@ -20,11 +20,11 @@ jobs:
         with:
           run_install: false
 
-      - name: Install Node.js 22.x
+      - name: Install Node.js
         uses: actions/setup-node@v4
         with:
           cache: 'pnpm'
-          node-version: 22.x
+          node-version-file: '.tool-versions'
 
       - run: pnpm install
 
@@ -75,11 +75,11 @@ jobs:
         uses: pnpm/action-setup@v4
         with:
           run_install: false
-      - name: Install Node.js 22.x
+      - name: Install Node.js
         uses: actions/setup-node@v4
         with:
           cache: 'pnpm'
-          node-version: 22.x
+          node-version-file: '.tool-versions'
       - run: pnpm install
       - run: pnpm run lint
 
@@ -92,11 +92,11 @@ jobs:
         uses: pnpm/action-setup@v4
         with:
           run_install: false
-      - name: Install Node.js 22.x
+      - name: Install Node.js
         uses: actions/setup-node@v4
         with:
           cache: 'pnpm'
-          node-version: 22.x
+          node-version-file: '.tool-versions'
       - run: pnpm install
       - run: pnpm run build-all
       - uses: actions/download-artifact@v4
