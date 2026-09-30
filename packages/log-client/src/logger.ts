@@ -138,16 +138,7 @@ export class LightmillLogger<
 
   async #sendBatch() {
     this.#scheduledBatch = null;
-    let size = 0;
-    let count = 0;
-    while (
-      count < this.#queue.length &&
-      (count === 0 || size + this.#queue[count].size <= batchBudget)
-    ) {
-      size += this.#queue[count].size;
-      count++;
-    }
-    const batch = this.#queue.splice(0, count);
+    const batch = this.#takeBatch();
     this.#sendingBatch = batch;
     this.#lastBatchStart = Date.now();
     let error: Error | null = null;
@@ -184,6 +175,21 @@ export class LightmillLogger<
       }
     }
     this.#scheduleBatch();
+  }
+
+  // Takes queued logs up to batchBudget, and always at least one so a log
+  // over the budget goes alone.
+  #takeBatch() {
+    let size = 0;
+    let count = 0;
+    while (
+      count < this.#queue.length &&
+      (count === 0 || size + this.#queue[count].size <= batchBudget)
+    ) {
+      size += this.#queue[count].size;
+      count++;
+    }
+    return this.#queue.splice(0, count);
   }
 
   async flush() {
