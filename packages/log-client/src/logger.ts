@@ -322,9 +322,9 @@ export class LightmillLogger<
   }
 
   // Sends a request again after network errors, timeouts, 5xx, 408 and 429,
-  // until it succeeds, fails with another status, or has kept failing for
-  // retryDuration, or isCanceled returns true. Each attempt resends the same
-  // request.
+  // until it succeeds, fails with another status, the next attempt would start
+  // more than retryDuration after the first failure, or isCanceled returns
+  // true. Each attempt resends the same request.
   async #request<T>(
     size: number,
     send: (signal: AbortSignal) => Promise<T>,
@@ -346,11 +346,13 @@ export class LightmillLogger<
         if (!isRetriable(error) || isCanceled()) throw error;
       }
       firstFailure ??= Date.now();
-      if (Date.now() - firstFailure >= retryDuration) throw error;
       const delayMs =
         getRetryAfter(error) ??
         Math.random() *
           Math.min(retryMaxDelay, retryBaseDelay * 2 ** (attempt - 1));
+      // Checked against the next attempt rather than now, so a long
+      // Retry-After gives up at once instead of leaving the logger retrying.
+      if (Date.now() + delayMs - firstFailure > retryDuration) throw error;
       onRetry(Object.freeze({ status: 'retrying', error, attempt, delayMs }));
       await new Promise((resolve) => setTimeout(resolve, delayMs));
       if (isCanceled()) throw error;

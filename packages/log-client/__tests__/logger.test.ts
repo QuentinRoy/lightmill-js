@@ -561,6 +561,19 @@ describe('LogClient retries', () => {
     expect(post).toHaveBeenCalledTimes(2);
   });
 
+  it('gives up at once when Retry-After ends past two minutes', async ({
+    logger,
+    server,
+  }) => {
+    server.handlers['/operations'].post.mockImplementation(() =>
+      rawResponse(503, { headers: { 'Retry-After': '3600' } }),
+    );
+    await expect(logger.addLog({ type: 'mock-log' })).rejects.toMatchObject({
+      name: 'AddLogError',
+    });
+    expect(logger.state).toMatchObject({ status: 'paused' });
+  });
+
   it('retries after a network error', async ({ logger, server }) => {
     const post = server.handlers['/operations'].post;
     post.mockImplementationOnce(() => ({ raw: HttpResponse.error() }));
@@ -598,8 +611,7 @@ describe('LogClient retries', () => {
     const p2 = logger.addLog({ type: 'mock-log', val: 2 }).then(() => {
       p2Resolved = true;
     });
-    // The last attempt starts after 2 minutes of 10 s backoffs.
-    await vi.advanceTimersByTimeAsync(2 * 60_000 + 10_000);
+    await vi.advanceTimersByTimeAsync(2 * 60_000);
     await expect(r1).resolves.toMatchObject({
       name: 'AddLogError',
       logNumber: 1,
@@ -707,8 +719,7 @@ describe('LogClient retries', () => {
       rawResponse(503),
     );
     const r1 = logger.addLog({ type: 'mock-log' }).catch((e) => e);
-    // The last attempt starts after 2 minutes of 10 s backoffs.
-    await vi.advanceTimersByTimeAsync(2 * 60_000 + 10_000);
+    await vi.advanceTimersByTimeAsync(2 * 60_000);
     await r1;
     const r2 = logger.addLog({ type: 'mock-log' }).catch((e) => e);
     await expect(logger.cancelRun()).rejects.toMatchObject({ status: 503 });
