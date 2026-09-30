@@ -1,10 +1,12 @@
 /* eslint-disable react/display-name */
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import userEventPackage from '@testing-library/user-event';
+import * as React from 'react';
 import {
   LogDeliveryError,
   Run,
   type RunElements,
+  useLogger,
   useTask,
 } from '../src/main.js';
 
@@ -13,6 +15,23 @@ const userEvent: typeof userEventPackage.default = userEventPackage;
 
 function wait(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+class ErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { error: Error | null }
+> {
+  state = { error: null as Error | null };
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+  render() {
+    return this.state.error == null ? (
+      this.props.children
+    ) : (
+      <div data-testid="error">{this.state.error.message}</div>
+    );
+  }
 }
 
 type Task = { type: 'A'; a: string } | { type: 'B'; b: number };
@@ -421,6 +440,51 @@ describe('run', () => {
       expect(screen.getByTestId('paused')).toBeInTheDocument();
       expect(screen.queryByTestId('end')).not.toBeInTheDocument();
     });
+
+    it('renders elements.completed again once unpaused after the timeline completed', async () => {
+      const user = userEvent.setup();
+      const els = elements();
+      const { rerender } = render(
+        <Run elements={els} timeline={singleTaskTimeline} />,
+      );
+      rerender(<Run elements={els} timeline={singleTaskTimeline} paused />);
+      await user.click(screen.getByText('Complete'));
+      expect(screen.getByTestId('paused')).toBeInTheDocument();
+      rerender(<Run elements={els} timeline={singleTaskTimeline} />);
+      expect(screen.getByTestId('end')).toBeInTheDocument();
+    });
+
+    it.each([false, true])(
+      'still throws when onLog rejects (paused: %s)',
+      async (paused) => {
+        const user = userEvent.setup();
+        const spy = vi.spyOn(console, 'error');
+        spy.mockImplementation(() => {});
+        const timeline = [{ type: 'A' }];
+        const LogTask = () => {
+          const log = useLogger();
+          return <button onClick={() => log({ type: 'L' })}>Log</button>;
+        };
+        const element = (paused: boolean) => (
+          <ErrorBoundary>
+            <Run
+              elements={{ tasks: { A: <LogTask /> }, paused: <div /> }}
+              timeline={timeline}
+              paused={paused}
+              onLog={() => Promise.reject(new Error('nope'))}
+            />
+          </ErrorBoundary>
+        );
+        const { rerender } = render(element(false));
+        // The running task stays rendered once paused.
+        rerender(element(paused));
+        await user.click(screen.getByText('Log'));
+        expect(await screen.findByTestId('error')).toHaveTextContent(
+          'Could not add log : nope',
+        );
+        spy.mockRestore();
+      },
+    );
 
     it('throws a LogDeliveryError if elements.paused is missing', () => {
       const spy = vi.spyOn(console, 'error');
