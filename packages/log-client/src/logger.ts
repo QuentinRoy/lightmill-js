@@ -210,6 +210,7 @@ export class LightmillLogger<
             !(error instanceof AddLogError) ||
             error.logNumber <= lastLogNumber
           ) {
+            subscription.unsubscribe();
             reject(error);
           }
         },
