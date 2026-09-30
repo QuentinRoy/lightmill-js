@@ -153,9 +153,12 @@ export class LightmillLogger<
    * whether queued, being sent, or held while the logger is paused.
    */
   get inFlightLogs(): ReadonlyArray<ClientLog> {
-    return [...(this.#sendingBatch ?? []), ...this.#queue].map(
-      ({ log }) => log,
-    );
+    return this.#inFlight().map(({ log }) => log);
+  }
+
+  // In log number order: the sending batch, then the queue.
+  #inFlight() {
+    return [...(this.#sendingBatch ?? []), ...this.#queue];
   }
 
   async addLog(log: ClientLog) {
@@ -564,7 +567,7 @@ export class LightmillLogger<
   }
 
   #discardInFlightLogs() {
-    const discarded = [...(this.#sendingBatch ?? []), ...this.#queue];
+    const discarded = this.#inFlight();
     this.#sendingBatch = null;
     this.#queue = [];
     for (const log of discarded) {
