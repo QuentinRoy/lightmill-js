@@ -80,6 +80,9 @@ export class LightmillLogger<
   #serializeValues: LogValuesSerializer<ClientLog>;
   #runId: string;
   #runStatus: RunStatus = 'running';
+  // Set while a call ends the run. Logs added then would be sent to a run
+  // that is ending.
+  #ending = false;
   #lastLogNumber: number;
   #fetchClient: FetchClient<paths, `${string}/${string}`>;
   #requestThrottle: number;
@@ -166,6 +169,9 @@ export class LightmillLogger<
       throw new Error(
         `Can only add logs when logger is running. Logger is ${this.#runStatus}`,
       );
+    }
+    if (this.#ending) {
+      throw new Error('Cannot add logs while the run is ending');
     }
     const { type, ...values } = log;
     if (type == null) {
@@ -539,33 +545,41 @@ export class LightmillLogger<
         `Cannot end a run that is not running. Run is ${this.#runStatus}`,
       );
     }
-    if (discardInFlightLogs) {
-      this.#discardInFlightLogs();
-    } else {
-      await this.flush();
+    if (this.#ending) {
+      throw new Error('The run is already ending');
     }
-    // The server answers 200 when the run already has the target status, so
-    // a retry after a lost response succeeds.
-    await this.#request(0, async (signal) => {
-      const response = await this.#fetchClient.PATCH('/runs/{id}', {
-        credentials: 'include',
-        params: { path: { id: this.#runId } },
-        headers: { 'content-type': apiMediaType },
-        body: {
-          data: {
-            type: 'runs',
-            id: this.#runId,
-            attributes: { status: runStatus },
-          },
-        },
-        signal,
-      });
-      if (response.error != null) {
-        throw new RequestError(response);
+    this.#ending = true;
+    try {
+      if (discardInFlightLogs) {
+        this.#discardInFlightLogs();
+      } else {
+        await this.flush();
       }
-    });
-    this.#runStatus = runStatus;
-    this.#update();
+      // The server answers 200 when the run already has the target status, so
+      // a retry after a lost response succeeds.
+      await this.#request(0, async (signal) => {
+        const response = await this.#fetchClient.PATCH('/runs/{id}', {
+          credentials: 'include',
+          params: { path: { id: this.#runId } },
+          headers: { 'content-type': apiMediaType },
+          body: {
+            data: {
+              type: 'runs',
+              id: this.#runId,
+              attributes: { status: runStatus },
+            },
+          },
+          signal,
+        });
+        if (response.error != null) {
+          throw new RequestError(response);
+        }
+      });
+      this.#runStatus = runStatus;
+      this.#update();
+    } finally {
+      this.#ending = false;
+    }
   }
 
   #discardInFlightLogs() {

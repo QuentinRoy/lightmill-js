@@ -726,6 +726,36 @@ describe('LogClient retries', () => {
     expect(patch).toHaveBeenCalledTimes(2);
   });
 
+  it('refuses logs and other end calls while the run is ending', async ({
+    logger,
+    server,
+  }) => {
+    server.handlers['/runs/{id}'].patch.mockImplementationOnce(() =>
+      rawResponse(503),
+    );
+    const completion = logger.completeRun();
+    await vi.advanceTimersByTimeAsync(0);
+    await expect(logger.addLog({ type: 'mock-log' })).rejects.toThrow(
+      'Cannot add logs while the run is ending',
+    );
+    await expect(logger.cancelRun()).rejects.toThrow(
+      'The run is already ending',
+    );
+    await vi.advanceTimersByTimeAsync(250);
+    await expect(completion).resolves.toBeUndefined();
+  });
+
+  it('accepts logs again after ending the run fails', async ({
+    logger,
+    server,
+  }) => {
+    server.handlers['/runs/{id}'].patch.mockImplementationOnce(() =>
+      rawResponse(403),
+    );
+    await expect(logger.completeRun()).rejects.toMatchObject({ status: 403 });
+    await expect(logger.addLog({ type: 'mock-log' })).resolves.toBeUndefined();
+  });
+
   it('only ends a paused run when asked to discard in-flight logs', async ({
     logger,
     server,
