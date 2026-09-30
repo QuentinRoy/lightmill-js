@@ -376,6 +376,22 @@ describe.each(storeTypes)('LogServer: post /operations (%s)', (storeType) => {
     await post(participantApi, [add(runId, 2, { other: 2 })]).expect(200);
   });
 
+  it('points at the first conflicting log', async ({
+    expect,
+    participantApi,
+    runId,
+  }) => {
+    await post(participantApi, [add(runId, 1), add(runId, 2)]).expect(200);
+    const response = await post(participantApi, [
+      add(runId, 3),
+      add(runId, 2, { other: 2 }),
+      add(runId, 1, { other: 1 }),
+    ]).expect(409);
+    expect(response.body.errors[0].source.pointer).toBe(
+      '/atomic:operations/1/data/attributes/number',
+    );
+  });
+
   it('refuses a number repeated within the batch', async ({
     expect,
     participantApi,
