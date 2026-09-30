@@ -168,6 +168,7 @@ export const httpStatuses = {
   405: 'Method Not Allowed',
   406: 'Not Acceptable',
   409: 'Conflict',
+  413: 'Payload Too Large',
   415: 'Unsupported Media Type',
   500: 'Internal Server Error',
 } as const;

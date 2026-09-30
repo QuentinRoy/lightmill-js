@@ -332,6 +332,18 @@ describe.each(storeTypes)('LogServer: post /operations (%s)', (storeType) => {
     expect([numberOf(second.data.id), numberOf(first.data.id)]).toEqual([2, 1]);
   });
 
+  it('accepts a body of several hundred kilobytes', async ({
+    expect,
+    participantApi,
+    runId,
+  }) => {
+    const padding = 'x'.repeat(600 * 1024);
+    const response = await post(participantApi, [
+      add(runId, 1, { padding }),
+    ]).expect(200);
+    expect(response.body['atomic:results']).toHaveLength(1);
+  });
+
   it('answers the stored ids to a resent batch, and stores what is new', async ({
     expect,
     participantApi,

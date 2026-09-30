@@ -1,10 +1,14 @@
-import type { InternalServerErrorResponse } from '@lightmill/log-api';
+import type {
+  InternalServerErrorResponse,
+  RequestBodyTooLargeErrorResponse,
+  RequestValidationErrorResponse,
+} from '@lightmill/log-api';
 import type { StandardSchemaV1 } from '@standard-schema/spec';
 import express, { type NextFunction } from 'express';
 import session from 'express-session';
 import log from 'loglevel';
 import MemorySessionStoreModule from 'memorystore';
-import { apiMediaType } from './api.ts';
+import { apiMediaType, atomicMediaType } from './api.ts';
 import { experimentHandlers } from './app-experiments-handlers.ts';
 import { logHandlers } from './app-logs-handlers.ts';
 import { operationHandlers } from './app-operations-handlers.ts';
@@ -14,6 +18,10 @@ import type { DataStore } from './data-store.ts';
 import { createRouter, validateHandlers } from './router.ts';
 
 export const SESSION_COOKIE_NAME = 'lightmill-session-id';
+
+// A batch is at most about 512 kB for log-client; 1 MB leaves room for its
+// envelope and for a single large log. Not an option until someone needs one.
+const REQUEST_BODY_LIMIT = '1mb';
 
 const MemorySessionStore = MemorySessionStoreModule(session);
 
@@ -65,7 +73,12 @@ export function LogServer({
     return values;
   });
 
-  app.use(express.json({ type: [apiMediaType, 'application/json'] }));
+  app.use(
+    express.json({
+      type: [apiMediaType, 'application/json'],
+      limit: REQUEST_BODY_LIMIT,
+    }),
+  );
 
   app.use(
     session({
@@ -99,12 +112,26 @@ export function LogServer({
   app.use(
     (
       err: Error,
-      _req: express.Request,
+      req: express.Request,
       res: express.Response,
       // We don't use _next, but we do need to declare all four parameters
       // so express recognizes it as an error handler middleware.
       _next: NextFunction,
     ) => {
+      // Body-parser errors are the client's: answering them with a 500 would
+      // make log-client retry a request that can never succeed.
+      const bodyError = getBodyParserError(err);
+      if (bodyError != null) {
+        res
+          .status(bodyError.status)
+          // Same media type as the router uses for this route's responses.
+          .header(
+            'content-type',
+            req.path === '/operations' ? atomicMediaType : apiMediaType,
+          )
+          .json(bodyError.body);
+        return;
+      }
       log.error(err);
       res
         .status(500)
@@ -124,4 +151,44 @@ export function LogServer({
   );
 
   return { middleware: app };
+}
+
+function getBodyParserError(err: Error) {
+  // body-parser throws http-errors: `type` tells which one, `status` is 4xx.
+  const { type, status } = err as Error & { type?: unknown; status?: unknown };
+  if (type === 'entity.too.large') {
+    return {
+      status: 413,
+      body: {
+        errors: [
+          {
+            status: 'Payload Too Large',
+            code: 'REQUEST_BODY_TOO_LARGE',
+            detail: `Request body must not exceed ${REQUEST_BODY_LIMIT}.`,
+          },
+        ],
+      } satisfies StandardSchemaV1.InferOutput<
+        typeof RequestBodyTooLargeErrorResponse
+      >,
+    };
+  }
+  if (status === 400) {
+    return {
+      status: 400,
+      body: {
+        errors: [
+          {
+            status: 'Bad Request',
+            code: 'INVALID_REQUEST_BODY',
+            detail: err.message,
+            // The body is not even a JSON document: the error is its root.
+            source: { pointer: '' },
+          },
+        ],
+      } satisfies StandardSchemaV1.InferOutput<
+        typeof RequestValidationErrorResponse
+      >,
+    };
+  }
+  return null;
 }
