@@ -360,10 +360,12 @@ export class LightmillLogger<
         if (!isRetriable(error) || isCanceled()) throw error;
       }
       firstFailure ??= Date.now();
-      const delayMs =
-        getRetryAfterMs(error) ??
+      const backoffMs =
         Math.random() *
-          Math.min(retryMaxDelayMs, retryBaseDelayMs * 2 ** (attempt - 1));
+        Math.min(retryMaxDelayMs, retryBaseDelayMs * 2 ** (attempt - 1));
+      // Retry-After only delays attempts, so a Retry-After of 0 cannot make
+      // them skip the backoff.
+      const delayMs = Math.max(getRetryAfterMs(error) ?? 0, backoffMs);
       // Checked against the next attempt rather than now, so a long
       // Retry-After gives up at once instead of leaving the logger retrying.
       if (Date.now() + delayMs - firstFailure > retryDurationMs) throw error;

@@ -561,6 +561,21 @@ describe('LogClient retries', () => {
     expect(post).toHaveBeenCalledTimes(2);
   });
 
+  it('keeps the backoff when Retry-After is shorter', async ({
+    logger,
+    server,
+  }) => {
+    const post = server.handlers['/operations'].post;
+    post.mockImplementationOnce(() =>
+      rawResponse(503, { headers: { 'Retry-After': '0' } }),
+    );
+    const p1 = logger.addLog({ type: 'mock-log' });
+    await vi.advanceTimersByTimeAsync(249);
+    expect(post).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(1);
+    await expect(p1).resolves.toBeUndefined();
+  });
+
   it('gives up at once when Retry-After ends past two minutes', async ({
     logger,
     server,
