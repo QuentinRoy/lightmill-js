@@ -404,14 +404,13 @@ export class LightmillLogger<
   #update(state?: LoggerState) {
     if (this.#runStatus !== 'running') {
       state = endedStates[this.#runStatus];
-    } else if (
-      state == null &&
-      this.#state.status !== 'paused' &&
-      this.#state.status !== 'retrying'
-    ) {
-      state = this.#deliveryState();
+    } else if (state == null) {
+      const { status } = this.#state;
+      state =
+        status === 'paused' || status === 'retrying'
+          ? this.#state
+          : this.#deliveryState();
     }
-    state ??= this.#state;
     if (state !== this.#state) {
       this.#state = state;
       for (const listener of [...this.#listeners]) {
