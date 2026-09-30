@@ -274,7 +274,7 @@ export class LightmillLogger<
   async flush() {
     const lastLogNumber = this.#lastLogNumber;
     if (this.#queue.inFlight.length === 0) return;
-    await this.#queue.waitUpTo(lastLogNumber);
+    await this.#queue.flushUpTo(lastLogNumber);
     const firstMissingLogNumber = await this.#fetchFirstMissingLogNumber();
     // A missing log number at or before lastLogNumber is not in flight
     // anymore, so that log was lost.

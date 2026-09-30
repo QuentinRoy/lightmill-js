@@ -129,7 +129,7 @@ describe('DeliveryQueue throttle', () => {
     expect(sent.map((batch) => batch.numbers)).toEqual([[1], [2]]);
   });
 
-  test('waitUpTo skips the throttle', async () => {
+  test('flushUpTo skips the throttle', async () => {
     const { queue, sent } = createQueue({ throttleMs: 1000 });
     void queue.add(item(1));
     await tick();
@@ -138,21 +138,21 @@ describe('DeliveryQueue throttle', () => {
     const stored = queue.add(item(2));
     await tick();
     expect(sent).toHaveLength(1);
-    const waited = queue.waitUpTo(2);
+    const waited = queue.flushUpTo(2);
     await tick();
     expect(sent).toHaveLength(2);
     sent[1].finish(null);
     await Promise.all([stored, waited]);
   });
 
-  test('waitUpTo leaves later items throttled', async () => {
+  test('flushUpTo leaves later items throttled', async () => {
     const { queue, sent } = createQueue({ throttleMs: 1000 });
     void queue.add(item(1));
     await tick();
     sent[0].finish(null);
     await tick();
     void queue.add(item(2));
-    void queue.waitUpTo(2);
+    void queue.flushUpTo(2);
     await tick();
     sent[1].finish(null);
     await tick();
@@ -164,10 +164,10 @@ describe('DeliveryQueue throttle', () => {
   });
 });
 
-describe('DeliveryQueue waitUpTo', () => {
+describe('DeliveryQueue flushUpTo', () => {
   test('resolves at once when no item is in flight', async () => {
     const { queue } = createQueue();
-    await queue.waitUpTo(10);
+    await queue.flushUpTo(10);
   });
 
   test('resolves once the items up to the number are stored', async () => {
@@ -176,7 +176,7 @@ describe('DeliveryQueue waitUpTo', () => {
     await tick();
     void queue.add(item(2));
     const settled = vi.fn();
-    void queue.waitUpTo(1).then(settled);
+    void queue.flushUpTo(1).then(settled);
     await tick();
     expect(settled).not.toHaveBeenCalled();
     sent[0].finish(null);
@@ -233,15 +233,15 @@ describe('DeliveryQueue pause', () => {
     expect(queue.inFlight).toEqual([item(1), item(2), item(3)]);
   });
 
-  test('waitUpTo rejects while paused', async () => {
+  test('flushUpTo rejects while paused', async () => {
     const { queue, sent } = createQueue();
     void queue.add(item(1)).catch(() => {});
     await tick();
-    const waited = queue.waitUpTo(1);
+    const waited = queue.flushUpTo(1);
     const rejection = expect(waited).rejects.toThrow('Failed');
     sent[0].finish(failure());
     await rejection;
-    await expect(queue.waitUpTo(1)).rejects.toThrow('Failed');
+    await expect(queue.flushUpTo(1)).rejects.toThrow('Failed');
   });
 
   test('retry() sends the held items again, skipping the throttle', async () => {

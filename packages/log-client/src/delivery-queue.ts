@@ -66,7 +66,7 @@ export class DeliveryQueue<Item extends { number: number; size: number }> {
   // microtask rather than for throttleMs.
   #scheduled: { timeout: ReturnType<typeof setTimeout> | null } | null = null;
   #lastBatchStart = -Infinity;
-  // Items up to this number skip the throttle because waitUpTo() or retry()
+  // Items up to this number skip the throttle because flushUpTo() or retry()
   // waits for them.
   #flushedNumber = 0;
   #state: DeliveryState = idleState;
@@ -154,7 +154,7 @@ export class DeliveryQueue<Item extends { number: number; size: number }> {
         ? 0
         : this.#lastBatchStart + this.#throttleMs - Date.now();
     if (this.#scheduled != null) {
-      // Only waitUpTo() can make a batch waiting for the throttle due now.
+      // Only flushUpTo() can make a batch waiting for the throttle due now.
       if (delay > 0 || this.#scheduled.timeout == null) return;
       clearTimeout(this.#scheduled.timeout);
     }
@@ -260,9 +260,9 @@ export class DeliveryQueue<Item extends { number: number; size: number }> {
     if (this.#state.status !== 'paused') return;
     const last = this.inFlight.at(-1);
     if (last == null) throw new Error('A paused queue holds items');
-    // Leaves the paused state, which would keep waitUpTo() from sending.
+    // Leaves the paused state, which would keep flushUpTo() from sending.
     this.#update(this.#deliveryState());
-    await this.waitUpTo(last.number);
+    await this.flushUpTo(last.number);
   }
 
   /**
@@ -271,7 +271,7 @@ export class DeliveryQueue<Item extends { number: number; size: number }> {
    * @returns A promise that resolves once every item up to `number` is stored,
    * or rejects if the queue pauses before.
    */
-  async waitUpTo(number: number) {
+  async flushUpTo(number: number) {
     if (!this.#hasInFlightUpTo(number)) return;
     this.#flushedNumber = number;
     this.#schedule();
