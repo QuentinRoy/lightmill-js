@@ -44,8 +44,10 @@ export class LightmillLogger<
   #queue: Array<QueuedLog> = [];
   // The batch waiting for the server's response. There is at most one.
   #sendingBatch: Array<QueuedLog> | null = null;
-  #isBatchScheduled = false;
-  #throttleTimeout: ReturnType<typeof setTimeout> | null = null;
+  // The next batch, once scheduled. Its timeout is null when it waits for a
+  // microtask rather than for requestThrottle.
+  #scheduledBatch: { timeout: ReturnType<typeof setTimeout> | null } | null =
+    null;
   #lastBatchStart = -Infinity;
   // Logs up to this number skip requestThrottle because flush() waits for them.
   #flushedLogNumber = 0;
@@ -113,33 +115,29 @@ export class LightmillLogger<
   }
 
   #scheduleBatch() {
-    if (
-      this.#sendingBatch != null ||
-      this.#isBatchScheduled ||
-      this.#queue.length === 0
-    ) {
-      return;
-    }
-    this.#isBatchScheduled = true;
+    if (this.#sendingBatch != null || this.#queue.length === 0) return;
     const delay =
       this.#queue[0].logNumber <= this.#flushedLogNumber
         ? 0
         : this.#lastBatchStart + this.#requestThrottle - Date.now();
+    if (this.#scheduledBatch != null) {
+      // Only a flush can make a batch waiting for requestThrottle due now.
+      if (delay > 0 || this.#scheduledBatch.timeout == null) return;
+      clearTimeout(this.#scheduledBatch.timeout);
+    }
     if (delay > 0) {
-      this.#throttleTimeout = setTimeout(() => void this.#sendBatch(), delay);
+      const timeout = setTimeout(() => void this.#sendBatch(), delay);
+      this.#scheduledBatch = { timeout };
     } else {
       // Waiting for the microtask lets logs added synchronously together
       // share a batch.
+      this.#scheduledBatch = { timeout: null };
       queueMicrotask(() => void this.#sendBatch());
     }
   }
 
   async #sendBatch() {
-    if (this.#throttleTimeout != null) {
-      clearTimeout(this.#throttleTimeout);
-      this.#throttleTimeout = null;
-    }
-    this.#isBatchScheduled = false;
+    this.#scheduledBatch = null;
     let size = 0;
     let count = 0;
     while (
@@ -195,9 +193,7 @@ export class LightmillLogger<
     }
     const lastLogNumber = this.#lastLogNumber;
     this.#flushedLogNumber = lastLogNumber;
-    if (this.#throttleTimeout != null) {
-      void this.#sendBatch();
-    }
+    this.#scheduleBatch();
     await new Promise<void>((resolve, reject) => {
       const subscription = this.#logResponseSubject.subscribe({
         next: () => {
