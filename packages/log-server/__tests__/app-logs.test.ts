@@ -437,6 +437,29 @@ describe.each(storeTypes)('LogServer: post /operations (%s)', (storeType) => {
     await post(participantApi, []).expect(400);
   });
 
+  it('refuses logs for a run that is not running', async ({
+    expect,
+    participantApi,
+    runId,
+    dataStore,
+  }) => {
+    await participantApi
+      .patch(`/runs/${runId}`)
+      .set('Content-Type', apiMediaType)
+      .send({
+        data: { id: runId, type: 'runs', attributes: { status: 'completed' } },
+      })
+      .expect(200);
+    dataStore.addLogs.mockClear();
+    const response = await post(participantApi, [add(runId, 1)])
+      .expect(403)
+      .expect('Content-Type', atomicContentTypeRegExp);
+    expect(response.body.errors[0]).toMatchObject({
+      code: 'INVALID_RUN_STATUS',
+    });
+    expect(dataStore.addLogs).not.toHaveBeenCalled();
+  });
+
   it('refuses to add a resource that is not a log', async ({
     expect,
     participantApi,
