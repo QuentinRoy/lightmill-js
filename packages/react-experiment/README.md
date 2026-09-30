@@ -100,23 +100,16 @@ Props:
 - `elements.tasks`: map from task type to React element.
 - `elements.loading`: optional loading element.
 - `elements.completed`: optional completion element.
-- `elements.paused`: element to render while `paused` is `true`, once the task
-  that was running has ended. Required if `paused` is set.
-- `paused`: set it to `true` when logs cannot be delivered. `Run` keeps
-  rendering the running task, then `elements.paused` instead of what comes
-  next (including `elements.completed`). The timeline and `onCompleted` are
-  not affected. Throws a `LogDeliveryError` if `elements.paused` is missing.
-  The unload confirmation stays on while paused. See
-  [Handling log delivery failures](#handling-log-delivery-failures).
+- `elements.paused`: element to render while `paused` is `true`, once the task that was running has ended. Required if `paused` is set.
+- `paused`: set it to `true` when logs cannot be delivered. `Run` keeps rendering the running task, then `elements.paused` instead of what comes next (including `elements.completed`). The timeline and `onCompleted` are not affected. See [Handling log delivery failures](#handling-log-delivery-failures).
 - `onLog`: optional async log handler.
 - `onCompleted`: optional callback after completion.
 - `resumeAfter`: optional `{ type, number }` marker to skip completed tasks.
-- `confirmBeforeUnload`: default `true`.
+- `confirmBeforeUnload`: default `true`. Turned off once the timeline is completed, unless `paused` is `true`.
 
 ### `LogDeliveryError`
 
-Thrown by `Run` when `paused` is set without `elements.paused`. Catch it with
-an error boundary.
+Thrown by `Run` when `paused` is set without `elements.paused`. Catch it with an error boundary.
 
 ### `useTask(type?)`
 
@@ -134,9 +127,7 @@ Returns a logger function bound to `Run`'s `onLog`.
 
 ## Handling log delivery failures
 
-`Run` does not deliver logs, so it does not know when delivery fails. With
-[`@lightmill/log-client`](../log-client/README.md), read the logger's state
-and pass it to `Run`:
+`Run` does not deliver logs, so it does not know when delivery fails. With [`@lightmill/log-client`](../log-client/README.md), read the logger's state and pass it to `Run`:
 
 ```tsx
 import { useEffect, useState, useSyncExternalStore } from 'react';
@@ -184,9 +175,6 @@ function Paused({ logger }) {
 }
 ```
 
-`retry()` sends the held logs again. While it runs, the logger state goes back
-to `sending` and `Run` resumes; if it fails again, the state becomes `paused`
-once more. `download` stands for whatever your app uses to save a file.
+`retry()` sends the held logs again. While it runs, the logger state goes back to `sending` and `Run` resumes; if it fails again, the state becomes `paused` once more. `download` stands for whatever your app uses to save a file.
 
-`Run` turns the unload confirmation off once the timeline is completed, unless
-`paused` is `true`.
+`Run` turns the unload confirmation off once the timeline is completed, unless `paused` is `true`. Logs still being sent at that point are not protected: add your own `beforeunload` listener if you need it.
