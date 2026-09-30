@@ -33,7 +33,7 @@ export function Run<const T extends RegisteredTask>({
   const { onLog, ...state } = useRun(useRunParameter);
   const holdsRunningTask = useHoldsRunningTask(
     paused,
-    state.status === 'running' ? state.onTaskCompleted : null,
+    state.status === 'running' ? state.taskKey : null,
   );
   // A paused run holds in-flight logs: leaving would lose them, even if the
   // timeline is completed.
@@ -96,26 +96,26 @@ export function Run<const T extends RegisteredTask>({
 
 // While paused, the task that was running when the pause began stays rendered
 // (interrupting it would only lose what the participant is doing). Once the
-// timeline moves on, elements.paused replaces whatever comes next. Tasks are
-// identified by their onTaskCompleted, which is new for each task.
+// timeline moves on, elements.paused replaces whatever comes next.
 function useHoldsRunningTask(
   paused: boolean,
-  runningTask: (() => void) | null,
+  runningTaskKey: symbol | null,
 ): boolean {
-  // Wrapped in an object because a function cannot be stored in state as is.
+  // null means not paused; heldTaskKey is null if no task was running when the
+  // pause began.
   const [pause, setPause] = React.useState<{
-    heldTask: (() => void) | null;
+    heldTaskKey: symbol | null;
   } | null>(null);
   // React restarts the render right after a state update made during render,
   // before anything is committed, so the held task is the one that was
   // rendered when paused turned true.
   if (paused && pause == null) {
-    setPause({ heldTask: runningTask });
+    setPause({ heldTaskKey: runningTaskKey });
   } else if (!paused && pause != null) {
     setPause(null);
   }
-  const heldTask = pause == null ? runningTask : pause.heldTask;
-  return heldTask != null && heldTask === runningTask;
+  const heldTaskKey = pause == null ? runningTaskKey : pause.heldTaskKey;
+  return heldTaskKey != null && heldTaskKey === runningTaskKey;
 }
 
 type UseRunParameter<Task extends { type: string }, Log> = {
