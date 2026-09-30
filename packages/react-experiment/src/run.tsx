@@ -31,7 +31,10 @@ export function Run<const T extends RegisteredTask>({
   ...useRunParameter
 }: RunProps<T, RegisteredLog>): React.JSX.Element | null {
   const { onLog, ...state } = useRun(useRunParameter);
-  const pause = usePause(paused, state);
+  const holdsRunningTask = useHoldsRunningTask(
+    paused,
+    state.status === 'running' ? state.onTaskCompleted : null,
+  );
   // Paused logs are not delivered yet: leaving would lose them, even if the
   // timeline is completed.
   useConfirmBeforeUnload(
@@ -43,7 +46,7 @@ export function Run<const T extends RegisteredTask>({
       'Logs could not be delivered and the run is paused, but no elements.paused was provided to <Run />.',
     );
   }
-  if (paused && !pause.holdsTask) {
+  if (paused && !holdsRunningTask) {
     return (
       <loggerContext.Provider value={onLog ?? noLoggerSymbol}>
         {elements.paused}
@@ -93,25 +96,25 @@ export function Run<const T extends RegisteredTask>({
 
 // While paused, the task that was running when the pause began stays rendered
 // (interrupting it would only lose what the participant is doing). Once the
-// timeline moves on, elements.paused replaces whatever comes next.
-function usePause(
+// timeline moves on, elements.paused replaces whatever comes next. Tasks are
+// identified by their onTaskCompleted, which is new for each task.
+function useHoldsRunningTask(
   paused: boolean,
-  state: { status: string; onTaskCompleted?: () => void },
-): { holdsTask: boolean } {
-  const runningTask = state.status === 'running' ? state.onTaskCompleted : null;
+  runningTask: (() => void) | null,
+): boolean {
   // Wrapped in an object because a function cannot be stored in state as is.
   const [pause, setPause] = React.useState<{
-    task: (() => void) | null | undefined;
+    heldTask: (() => void) | null;
   } | null>(null);
   // Adjusting state during render restarts it before anything is committed,
   // so the held task is the one rendered when paused turned true.
   if (paused && pause == null) {
-    setPause({ task: runningTask });
+    setPause({ heldTask: runningTask });
   } else if (!paused && pause != null) {
     setPause(null);
   }
-  const heldTask = pause == null ? runningTask : pause.task;
-  return { holdsTask: heldTask != null && heldTask === runningTask };
+  const heldTask = pause == null ? runningTask : pause.heldTask;
+  return heldTask != null && heldTask === runningTask;
 }
 
 type UseRunParameter<Task extends { type: string }, Log> = {
