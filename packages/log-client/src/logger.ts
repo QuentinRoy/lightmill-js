@@ -49,9 +49,9 @@ const defaultRequestTimeout: RequestTimeout = {
 const defaultBatchBudget = 512 * 1024;
 const textEncoder = new TextEncoder();
 
-const retryBaseDelay = 250;
-const retryMaxDelay = 10_000;
-const retryDuration = 2 * 60_000;
+const retryBaseDelayMs = 250;
+const retryMaxDelayMs = 10_000;
+const retryDurationMs = 2 * 60_000;
 
 // States without data are constants so that `state` stays the same object
 // until it changes.
@@ -334,7 +334,7 @@ export class LightmillLogger<
 
   // Sends a request again after network errors, timeouts, 5xx, 408 and 429,
   // until it succeeds, fails with another status, the next attempt would start
-  // more than retryDuration after the first failure, or isCanceled returns
+  // more than retryDurationMs after the first failure, or isCanceled returns
   // true. Each attempt resends the same request.
   async #request<T>(
     size: number,
@@ -358,12 +358,12 @@ export class LightmillLogger<
       }
       firstFailure ??= Date.now();
       const delayMs =
-        getRetryAfter(error) ??
+        getRetryAfterMs(error) ??
         Math.random() *
-          Math.min(retryMaxDelay, retryBaseDelay * 2 ** (attempt - 1));
+          Math.min(retryMaxDelayMs, retryBaseDelayMs * 2 ** (attempt - 1));
       // Checked against the next attempt rather than now, so a long
       // Retry-After gives up at once instead of leaving the logger retrying.
-      if (Date.now() + delayMs - firstFailure > retryDuration) throw error;
+      if (Date.now() + delayMs - firstFailure > retryDurationMs) throw error;
       onRetry(Object.freeze({ status: 'retrying', error, attempt, delayMs }));
       await new Promise((resolve) => setTimeout(resolve, delayMs));
       if (isCanceled()) throw error;
@@ -588,8 +588,7 @@ function isRetriable(error: Error) {
   return error.status >= 500 || error.status === 408 || error.status === 429;
 }
 
-// Returns Retry-After in milliseconds, if the error has one.
-function getRetryAfter(error: Error) {
+function getRetryAfterMs(error: Error) {
   if (!(error instanceof RequestError)) return null;
   const header = error.headers.get('retry-after');
   if (header == null || header.trim() === '') return null;
