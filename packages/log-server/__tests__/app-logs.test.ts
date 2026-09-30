@@ -6,6 +6,7 @@ import { DataStoreError } from '../src/data-store-errors.ts';
 import type { DataStore, ExperimentId, RunId } from '../src/data-store.ts';
 import {
   apiContentTypeRegExp,
+  atomicContentTypeRegExp,
   createSessionTest,
   storeTypes,
   type StoreType,
@@ -286,8 +287,6 @@ describe.each(storeTypes)('LogServer: post /logs (%s)', (storeType) => {
 
 describe.each(storeTypes)('LogServer: post /operations (%s)', (storeType) => {
   const it = createTest(storeType);
-  const atomicContentTypeRegExp =
-    /^application\/vnd\.api\+json(;\s*charset=[^\s;]+)?;\s*ext="https:\/\/jsonapi\.org\/ext\/atomic"/;
   const add = (
     runId: string,
     number: number,

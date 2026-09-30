@@ -6,6 +6,7 @@ import { afterEach, describe, test, vi } from 'vitest';
 import { apiMediaType, atomicMediaType } from '../src/api.ts';
 import {
   apiContentTypeRegExp,
+  atomicContentTypeRegExp,
   createAllRoute,
   createServerContext,
   storeTypes,
@@ -18,6 +19,15 @@ afterEach(() => {
 });
 
 type Fixture = { api: request.Agent };
+
+// Body errors happen before routing, so each route answers them with its own
+// media type: the trailing slash checks the lookup does not depend on its
+// exact spelling.
+const bodyErrorRoutes = [
+  ['/logs', apiMediaType, apiContentTypeRegExp],
+  ['/operations', atomicMediaType, atomicContentTypeRegExp],
+  ['/operations/', atomicMediaType, atomicContentTypeRegExp],
+] as const;
 
 describe.for(storeTypes)('LogServer Errors (%s server)', (storeType) => {
   const it = test.extend<Fixture>({
@@ -81,19 +91,13 @@ describe.for(storeTypes)('LogServer Errors (%s server)', (storeType) => {
     `);
   });
 
-  it.for([
-    ['/logs', apiMediaType, apiContentTypeRegExp],
-    [
-      '/operations',
-      atomicMediaType,
-      /^application\/vnd\.api\+json(;\s*charset=[^\s;]+)?;\s*ext="https:\/\/jsonapi\.org\/ext\/atomic"/,
-    ],
-  ] as const)(
+  it.for(bodyErrorRoutes)(
     'returns a 413 error if the body of a request to %s is over 1 MB',
     async ([path, mediaType, contentTypeRegExp], { api, expect }) => {
       const response = await api
         .post(path)
         .set('Content-Type', mediaType)
+        // The JSON around the padding puts the body over 1 MB.
         .send(JSON.stringify({ padding: 'x'.repeat(1024 * 1024) }))
         .expect('Content-Type', contentTypeRegExp)
         .expect(413);
@@ -109,14 +113,7 @@ describe.for(storeTypes)('LogServer Errors (%s server)', (storeType) => {
     },
   );
 
-  it.for([
-    ['/logs', apiMediaType, apiContentTypeRegExp],
-    [
-      '/operations',
-      atomicMediaType,
-      /^application\/vnd\.api\+json(;\s*charset=[^\s;]+)?;\s*ext="https:\/\/jsonapi\.org\/ext\/atomic"/,
-    ],
-  ] as const)(
+  it.for(bodyErrorRoutes)(
     'returns a 400 error if the body of a request to %s is not valid JSON',
     async ([path, mediaType, contentTypeRegExp], { api, expect }) => {
       const response = await api
