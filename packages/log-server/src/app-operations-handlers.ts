@@ -11,22 +11,23 @@ const inAtomic = <Response extends object>(response: Response) => ({
   contentType: atomicMediaType,
 });
 
+const pointerTo = (index: number, path: string) =>
+  `/atomic:operations/${index}/data/${path}`;
+
+const badRequest = (detail: string, pointer: string) =>
+  inAtomic(
+    getErrorResponse({
+      status: 'Bad Request',
+      code: 'INVALID_REQUEST_BODY',
+      detail,
+      source: { pointer },
+    }),
+  );
+
 export const operationHandlers = (): PathHandlers<'/operations'> => ({
   '/operations': {
     async post({ dataStore: store, body, sessionData }) {
       const operations = body['atomic:operations'];
-      const pointerTo = (index: number, path: string) =>
-        `/atomic:operations/${index}/data/${path}`;
-      const badRequest = (detail: string, pointer: string) =>
-        inAtomic(
-          getErrorResponse({
-            status: 'Bad Request',
-            code: 'INVALID_REQUEST_BODY',
-            detail,
-            source: { pointer },
-          }),
-        );
-
       const firstOperation = operations[0];
       // The request schema requires at least one operation.
       if (firstOperation == null) {
