@@ -4,7 +4,7 @@ import express, { type NextFunction } from 'express';
 import session from 'express-session';
 import log from 'loglevel';
 import MemorySessionStoreModule from 'memorystore';
-import { apiMediaType, atomicMediaType } from './api.ts';
+import { apiMediaType } from './api.ts';
 import { experimentHandlers } from './app-experiments-handlers.ts';
 import { logHandlers } from './app-logs-handlers.ts';
 import { operationHandlers } from './app-operations-handlers.ts';
@@ -65,9 +65,7 @@ export function LogServer({
     return values;
   });
 
-  app.use(
-    express.json({ type: [apiMediaType, atomicMediaType, 'application/json'] }),
-  );
+  app.use(express.json({ type: [apiMediaType, 'application/json'] }));
 
   app.use(
     session({
