@@ -235,35 +235,7 @@ export class LightmillLogger<
     const batchSize = batch.reduce((total, log) => total + log.size, 0);
     this.#sendingBatch = batch;
     this.#lastBatchStart = Date.now();
-    let error: Error | null = null;
-    try {
-      const results = await this.#request(
-        batchSize,
-        async (signal) => {
-          const response = await this.#fetchClient.POST('/operations', {
-            credentials: 'include',
-            headers: { 'content-type': atomicMediaType },
-            body: { 'atomic:operations': batch.map((log) => log.operation) },
-            signal,
-          });
-          if (response.error != null) {
-            throw new RequestError(response);
-          }
-          return response.data['atomic:results'];
-        },
-        {
-          isCanceled: () => this.#sendingBatch !== batch,
-          onRetry: (retrying) => this.#update(retrying),
-        },
-      );
-      if (results.length !== batch.length) {
-        error = new Error(
-          `The server answered a batch of ${batch.length} logs with ${results.length} results`,
-        );
-      }
-    } catch (caughtError) {
-      error = toError(caughtError);
-    }
+    const error = await this.#postBatch(batch, batchSize);
     // Ending the run with discardInFlightLogs dropped this batch.
     if (this.#sendingBatch !== batch) return;
     this.#sendingBatch = null;
@@ -282,15 +254,6 @@ export class LightmillLogger<
       this.#batchBudget = Math.floor(batchSize / 2);
       this.#queue.unshift(...batch);
     } else {
-      if (
-        error instanceof RequestError &&
-        (error.status === 404 || error.status === 405)
-      ) {
-        error = new Error(
-          'The server does not serve POST /operations. Update @lightmill/log-server.',
-          { cause: error },
-        );
-      }
       this.#queue.unshift(...batch);
       state = Object.freeze({ status: 'paused', error });
       for (const log of batch) {
@@ -304,6 +267,53 @@ export class LightmillLogger<
     }
     this.#update(state);
     this.#scheduleBatch();
+  }
+
+  // Returns the error that ended the batch's retries, or null once it is
+  // stored.
+  async #postBatch(
+    batch: Array<QueuedLog<ClientLog>>,
+    batchSize: number,
+  ): Promise<Error | null> {
+    let results;
+    try {
+      results = await this.#request(
+        batchSize,
+        async (signal) => {
+          const response = await this.#fetchClient.POST('/operations', {
+            credentials: 'include',
+            headers: { 'content-type': atomicMediaType },
+            body: { 'atomic:operations': batch.map((log) => log.operation) },
+            signal,
+          });
+          if (response.error != null) {
+            throw new RequestError(response);
+          }
+          return response.data['atomic:results'];
+        },
+        {
+          isCanceled: () => this.#sendingBatch !== batch,
+          onRetry: (retrying) => this.#update(retrying),
+        },
+      );
+    } catch (error) {
+      if (
+        error instanceof RequestError &&
+        (error.status === 404 || error.status === 405)
+      ) {
+        return new Error(
+          'The server does not serve POST /operations. Update @lightmill/log-server.',
+          { cause: error },
+        );
+      }
+      return toError(error);
+    }
+    if (results.length !== batch.length) {
+      return new Error(
+        `The server answered a batch of ${batch.length} logs with ${results.length} results`,
+      );
+    }
+    return null;
   }
 
   // Takes queued logs up to the batch budget, and always at least one so a log
