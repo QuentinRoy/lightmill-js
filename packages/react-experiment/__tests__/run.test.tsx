@@ -512,5 +512,32 @@ describe('run', () => {
       globalThis.dispatchEvent(event);
       expect(event.defaultPrevented).toBe(true);
     });
+
+    it('never asks for confirmation before unload if confirmBeforeUnload is false', async () => {
+      const user = userEvent.setup();
+      const els = elements();
+      const { rerender } = render(
+        <Run
+          elements={els}
+          timeline={singleTaskTimeline}
+          confirmBeforeUnload={false}
+        />,
+      );
+      rerender(
+        <Run
+          elements={els}
+          timeline={singleTaskTimeline}
+          confirmBeforeUnload={false}
+          paused
+        />,
+      );
+      const duringTask = new Event('beforeunload', { cancelable: true });
+      globalThis.dispatchEvent(duringTask);
+      expect(duringTask.defaultPrevented).toBe(false);
+      await user.click(screen.getByText('Complete'));
+      const whilePaused = new Event('beforeunload', { cancelable: true });
+      globalThis.dispatchEvent(whilePaused);
+      expect(whilePaused.defaultPrevented).toBe(false);
+    });
   });
 });
