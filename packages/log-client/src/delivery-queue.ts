@@ -260,10 +260,9 @@ export class DeliveryQueue<Item extends { number: number; size: number }> {
     if (this.#state.status !== 'paused') return;
     const last = this.inFlight.at(-1);
     if (last == null) throw new Error('A paused queue holds items');
-    this.#flushedNumber = last.number;
+    // Leaves the paused state, which would keep waitUpTo() from sending.
     this.#update(this.#deliveryState());
-    this.#schedule();
-    await this.#waitUpToInFlight(last.number);
+    await this.waitUpTo(last.number);
   }
 
   /**
@@ -276,13 +275,7 @@ export class DeliveryQueue<Item extends { number: number; size: number }> {
     if (!this.#hasInFlightUpTo(number)) return;
     this.#flushedNumber = number;
     this.#schedule();
-    await this.#waitUpToInFlight(number);
-  }
-
-  // Resolves once no item up to number is in flight, and rejects if the queue
-  // pauses before.
-  #waitUpToInFlight(number: number) {
-    return new Promise<void>((resolve, reject) => {
+    await new Promise<void>((resolve, reject) => {
       const check = () => {
         const state = this.#state;
         if (!this.#hasInFlightUpTo(number)) {
