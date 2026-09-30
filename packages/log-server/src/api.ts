@@ -102,7 +102,6 @@ export const apiMediaType = 'application/vnd.api+json' as const;
 export type ApiMediaType = typeof apiMediaType;
 export const atomicMediaType =
   `${apiMediaType};ext="https://jsonapi.org/ext/atomic"` as const;
-export type AtomicMediaType = typeof atomicMediaType;
 
 /**
  * Whether a Content-Type header is the same JSON:API media type as `expected`:

@@ -12,8 +12,6 @@ import {
   httpStatusCodeFromText,
   isContentType,
   parseCookies,
-  type ApiMediaType,
-  type AtomicMediaType,
   type HttpStatusCodeFromText,
   type HttpStatusText,
   type UserRole,
@@ -222,9 +220,7 @@ export function createRouter({
 type RouteWithBody = {
   request: { body?: { content: object }; [key: string]: unknown };
 };
-function getRequestMediaType(
-  route: RouteWithBody,
-): ApiMediaType | AtomicMediaType {
+function getRequestMediaType(route: RouteWithBody) {
   return route.request.body != null &&
     atomicMediaType in route.request.body.content
     ? atomicMediaType
