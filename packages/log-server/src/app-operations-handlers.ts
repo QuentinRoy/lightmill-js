@@ -1,6 +1,6 @@
 import type { JsonObject } from 'type-fest';
 import { atomicMediaType, getErrorResponse } from './api.ts';
-import { getRunToLog } from './app-logs-handlers.ts';
+import { getRunAcceptingLogs } from './app-logs-handlers.ts';
 import { DataStoreError } from './data-store-errors.ts';
 import type { PathHandlers } from './router.ts';
 
@@ -51,7 +51,7 @@ export const operationHandlers = (): PathHandlers<'/operations'> => ({
         seenNumbers.add(data.attributes.number);
       }
 
-      const runOrError = await getRunToLog(store, sessionData, runId);
+      const runOrError = await getRunAcceptingLogs(store, sessionData, runId);
       if ('error' in runOrError) {
         return inAtomic(runOrError.error);
       }

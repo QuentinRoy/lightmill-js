@@ -23,7 +23,7 @@ import { arrayify, firstStrict } from './utils.ts';
  * cannot: the session has no access to it, it does not exist, or it is not
  * running.
  */
-export async function getRunToLog(
+export async function getRunAcceptingLogs(
   store: DataStore,
   sessionData: SessionData['data'],
   runId: RunId,
@@ -105,7 +105,7 @@ export const logHandlers = (): PathHandlers<'/logs'> => ({
 
     async post({ dataStore: store, body, sessionData, protocol, host }) {
       let runId = body.data.relationships.run.data.id;
-      let runOrError = await getRunToLog(store, sessionData, runId);
+      let runOrError = await getRunAcceptingLogs(store, sessionData, runId);
       if ('error' in runOrError) return runOrError.error;
       let { run } = runOrError;
       try {
