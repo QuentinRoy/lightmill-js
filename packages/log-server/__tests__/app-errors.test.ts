@@ -128,7 +128,6 @@ describe.for(storeTypes)('LogServer Errors (%s server)', (storeType) => {
             status: 'Bad Request',
             code: 'INVALID_REQUEST_BODY',
             detail: expect.any(String),
-            source: { pointer: '' },
           },
         ],
       });

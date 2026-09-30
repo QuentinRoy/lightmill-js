@@ -203,9 +203,9 @@ function getBodyParserError(err: Error) {
         {
           status: 'Bad Request',
           code: 'INVALID_REQUEST_BODY',
+          // No `source`: a pointer must reference a value of the request
+          // document, and there is no document.
           detail: err.message,
-          // The body is not a valid JSON document: the error is its root.
-          source: { pointer: '' },
         },
       ],
     } satisfies StandardSchemaV1.InferOutput<

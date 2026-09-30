@@ -12,6 +12,10 @@ export const RequestValidationErrorResponse = getErrorDocumentSchema(
         }),
       })
       .openapi('InvalidRequestBodyError'),
+    // No source: there is no document to point into.
+    getErrorSchema({ code: 'INVALID_REQUEST_BODY', statusCode: 400 })
+      .describe('The request body is not valid JSON')
+      .openapi('MalformedRequestBodyError'),
     getErrorSchema({ code: 'INVALID_REQUEST_QUERY', statusCode: 400 })
       .extend({
         source: z.strictObject({
