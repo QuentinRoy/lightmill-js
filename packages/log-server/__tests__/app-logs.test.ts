@@ -437,6 +437,23 @@ describe.each(storeTypes)('LogServer: post /operations (%s)', (storeType) => {
     await post(participantApi, []).expect(400);
   });
 
+  it('refuses to add a resource that is not a log', async ({
+    expect,
+    participantApi,
+    runId,
+  }) => {
+    const operation = add(runId, 1);
+    const response = await post(participantApi, [
+      { ...operation, data: { ...operation.data, type: 'runs' } },
+    ])
+      .expect(400)
+      .expect('Content-Type', atomicContentTypeRegExp);
+    expect(response.body.errors[0]).toMatchObject({
+      code: 'INVALID_REQUEST_BODY',
+      source: { pointer: '/atomic:operations/0/data/type' },
+    });
+  });
+
   it('refuses a run the client has no access to', async ({
     expect,
     participantApi,
