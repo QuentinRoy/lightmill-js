@@ -15,7 +15,11 @@ import {
   type UserRole,
 } from './api.ts';
 import type { DataStore, RunId } from './data-store.ts';
-import { unsafeEntries, type ConditionalOptionalProps } from './utils.ts';
+import {
+  toJsonPointer,
+  unsafeEntries,
+  type ConditionalOptionalProps,
+} from './utils.ts';
 
 declare module 'express-session' {
   interface SessionData {
@@ -242,7 +246,7 @@ function validateHandler({
             code: 'INVALID_REQUEST_BODY',
             status: 'Bad Request',
             detail: issue.message,
-            source: { pointer: '/' + (issue.path?.join('/') ?? '') },
+            source: { pointer: toJsonPointer(issue.path ?? []) },
           }),
         ),
         ...(validatedQuery.issues ?? []).map(
