@@ -35,7 +35,7 @@ export function Run<const T extends RegisteredTask>({
     paused,
     state.status === 'running' ? state.onTaskCompleted : null,
   );
-  // Paused logs are not delivered yet: leaving would lose them, even if the
+  // A paused run holds in-flight logs: leaving would lose them, even if the
   // timeline is completed.
   useConfirmBeforeUnload(
     confirmBeforeUnload && (paused || state.status !== 'completed'),
@@ -106,8 +106,9 @@ function useHoldsRunningTask(
   const [pause, setPause] = React.useState<{
     heldTask: (() => void) | null;
   } | null>(null);
-  // Adjusting state during render restarts it before anything is committed,
-  // so the held task is the one rendered when paused turned true.
+  // React restarts the render right after a state update made during render,
+  // before anything is committed, so the held task is the one that was
+  // rendered when paused turned true.
   if (paused && pause == null) {
     setPause({ heldTask: runningTask });
   } else if (!paused && pause != null) {
