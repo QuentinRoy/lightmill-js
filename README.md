@@ -44,6 +44,8 @@ pnpm -r run build
 
 ### Run tests
 
+Tests import the built packages and generated types, so build first.
+
 ```sh
 pnpm -r run test
 ```
