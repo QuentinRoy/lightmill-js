@@ -1,6 +1,7 @@
 import type { Client as FetchClient } from 'openapi-fetch';
 import type { JsonValue } from 'type-fest';
 import type { components, paths } from './generated/openapi.js';
+import { Subject } from './subject.ts';
 import type { LogValuesSerializer, RunStatus } from './types.js';
 import { apiMediaType, atomicMediaType, RequestError } from './utils.js';
 
@@ -103,9 +104,9 @@ export class LightmillLogger<
   // waits for them.
   #flushedLogNumber = 0;
   #state: LoggerState = idleState;
-  #listeners = new Set<() => void>();
-  // Called on every change, even one that leaves the state as it is.
-  #watchers = new Set<() => void>();
+  #stateChanges = new Subject<void>();
+  // Emits on every change, even one that leaves the state as it is.
+  #changes = new Subject<void>();
 
   constructor({
     runId,
@@ -144,12 +145,10 @@ export class LightmillLogger<
    * @returns A function that removes the listener.
    */
   subscribe = (listener: () => void): (() => void) => {
-    // Wrapped so the same listener can be subscribed twice.
-    const call = () => listener();
-    this.#listeners.add(call);
-    return () => {
-      this.#listeners.delete(call);
-    };
+    const subscription = this.#stateChanges.subscribe({
+      next: () => callSafely(listener),
+    });
+    return () => subscription.unsubscribe();
   };
 
   /**
@@ -427,13 +426,9 @@ export class LightmillLogger<
     }
     if (state !== this.#state) {
       this.#state = state;
-      for (const listener of [...this.#listeners]) {
-        callSafely(listener);
-      }
+      this.#stateChanges.next();
     }
-    for (const watcher of [...this.#watchers]) {
-      watcher();
-    }
+    this.#changes.next();
   }
 
   /**
@@ -478,14 +473,14 @@ export class LightmillLogger<
       const check = () => {
         const state = this.#state;
         if (!this.#hasInFlightLogsUpTo(logNumber)) {
-          this.#watchers.delete(check);
+          subscription.unsubscribe();
           resolve();
         } else if (state.status === 'paused') {
-          this.#watchers.delete(check);
+          subscription.unsubscribe();
           reject(state.error);
         }
       };
-      this.#watchers.add(check);
+      const subscription = this.#changes.subscribe({ next: check });
       check();
     });
   }

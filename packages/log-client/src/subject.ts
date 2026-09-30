@@ -19,7 +19,7 @@ export class Subject<T, E extends Error = Error> implements Observable<T, E> {
 
   error(error: E): void {
     for (let observer of this.#observers) {
-      observer.error(error);
+      observer.error?.(error);
     }
   }
 }
@@ -29,7 +29,7 @@ export interface Observable<T, E extends Error = Error> {
 }
 export interface Observer<T, E extends Error> {
   next(data: T): void;
-  error(error: E): void;
+  error?(error: E): void;
   complete?(): void;
 }
 export interface Subscription {
