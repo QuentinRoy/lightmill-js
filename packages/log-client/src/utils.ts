@@ -74,3 +74,9 @@ export function assertNever(value: never, isCrashing: boolean = false): never {
 export const apiMediaType = 'application/vnd.api+json';
 export const atomicMediaType =
   `${apiMediaType};ext="https://jsonapi.org/ext/atomic"` as const;
+
+export function toError(error: unknown) {
+  return error instanceof Error
+    ? error
+    : new Error('Unknown error', { cause: error });
+}

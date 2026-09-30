@@ -1,9 +1,15 @@
 import type { Client as FetchClient } from 'openapi-fetch';
 import type { JsonValue } from 'type-fest';
 import type { components, paths } from './generated/openapi.js';
+import { sendWithRetries } from './send-with-retries.ts';
 import { Subject } from './subject.ts';
 import type { LogValuesSerializer, RunStatus } from './types.js';
-import { apiMediaType, atomicMediaType, RequestError } from './utils.js';
+import {
+  apiMediaType,
+  atomicMediaType,
+  RequestError,
+  toError,
+} from './utils.js';
 
 interface Typed<Type extends string = string> {
   type: Type;
@@ -50,10 +56,6 @@ const defaultRequestTimeout: RequestTimeout = {
 // body stays about this size, under the server's 1 MB limit.
 const defaultBatchBudget = 512 * 1024;
 const textEncoder = new TextEncoder();
-
-const retryBaseDelayMs = 250;
-const retryMaxDelayMs = 10_000;
-const retryDurationMs = 2 * 60_000;
 
 // States without data are constants so that `state` stays the same object
 // until it changes.
@@ -288,8 +290,7 @@ export class LightmillLogger<
   ): Promise<Error | null> {
     let results;
     try {
-      results = await this.#request(
-        batchSize,
+      results = await sendWithRetries(
         async (signal) => {
           const response = await this.#fetchClient.POST('/operations', {
             credentials: 'include',
@@ -303,8 +304,10 @@ export class LightmillLogger<
           return response.data['atomic:results'];
         },
         {
+          timeoutMs: this.#timeoutMs(batchSize),
           isCanceled: () => this.#sendingBatch !== batch,
-          onRetry: (retrying) => this.#update(retrying),
+          onRetry: (retry) =>
+            this.#update(Object.freeze({ status: 'retrying', ...retry })),
         },
       );
     } catch (error) {
@@ -342,68 +345,9 @@ export class LightmillLogger<
     return this.#queue.splice(0, count);
   }
 
-  // Sends a request again after network errors, timeouts, 5xx, 408 and 429,
-  // until it succeeds, fails with another status, the next attempt would start
-  // more than retryDurationMs after the first failure, or isCanceled returns
-  // true. Each attempt resends the same request.
-  async #request<T>(
-    size: number,
-    send: (signal: AbortSignal) => Promise<T>,
-    {
-      isCanceled = () => false,
-      onRetry = () => {},
-    }: {
-      isCanceled?: () => boolean;
-      onRetry?: (state: LoggerState & { status: 'retrying' }) => void;
-    } = {},
-  ): Promise<T> {
-    let firstFailure: number | null = null;
-    for (let attempt = 1; ; attempt++) {
-      let error: Error;
-      try {
-        return await this.#attempt(size, send);
-      } catch (caughtError) {
-        error = toError(caughtError);
-        if (!isRetriable(error) || isCanceled()) throw error;
-      }
-      firstFailure ??= Date.now();
-      const backoffMs =
-        Math.random() *
-        Math.min(retryMaxDelayMs, retryBaseDelayMs * 2 ** (attempt - 1));
-      // Retry-After only delays attempts, so a Retry-After of 0 cannot make
-      // them skip the backoff.
-      const delayMs = Math.max(getRetryAfterMs(error) ?? 0, backoffMs);
-      // Checked against the next attempt rather than now, so a long
-      // Retry-After gives up at once instead of leaving the logger retrying.
-      if (Date.now() + delayMs - firstFailure > retryDurationMs) throw error;
-      onRetry(Object.freeze({ status: 'retrying', error, attempt, delayMs }));
-      await new Promise((resolve) => setTimeout(resolve, delayMs));
-      if (isCanceled()) throw error;
-    }
-  }
-
-  async #attempt<T>(
-    size: number,
-    send: (signal: AbortSignal) => Promise<T>,
-  ): Promise<T> {
+  #timeoutMs(bytes: number) {
     const { base, perKilobyte } = this.#requestTimeout;
-    const timeoutMs = base + (perKilobyte * size) / 1024;
-    const controller = new AbortController();
-    const timeout = setTimeout(() => {
-      controller.abort(
-        new DOMException(
-          `The server did not answer within ${Math.round(timeoutMs)} ms`,
-          'TimeoutError',
-        ),
-      );
-    }, timeoutMs);
-    try {
-      return await send(controller.signal);
-    } catch (error) {
-      throw controller.signal.aborted ? controller.signal.reason : error;
-    } finally {
-      clearTimeout(timeout);
-    }
+    return base + (perKilobyte * bytes) / 1024;
   }
 
   #deliveryState() {
@@ -493,18 +437,21 @@ export class LightmillLogger<
   }
 
   async #fetchFirstMissingLogNumber() {
-    return this.#request(0, async (signal) => {
-      const response = await this.#fetchClient.GET('/runs/{id}', {
-        credentials: 'include',
-        params: { path: { id: this.#runId } },
-        headers: { 'content-type': apiMediaType },
-        signal,
-      });
-      if (response.error != null) {
-        throw new RequestError(response);
-      }
-      return response.data.data.attributes.firstMissingLogNumber;
-    });
+    return sendWithRetries(
+      async (signal) => {
+        const response = await this.#fetchClient.GET('/runs/{id}', {
+          credentials: 'include',
+          params: { path: { id: this.#runId } },
+          headers: { 'content-type': apiMediaType },
+          signal,
+        });
+        if (response.error != null) {
+          throw new RequestError(response);
+        }
+        return response.data.data.attributes.firstMissingLogNumber;
+      },
+      { timeoutMs: this.#timeoutMs(0) },
+    );
   }
 
   /**
@@ -558,24 +505,27 @@ export class LightmillLogger<
       }
       // The server answers 200 when the run already has the target status, so
       // a retry after a lost response succeeds.
-      await this.#request(0, async (signal) => {
-        const response = await this.#fetchClient.PATCH('/runs/{id}', {
-          credentials: 'include',
-          params: { path: { id: this.#runId } },
-          headers: { 'content-type': apiMediaType },
-          body: {
-            data: {
-              type: 'runs',
-              id: this.#runId,
-              attributes: { status: runStatus },
+      await sendWithRetries(
+        async (signal) => {
+          const response = await this.#fetchClient.PATCH('/runs/{id}', {
+            credentials: 'include',
+            params: { path: { id: this.#runId } },
+            headers: { 'content-type': apiMediaType },
+            body: {
+              data: {
+                type: 'runs',
+                id: this.#runId,
+                attributes: { status: runStatus },
+              },
             },
-          },
-          signal,
-        });
-        if (response.error != null) {
-          throw new RequestError(response);
-        }
-      });
+            signal,
+          });
+          if (response.error != null) {
+            throw new RequestError(response);
+          }
+        },
+        { timeoutMs: this.#timeoutMs(0) },
+      );
       this.#runStatus = runStatus;
       this.#update();
     } finally {
@@ -599,31 +549,6 @@ export class LightmillLogger<
 }
 
 export type Logger = LightmillLogger;
-
-function isRetriable(error: Error) {
-  // Any other error means no response came back: the network failed or the
-  // request timed out, which a later attempt may get past. An unexpected
-  // error is retried too, which costs nothing: once retries run out, the
-  // logger pauses and holds the logs.
-  if (!(error instanceof RequestError)) return true;
-  return error.status >= 500 || error.status === 408 || error.status === 429;
-}
-
-function getRetryAfterMs(error: Error) {
-  if (!(error instanceof RequestError)) return null;
-  const header = error.headers.get('retry-after');
-  if (header == null || header.trim() === '') return null;
-  const seconds = Number(header);
-  if (Number.isFinite(seconds)) return Math.max(0, seconds * 1000);
-  const date = Date.parse(header);
-  return Number.isNaN(date) ? null : Math.max(0, date - Date.now());
-}
-
-function toError(error: unknown) {
-  return error instanceof Error
-    ? error
-    : new Error('Unknown error', { cause: error });
-}
 
 // A throwing listener must not stop the logger. Its error is reported like an
 // uncaught one.
