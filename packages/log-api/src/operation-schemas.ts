@@ -4,6 +4,7 @@ import {
   getErrorSchema,
 } from './jsonapi.ts';
 import { LogResource, LogResourceIdentifier } from './log-schemas.ts';
+import { RequestValidationErrorResponse } from './server-errors.ts';
 import { z, type RouteConfig } from './zod-openapi.ts';
 
 // JSON:API Atomic Operations extension, restricted to adding logs: this is how
@@ -48,19 +49,9 @@ export const operationRoutes = {
         },
         400: {
           description:
-            'Invalid operations: not an add of a log, logs of several runs, or the same log number twice',
+            'Invalid request: an operation that does not add a log, logs of several runs, the same log number twice, or an unsupported query parameter',
           content: {
-            [atomicMediaType]: {
-              schema: getErrorDocumentSchema(
-                z.strictObject({
-                  ...getErrorSchema({
-                    code: 'INVALID_REQUEST_BODY',
-                    statusCode: 400,
-                  }).shape,
-                  source: operationPointer,
-                }),
-              ),
-            },
+            [atomicMediaType]: { schema: RequestValidationErrorResponse },
           },
         },
         403: {
