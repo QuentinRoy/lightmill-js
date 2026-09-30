@@ -92,7 +92,7 @@ pauses. It never drops logs on its own:
 Only log batches count: retries while `flush()` checks for missing logs or a
 call ends the run show in that call's promise only.
 It stays the same object until it changes, and `logger.subscribe(listener)`
-calls `listener` on each change, so they work with React's
+calls `listener` with the new state on each change, so they work with React's
 `useSyncExternalStore`:
 
 ```ts

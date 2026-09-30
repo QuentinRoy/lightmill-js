@@ -106,7 +106,7 @@ export class LightmillLogger<
   // waits for them.
   #flushedLogNumber = 0;
   #state: LoggerState = idleState;
-  #stateChanges = new Subject<void>();
+  #stateChanges = new Subject<LoggerState>();
   // Emits on every change, even one that leaves the state as it is.
   #changes = new Subject<void>();
 
@@ -141,14 +141,14 @@ export class LightmillLogger<
   }
 
   /**
-   * Calls `listener` every time `state` changes. Bound to the logger, so it
+   * Calls `listener` with the new state every time `state` changes. Bound to the logger, so it
    * can be passed around as is.
    *
    * @returns A function that removes the listener.
    */
-  subscribe = (listener: () => void): (() => void) => {
+  subscribe = (listener: (state: LoggerState) => void): (() => void) => {
     const subscription = this.#stateChanges.subscribe({
-      next: () => callSafely(listener),
+      next: (state) => callSafely(() => listener(state)),
     });
     return () => subscription.unsubscribe();
   };
@@ -370,7 +370,7 @@ export class LightmillLogger<
     }
     if (state !== this.#state) {
       this.#state = state;
-      this.#stateChanges.next();
+      this.#stateChanges.next(state);
     }
     this.#changes.next();
   }

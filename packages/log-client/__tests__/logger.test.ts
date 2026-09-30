@@ -529,7 +529,7 @@ describe('LogClient retries', () => {
     const post = server.handlers['/operations'].post;
     post.mockImplementationOnce(() => rawResponse(503));
     const states: LoggerState[] = [];
-    logger.subscribe(() => states.push(logger.state));
+    logger.subscribe((state) => states.push(state));
     const p1 = logger.addLog({ type: 'mock-log' });
     await vi.advanceTimersByTimeAsync(249);
     expect(post).toHaveBeenCalledTimes(1);
