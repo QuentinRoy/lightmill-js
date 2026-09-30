@@ -1,9 +1,9 @@
 import type { Client as FetchClient } from 'openapi-fetch';
 import type { JsonValue } from 'type-fest';
-import type { paths } from './generated/openapi.js';
+import type { components, paths } from './generated/openapi.js';
 import { Subject } from './subject.ts';
 import type { LogValuesSerializer, RunStatus } from './types.js';
-import { apiMediaType, RequestError } from './utils.js';
+import { apiMediaType, atomicMediaType, RequestError } from './utils.js';
 
 interface Typed<Type extends string = string> {
   type: Type;
@@ -16,6 +16,21 @@ interface JsonObjectAndDate {
 }
 interface AnyLog extends Typed, OptionallyDated, JsonObjectAndDate {}
 
+// Serialized operations (not the whole request body) are counted, so the
+// body stays about this size, under the server's 1 MB limit.
+const batchBudget = 512 * 1024;
+const textEncoder = new TextEncoder();
+
+type AddLogOperation = components['schemas']['AddLogOperation'];
+
+interface QueuedLog {
+  logNumber: number;
+  operation: AddLogOperation;
+  size: number;
+  resolve: () => void;
+  reject: (error: AddLogError) => void;
+}
+
 export class LightmillLogger<
   ClientLog extends Typed & OptionallyDated = AnyLog,
 > {
@@ -24,8 +39,16 @@ export class LightmillLogger<
   #runStatus: RunStatus = 'running';
   #lastLogNumber: number;
   #fetchClient: FetchClient<paths, `${string}/${string}`>;
-  // The #inFlightLogs array needs to be kept sorted.
-  #inFlightLogs: Array<number> = [];
+  #requestThrottle: number;
+  // Logs waiting for a batch, in log number order.
+  #queue: Array<QueuedLog> = [];
+  // The batch waiting for the server's response. There is at most one.
+  #sendingBatch: Array<QueuedLog> | null = null;
+  #isBatchScheduled = false;
+  #throttleTimeout: ReturnType<typeof setTimeout> | null = null;
+  #lastBatchStart = -Infinity;
+  // Logs up to this number skip requestThrottle because flush() waits for them.
+  #flushedLogNumber = 0;
   #error: Error | null = null;
   #logResponseSubject = new Subject<number>();
 
@@ -34,16 +57,19 @@ export class LightmillLogger<
     serializeLog,
     lastLogNumber,
     fetchClient,
+    requestThrottle = 0,
   }: {
     runId: string;
     lastLogNumber: number;
     fetchClient: FetchClient<paths, `${string}/${string}`>;
     serializeLog: LogValuesSerializer<ClientLog>;
+    requestThrottle?: number;
   }) {
     this.#serializeValues = serializeLog;
     this.#runId = runId;
     this.#fetchClient = fetchClient;
     this.#lastLogNumber = lastLogNumber;
+    this.#requestThrottle = requestThrottle;
   }
 
   async addLog({ type, ...values }: ClientLog) {
@@ -57,63 +83,121 @@ export class LightmillLogger<
         'Trying to add a log without a type. Logs must have a type',
       );
     }
+    // Serialize before taking a log number so a throwing serializer leaves no
+    // gap in the run.
+    const serializedValues = this.#serializeValues({
+      date: new Date(),
+      ...values,
+    });
     const logNumber = this.#lastLogNumber + 1;
     this.#lastLogNumber = logNumber;
-    this.#inFlightLogs.push(logNumber);
+    const operation: AddLogOperation = {
+      op: 'add',
+      data: {
+        type: 'logs',
+        attributes: {
+          logType: type,
+          number: logNumber,
+          values: serializedValues,
+        },
+        relationships: { run: { data: { type: 'runs', id: this.#runId } } },
+      },
+    };
+    // + 1 for the comma separating operations.
+    const size = textEncoder.encode(JSON.stringify(operation)).byteLength + 1;
+    const promise = new Promise<void>((resolve, reject) => {
+      this.#queue.push({ logNumber, operation, size, resolve, reject });
+    });
+    this.#scheduleBatch();
+    return promise;
+  }
+
+  #scheduleBatch() {
+    if (
+      this.#sendingBatch != null ||
+      this.#isBatchScheduled ||
+      this.#queue.length === 0
+    ) {
+      return;
+    }
+    this.#isBatchScheduled = true;
+    const delay =
+      this.#queue[0].logNumber <= this.#flushedLogNumber
+        ? 0
+        : this.#lastBatchStart + this.#requestThrottle - Date.now();
+    if (delay > 0) {
+      this.#throttleTimeout = setTimeout(() => void this.#sendBatch(), delay);
+    } else {
+      // Waiting for the microtask lets logs added synchronously together
+      // share a batch.
+      queueMicrotask(() => void this.#sendBatch());
+    }
+  }
+
+  async #sendBatch() {
+    if (this.#throttleTimeout != null) {
+      clearTimeout(this.#throttleTimeout);
+      this.#throttleTimeout = null;
+    }
+    this.#isBatchScheduled = false;
+    let size = 0;
+    let count = 0;
+    while (
+      count < this.#queue.length &&
+      (count === 0 || size + this.#queue[count].size <= batchBudget)
+    ) {
+      size += this.#queue[count].size;
+      count++;
+    }
+    const batch = this.#queue.splice(0, count);
+    this.#sendingBatch = batch;
+    this.#lastBatchStart = Date.now();
     let error: Error | null = null;
     try {
-      let response = await this.#fetchClient.POST('/logs', {
+      const response = await this.#fetchClient.POST('/operations', {
         credentials: 'include',
-        headers: { 'content-type': apiMediaType },
-        body: {
-          data: {
-            type: 'logs',
-            attributes: {
-              logType: type,
-              number: logNumber,
-              values: this.#serializeValues({ date: new Date(), ...values }),
-            },
-            relationships: { run: { data: { type: 'runs', id: this.#runId } } },
-          },
-        },
+        headers: { 'content-type': atomicMediaType },
+        body: { 'atomic:operations': batch.map((log) => log.operation) },
       });
       if (response.error != null) {
-        let requestError = new RequestError(response);
-        error = new AddLogError(requestError.message, {
-          cause: requestError,
-          logNumber,
-        });
+        error = new RequestError(response);
       }
     } catch (caughtError) {
-      error = new AddLogError(
-        caughtError instanceof Error ? caughtError.message : `Unknown error`,
-        {
-          cause: caughtError instanceof Error ? caughtError : undefined,
-          logNumber,
-        },
-      );
+      error =
+        caughtError instanceof Error
+          ? caughtError
+          : new Error('Unknown error', { cause: caughtError });
     }
-    this.#error = error ?? this.#error;
-    // In the vast majority of cases we should find the log at the very
-    // first position of the array, so indexOf lookup should be very fast.
-    const index = this.#inFlightLogs.indexOf(logNumber);
-    this.#inFlightLogs.splice(index, 1);
-    if (error == null) {
-      this.#logResponseSubject.next(logNumber);
-    } else {
-      this.#logResponseSubject.error(error);
+    this.#sendingBatch = null;
+    for (const log of batch) {
+      if (error == null) {
+        log.resolve();
+        this.#logResponseSubject.next(log.logNumber);
+      } else {
+        const logError = new AddLogError(error.message, {
+          cause: error,
+          logNumber: log.logNumber,
+        });
+        this.#error = logError;
+        log.reject(logError);
+        this.#logResponseSubject.error(logError);
+      }
     }
-    if (error != null) throw error;
+    this.#scheduleBatch();
   }
 
   async flush() {
-    if (this.#inFlightLogs.length === 0) {
+    if (!this.#hasInFlightLogsUpTo(this.#lastLogNumber)) {
       if (this.#error) {
         throw this.#error;
       }
       return;
     }
     const lastLogNumber = this.#lastLogNumber;
+    this.#flushedLogNumber = lastLogNumber;
+    if (this.#throttleTimeout != null) {
+      void this.#sendBatch();
+    }
     await new Promise<void>((resolve, reject) => {
       const subscription = this.#logResponseSubject.subscribe({
         next: () => {
@@ -149,11 +233,10 @@ export class LightmillLogger<
   }
 
   #hasInFlightLogsUpTo(logNumber: number): boolean {
-    // Since in-flight log numbers are always increasing, we only need to check
-    // the very first one. If it is smaller than the target, then
-    // we found an in-flight log, otherwise we know there won't be any.
-    const first = this.#inFlightLogs[0];
-    return first != null && first <= logNumber;
+    // Log numbers only increase from the sending batch to the end of the
+    // queue, so the first in-flight log is enough to tell.
+    const first = this.#sendingBatch?.[0] ?? this.#queue[0];
+    return first != null && first.logNumber <= logNumber;
   }
 
   async #fetchFirstMissingLogNumber() {
