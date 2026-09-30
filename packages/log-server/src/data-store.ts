@@ -156,7 +156,9 @@ export interface DataStore {
    * @returns The ID of each log, in the order they were given. `created` is
    * false for a duplicate log: one the run already holds with the same number,
    * type, and values, which is not stored again.
-   * @throws {StoreError} If the run doesn't exist or if a log number is already used with different content
+   * @throws {StoreError} If the run doesn't exist, or if a log number is
+   * already used with different content (LOG_NUMBER_EXISTS_IN_SEQUENCE, with
+   * the `logNumber` of the first conflicting log in `logs`)
    */
   addLogs(
     runId: RunId,

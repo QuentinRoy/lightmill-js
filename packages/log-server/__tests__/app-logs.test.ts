@@ -255,6 +255,7 @@ describe.each(storeTypes)('LogServer: post /logs (%s)', (storeType) => {
         throw new DataStoreError(
           'Error message that should not be seen by the user',
           DataStoreError.LOG_NUMBER_EXISTS_IN_SEQUENCE,
+          { logNumber: 2 },
         );
       });
       await api

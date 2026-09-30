@@ -84,17 +84,18 @@ export const operationHandlers = (): PathHandlers<'/operations'> => ({
           const index = operations.findIndex(
             ({ data }) => data.attributes.number === e.logNumber,
           );
+          if (index < 0) {
+            throw new TypeError(
+              `DataStore reported a conflict on log number ${e.logNumber}, which is not in the request`,
+              { cause: e },
+            );
+          }
           return inAtomic(
             getErrorResponse({
               status: 'Conflict',
               code: 'LOG_NUMBER_EXISTS',
               detail: `Cannot add logs to run '${runId}', log number ${e.logNumber} already exists with a different type or values. Ensure log numbers are unique within the run.`,
-              source: {
-                pointer:
-                  index < 0
-                    ? '/atomic:operations'
-                    : pointerTo(index, 'attributes/number'),
-              },
+              source: { pointer: pointerTo(index, 'attributes/number') },
             }),
           );
         }
