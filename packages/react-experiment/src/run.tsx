@@ -43,7 +43,7 @@ export function Run<const T extends RegisteredTask>({
 
   if (paused && elements.paused == null) {
     throw new LogDeliveryError(
-      'Logs could not be delivered and the run is paused, but no elements.paused was provided to <Run />.',
+      'Logs could not be delivered. Providing elements.paused to <Run /> is recommended, to show something to the participant instead of this error.',
     );
   }
   if (paused && !holdsRunningTask) {

@@ -100,7 +100,7 @@ Props:
 - `elements.tasks`: map from task type to React element.
 - `elements.loading`: optional loading element.
 - `elements.completed`: optional completion element.
-- `elements.paused`: element to render while `paused` is `true`, once the task that was running has ended. Required if `paused` is set.
+- `elements.paused`: element to render while `paused` is `true`, once the task that was running has ended. Recommended if you set `paused`. Without it, `Run` throws a `LogDeliveryError`.
 - `paused`: set it to `true` when logs cannot be delivered. `Run` keeps rendering the running task, then `elements.paused` instead of what comes next (including `elements.completed`). The timeline and `onCompleted` are not affected. See [Handling log delivery failures](#handling-log-delivery-failures).
 - `onLog`: optional async log handler.
 - `onCompleted`: optional callback after completion.
@@ -109,7 +109,7 @@ Props:
 
 ### `LogDeliveryError`
 
-Thrown by `Run` when `paused` is set without `elements.paused`. Catch it with an error boundary.
+Thrown by `Run` when `paused` is `true` and there is no `elements.paused`: logs could not be delivered and nothing handles it. Catch it with an error boundary.
 
 ### `useTask(type?)`
 

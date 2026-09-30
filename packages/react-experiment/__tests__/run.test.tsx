@@ -497,6 +497,10 @@ describe('run', () => {
         error = e;
       }
       expect(error).toBeInstanceOf(LogDeliveryError);
+      expect(error).toHaveProperty(
+        'message',
+        expect.stringContaining('Logs could not be delivered'),
+      );
       spy.mockRestore();
     });
 
