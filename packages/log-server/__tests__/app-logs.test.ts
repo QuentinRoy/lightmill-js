@@ -457,6 +457,14 @@ describe.each(storeTypes)('LogServer: post /operations (%s)', (storeType) => {
     expect(dataStore.addLogs).not.toHaveBeenCalled();
   });
 
+  it('refuses an unknown extension', async ({ participantApi, runId }) => {
+    await participantApi
+      .post('/operations')
+      .set('Content-Type', `${apiMediaType};ext="https://example.com/ext"`)
+      .send({ 'atomic:operations': [add(runId, 1)] })
+      .expect(415);
+  });
+
   it('requires the atomic operations media type', async ({
     participantApi,
     runId,
