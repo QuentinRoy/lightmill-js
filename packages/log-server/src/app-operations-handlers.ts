@@ -4,6 +4,13 @@ import { getRunToLog } from './app-logs-handlers.ts';
 import { DataStoreError } from './data-store-errors.ts';
 import type { PathHandlers } from './router.ts';
 
+// The route's response types require the extension's media type on every
+// response. The router adds it to the errors it raises itself.
+const inAtomic = <Response extends object>(response: Response) => ({
+  ...response,
+  contentType: atomicMediaType,
+});
+
 export const operationHandlers = (): PathHandlers<'/operations'> => ({
   '/operations': {
     async post({ dataStore: store, body, sessionData }) {
@@ -11,12 +18,14 @@ export const operationHandlers = (): PathHandlers<'/operations'> => ({
       const pointerTo = (index: number, path: string) =>
         `/atomic:operations/${index}/data/${path}`;
       const badRequest = (detail: string, pointer: string) =>
-        getErrorResponse({
-          status: 'Bad Request',
-          code: 'INVALID_REQUEST_BODY',
-          detail,
-          source: { pointer },
-        });
+        inAtomic(
+          getErrorResponse({
+            status: 'Bad Request',
+            code: 'INVALID_REQUEST_BODY',
+            detail,
+            source: { pointer },
+          }),
+        );
 
       const firstOperation = operations[0];
       // The request schema requires at least one operation.
@@ -27,29 +36,23 @@ export const operationHandlers = (): PathHandlers<'/operations'> => ({
       const seenNumbers = new Set<number>();
       for (const [index, { data }] of operations.entries()) {
         if (data.relationships.run.data.id !== runId) {
-          return {
-            ...badRequest(
-              `All operations must add logs to the same run ("${runId}").`,
-              pointerTo(index, 'relationships/run/data/id'),
-            ),
-            contentType: atomicMediaType,
-          };
+          return badRequest(
+            `All operations must add logs to the same run ("${runId}").`,
+            pointerTo(index, 'relationships/run/data/id'),
+          );
         }
         if (seenNumbers.has(data.attributes.number)) {
-          return {
-            ...badRequest(
-              `Log number ${data.attributes.number} appears more than once in the request.`,
-              pointerTo(index, 'attributes/number'),
-            ),
-            contentType: atomicMediaType,
-          };
+          return badRequest(
+            `Log number ${data.attributes.number} appears more than once in the request.`,
+            pointerTo(index, 'attributes/number'),
+          );
         }
         seenNumbers.add(data.attributes.number);
       }
 
       const runOrError = await getRunToLog(store, sessionData, runId);
       if ('error' in runOrError) {
-        return { ...runOrError.error, contentType: atomicMediaType };
+        return inAtomic(runOrError.error);
       }
       const { run } = runOrError;
 
@@ -80,8 +83,8 @@ export const operationHandlers = (): PathHandlers<'/operations'> => ({
           const index = operations.findIndex(
             ({ data }) => data.attributes.number === e.logNumber,
           );
-          return {
-            ...getErrorResponse({
+          return inAtomic(
+            getErrorResponse({
               status: 'Conflict',
               code: 'LOG_NUMBER_EXISTS',
               detail: `Cannot add logs to run '${runId}', log number ${e.logNumber} already exists with a different type or values. Ensure log numbers are unique within the run.`,
@@ -92,8 +95,7 @@ export const operationHandlers = (): PathHandlers<'/operations'> => ({
                     : pointerTo(index, 'attributes/number'),
               },
             }),
-            contentType: atomicMediaType,
-          };
+          );
         }
         throw e;
       }
