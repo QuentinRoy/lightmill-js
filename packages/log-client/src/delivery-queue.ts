@@ -15,7 +15,7 @@ export type DeliveryState = Readonly<
  */
 export interface SendFailure {
   error: Error;
-  tooLarge: boolean;
+  tooLarge?: boolean;
 }
 
 export interface SendHooks {

@@ -235,7 +235,6 @@ export class LightmillLogger<
             'The server does not serve POST /operations. Update @lightmill/log-server.',
             { cause: caught },
           ),
-          tooLarge: false,
         };
       }
       const error = toError(caught);
@@ -249,7 +248,6 @@ export class LightmillLogger<
         error: new Error(
           `The server answered a batch of ${batch.length} logs with ${results.length} results`,
         ),
-        tooLarge: false,
       };
     }
     return null;

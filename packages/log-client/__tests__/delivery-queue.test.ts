@@ -19,10 +19,7 @@ interface SentBatch {
 
 const item = (number: number, size = 1): TestItem => ({ number, size });
 const tooLarge = () => ({ error: new Error('Too large'), tooLarge: true });
-const failure = (message = 'Failed') => ({
-  error: new Error(message),
-  tooLarge: false,
-});
+const failure = (message = 'Failed') => ({ error: new Error(message) });
 
 // Each batch waits for the test to finish it.
 function createQueue({
@@ -221,7 +218,7 @@ describe('DeliveryQueue pause', () => {
     await tick();
     void queue.add(item(2));
     const error = failure().error;
-    sent[0].finish({ error, tooLarge: false });
+    sent[0].finish({ error });
     await firstRejection;
     await tick();
     expect(queue.state).toEqual({ status: 'paused', error });
