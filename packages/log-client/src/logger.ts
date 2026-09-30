@@ -167,11 +167,13 @@ export class LightmillLogger<
           : new Error('Unknown error', { cause: caughtError });
     }
     this.#sendingBatch = null;
-    for (const log of batch) {
-      if (error == null) {
+    if (error == null) {
+      for (const log of batch) {
         log.resolve();
         this.#logResponseSubject.next(log.logNumber);
-      } else {
+      }
+    } else {
+      for (const log of batch) {
         const logError = new AddLogError(error.message, {
           cause: error,
           logNumber: log.logNumber,
