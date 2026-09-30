@@ -100,10 +100,23 @@ Props:
 - `elements.tasks`: map from task type to React element.
 - `elements.loading`: optional loading element.
 - `elements.completed`: optional completion element.
+- `elements.paused`: element to render while `paused` is `true`, once the task
+  that was running has ended. Required if `paused` is set.
+- `paused`: set it to `true` when logs cannot be delivered. `Run` keeps
+  rendering the running task, then `elements.paused` instead of what comes
+  next (including `elements.completed`). The timeline and `onCompleted` are
+  not affected. Throws a `LogDeliveryError` if `elements.paused` is missing.
+  The unload confirmation stays on while paused. See
+  [Handling log delivery failures](#handling-log-delivery-failures).
 - `onLog`: optional async log handler.
 - `onCompleted`: optional callback after completion.
 - `resumeAfter`: optional `{ type, number }` marker to skip completed tasks.
 - `confirmBeforeUnload`: default `true`.
+
+### `LogDeliveryError`
+
+Thrown by `Run` when `paused` is set without `elements.paused`. Catch it with
+an error boundary.
 
 ### `useTask(type?)`
 
@@ -118,3 +131,62 @@ Returns a logger function bound to `Run`'s `onLog`.
 
 - With `type`, returned function only needs log payload fields (without `type`).
 - Without `type`, returned function accepts full registered log objects.
+
+## Handling log delivery failures
+
+`Run` does not deliver logs, so it does not know when delivery fails. With
+[`@lightmill/log-client`](../log-client/README.md), read the logger's state
+and pass it to `Run`:
+
+```tsx
+import { useEffect, useState, useSyncExternalStore } from 'react';
+
+function Experiment({ logger, timeline }) {
+  const state = useSyncExternalStore(logger.subscribe, () => logger.state);
+  const [timelineCompleted, setTimelineCompleted] = useState(false);
+
+  // completeRun() rejects while logs are held. Waiting for idle completes the
+  // run once they are stored, even after a pause.
+  useEffect(() => {
+    if (timelineCompleted && state.status === 'idle') {
+      logger.completeRun().catch(console.error);
+    }
+  }, [logger, timelineCompleted, state.status]);
+
+  return (
+    <Run
+      timeline={timeline}
+      // Rejections are handled here: a rejected `onLog` throws in `Run`.
+      onLog={(log) => logger.addLog(log).catch(() => {})}
+      onCompleted={() => setTimelineCompleted(true)}
+      paused={state.status === 'paused'}
+      confirmBeforeUnload={
+        !['completed', 'canceled', 'interrupted'].includes(state.status)
+      }
+      elements={{
+        tasks: { intro: <IntroTask />, trial: <TrialTask /> },
+        paused: <Paused logger={logger} />,
+      }}
+    />
+  );
+}
+
+function Paused({ logger }) {
+  return (
+    <div>
+      <p>Your answers could not be saved. Check your connection.</p>
+      <button onClick={() => logger.retry().catch(() => {})}>Try again</button>
+      <button onClick={() => download(JSON.stringify(logger.inFlightLogs))}>
+        Download unsaved logs
+      </button>
+    </div>
+  );
+}
+```
+
+`retry()` sends the held logs again. While it runs, the logger state goes back
+to `sending` and `Run` resumes; if it fails again, the state becomes `paused`
+once more. `download` stands for whatever your app uses to save a file.
+
+`Run` turns the unload confirmation off once the timeline is completed, unless
+`paused` is `true`.

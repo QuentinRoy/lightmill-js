@@ -1,7 +1,12 @@
 /* eslint-disable react/display-name */
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import userEventPackage from '@testing-library/user-event';
-import { Run, type RunElements, useTask } from '../src/main.js';
+import {
+  LogDeliveryError,
+  Run,
+  type RunElements,
+  useTask,
+} from '../src/main.js';
 
 // @ts-expect-error - userEventPackage is not typed correctly
 const userEvent: typeof userEventPackage.default = userEventPackage;
@@ -320,5 +325,128 @@ describe('run', () => {
     expect(screen.getByRole('heading')).toHaveTextContent('Bad Task');
     fireEvent.click(screen.getByRole('button'));
     expect(wrapper).toHaveBeenCalledTimes(2);
+  });
+
+  describe('paused', () => {
+    const paused = <div data-testid="paused" />;
+    const elements = () => ({
+      tasks: {
+        A: <Task type="A" dataProp="a" />,
+        B: <Task type="B" dataProp="b" />,
+      },
+      completed: <div data-testid="end" />,
+      paused,
+    });
+    const timeline: Task[] = [
+      { type: 'A', a: 'hello' },
+      { type: 'B', b: 42 },
+    ];
+    const singleTaskTimeline = timeline.slice(0, 1);
+
+    it('keeps the running task, then renders elements.paused once it is completed', async () => {
+      const user = userEvent.setup();
+      const els = elements();
+      const { rerender } = render(<Run elements={els} timeline={timeline} />);
+      rerender(<Run elements={els} timeline={timeline} paused />);
+      expect(screen.getByRole('heading')).toHaveTextContent('Type A');
+      expect(screen.queryByTestId('paused')).not.toBeInTheDocument();
+      await user.click(screen.getByText('Complete'));
+      expect(screen.getByTestId('paused')).toBeInTheDocument();
+      expect(screen.queryByRole('heading')).not.toBeInTheDocument();
+    });
+
+    it('renders the next task once no longer paused', async () => {
+      const user = userEvent.setup();
+      const els = elements();
+      const { rerender } = render(<Run elements={els} timeline={timeline} />);
+      rerender(<Run elements={els} timeline={timeline} paused />);
+      await user.click(screen.getByText('Complete'));
+      rerender(<Run elements={els} timeline={timeline} />);
+      expect(screen.getByRole('heading')).toHaveTextContent('Type B');
+    });
+
+    it('resumes the task it kept if unpaused before it is completed', () => {
+      const els = elements();
+      const { rerender } = render(<Run elements={els} timeline={timeline} />);
+      rerender(<Run elements={els} timeline={timeline} paused />);
+      rerender(<Run elements={els} timeline={timeline} />);
+      expect(screen.getByRole('heading')).toHaveTextContent('Type A');
+    });
+
+    it('renders elements.paused right away if the pause starts while loading', () => {
+      const els = elements();
+      render(<Run elements={els} timeline={timeline} loading paused />);
+      expect(screen.getByTestId('paused')).toBeInTheDocument();
+    });
+
+    it('does not keep a task that starts after the pause did', async () => {
+      vi.useFakeTimers();
+      const els = elements();
+      render(
+        <Run
+          elements={els}
+          paused
+          timeline={asyncTaskGen(100, [{ type: 'A', a: 'hello' }])}
+        />,
+      );
+      expect(screen.getByTestId('paused')).toBeInTheDocument();
+      await act(() => vi.advanceTimersByTime(100));
+      expect(screen.getByTestId('paused')).toBeInTheDocument();
+      expect(screen.queryByRole('heading')).not.toBeInTheDocument();
+      vi.runOnlyPendingTimers();
+      vi.useRealTimers();
+    });
+
+    it('renders elements.paused instead of completed and still calls onCompleted', async () => {
+      const user = userEvent.setup();
+      const onCompleted = vi.fn();
+      const els = elements();
+      const { rerender } = render(
+        <Run
+          elements={els}
+          timeline={singleTaskTimeline}
+          onCompleted={onCompleted}
+        />,
+      );
+      rerender(
+        <Run
+          elements={els}
+          timeline={singleTaskTimeline}
+          onCompleted={onCompleted}
+          paused
+        />,
+      );
+      await user.click(screen.getByText('Complete'));
+      expect(onCompleted).toHaveBeenCalledOnce();
+      expect(screen.getByTestId('paused')).toBeInTheDocument();
+      expect(screen.queryByTestId('end')).not.toBeInTheDocument();
+    });
+
+    it('throws a LogDeliveryError if elements.paused is missing', () => {
+      const spy = vi.spyOn(console, 'error');
+      spy.mockImplementation(() => {});
+      const { paused: _paused, ...withoutPaused } = elements();
+      let error: unknown;
+      try {
+        render(<Run elements={withoutPaused} timeline={timeline} paused />);
+      } catch (e) {
+        error = e;
+      }
+      expect(error).toBeInstanceOf(LogDeliveryError);
+      spy.mockRestore();
+    });
+
+    it('asks for confirmation before unload while paused, even once completed', async () => {
+      const user = userEvent.setup();
+      const els = elements();
+      const { rerender } = render(
+        <Run elements={els} timeline={singleTaskTimeline} />,
+      );
+      rerender(<Run elements={els} timeline={singleTaskTimeline} paused />);
+      await user.click(screen.getByText('Complete'));
+      const event = new Event('beforeunload', { cancelable: true });
+      globalThis.dispatchEvent(event);
+      expect(event.defaultPrevented).toBe(true);
+    });
   });
 });
