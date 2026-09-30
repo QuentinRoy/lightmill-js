@@ -43,12 +43,13 @@ export async function getRunAcceptingLogs(
   let run = matchingRuns[0];
   if (run == null) return { error: runNotFoundError };
   if (run.runStatus != 'running') {
-    const error = getErrorResponse({
-      status: 'Forbidden',
-      code: 'INVALID_RUN_STATUS',
-      detail: `Cannot add logs to run '${runId}', run is not running. Ensure the run is running before adding logs.`,
-    });
-    return { error };
+    return {
+      error: getErrorResponse({
+        status: 'Forbidden',
+        code: 'INVALID_RUN_STATUS',
+        detail: `Cannot add logs to run '${runId}', run is not running. Ensure the run is running before adding logs.`,
+      }),
+    };
   }
   return { run };
 }
