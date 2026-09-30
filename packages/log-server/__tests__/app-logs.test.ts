@@ -497,6 +497,36 @@ describe.each(storeTypes)('LogServer: post /operations (%s)', (storeType) => {
     expect(dataStore.addLogs).not.toHaveBeenCalled();
   });
 
+  it.for([
+    'Application/Vnd.Api+JSON; EXT="https://jsonapi.org/ext/atomic"',
+    `${atomicMediaType}; profile="https://example.com/profile"`,
+  ])(
+    'accepts the content type %s',
+    async (contentType, { participantApi, runId }) => {
+      await participantApi
+        .post('/operations')
+        .set('Content-Type', contentType)
+        .send({ 'atomic:operations': [add(runId, 1)] })
+        .expect(200);
+    },
+  );
+
+  it.for([
+    'application/vnd.api+json; ext="https://JSONAPI.org/ext/atomic"',
+    `${atomicMediaType}; charset=utf-8`,
+    'application/vnd.api+json; ext=https://jsonapi.org/ext/atomic',
+    'application/vnd.api+json; ext="https://jsonapi.org/ext/atomic https://example.com/ext"',
+  ])(
+    'refuses the content type %s',
+    async (contentType, { participantApi, runId }) => {
+      await participantApi
+        .post('/operations')
+        .set('Content-Type', contentType)
+        .send({ 'atomic:operations': [add(runId, 1)] })
+        .expect(415);
+    },
+  );
+
   it('refuses an unknown extension', async ({ participantApi, runId }) => {
     await participantApi
       .post('/operations')
