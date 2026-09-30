@@ -1,6 +1,10 @@
 packages:
   - packages/*
 
+allowBuilds:
+  esbuild: true
+  msw: true
+
 catalog:
   typescript: npm:@typescript/typescript6@^6.0.2
   '@typescript/native': npm:typescript@^7.0.2
@@ -9,8 +13,3 @@ catalog:
   vitest: 4.1.11
   '@vitest/ui': 4.1.11
   '@types/node': ^22.18.0
-
-onlyBuiltDependencies:
-  - better-sqlite3
-  - esbuild
-  - msw
