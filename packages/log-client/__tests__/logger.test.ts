@@ -446,6 +446,33 @@ describe('LogClient batches', () => {
     expect(getBatches(server)).toEqual([[1], [2], [3]]);
   });
 
+  it('sends the next batch at once when flushing during a batch', async ({
+    server,
+    run,
+  }) => {
+    const logger = new LightmillLogger({
+      fetchClient: createClient<paths>({ baseUrl: server.getBaseUrl() }),
+      ...run,
+      lastLogNumber: 0,
+      serializeLog: (x) => JSON.parse(JSON.stringify(x)),
+      requestThrottle: 1000,
+    });
+    server.set([run]);
+    const reqManager = new DeferManager();
+    server.handlers['/operations'].post.mockImplementation(({ body }) => {
+      return reqManager.addRequest(okOperationsResponse(body));
+    });
+    logger.addLog({ type: 'mock-log' });
+    await reqManager.waitForRequests(1);
+    logger.addLog({ type: 'mock-log' });
+    const flushPromise = logger.flush();
+    reqManager.resolveNextRequest();
+    await reqManager.waitForRequests(2);
+    reqManager.resolveNextRequest();
+    await expect(flushPromise).resolves.toBeUndefined();
+    expect(getBatches(server)).toEqual([[1], [2]]);
+  });
+
   it('rejects every log of a failed batch', async ({ logger, server }) => {
     server.handlers['/operations'].post.mockImplementation(async () => ({
       status: 403,
