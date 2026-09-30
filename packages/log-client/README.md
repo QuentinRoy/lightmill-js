@@ -70,8 +70,8 @@ Main operations:
 
 The logger retries a batch that fails with a network error, a timeout, a 5xx,
 a `408` or a `429` (waiting for `Retry-After`), for up to 2 minutes. A request
-times out after `requestTimeout.base` ms (default `10000`) plus
-`requestTimeout.perKilobyte` ms per kilobyte sent (default `100`). A batch
+times out after `requestTimeout.base` milliseconds (default `10000`) plus
+`requestTimeout.perKilobyte` milliseconds per kilobyte sent (default `100`). A batch
 rejected with `413` is resent in halves.
 
 When retries run out, or the server answers with another error, the logger
