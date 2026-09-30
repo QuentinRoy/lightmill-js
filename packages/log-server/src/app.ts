@@ -24,8 +24,8 @@ import {
 
 export const SESSION_COOKIE_NAME = 'lightmill-session-id';
 
-// A batch is at most about 512 kB for log-client; 1 MB leaves room for its
-// envelope and for a single large log. Not an option until someone needs one.
+// Room for a batch of logs from log-client and its envelope, and for a single
+// large log. Not an option until someone needs one.
 const REQUEST_BODY_LIMIT = '1mb';
 
 const MemorySessionStore = MemorySessionStoreModule(session);
