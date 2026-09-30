@@ -126,8 +126,10 @@ function parseJsonApiMediaType(value: string) {
     .trim()
     .toLowerCase();
   const parameters = parametersStart < 0 ? '' : value.slice(parametersStart);
+  // Only `; name="quoted value"` pairs are valid, possibly none.
   if (!/^(\s*;\s*[\w-]+="[^"]*")*\s*$/.test(parameters)) return null;
   let extensions: string[] | undefined;
+  // Each match captures a parameter's name, then its value without the quotes.
   for (const match of parameters.matchAll(/;\s*([\w-]+)="([^"]*)"/g)) {
     const name = match[1]?.toLowerCase();
     if (name === 'profile') continue;
