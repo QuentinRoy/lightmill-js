@@ -227,6 +227,22 @@ function getRequestMediaType(route: RouteWithBody) {
     : apiMediaType;
 }
 
+/**
+ * The media type the router answers with on `path`, for responses produced
+ * outside of it (e.g. by the body parser, which runs before routing).
+ */
+export function getResponseMediaType(path: string) {
+  const routes: Record<string, Record<string, RouteWithBody>> = LogApi.routes;
+  // Express matches a trailing slash too.
+  const methods = routes[path.replace(/\/+$/, '')];
+  return methods != null &&
+    Object.values(methods).some(
+      (route) => getRequestMediaType(route) === atomicMediaType,
+    )
+    ? atomicMediaType
+    : apiMediaType;
+}
+
 function validateHandler({
   schemas,
   validateResponse,

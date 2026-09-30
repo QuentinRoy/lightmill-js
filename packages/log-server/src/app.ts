@@ -9,14 +9,18 @@ import express, { type NextFunction } from 'express';
 import session from 'express-session';
 import log from 'loglevel';
 import MemorySessionStoreModule from 'memorystore';
-import { apiMediaType, atomicMediaType } from './api.ts';
+import { apiMediaType } from './api.ts';
 import { experimentHandlers } from './app-experiments-handlers.ts';
 import { logHandlers } from './app-logs-handlers.ts';
 import { operationHandlers } from './app-operations-handlers.ts';
 import { runHandlers } from './app-runs-handlers.ts';
 import { sessionHandlers } from './app-sessions-handlers.ts';
 import type { DataStore } from './data-store.ts';
-import { createRouter, validateHandlers } from './router.ts';
+import {
+  createRouter,
+  getResponseMediaType,
+  validateHandlers,
+} from './router.ts';
 
 export const SESSION_COOKIE_NAME = 'lightmill-session-id';
 
@@ -126,10 +130,7 @@ export function LogServer({
         res
           .status(bodyError.status)
           // Same media type as the router uses for this route's responses.
-          .header(
-            'content-type',
-            req.path === '/operations' ? atomicMediaType : apiMediaType,
-          )
+          .header('content-type', getResponseMediaType(req.path))
           .json(bodyError.body);
         return;
       }
