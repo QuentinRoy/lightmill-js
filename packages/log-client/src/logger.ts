@@ -281,7 +281,8 @@ export class LightmillLogger<
   }
 
   // Returns the error that ended the batch's retries, or null once it is
-  // stored.
+  // stored. A failure is returned rather than thrown because it is an expected
+  // outcome: #sendBatch settles it like a success.
   async #postBatch(
     batch: Array<QueuedLog<ClientLog>>,
     batchSize: number,
