@@ -18,7 +18,12 @@ export const operationHandlers = (): PathHandlers<'/operations'> => ({
           source: { pointer },
         });
 
-      const runId = operations[0]!.data.relationships.run.data.id;
+      const firstOperation = operations[0];
+      // The request schema requires at least one operation.
+      if (firstOperation == null) {
+        throw new TypeError('Expected at least one operation');
+      }
+      const runId = firstOperation.data.relationships.run.data.id;
       const seenNumbers = new Set<number>();
       for (const [index, { data }] of operations.entries()) {
         if (data.relationships.run.data.id !== runId) {
