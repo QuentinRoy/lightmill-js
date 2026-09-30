@@ -605,10 +605,11 @@ export class LightmillLogger<
 export type Logger = LightmillLogger;
 
 function isRetriable(error: Error) {
-  if (!(error instanceof RequestError)) {
-    // Network errors and timeouts.
-    return true;
-  }
+  // Any other error means no response came back: the network failed or the
+  // request timed out, which a later attempt may get past. An unexpected
+  // error is retried too, which costs nothing: once retries run out, the
+  // logger pauses and holds the logs.
+  if (!(error instanceof RequestError)) return true;
   return error.status >= 500 || error.status === 408 || error.status === 429;
 }
 
