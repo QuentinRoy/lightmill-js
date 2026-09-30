@@ -205,6 +205,26 @@ describe.for(storeTypes)('LogServer Errors (%s server)', (storeType) => {
       });
   });
 
+  it('points to the whole document if the request body itself is invalid', async ({
+    api,
+  }) => {
+    await api
+      .post('/sessions')
+      .set('Content-Type', apiMediaType)
+      .send([])
+      .expect('Content-Type', apiContentTypeRegExp)
+      .expect(400, {
+        errors: [
+          {
+            status: 'Bad Request',
+            code: 'INVALID_REQUEST_BODY',
+            detail: 'Invalid input: expected object, received array',
+            source: { pointer: '' },
+          },
+        ],
+      });
+  });
+
   it('returns a 415 error if the request content is not of the expected type', async ({
     api,
     expect,

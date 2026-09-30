@@ -1,3 +1,4 @@
+import type { StandardSchemaV1 } from '@standard-schema/spec';
 import { mapKeys, toSnakeCase } from 'remeda';
 import type {
   ArrayIndices,
@@ -295,3 +296,16 @@ export type ConditionalKeys<T extends object, V> = Extract<
   keyof T,
   { [K in keyof T]-?: Required<T>[K] extends V ? K : never }[keyof T]
 >;
+
+// RFC 6901: the empty path is "" (the whole document), and "~" and "/" in a key
+// are escaped as "~0" and "~1" ("~" first, so the "~" of "~1" is not re-escaped).
+export function toJsonPointer(
+  path: ReadonlyArray<PropertyKey | StandardSchemaV1.PathSegment>,
+): string {
+  return path
+    .map((segment) => {
+      const key = typeof segment === 'object' ? segment.key : segment;
+      return '/' + String(key).replaceAll('~', '~0').replaceAll('/', '~1');
+    })
+    .join('');
+}

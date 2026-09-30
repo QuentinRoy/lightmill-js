@@ -4,6 +4,7 @@ import {
   fromAsync,
   removePrefix,
   startsWith,
+  toJsonPointer,
   withSnakeCaseProps,
 } from '../src/utils.ts';
 
@@ -127,5 +128,29 @@ describe.concurrent('fromAsync', () => {
 
     const result = await fromAsync(delayedGenerator());
     expect(result).toEqual(['c', 'b', 'a']);
+  });
+});
+
+describe('toJsonPointer', () => {
+  it('returns an empty string for the whole document', () => {
+    expect(toJsonPointer([])).toBe('');
+  });
+
+  it('prefixes each segment with a slash', () => {
+    expect(toJsonPointer(['data', 'attributes'])).toBe('/data/attributes');
+  });
+
+  it('stringifies numeric keys and unwraps path segments', () => {
+    expect(toJsonPointer(['data', 0, { key: 'id' }])).toBe('/data/0/id');
+  });
+
+  it('keeps empty keys distinct from the whole document', () => {
+    expect(toJsonPointer([''])).toBe('/');
+  });
+
+  it('escapes "~" and "/" in keys', () => {
+    expect(toJsonPointer(['a/b', 'c~d'])).toBe('/a~1b/c~0d');
+    // "~" is escaped first, so the "~" of "~1" is not escaped twice.
+    expect(toJsonPointer(['~1'])).toBe('/~01');
   });
 });
