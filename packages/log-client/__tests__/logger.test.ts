@@ -7,6 +7,7 @@ import { DeferManager } from './test-utils.ts';
 
 const it = serverTest.extend<{
   timer: void;
+  requestThrottle: number;
   logger: LightmillLogger;
   run: {
     experimentName: string;
@@ -40,7 +41,8 @@ const it = serverTest.extend<{
     runName: 'run-name',
     runId: 'run-id',
   }),
-  logger: async ({ server, run }, use) => {
+  requestThrottle: 0,
+  logger: async ({ server, run, requestThrottle }, use) => {
     const fetchClient = createClient<paths>({
       baseUrl: server.getBaseUrl(),
       headers: { accept: 'application/json' },
@@ -50,6 +52,7 @@ const it = serverTest.extend<{
       ...run,
       lastLogNumber: 0,
       serializeLog: (x) => JSON.parse(JSON.stringify(x)),
+      requestThrottle,
     });
     server.set([run]);
     await use(logger);
@@ -381,6 +384,8 @@ describe('LogClient#flush', () => {
 });
 
 describe('LogClient batches', () => {
+  const throttledIt = it.extend({ requestThrottle: 1000 });
+
   it('sends the logs added while a batch is in flight in the next batch', async ({
     logger,
     server,
@@ -422,56 +427,40 @@ describe('LogClient batches', () => {
     expect(getBatches(server)).toEqual([[1, 2], [3], [4], [5]]);
   });
 
-  it('waits requestThrottle between batch starts, except when flushing', async ({
-    server,
-    run,
-  }) => {
-    const logger = new LightmillLogger({
-      fetchClient: createClient<paths>({ baseUrl: server.getBaseUrl() }),
-      ...run,
-      lastLogNumber: 0,
-      serializeLog: (x) => JSON.parse(JSON.stringify(x)),
-      requestThrottle: 1000,
-    });
-    server.set([run]);
-    await logger.addLog({ type: 'mock-log' });
-    let p2 = logger.addLog({ type: 'mock-log' });
-    await vi.advanceTimersByTimeAsync(900);
-    expect(getBatches(server)).toEqual([[1]]);
-    await vi.advanceTimersByTimeAsync(100);
-    await p2;
-    expect(getBatches(server)).toEqual([[1], [2]]);
-    logger.addLog({ type: 'mock-log' });
-    await logger.flush();
-    expect(getBatches(server)).toEqual([[1], [2], [3]]);
-  });
+  throttledIt(
+    'waits requestThrottle between batch starts, except when flushing',
+    async ({ logger, server }) => {
+      await logger.addLog({ type: 'mock-log' });
+      let p2 = logger.addLog({ type: 'mock-log' });
+      await vi.advanceTimersByTimeAsync(900);
+      expect(getBatches(server)).toEqual([[1]]);
+      await vi.advanceTimersByTimeAsync(100);
+      await p2;
+      expect(getBatches(server)).toEqual([[1], [2]]);
+      logger.addLog({ type: 'mock-log' });
+      await logger.flush();
+      expect(getBatches(server)).toEqual([[1], [2], [3]]);
+    },
+  );
 
-  it('sends the next batch at once when flushing during a batch', async ({
-    server,
-    run,
-  }) => {
-    const logger = new LightmillLogger({
-      fetchClient: createClient<paths>({ baseUrl: server.getBaseUrl() }),
-      ...run,
-      lastLogNumber: 0,
-      serializeLog: (x) => JSON.parse(JSON.stringify(x)),
-      requestThrottle: 1000,
-    });
-    server.set([run]);
-    const reqManager = new DeferManager();
-    server.handlers['/operations'].post.mockImplementation(({ body }) => {
-      return reqManager.addRequest(okOperationsResponse(body));
-    });
-    logger.addLog({ type: 'mock-log' });
-    await reqManager.waitForRequests(1);
-    logger.addLog({ type: 'mock-log' });
-    const flushPromise = logger.flush();
-    reqManager.resolveNextRequest();
-    await reqManager.waitForRequests(2);
-    reqManager.resolveNextRequest();
-    await expect(flushPromise).resolves.toBeUndefined();
-    expect(getBatches(server)).toEqual([[1], [2]]);
-  });
+  throttledIt(
+    'sends the next batch at once when flushing during a batch',
+    async ({ logger, server }) => {
+      const reqManager = new DeferManager();
+      server.handlers['/operations'].post.mockImplementation(({ body }) => {
+        return reqManager.addRequest(okOperationsResponse(body));
+      });
+      logger.addLog({ type: 'mock-log' });
+      await reqManager.waitForRequests(1);
+      logger.addLog({ type: 'mock-log' });
+      const flushPromise = logger.flush();
+      reqManager.resolveNextRequest();
+      await reqManager.waitForRequests(2);
+      reqManager.resolveNextRequest();
+      await expect(flushPromise).resolves.toBeUndefined();
+      expect(getBatches(server)).toEqual([[1], [2]]);
+    },
+  );
 
   it('rejects every log of a failed batch', async ({ logger, server }) => {
     server.handlers['/operations'].post.mockImplementation(async () => ({
