@@ -105,17 +105,37 @@ export const atomicMediaType =
 export type AtomicMediaType = typeof atomicMediaType;
 
 /**
- * Whether a Content-Type header is `expected`, ignoring case and whitespace
- * around the parameters (`type; ext="..."` is `type;ext="..."`).
+ * Whether a Content-Type header is the same JSON:API media type as `expected`:
+ * same type, same extensions. JSON:API only allows the `ext` and `profile`
+ * parameters, both quoted. A server may ignore profiles, so they are ignored.
  */
 export function isContentType(header: string, expected: string) {
-  const normalize = (value: string) =>
-    value
-      .split(';')
-      .map((part) => part.trim())
-      .join(';')
-      .toLowerCase();
-  return normalize(header) === normalize(expected);
+  const actual = parseJsonApiMediaType(header);
+  const wanted = parseJsonApiMediaType(expected);
+  return (
+    actual != null &&
+    wanted != null &&
+    actual.type === wanted.type &&
+    actual.extensions.join(' ') === wanted.extensions.join(' ')
+  );
+}
+
+function parseJsonApiMediaType(value: string) {
+  const parametersStart = value.indexOf(';');
+  const type = (parametersStart < 0 ? value : value.slice(0, parametersStart))
+    .trim()
+    .toLowerCase();
+  const parameters = parametersStart < 0 ? '' : value.slice(parametersStart);
+  if (!/^(\s*;\s*[\w-]+="[^"]*")*\s*$/.test(parameters)) return null;
+  let extensions: string[] | undefined;
+  for (const match of parameters.matchAll(/;\s*([\w-]+)="([^"]*)"/g)) {
+    const name = match[1]?.toLowerCase();
+    if (name === 'profile') continue;
+    // Extension URIs are case-sensitive, unlike parameter names.
+    if (name !== 'ext' || extensions != null) return null;
+    extensions = (match[2] ?? '').split(' ').filter(Boolean).sort();
+  }
+  return { type, extensions: extensions ?? [] };
 }
 
 export function parseCookies(cookieHeader: string | undefined) {
