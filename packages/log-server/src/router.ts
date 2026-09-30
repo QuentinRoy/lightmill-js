@@ -124,8 +124,7 @@ export function createRouter({
   for (const [path, methods] of unsafeEntries(handlers)) {
     const expressPath = path.replace(/{(\w+)}/g, ':$1');
     const route = router.route(expressPath);
-    const routeConfigs: Record<string, { request: object }> =
-      LogApi.routes[path];
+    const routeConfigs: Record<string, RouteWithBody> = LogApi.routes[path];
     for (const [method, handler] of unsafeEntries(methods)) {
       const routeConfig = routeConfigs[method];
       if (routeConfig == null) {
@@ -218,19 +217,18 @@ export function createRouter({
 
 // A route accepts a single request media type: the plain one unless its body
 // is declared with another (the atomic operations extension).
-function getRequestMediaType(route: {
-  request: object;
-}): ApiMediaType | AtomicMediaType {
-  const content =
-    'body' in route.request &&
-    typeof route.request.body === 'object' &&
-    route.request.body != null &&
-    'content' in route.request.body &&
-    typeof route.request.body.content === 'object' &&
-    route.request.body.content != null
-      ? route.request.body.content
-      : {};
-  return atomicMediaType in content ? atomicMediaType : apiMediaType;
+// The index signature lets routes without a body match: TypeScript rejects
+// them otherwise, for sharing no property with an all-optional type.
+type RouteWithBody = {
+  request: { body?: { content: object }; [key: string]: unknown };
+};
+function getRequestMediaType(
+  route: RouteWithBody,
+): ApiMediaType | AtomicMediaType {
+  return route.request.body != null &&
+    atomicMediaType in route.request.body.content
+    ? atomicMediaType
+    : apiMediaType;
 }
 
 function validateHandler({
