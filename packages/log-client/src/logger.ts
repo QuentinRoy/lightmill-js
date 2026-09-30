@@ -19,7 +19,8 @@ interface AnyLog extends Typed, OptionallyDated, JsonObjectAndDate {}
  * State of a logger's log delivery. `idle` and `sending` tell whether logs are
  * in flight, `retrying` that the last batch failed and will be sent again,
  * `paused` that retries ran out and in-flight logs are held until `retry()`.
- * The last three are the status of the ended run.
+ * Once the run ends, the state is its status: `completed`, `canceled`, or
+ * `interrupted`.
  */
 export type LoggerState = Readonly<
   | { status: 'idle' }
