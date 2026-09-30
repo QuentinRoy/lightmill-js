@@ -47,6 +47,10 @@ export const UnsupportedMediaTypeErrorResponse = getErrorDocumentSchema(
   getErrorSchema({ code: 'UNSUPPORTED_MEDIA_TYPE', statusCode: 415 }),
 ).openapi('UnsupportedMediaTypeErrorResponse');
 
+export const RequestBodyTooLargeErrorResponse = getErrorDocumentSchema(
+  getErrorSchema({ code: 'REQUEST_BODY_TOO_LARGE', statusCode: 413 }),
+).openapi('RequestBodyTooLargeErrorResponse');
+
 export const SessionRequiredErrorResponse = getErrorDocumentSchema(
   getErrorSchema({ code: 'SESSION_REQUIRED', statusCode: 403 }),
 ).openapi('SessionRequiredErrorResponse');
@@ -58,6 +62,7 @@ export const ServerErrorResponse = z
     InternalServerErrorResponse,
     MethodNotAllowedErrorResponse,
     UnsupportedMediaTypeErrorResponse,
+    RequestBodyTooLargeErrorResponse,
     SessionRequiredErrorResponse,
   ])
   .openapi('ServerErrorResponse');
