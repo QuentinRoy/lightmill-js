@@ -124,14 +124,16 @@ export function createRouter({
   for (const [path, methods] of unsafeEntries(handlers)) {
     const expressPath = path.replace(/{(\w+)}/g, ':$1');
     const route = router.route(expressPath);
+    const routeConfigs: Record<string, { request: object }> =
+      LogApi.routes[path];
     for (const [method, handler] of unsafeEntries(methods)) {
+      const routeConfig = routeConfigs[method];
+      if (routeConfig == null) {
+        throw new TypeError(`No route config for ${method} ${path}`);
+      }
+      const expectedMediaType = getRequestMediaType(routeConfig);
       route[method](async (request, response) => {
         const { headers, params, query, body, session } = request;
-        const expectedMediaType = getRequestMediaType(
-          LogApi.routes[path][
-            method as keyof (typeof LogApi.routes)[typeof path]
-          ],
-        );
         const contentType = headers['content-type'];
         if (
           (contentType != null &&
