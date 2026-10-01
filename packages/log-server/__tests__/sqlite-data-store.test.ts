@@ -1,6 +1,9 @@
 /* eslint-disable no-empty-pattern -- Empty objects are required with vitest's fixtures */
 
 import loglevel from 'loglevel';
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { times } from 'remeda';
 import {
   afterEach,
@@ -12,6 +15,7 @@ import {
   vi,
   it as vitestIt,
 } from 'vitest';
+import { DataStoreError } from '../src/data-store-errors.ts';
 import type { ExperimentId, LogId, RunId } from '../src/data-store.ts';
 import { SQLiteDataStore } from '../src/sqlite-data-store.ts';
 import { fromAsync } from '../src/utils.ts';
@@ -41,8 +45,7 @@ interface Fixture {
 
 let baseIt = vitestIt.extend<Fixture>({
   store: async ({}, use) => {
-    let store = new SQLiteDataStore(':memory:');
-    await store.migrateDatabase();
+    let store = await SQLiteDataStore.open(':memory:');
     await use(store);
     store.close();
   },
@@ -151,18 +154,62 @@ let baseIt = vitestIt.extend<Fixture>({
 
 let it = baseIt;
 
-describe('SQLiteStore', () => {
-  it('creates and closes a new Store instance', async () => {
-    let store = new SQLiteDataStore(':memory:');
+describe('SQLiteStore.open', () => {
+  let directory: string;
+  let database: string;
+  beforeEach(() => {
+    directory = mkdtempSync(path.join(os.tmpdir(), 'lightmill-open-'));
+    database = path.join(directory, 'data.sqlite');
+  });
+  afterEach(() => {
+    rmSync(directory, { recursive: true, force: true });
+  });
+
+  it('opens a migrated database', async () => {
+    await SQLiteDataStore.migrateDatabase(database);
+    let store = await SQLiteDataStore.open(database);
+    await expect(store.getExperiments()).resolves.toEqual([]);
+    await store.close();
+  });
+
+  it('rejects a database with pending migrations', async () => {
+    // An empty file is a valid SQLite database with no schema.
+    writeFileSync(database, '');
+    await expect(SQLiteDataStore.open(database)).rejects.toMatchObject({
+      code: DataStoreError.SCHEMA_OUTDATED,
+    });
+  });
+
+  it('cannot be bypassed by calling the constructor', () => {
+    const args = { key: Symbol(), db: {} as never, selectQueryLimit: 1 };
+    // @ts-expect-error The constructor is not meant to be called.
+    const construct = () => new SQLiteDataStore(args);
+    expect(construct).toThrow(TypeError);
+  });
+
+  it('does not create a missing database', async () => {
+    await expect(SQLiteDataStore.open(database)).rejects.toThrow();
+    expect(existsSync(database)).toBe(false);
+  });
+
+  it('migrates an in-memory database', async () => {
+    let store = await SQLiteDataStore.open(':memory:');
+    await expect(store.getExperiments()).resolves.toEqual([]);
     await store.close();
   });
 });
 
-describe('SQLiteStore#migrateDatabase', () => {
-  it('initializes the database', async () => {
-    let store = new SQLiteDataStore(':memory:');
-    await store.migrateDatabase();
-    await store.close();
+describe('SQLiteStore.migrateDatabase', () => {
+  it('creates and migrates a new database, and can run twice', async () => {
+    let directory = mkdtempSync(path.join(os.tmpdir(), 'lightmill-migrate-'));
+    try {
+      let database = path.join(directory, 'data.sqlite');
+      await SQLiteDataStore.migrateDatabase(database);
+      await SQLiteDataStore.migrateDatabase(database);
+      await (await SQLiteDataStore.open(database)).close();
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
   });
 });
 
@@ -2023,10 +2070,9 @@ describe.for([{ queryLimit: 10000 }, { queryLimit: 2 }])(
       queryLimit: async ({}, use) => use(queryLimit),
       context: async ({ queryLimit }, use) => {
         vi.useFakeTimers({ now: new Date('2025-01-01T00:00:01Z') });
-        let store = new SQLiteDataStore(':memory:', {
+        let store = await SQLiteDataStore.open(':memory:', {
           selectQueryLimit: queryLimit,
         });
-        await store.migrateDatabase();
         let e1 = await store.addExperiment({ experimentName: 'experiment-1' });
         let e2 = await store.addExperiment({ experimentName: 'experiment-2' });
         let e1r1 = await store.addRun({

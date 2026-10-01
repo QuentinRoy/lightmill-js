@@ -21,8 +21,8 @@ import express from 'express';
 import { LogServer, SQLiteDataStore } from '@lightmill/log-server';
 
 const app = express();
-const dataStore = new SQLiteDataStore('./lightmill.db');
-await dataStore.migrateDatabase();
+await SQLiteDataStore.migrateDatabase('./lightmill.db');
+const dataStore = await SQLiteDataStore.open('./lightmill.db');
 
 const { middleware } = LogServer({
   dataStore,
@@ -49,11 +49,10 @@ log-server experiment add pointing-study --database ./data.sqlite
 The command creates the database if needed. An existing name produces an error
 and exit code 1.
 
-If you embed `LogServer`, add the experiment to the datastore after migrating
-the database and before accepting runs. Run this setup only once for each name:
+If you embed `LogServer`, add the experiment to the datastore after opening
+it and before accepting runs. Run this setup only once for each name:
 
 ```ts
-await dataStore.migrateDatabase();
 await dataStore.addExperiment({ experimentName: 'pointing-study' });
 ```
 
@@ -123,16 +122,19 @@ the browser deletes its cookie or if the session signing key changes.
 
 SQLite implementation of the `DataStore` interface.
 
-Constructor:
+Create it with the static async factory:
 
 ```ts
-new SQLiteDataStore(dbPath, {
-  logLevel?,
-  selectQueryLimit?,
-})
+await SQLiteDataStore.open(dbPath, { logLevel?, selectQueryLimit? })
 ```
 
-Implements all `DataStore` methods for experiments, runs, logs, filters, migration, and shutdown.
+`open` throws if the database file does not exist, and a `DataStoreError` with
+code `SCHEMA_OUTDATED` if it has pending migrations. Apply them first with
+`await SQLiteDataStore.migrateDatabase(dbPath)`, which also creates a missing
+database. Back up an existing database first. An in-memory database
+(`':memory:'`) is always migrated.
+
+Implements all `DataStore` methods for experiments, runs, logs, filters, and shutdown.
 
 #### `getSessionStore()`
 
@@ -140,8 +142,8 @@ Returns an `express-session` store that persists sessions in the same SQLite
 database, on the data store's connection. Every call returns the same store.
 
 ```ts
-const dataStore = new SQLiteDataStore('data.sqlite');
-await dataStore.migrateDatabase();
+await SQLiteDataStore.migrateDatabase('data.sqlite');
+const dataStore = await SQLiteDataStore.open('data.sqlite');
 LogServer({
   dataStore,
   sessionStore: dataStore.getSessionStore(),
@@ -149,9 +151,9 @@ LogServer({
 });
 ```
 
-- Run `migrateDatabase()` (or `log-server migrate`) before the store is used:
-  it creates the session table. Using the store before then fails with an
-  error that says so.
+- The session table comes from a migration, so `open()` fails with
+  `SCHEMA_OUTDATED` until `migrateDatabase()` (or `log-server migrate`) has
+  created it.
 - A session lives as long as its cookie, so `sessionMaxAge` sets both. A
   session whose cookie has no expiry lives one day.
 - `close()` on the data store ends its session store, and later session
@@ -165,7 +167,7 @@ Contract for custom datastore implementations. Includes methods such as:
 - `addRun`, `resumeRun`, `setRunStatus`, `getRuns`
 - `addLogs`, `getLogs`, `getLastLogs`
 - `getLogValueNames`
-- `migrateDatabase`, `close`
+- `close`
 
 ## CLI
 

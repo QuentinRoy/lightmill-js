@@ -75,22 +75,7 @@ async function start({
   if (!Number.isSafeInteger(sessionMaxAge) || sessionMaxAge <= 0) {
     throw new Error('Session max age must be a positive number of days');
   }
-  let doesDbExist = await fs.access(dbPath, fs.constants.F_OK).then(
-    () => true,
-    () => false,
-  );
-  if (!doesDbExist) {
-    throw new Error(
-      `Database ${dbPath} does not exist. Run "log-server migrate --database ${dbPath}" to create it.`,
-    );
-  }
-  let store = new SQLiteDataStore(dbPath);
-  if ((await store.getPendingMigrations()).length > 0) {
-    await store.close();
-    throw new Error(
-      `Database ${dbPath} needs migrating. Back it up, then run "log-server migrate --database ${dbPath}".`,
-    );
-  }
+  let store = await openExistingStore(dbPath);
   let app = express();
   if (!sameOrigin) app.use(cors());
   let server = app
@@ -123,6 +108,32 @@ async function start({
   });
 }
 
+// Opens a database that `log-server migrate` already prepared, and tells the
+// user to run it otherwise.
+async function openExistingStore(dbPath: string) {
+  let doesDbExist = await fs.access(dbPath, fs.constants.F_OK).then(
+    () => true,
+    () => false,
+  );
+  if (!doesDbExist) {
+    throw new Error(
+      `Database ${dbPath} does not exist. Run "log-server migrate --database ${dbPath}" to create it.`,
+    );
+  }
+  return SQLiteDataStore.open(dbPath).catch((error) => {
+    if (
+      error instanceof DataStoreError &&
+      error.code === DataStoreError.SCHEMA_OUTDATED
+    ) {
+      throw new Error(
+        `Database ${dbPath} needs migrating. Back it up, then run "log-server migrate --database ${dbPath}".`,
+        { cause: error },
+      );
+    }
+    throw error;
+  });
+}
+
 type ExportLogsParameter = {
   database: string;
   output?: string | undefined;
@@ -136,7 +147,7 @@ async function exportLogs({
   output = undefined,
 }: ExportLogsParameter) {
   let filter = { type: logType, experimentName };
-  let store = new SQLiteDataStore(database);
+  let store = await openExistingStore(database);
   let stream = csvExportStream(store, filter);
   if (output === undefined) {
     stream.pipe(process.stdout).on('error', handleError);
@@ -177,15 +188,14 @@ async function exportLogs({
 
 type MigrateDatabaseParameter = { database: string };
 async function migrateDatabase({ database }: MigrateDatabaseParameter) {
-  let store = new SQLiteDataStore(database);
-  await store.migrateDatabase();
+  await SQLiteDataStore.migrateDatabase(database);
 }
 
 type AddExperimentParameter = { database: string; name: string };
 async function addExperiment({ database, name }: AddExperimentParameter) {
-  let store = new SQLiteDataStore(database);
+  await SQLiteDataStore.migrateDatabase(database);
+  let store = await SQLiteDataStore.open(database);
   try {
-    await store.migrateDatabase();
     try {
       await store.addExperiment({ experimentName: name });
     } catch (error) {
