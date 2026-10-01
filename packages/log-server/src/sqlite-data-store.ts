@@ -43,6 +43,9 @@ const __dirname = url.fileURLToPath(new URL('.', import.meta.url));
 
 const DEFAULT_SELECT_QUERY_LIMIT = 1_000_000;
 const MIGRATION_FOLDER = path.join(__dirname, 'db-migrations');
+// Only `SQLiteDataStore.open` holds it, so nothing else can build a store that
+// skipped the schema check.
+const constructorKey = Symbol('SQLiteDataStore constructor key');
 
 /**
  * SQLite-backed implementation of the Lightmill `DataStore` interface.
@@ -52,7 +55,12 @@ export class SQLiteDataStore implements DataStore {
   #selectQueryLimit: number;
 
   /** @internal Use `SQLiteDataStore.open` instead. */
-  constructor(db: Kysely<Database>, selectQueryLimit: number) {
+  constructor(key: symbol, db: Kysely<Database>, selectQueryLimit: number) {
+    if (key !== constructorKey) {
+      throw new TypeError(
+        'SQLiteDataStore cannot be constructed directly. Use SQLiteDataStore.open.',
+      );
+    }
     this.#db = db;
     this.#selectQueryLimit = selectQueryLimit;
   }
@@ -96,7 +104,7 @@ export class SQLiteDataStore implements DataStore {
       await kysely.destroy().catch(() => {});
       throw error;
     }
-    return new SQLiteDataStore(kysely, selectQueryLimit);
+    return new SQLiteDataStore(constructorKey, kysely, selectQueryLimit);
   }
 
   /**

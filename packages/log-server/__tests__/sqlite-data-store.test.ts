@@ -180,6 +180,11 @@ describe('SQLiteStore.open', () => {
     });
   });
 
+  it('cannot be bypassed by calling the constructor', () => {
+    // @ts-expect-error The constructor is not meant to be called.
+    expect(() => new SQLiteDataStore(Symbol(), {}, 1)).toThrow(TypeError);
+  });
+
   it('does not create a missing database', async () => {
     await expect(SQLiteDataStore.open(database)).rejects.toThrow();
     expect(existsSync(database)).toBe(false);
