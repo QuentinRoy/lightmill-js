@@ -150,6 +150,33 @@ describeForAll(
         .expect('Content-Type', apiContentTypeRegExp);
     });
 
+    it('returns an error if the experiment does not exist', async ({
+      context: { api },
+    }) => {
+      await api
+        .post('/runs')
+        .set('content-type', apiMediaType)
+        .send({
+          data: {
+            type: 'runs',
+            attributes: { status: 'idle', name: null },
+            relationships: {
+              experiment: { data: { type: 'experiments', id: 'unknown' } },
+            },
+          },
+        })
+        .expect(403, {
+          errors: [
+            {
+              status: 'Forbidden',
+              code: 'EXPERIMENT_NOT_FOUND',
+              detail: 'Experiment "unknown" not found.',
+            },
+          ],
+        })
+        .expect('Content-Type', apiContentTypeRegExp);
+    });
+
     it('refuses to create a run if a run with this name already exists for this experiment', async ({
       context: { api, dataStore, experimentId },
     }) => {

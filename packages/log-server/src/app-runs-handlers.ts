@@ -87,6 +87,16 @@ export const runHandlers = (): PathHandlers<'/runs'> => ({
             detail: `A run named ${name} already exists for experiment ${experimentId}`,
           });
         }
+        if (
+          e instanceof DataStoreError &&
+          e.code === DataStoreError.EXPERIMENT_NOT_FOUND
+        ) {
+          return getErrorResponse({
+            code: 'EXPERIMENT_NOT_FOUND',
+            status: 'Forbidden',
+            detail: `Experiment "${experimentId}" not found.`,
+          });
+        }
         throw e;
       }
     },
