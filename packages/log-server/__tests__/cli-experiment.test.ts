@@ -27,7 +27,7 @@ it('creates an experiment in a new database and reports duplicate names', async 
     expect(created.status).toBe(0);
     expect(created.stderr).toBe('');
 
-    const store = new SQLiteDataStore(database);
+    const store = await SQLiteDataStore.open(database);
     try {
       const experiments = await store.getExperiments();
       expect(experiments.map(({ experimentName }) => experimentName)).toEqual([

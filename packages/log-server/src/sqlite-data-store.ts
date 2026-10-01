@@ -45,6 +45,9 @@ const __dirname = url.fileURLToPath(new URL('.', import.meta.url));
 
 const DEFAULT_SELECT_QUERY_LIMIT = 1_000_000;
 const MIGRATION_FOLDER = path.join(__dirname, 'db-migrations');
+// Only `SQLiteDataStore.open` holds it, so nothing else can build a store that
+// skipped the schema check.
+const constructorKey = Symbol('SQLiteDataStore constructor key');
 
 /**
  * SQLite-backed implementation of the Lightmill `DataStore` interface.
@@ -54,35 +57,90 @@ export class SQLiteDataStore implements DataStore {
   #selectQueryLimit: number;
   #sessionStore: SessionStore | undefined;
 
+  // `private` only exists in TypeScript, but it is safe here: a JavaScript
+  // caller hits the key check below and gets a TypeError.
+  private constructor({
+    key,
+    db,
+    selectQueryLimit,
+  }: {
+    key: symbol;
+    db: Kysely<Database>;
+    selectQueryLimit: number;
+  }) {
+    if (key !== constructorKey) {
+      throw new TypeError(
+        'SQLiteDataStore cannot be constructed directly. Use SQLiteDataStore.open.',
+      );
+    }
+    this.#db = db;
+    this.#selectQueryLimit = selectQueryLimit;
+  }
+
   /**
-   * Creates a SQLite datastore.
+   * Opens a SQLite datastore and checks that its schema is up to date. Run
+   * `SQLiteDataStore.migrateDatabase` first on a new or outdated database.
+   * An in-memory database (`':memory:'`) is always new, so it is migrated.
    *
-   * @param db Path to the SQLite database file.
+   * @param dbPath Path to the SQLite database file.
    * @param options Datastore options.
    * @param options.logLevel Log level used for SQL and error logging.
    * @param options.selectQueryLimit Maximum rows returned by large select queries.
+   * @throws {DataStoreError} `SCHEMA_OUTDATED` if migrations are pending.
    */
-  constructor(
-    db: string,
+  static async open(
+    dbPath: string,
     {
       logLevel = loglevel.getLevel(),
       selectQueryLimit = DEFAULT_SELECT_QUERY_LIMIT,
     }: { logLevel?: LogLevelDesc; selectQueryLimit?: number } = {},
-  ) {
-    const logger = loglevel.getLogger('store');
-    logger.setLevel(logLevel);
-    this.#selectQueryLimit = selectQueryLimit;
-    this.#db = new Kysely({
-      dialect: new SqliteDialect({ database: new SQLiteDB(db) }),
-      log: (event) => {
-        if (event.level === 'query') {
-          logger.debug(event.query.sql, event.query.parameters);
-        } else if (event.level === 'error') {
-          logger.error(event.error);
+  ): Promise<SQLiteDataStore> {
+    const isMemory = dbPath === ':memory:';
+    // Opening a missing file would create it empty, and a mistyped path would
+    // silently leave an empty database behind.
+    const kysely = createKysely(dbPath, logLevel, { fileMustExist: !isMemory });
+    try {
+      if (isMemory) {
+        await migrate(kysely);
+      } else {
+        const pending = await getPendingMigrations(kysely);
+        if (pending.length > 0) {
+          throw new DataStoreError(
+            `Database ${dbPath} has pending migrations (${pending.join(', ')}). Run SQLiteDataStore.migrateDatabase first.`,
+            DataStoreError.SCHEMA_OUTDATED,
+          );
         }
-      },
-      plugins: [new CamelCasePlugin(), new DeduplicateJoinsPlugin()],
+      }
+    } catch (error) {
+      // A failing close must not mask the error the caller needs.
+      await kysely.destroy().catch(() => {});
+      throw error;
+    }
+    return new SQLiteDataStore({
+      key: constructorKey,
+      db: kysely,
+      selectQueryLimit,
     });
+  }
+
+  /**
+   * Creates the database if needed and applies its pending migrations. Back
+   * up an existing database first.
+   *
+   * @param dbPath Path to the SQLite database file.
+   * @param options.logLevel Log level used for SQL and error logging.
+   * @throws {DataStoreError} `MIGRATION_FAILED` if a migration fails.
+   */
+  static async migrateDatabase(
+    dbPath: string,
+    { logLevel = loglevel.getLevel() }: { logLevel?: LogLevelDesc } = {},
+  ): Promise<void> {
+    const kysely = createKysely(dbPath, logLevel);
+    try {
+      await migrate(kysely);
+    } finally {
+      await kysely.destroy();
+    }
   }
 
   /**
@@ -566,44 +624,64 @@ export class SQLiteDataStore implements DataStore {
     }
   }
 
-  #migrator() {
-    return new Migrator({
-      db: this.#db,
-      provider: new FileMigrationProvider({
-        fs,
-        path,
-        migrationFolder: MIGRATION_FOLDER,
-      }),
-    });
-  }
-
-  /** Names of the migrations `migrateDatabase` would apply. */
-  async getPendingMigrations(): Promise<string[]> {
-    let migrations = await this.#migrator().getMigrations();
-    return migrations
-      .filter(({ executedAt }) => executedAt == null)
-      .map(({ name }) => name);
-  }
-
-  async migrateDatabase(): Promise<void> {
-    let migrator = this.#migrator();
-    let result = await migrator.migrateToLatest();
-    if (result.error != null && result.error instanceof Error) {
-      throw new DataStoreError(
-        `Database migration failed: ${result.error.message}`,
-        DataStoreError.MIGRATION_FAILED,
-        { cause: result.error },
-      );
-    } else if (result.error != null) {
-      throw new DataStoreError(
-        `Database migration failed: ${result.error}`,
-        DataStoreError.MIGRATION_FAILED,
-      );
-    }
-  }
-
   async close() {
     await this.#db.destroy();
+  }
+}
+
+function createKysely(
+  dbPath: string,
+  logLevel: LogLevelDesc,
+  sqliteOptions: SQLiteDB.Options = {},
+) {
+  const logger = loglevel.getLogger('store');
+  logger.setLevel(logLevel);
+  return new Kysely<Database>({
+    dialect: new SqliteDialect({
+      database: new SQLiteDB(dbPath, sqliteOptions),
+    }),
+    log: (event) => {
+      if (event.level === 'query') {
+        logger.debug(event.query.sql, event.query.parameters);
+      } else if (event.level === 'error') {
+        logger.error(event.error);
+      }
+    },
+    plugins: [new CamelCasePlugin(), new DeduplicateJoinsPlugin()],
+  });
+}
+
+function createMigrator(db: Kysely<Database>) {
+  return new Migrator({
+    db,
+    provider: new FileMigrationProvider({
+      fs,
+      path,
+      migrationFolder: MIGRATION_FOLDER,
+    }),
+  });
+}
+
+async function getPendingMigrations(db: Kysely<Database>) {
+  const migrations = await createMigrator(db).getMigrations();
+  return migrations
+    .filter(({ executedAt }) => executedAt == null)
+    .map(({ name }) => name);
+}
+
+async function migrate(db: Kysely<Database>) {
+  const result = await createMigrator(db).migrateToLatest();
+  if (result.error != null && result.error instanceof Error) {
+    throw new DataStoreError(
+      `Database migration failed: ${result.error.message}`,
+      DataStoreError.MIGRATION_FAILED,
+      { cause: result.error },
+    );
+  } else if (result.error != null) {
+    throw new DataStoreError(
+      `Database migration failed: ${result.error}`,
+      DataStoreError.MIGRATION_FAILED,
+    );
   }
 }
 

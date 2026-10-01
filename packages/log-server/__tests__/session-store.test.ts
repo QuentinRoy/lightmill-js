@@ -21,8 +21,8 @@ afterEach(() => {
 });
 
 async function openServer(options: { sessionMaxAge?: number } = {}) {
-  const dataStore = new SQLiteDataStore(database);
-  await dataStore.migrateDatabase();
+  await SQLiteDataStore.migrateDatabase(database);
+  const dataStore = await SQLiteDataStore.open(database);
   const middleware = LogServer({
     dataStore,
     sessionStore: dataStore.getSessionStore(),
@@ -113,8 +113,8 @@ describe('getSessionStore', () => {
   });
 
   async function openStore() {
-    const dataStore = new SQLiteDataStore(database);
-    await dataStore.migrateDatabase();
+    await SQLiteDataStore.migrateDatabase(database);
+    const dataStore = await SQLiteDataStore.open(database);
     const store = dataStore.getSessionStore();
     const get = (sid: string) =>
       new Promise<SessionData | null | undefined>((resolve, reject) =>
@@ -172,7 +172,10 @@ describe('getSessionStore', () => {
   });
 
   it('tells to migrate when the session table is missing', async () => {
-    const dataStore = new SQLiteDataStore(database);
+    // open() rejects a database without the table, so drop it afterwards.
+    await SQLiteDataStore.migrateDatabase(database);
+    const dataStore = await SQLiteDataStore.open(database);
+    new SQLiteDB(database).prepare('DROP TABLE lightmill_sessions').run();
     const store = dataStore.getSessionStore();
     const error = await new Promise<unknown>((resolve) =>
       store.get('sid', resolve),
