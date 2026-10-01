@@ -10,6 +10,12 @@ GitHub issues and PRs are for humans; beads are for agents. Humans follow and di
 - Each GitHub issue has one root bead, linked with `--external-ref gh-<n>`. Its children (sub-tasks, wayfinder tickets, research, prototypes) are beads only.
 - PRs, commits, and changesets are for humans too: they name GitHub issues only, never bead ids.
 
+## Closing beads
+
+Close a bead when its pull request opens. The maintainer merges outside agent sessions, so no agent learns of the merge; the bead tracks the agent's work, and `Fixes #<n>` tracks delivery on GitHub.
+
+Reopen it (`bd reopen <id>`) before any change the pull request later needs, and close it again when done.
+
 ## Gotchas
 
 - `bd` is `/opt/homebrew/bin/bd`, which non-login shells may not have on `PATH`.
