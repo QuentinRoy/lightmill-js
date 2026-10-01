@@ -30,15 +30,15 @@ export function Run<const T extends RegisteredTask>({
   paused = false,
   ...useRunParameter
 }: RunProps<T, RegisteredLog>): React.JSX.Element | null {
-  const { onLog, ...state } = useRun(useRunParameter);
+  const { onLog, loading, ...state } = useRun(useRunParameter);
   const holdsRunningTask = useHoldsRunningTask(
-    paused,
+    paused || loading,
     state.status === 'running' ? state.taskKey : null,
   );
   // A paused run holds in-flight logs: leaving would lose them, even if the
   // timeline is completed.
   useConfirmBeforeUnload(
-    confirmBeforeUnload && (paused || state.status !== 'completed'),
+    confirmBeforeUnload && (paused || loading || state.status !== 'completed'),
   );
 
   if (paused && elements.paused == null) {
@@ -46,10 +46,18 @@ export function Run<const T extends RegisteredTask>({
       'Logs could not be delivered. Provide elements.paused to <Run /> to handle this and avoid losing logs and progress, for example by offering to retry.',
     );
   }
+  // paused wins over loading: it needs the participant's attention.
   if (paused && !holdsRunningTask) {
     return (
       <loggerContext.Provider value={onLog ?? noLoggerSymbol}>
         {elements.paused}
+      </loggerContext.Provider>
+    );
+  }
+  if (loading && !holdsRunningTask) {
+    return (
+      <loggerContext.Provider value={onLog ?? noLoggerSymbol}>
+        {elements.loading}
       </loggerContext.Provider>
     );
   }
@@ -94,24 +102,25 @@ export function Run<const T extends RegisteredTask>({
   }
 }
 
-// While paused, the task that was running when the pause began stays rendered
-// (interrupting it would only lose what the participant is doing). Once the
-// timeline moves on, elements.paused replaces whatever comes next.
+// While interrupted (paused or loading), the task that was running when the
+// interruption began stays rendered (unmounting it would only lose what the
+// participant is doing). Once the timeline moves on, elements.paused or
+// elements.loading replaces whatever comes next.
 function useHoldsRunningTask(
-  paused: boolean,
+  interrupted: boolean,
   runningTaskKey: symbol | null,
 ): boolean {
-  // null means not paused; heldTaskKey is null if no task was running when the
-  // pause began.
+  // null means not interrupted; heldTaskKey is null if no task was running when
+  // the interruption began.
   const [pause, setPause] = React.useState<{
     heldTaskKey: symbol | null;
   } | null>(null);
   // React restarts the render right after a state update made during render,
   // before anything is committed, so the held task is the one that was
-  // rendered when paused turned true.
-  if (paused && pause == null) {
+  // rendered when the interruption began.
+  if (interrupted && pause == null) {
     setPause({ heldTaskKey: runningTaskKey });
-  } else if (!paused && pause != null) {
+  } else if (!interrupted && pause != null) {
     setPause(null);
   }
   const heldTaskKey = pause == null ? runningTaskKey : pause.heldTaskKey;
@@ -128,6 +137,7 @@ type UseRunParameter<Task extends { type: string }, Log> = {
 );
 type RunState<Task, Log> = Exclude<TimelineState<Task>, { status: 'error' }> & {
   onLog: ((newLog: Log) => void) | null;
+  loading: boolean;
 };
 function useRun<T extends { type: string }, L>({
   onCompleted,
@@ -160,12 +170,10 @@ function useRun<T extends { type: string }, L>({
   if (loggerState.status === 'error') {
     throw loggerState.error;
   }
-  if (loading) {
-    return { status: 'loading', onLog: logWrapper };
-  } else if (timeline == null) {
+  if (!loading && timeline == null) {
     throw new Error('Timeline must be set when loading is false');
   }
-  return { ...timelineState, onLog: logWrapper };
+  return { ...timelineState, onLog: logWrapper, loading };
 }
 
 type LoggerState<L> =

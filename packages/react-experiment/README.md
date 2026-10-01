@@ -98,14 +98,15 @@ Props:
 
 - `timeline`: iterator/iterable of tasks.
 - `elements.tasks`: map from task type to React element.
-- `elements.loading`: optional loading element.
+- `elements.loading`: optional element to render while `loading` is `true`, once the task that was running has ended. It wins over `elements.completed`, and loses to `elements.paused`.
 - `elements.completed`: optional completion element.
 - `elements.paused`: element to render while `paused` is `true`, once the task that was running has ended. Recommended if you set `paused`. Without it, `Run` throws a `LogDeliveryError`.
 - `paused`: set it to `true` when logs cannot be delivered. `Run` keeps rendering the running task, then `elements.paused` instead of what comes next (including `elements.completed`). The timeline and `onCompleted` are not affected. See [Handling log delivery failures](#handling-log-delivery-failures).
+- `loading`: set it to `true` while the app is not ready to move on (the timeline may then be unset). `Run` keeps rendering the running task, then `elements.loading` instead of what comes next. If `loading` goes back to `false` before the task ends, the task is not restarted.
 - `onLog`: optional async log handler.
 - `onCompleted`: optional callback after completion.
 - `resumeAfter`: optional `{ type, number }` marker to skip completed tasks.
-- `confirmBeforeUnload`: default `true`. Turned off once the timeline is completed, unless `paused` is `true`.
+- `confirmBeforeUnload`: default `true`. Turned off once the timeline is completed, unless `paused` or `loading` is `true`.
 
 ### `LogDeliveryError`
 
