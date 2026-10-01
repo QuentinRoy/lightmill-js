@@ -51,7 +51,8 @@ export class SQLiteDataStore implements DataStore {
   #db: Kysely<Database>;
   #selectQueryLimit: number;
 
-  private constructor(db: Kysely<Database>, selectQueryLimit: number) {
+  /** @internal Use `SQLiteDataStore.open` instead. */
+  constructor(db: Kysely<Database>, selectQueryLimit: number) {
     this.#db = db;
     this.#selectQueryLimit = selectQueryLimit;
   }
