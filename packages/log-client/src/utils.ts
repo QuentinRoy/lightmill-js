@@ -66,3 +66,5 @@ export function assertNever(value: never, isCrashing: boolean = false): never {
 }
 
 export const apiMediaType = 'application/vnd.api+json';
+export const atomicMediaType =
+  `${apiMediaType};ext="https://jsonapi.org/ext/atomic"` as const;

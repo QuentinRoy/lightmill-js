@@ -19,6 +19,7 @@ import { apiMediaType } from './utils.ts';
 export class LightmillClient<ClientLog extends LogBase = AnyLog> {
   #fetchClient;
   #serializeLog;
+  #requestThrottle;
 
   /**
    * Creates a Lightmill API client.
@@ -26,10 +27,13 @@ export class LightmillClient<ClientLog extends LogBase = AnyLog> {
    * @param options Client configuration.
    * @param options.apiRoot Base URL of the log server API.
    * @param options.serializeLog Optional custom serializer for log values.
+   * @param options.requestThrottle Minimum time in milliseconds between the
+   * starts of two log batches. Defaults to 0. `flush()` ignores it.
    */
   constructor({
     apiRoot,
     serializeLog,
+    requestThrottle = 0,
   }: { apiRoot: string; requestThrottle?: number } & (Exclude<
     ClientLog,
     AnyLog
@@ -48,6 +52,7 @@ export class LightmillClient<ClientLog extends LogBase = AnyLog> {
     // AnyLog, so we can use the default serializer.
     this.#serializeLog = serializeLog ?? anyLogSerializer;
     this.#fetchClient = createClient<paths>({ baseUrl: apiRoot });
+    this.#requestThrottle = requestThrottle;
   }
 
   async #getSession() {
@@ -356,6 +361,7 @@ export class LightmillClient<ClientLog extends LogBase = AnyLog> {
       fetchClient: this.#fetchClient,
       runId,
       lastLogNumber: lastLogNumber,
+      requestThrottle: this.#requestThrottle,
     });
   }
 

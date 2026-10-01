@@ -1,12 +1,13 @@
 import type { paths } from '@lightmill/log-api';
 import createClient from 'openapi-fetch';
 import { describe, expect, vi } from 'vitest';
-import { serverTest } from '../__mocks__/mock-server.js';
+import { MockServer, serverTest } from '../__mocks__/mock-server.js';
 import { LightmillLogger } from '../src/logger.js';
 import { DeferManager } from './test-utils.ts';
 
 const it = serverTest.extend<{
   timer: void;
+  requestThrottle: number;
   logger: LightmillLogger;
   run: {
     experimentName: string;
@@ -40,7 +41,8 @@ const it = serverTest.extend<{
     runName: 'run-name',
     runId: 'run-id',
   }),
-  logger: async ({ server, run }, use) => {
+  requestThrottle: 0,
+  logger: async ({ server, run, requestThrottle }, use) => {
     const fetchClient = createClient<paths>({
       baseUrl: server.getBaseUrl(),
       headers: { accept: 'application/json' },
@@ -50,6 +52,7 @@ const it = serverTest.extend<{
       ...run,
       lastLogNumber: 0,
       serializeLog: (x) => JSON.parse(JSON.stringify(x)),
+      requestThrottle,
     });
     server.set([run]);
     await use(logger);
@@ -82,28 +85,33 @@ describe('LogClient#addLog', () => {
       [
         {
           "body": {
-            "data": {
-              "attributes": {
-                "logType": "mock-log",
-                "number": 1,
-                "values": {
-                  "date": "2021-06-03T02:00:00.000Z",
-                  "val": 1,
-                },
-              },
-              "relationships": {
-                "run": {
-                  "data": {
-                    "id": "run-id",
-                    "type": "runs",
+            "atomic:operations": [
+              {
+                "data": {
+                  "attributes": {
+                    "logType": "mock-log",
+                    "number": 1,
+                    "values": {
+                      "date": "2021-06-03T02:00:00.000Z",
+                      "val": 1,
+                    },
                   },
+                  "relationships": {
+                    "run": {
+                      "data": {
+                        "id": "run-id",
+                        "type": "runs",
+                      },
+                    },
+                  },
+                  "type": "logs",
                 },
+                "op": "add",
               },
-              "type": "logs",
-            },
+            ],
           },
           "method": "POST",
-          "url": "https://server.test/api/logs",
+          "url": "https://server.test/api/operations",
         },
       ]
     `);
@@ -115,33 +123,38 @@ describe('LogClient#addLog', () => {
     await logger.addLog({ type: 'mock-log', val: 'xxx' });
     await expect(server.waitForChangeRequests()).resolves
       .toMatchInlineSnapshot(`
-        [
-          {
-            "body": {
-              "data": {
-                "attributes": {
-                  "logType": "mock-log",
-                  "number": 1,
-                  "values": {
-                    "date": "2019-06-03T02:00:00.000Z",
-                    "val": "xxx",
-                  },
-                },
-                "relationships": {
-                  "run": {
-                    "data": {
-                      "id": "run-id",
-                      "type": "runs",
+      [
+        {
+          "body": {
+            "atomic:operations": [
+              {
+                "data": {
+                  "attributes": {
+                    "logType": "mock-log",
+                    "number": 1,
+                    "values": {
+                      "date": "2019-06-03T02:00:00.000Z",
+                      "val": "xxx",
                     },
                   },
+                  "relationships": {
+                    "run": {
+                      "data": {
+                        "id": "run-id",
+                        "type": "runs",
+                      },
+                    },
+                  },
+                  "type": "logs",
                 },
-                "type": "logs",
+                "op": "add",
               },
-            },
-            "method": "POST",
-            "url": "https://server.test/api/logs",
+            ],
           },
-        ]
+          "method": "POST",
+          "url": "https://server.test/api/operations",
+        },
+      ]
     `);
   });
 
@@ -154,27 +167,32 @@ describe('LogClient#addLog', () => {
       [
         {
           "body": {
-            "data": {
-              "attributes": {
-                "logType": "mock-log",
-                "number": 1,
-                "values": {
-                  "date": "2019-06-03T02:00:00.000Z",
-                },
-              },
-              "relationships": {
-                "run": {
-                  "data": {
-                    "id": "run-id",
-                    "type": "runs",
+            "atomic:operations": [
+              {
+                "data": {
+                  "attributes": {
+                    "logType": "mock-log",
+                    "number": 1,
+                    "values": {
+                      "date": "2019-06-03T02:00:00.000Z",
+                    },
                   },
+                  "relationships": {
+                    "run": {
+                      "data": {
+                        "id": "run-id",
+                        "type": "runs",
+                      },
+                    },
+                  },
+                  "type": "logs",
                 },
+                "op": "add",
               },
-              "type": "logs",
-            },
+            ],
           },
           "method": "POST",
-          "url": "https://server.test/api/logs",
+          "url": "https://server.test/api/operations",
         },
       ]
     `);
@@ -277,11 +295,8 @@ describe('LogClient#flush', () => {
 
   it('ignores any log added after the call', async ({ logger, server }) => {
     const reqManager = new DeferManager();
-    server.handlers['/logs'].post.mockImplementation(() => {
-      return reqManager.addRequest({
-        status: 201,
-        body: { data: { id: `log-id-${reqManager.size() + 1}`, type: 'logs' } },
-      });
+    server.handlers['/operations'].post.mockImplementation(({ body }) => {
+      return reqManager.addRequest(okOperationsResponse(body));
     });
     logger.addLog({ type: 'mock-log', val: 1 });
     logger.addLog({ type: 'mock-log', val: 2 });
@@ -290,13 +305,14 @@ describe('LogClient#flush', () => {
       resolved = true;
       return result;
     });
+    await reqManager.waitForRequests(1);
     logger.addLog({ type: 'mock-log', val: 3 });
-    await reqManager.waitForRequests(2);
     expect(resolved).toBe(false);
-    reqManager.resolveNextRequest();
     reqManager.resolveNextRequest();
     await expect(flushPromise).resolves.toBeUndefined();
     expect(resolved).toBe(true);
+    await reqManager.waitForRequests(2);
+    reqManager.resolveNextRequest();
   });
 
   it('ignores log errors added after the call, but not before', async ({
@@ -304,17 +320,18 @@ describe('LogClient#flush', () => {
     server,
   }) => {
     const defManager = new DeferManager();
-    server.handlers['/logs'].post.mockImplementation(({ body }) => {
-      if (body.data.attributes.values.val === 'fail') {
+    server.handlers['/operations'].post.mockImplementation(({ body }) => {
+      if (
+        body['atomic:operations'].some(
+          (op) => op.data.attributes.values.val === 'fail',
+        )
+      ) {
         return defManager.addRequest({
           status: 403,
-          body: { errors: [{ status: 'Forbidden', code: 'FORBIDDEN' }] },
+          body: { errors: [{ status: 'Forbidden', code: 'RUN_NOT_FOUND' }] },
         });
       }
-      return defManager.addRequest({
-        status: 201,
-        body: { data: { id: `log-id-${defManager.size() + 1}`, type: 'logs' } },
-      });
+      return defManager.addRequest(okOperationsResponse(body));
     });
     let oldGetRun = server.handlers['/runs/{id}'].get.getMockImplementation()!;
     server.handlers['/runs/{id}'].get.mockImplementation(async (...args) => {
@@ -330,15 +347,17 @@ describe('LogClient#flush', () => {
     logger.addLog({ type: 'mock-log', val: 1 });
     logger.addLog({ type: 'mock-log', val: 2 });
     let flushPromise = logger.flush();
+    await defManager.waitForRequests(1);
     logger.addLog({ type: 'mock-log', val: 'fail' }).catch(() => {
       // Prevent vitest from catching the error and complaining about it.
     });
-    logger.addLog({ type: 'mock-log', val: 4 });
-    await defManager.waitForRequests(3);
-    defManager.resolveAllRequests();
+    logger.addLog({ type: 'mock-log', val: 4 }).catch(() => {});
+    defManager.resolveNextRequest();
+    await defManager.waitForRequests(2);
+    defManager.resolveNextRequest();
     await expect(flushPromise).resolves.toBeUndefined();
     await expect(logger.flush()).rejects.toThrowErrorMatchingInlineSnapshot(
-      `[AddLogError: FORBIDDEN]`,
+      `[AddLogError: RUN_NOT_FOUND]`,
     );
   });
 
@@ -361,6 +380,136 @@ describe('LogClient#flush', () => {
     await expect(logger.flush()).rejects.toThrowErrorMatchingInlineSnapshot(
       `[FlushError: Log number 1 is missing on the server after flushing. Add it if you still have it; otherwise resume the run after log number 0 (this cancels later logs).]`,
     );
+  });
+});
+
+describe('LogClient batches', () => {
+  const throttledIt = it.extend({ requestThrottle: 1000 });
+
+  it('sends the logs added while a batch is in flight in the next batch', async ({
+    logger,
+    server,
+  }) => {
+    const reqManager = new DeferManager();
+    server.handlers['/operations'].post.mockImplementation(({ body }) => {
+      return reqManager.addRequest(okOperationsResponse(body));
+    });
+    let p1 = logger.addLog({ type: 'mock-log' });
+    await reqManager.waitForRequests(1);
+    let p2 = logger.addLog({ type: 'mock-log' });
+    let p3 = logger.addLog({ type: 'mock-log' });
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(reqManager.count()).toBe(1);
+    reqManager.resolveNextRequest();
+    await expect(p1).resolves.toBeUndefined();
+    await reqManager.waitForRequests(2);
+    reqManager.resolveNextRequest();
+    await expect(Promise.all([p2, p3])).resolves.toEqual([
+      undefined,
+      undefined,
+    ]);
+    expect(getBatches(server)).toEqual([[1], [2, 3]]);
+  });
+
+  it('closes a batch at 512 kB of serialized operations', async ({
+    logger,
+    server,
+  }) => {
+    const big = 'x'.repeat(200 * 1024);
+    const huge = 'x'.repeat(600 * 1024);
+    await Promise.all([
+      logger.addLog({ type: 'mock-log', big }),
+      logger.addLog({ type: 'mock-log', big }),
+      logger.addLog({ type: 'mock-log', big }),
+      logger.addLog({ type: 'mock-log', huge }),
+      logger.addLog({ type: 'mock-log' }),
+    ]);
+    expect(getBatches(server)).toEqual([[1, 2], [3], [4], [5]]);
+  });
+
+  throttledIt(
+    'waits requestThrottle between batch starts, except when flushing',
+    async ({ logger, server }) => {
+      await logger.addLog({ type: 'mock-log' });
+      let p2 = logger.addLog({ type: 'mock-log' });
+      await vi.advanceTimersByTimeAsync(900);
+      expect(getBatches(server)).toEqual([[1]]);
+      await vi.advanceTimersByTimeAsync(100);
+      await p2;
+      expect(getBatches(server)).toEqual([[1], [2]]);
+      logger.addLog({ type: 'mock-log' });
+      await logger.flush();
+      expect(getBatches(server)).toEqual([[1], [2], [3]]);
+    },
+  );
+
+  throttledIt(
+    'sends the next batch at once when flushing during a batch',
+    async ({ logger, server }) => {
+      const reqManager = new DeferManager();
+      server.handlers['/operations'].post.mockImplementation(({ body }) => {
+        return reqManager.addRequest(okOperationsResponse(body));
+      });
+      logger.addLog({ type: 'mock-log' });
+      await reqManager.waitForRequests(1);
+      logger.addLog({ type: 'mock-log' });
+      const flushPromise = logger.flush();
+      reqManager.resolveNextRequest();
+      await reqManager.waitForRequests(2);
+      reqManager.resolveNextRequest();
+      await expect(flushPromise).resolves.toBeUndefined();
+      expect(getBatches(server)).toEqual([[1], [2]]);
+    },
+  );
+
+  it('rejects every log of a failed batch', async ({ logger, server }) => {
+    server.handlers['/operations'].post.mockImplementation(async () => ({
+      status: 403,
+      body: { errors: [{ status: 'Forbidden', code: 'RUN_NOT_FOUND' }] },
+    }));
+    let results = await Promise.allSettled([
+      logger.addLog({ type: 'mock-log' }),
+      logger.addLog({ type: 'mock-log' }),
+    ]);
+    expect(results).toEqual([
+      {
+        status: 'rejected',
+        reason: expect.objectContaining({
+          name: 'AddLogError',
+          message: 'RUN_NOT_FOUND',
+          logNumber: 1,
+        }),
+      },
+      {
+        status: 'rejected',
+        reason: expect.objectContaining({
+          name: 'AddLogError',
+          message: 'RUN_NOT_FOUND',
+          logNumber: 2,
+        }),
+      },
+    ]);
+  });
+
+  it('does not use a log number when serializing fails', async ({
+    server,
+    run,
+  }) => {
+    const logger = new LightmillLogger<{ type: string; fail?: boolean }>({
+      fetchClient: createClient<paths>({ baseUrl: server.getBaseUrl() }),
+      ...run,
+      lastLogNumber: 0,
+      serializeLog: (x) => {
+        if (x.fail) throw new Error('Cannot serialize');
+        return JSON.parse(JSON.stringify(x));
+      },
+    });
+    server.set([run]);
+    await expect(
+      logger.addLog({ type: 'mock-log', fail: true }),
+    ).rejects.toThrow('Cannot serialize');
+    await logger.addLog({ type: 'mock-log' });
+    expect(getBatches(server)).toEqual([[1]]);
   });
 });
 
@@ -411,3 +560,22 @@ describe('LogClient#cancelRun', () => {
     `);
   });
 });
+
+function okOperationsResponse(body: {
+  'atomic:operations': Array<{ data: { attributes: { number: number } } }>;
+}) {
+  return {
+    status: 200 as const,
+    body: {
+      'atomic:results': body['atomic:operations'].map((op) => ({
+        data: { id: `log-${op.data.attributes.number}`, type: 'logs' as const },
+      })),
+    },
+  };
+}
+
+function getBatches(server: MockServer) {
+  return server.handlers['/operations'].post.mock.calls.map(([{ body }]) =>
+    body['atomic:operations'].map((op) => op.data.attributes.number),
+  );
+}
