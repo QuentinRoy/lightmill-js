@@ -58,60 +58,62 @@ export class SQLiteDataStore implements DataStore {
   }
 
   /**
-   * Opens a SQLite datastore and checks its schema.
+   * Opens a SQLite datastore and checks that its schema is up to date. Run
+   * `SQLiteDataStore.migrateDatabase` first on a new or outdated database.
+   * An in-memory database (`':memory:'`) is always new, so it is migrated.
    *
    * @param db Path to the SQLite database file.
    * @param options Datastore options.
-   * @param options.schema What to do about pending migrations: `'check'`
-   * (default) throws a `SCHEMA_OUTDATED` error, `'migrate'` applies them, and
-   * `'skip'` leaves the database as is.
    * @param options.logLevel Log level used for SQL and error logging.
    * @param options.selectQueryLimit Maximum rows returned by large select queries.
+   * @throws {DataStoreError} `SCHEMA_OUTDATED` if migrations are pending.
    */
   static async open(
     db: string,
     {
-      schema = 'check',
       logLevel = loglevel.getLevel(),
       selectQueryLimit = DEFAULT_SELECT_QUERY_LIMIT,
-    }: {
-      schema?: 'check' | 'migrate' | 'skip';
-      logLevel?: LogLevelDesc;
-      selectQueryLimit?: number;
-    } = {},
+    }: { logLevel?: LogLevelDesc; selectQueryLimit?: number } = {},
   ): Promise<SQLiteDataStore> {
-    const logger = loglevel.getLogger('store');
-    logger.setLevel(logLevel);
-    const kysely = new Kysely<Database>({
-      dialect: new SqliteDialect({ database: new SQLiteDB(db) }),
-      log: (event) => {
-        if (event.level === 'query') {
-          logger.debug(event.query.sql, event.query.parameters);
-        } else if (event.level === 'error') {
-          logger.error(event.error);
-        }
-      },
-      plugins: [new CamelCasePlugin(), new DeduplicateJoinsPlugin()],
-    });
-    const store = new SQLiteDataStore(kysely, selectQueryLimit);
+    const kysely = createKysely(db, logLevel);
     try {
-      if (schema === 'migrate') {
-        await store.migrateDatabase();
-      } else if (schema === 'check') {
-        const pending = await store.#getPendingMigrations();
+      if (db === ':memory:') {
+        await migrate(kysely);
+      } else {
+        const pending = await getPendingMigrations(kysely);
         if (pending.length > 0) {
           throw new DataStoreError(
-            `Database ${db} has pending migrations (${pending.join(', ')}). Open it with schema: 'migrate' to apply them.`,
+            `Database ${db} has pending migrations (${pending.join(', ')}). Run SQLiteDataStore.migrateDatabase first.`,
             DataStoreError.SCHEMA_OUTDATED,
           );
         }
       }
     } catch (error) {
       // A failing close must not mask the error the caller needs.
-      await store.close().catch(() => {});
+      await kysely.destroy().catch(() => {});
       throw error;
     }
-    return store;
+    return new SQLiteDataStore(kysely, selectQueryLimit);
+  }
+
+  /**
+   * Creates the database if needed and applies its pending migrations. Back
+   * up an existing database first.
+   *
+   * @param db Path to the SQLite database file.
+   * @param options.logLevel Log level used for SQL and error logging.
+   * @throws {DataStoreError} `MIGRATION_FAILED` if a migration fails.
+   */
+  static async migrateDatabase(
+    db: string,
+    { logLevel = loglevel.getLevel() }: { logLevel?: LogLevelDesc } = {},
+  ): Promise<void> {
+    const kysely = createKysely(db, logLevel);
+    try {
+      await migrate(kysely);
+    } finally {
+      await kysely.destroy();
+    }
   }
 
   async addExperiment({
@@ -582,43 +584,58 @@ export class SQLiteDataStore implements DataStore {
     }
   }
 
-  #migrator() {
-    return new Migrator({
-      db: this.#db,
-      provider: new FileMigrationProvider({
-        fs,
-        path,
-        migrationFolder: MIGRATION_FOLDER,
-      }),
-    });
-  }
-
-  async #getPendingMigrations(): Promise<string[]> {
-    let migrations = await this.#migrator().getMigrations();
-    return migrations
-      .filter(({ executedAt }) => executedAt == null)
-      .map(({ name }) => name);
-  }
-
-  async migrateDatabase(): Promise<void> {
-    let migrator = this.#migrator();
-    let result = await migrator.migrateToLatest();
-    if (result.error != null && result.error instanceof Error) {
-      throw new DataStoreError(
-        `Database migration failed: ${result.error.message}`,
-        DataStoreError.MIGRATION_FAILED,
-        { cause: result.error },
-      );
-    } else if (result.error != null) {
-      throw new DataStoreError(
-        `Database migration failed: ${result.error}`,
-        DataStoreError.MIGRATION_FAILED,
-      );
-    }
-  }
-
   async close() {
     await this.#db.destroy();
+  }
+}
+
+function createKysely(db: string, logLevel: LogLevelDesc) {
+  const logger = loglevel.getLogger('store');
+  logger.setLevel(logLevel);
+  return new Kysely<Database>({
+    dialect: new SqliteDialect({ database: new SQLiteDB(db) }),
+    log: (event) => {
+      if (event.level === 'query') {
+        logger.debug(event.query.sql, event.query.parameters);
+      } else if (event.level === 'error') {
+        logger.error(event.error);
+      }
+    },
+    plugins: [new CamelCasePlugin(), new DeduplicateJoinsPlugin()],
+  });
+}
+
+function createMigrator(db: Kysely<Database>) {
+  return new Migrator({
+    db,
+    provider: new FileMigrationProvider({
+      fs,
+      path,
+      migrationFolder: MIGRATION_FOLDER,
+    }),
+  });
+}
+
+async function getPendingMigrations(db: Kysely<Database>) {
+  const migrations = await createMigrator(db).getMigrations();
+  return migrations
+    .filter(({ executedAt }) => executedAt == null)
+    .map(({ name }) => name);
+}
+
+async function migrate(db: Kysely<Database>) {
+  const result = await createMigrator(db).migrateToLatest();
+  if (result.error != null && result.error instanceof Error) {
+    throw new DataStoreError(
+      `Database migration failed: ${result.error.message}`,
+      DataStoreError.MIGRATION_FAILED,
+      { cause: result.error },
+    );
+  } else if (result.error != null) {
+    throw new DataStoreError(
+      `Database migration failed: ${result.error}`,
+      DataStoreError.MIGRATION_FAILED,
+    );
   }
 }
 

@@ -185,13 +185,13 @@ async function exportLogs({
 
 type MigrateDatabaseParameter = { database: string };
 async function migrateDatabase({ database }: MigrateDatabaseParameter) {
-  let store = await SQLiteDataStore.open(database, { schema: 'migrate' });
-  await store.close();
+  await SQLiteDataStore.migrateDatabase(database);
 }
 
 type AddExperimentParameter = { database: string; name: string };
 async function addExperiment({ database, name }: AddExperimentParameter) {
-  let store = await SQLiteDataStore.open(database, { schema: 'migrate' });
+  await SQLiteDataStore.migrateDatabase(database);
+  let store = await SQLiteDataStore.open(database);
   try {
     await store.addExperiment({ experimentName: name }).catch((error) => {
       if (

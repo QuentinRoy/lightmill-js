@@ -154,9 +154,7 @@ export interface ServerContext {
 }
 export const dataStoreCreators = {
   async sqlite() {
-    const dataStore = await SQLiteDataStore.open(':memory:', {
-      schema: 'migrate',
-    });
+    const dataStore = await SQLiteDataStore.open(':memory:');
     return mockMethods<DataStore>(dataStore);
   },
 } satisfies Record<StoreType, () => Promise<WithMockedMethods<DataStore>>>;

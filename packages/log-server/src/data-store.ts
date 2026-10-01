@@ -197,12 +197,6 @@ export interface DataStore {
   getLogs(filter?: AllFilter | undefined): AsyncGenerator<Log>;
 
   /**
-   * Migrates the database to the latest schema version
-   * @throws {StoreError} If migration fails
-   */
-  migrateDatabase(): Promise<void>;
-
-  /**
    * Closes the store and releases any resources
    */
   close(): Promise<void>;

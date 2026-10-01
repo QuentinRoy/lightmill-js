@@ -21,9 +21,8 @@ import express from 'express';
 import { LogServer, SQLiteDataStore } from '@lightmill/log-server';
 
 const app = express();
-const dataStore = await SQLiteDataStore.open('./lightmill.db', {
-  schema: 'migrate',
-});
+await SQLiteDataStore.migrateDatabase('./lightmill.db');
+const dataStore = await SQLiteDataStore.open('./lightmill.db');
 
 const { middleware } = LogServer({
   dataStore,
@@ -125,18 +124,16 @@ SQLite implementation of the `DataStore` interface.
 Create it with the static async factory:
 
 ```ts
-await SQLiteDataStore.open(dbPath, {
-  schema?: 'check' | 'migrate' | 'skip',
-  logLevel?,
-  selectQueryLimit?,
-})
+await SQLiteDataStore.open(dbPath, { logLevel?, selectQueryLimit? })
 ```
 
-`schema` says what to do about pending migrations. `'check'` (default) throws a
-`DataStoreError` with code `SCHEMA_OUTDATED`, `'migrate'` applies them (back up
-the database first), and `'skip'` leaves the database as is.
+`open` throws a `DataStoreError` with code `SCHEMA_OUTDATED` if the database has
+pending migrations. Apply them first with
+`await SQLiteDataStore.migrateDatabase(dbPath)`, which also creates a missing
+database. Back up an existing database first. An in-memory database
+(`':memory:'`) is always migrated.
 
-Implements all `DataStore` methods for experiments, runs, logs, filters, migration, and shutdown.
+Implements all `DataStore` methods for experiments, runs, logs, filters, and shutdown.
 
 ### `DataStore` type
 
@@ -146,7 +143,7 @@ Contract for custom datastore implementations. Includes methods such as:
 - `addRun`, `resumeRun`, `setRunStatus`, `getRuns`
 - `addLogs`, `getLogs`, `getLastLogs`
 - `getLogValueNames`
-- `migrateDatabase`, `close`
+- `close`
 
 ## CLI
 
