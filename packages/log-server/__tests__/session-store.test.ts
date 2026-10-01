@@ -205,6 +205,10 @@ describe('getSessionStore', () => {
     const error = await new Promise<unknown>((resolve) =>
       store.get('sid', resolve),
     );
-    expect(error).toBeInstanceOf(Error);
+    expect(error).toEqual(
+      expect.objectContaining({
+        message: expect.stringContaining('destroyed'),
+      }),
+    );
   });
 });
