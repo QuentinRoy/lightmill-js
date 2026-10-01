@@ -1,7 +1,10 @@
-import { spawn, type ChildProcess } from 'node:child_process';
+import {
+  spawn,
+  type ChildProcess,
+  type ChildProcessWithoutNullStreams,
+} from 'node:child_process';
 import { once } from 'node:events';
 import { mkdtempSync, rmSync } from 'node:fs';
-import { createServer } from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 import * as url from 'node:url';
@@ -12,24 +15,9 @@ import { SQLiteDataStore } from '../src/sqlite-data-store.ts';
 const packageDir = url.fileURLToPath(new URL('..', import.meta.url));
 const cliPath = path.join(packageDir, 'dist', 'cli.js');
 
-async function unusedPort(): Promise<number> {
-  const server = createServer();
-  server.listen(0, '127.0.0.1');
-  await once(server, 'listening');
-  const address = server.address();
-  if (address == null || typeof address === 'string') {
-    throw new Error('Could not allocate a test port');
-  }
-  const port = address.port;
-  server.close();
-  await once(server, 'close');
-  return port;
-}
-
 async function startServer(
   database: string,
-  port: number,
-): Promise<ChildProcess> {
+): Promise<{ child: ChildProcess; port: number }> {
   const child = spawn(
     process.execPath,
     [
@@ -37,31 +25,34 @@ async function startServer(
       'start',
       '--database',
       database,
+      // Port 0 lets the OS pick a free port when the CLI binds it, so no other
+      // process can take it in between.
       '--port',
-      String(port),
+      '0',
       '--session-key',
       'test-session-key',
       '--session-max-age-days',
       '7',
       '--same-origin',
     ],
-    { stdio: 'pipe', env: { ...process.env, NODE_ENV: 'production' } },
+    {
+      stdio: 'pipe',
+      // The "Listening" line is info-level; a LOG_LEVEL inherited from the
+      // developer's shell would hide it.
+      env: { ...process.env, NODE_ENV: 'production', LOG_LEVEL: 'info' },
+    },
   );
-  const url = `http://127.0.0.1:${port}/sessions/current`;
-  for (let attempt = 0; attempt < 100; attempt++) {
-    if (child.exitCode !== null) {
-      throw new Error(`CLI exited before becoming ready: ${child.exitCode}`);
-    }
-    try {
-      const response = await fetch(url);
-      if (response.status === 404) return child;
-    } catch {
-      // The server has not started listening yet.
-    }
-    await new Promise((resolve) => setTimeout(resolve, 50));
+  return { child, port: await listeningPort(child) };
+}
+
+async function listeningPort(child: ChildProcessWithoutNullStreams) {
+  let output = '';
+  for await (const chunk of child.stdout) {
+    output += String(chunk);
+    const match = /Listening on port (\d+)/.exec(output);
+    if (match != null) return Number(match[1]);
   }
-  child.kill('SIGTERM');
-  throw new Error('CLI did not become ready');
+  throw new Error('CLI exited before listening');
 }
 
 async function stopServer(child: ChildProcess): Promise<void> {
@@ -75,11 +66,11 @@ it('CLI sessions and browser cookies survive a restart', async () => {
   const directory = mkdtempSync(path.join(os.tmpdir(), 'lightmill-sessions-'));
   const database = path.join(directory, 'data.sqlite');
   await SQLiteDataStore.migrateDatabase(database);
-  const port = await unusedPort();
-  const baseUrl = `http://127.0.0.1:${port}`;
   let child: ChildProcess | undefined;
   try {
-    child = await startServer(database, port);
+    let port: number;
+    ({ child, port } = await startServer(database));
+    let baseUrl = `http://127.0.0.1:${port}`;
     const response = await fetch(`${baseUrl}/sessions`, {
       method: 'POST',
       headers: { 'content-type': apiMediaType },
@@ -101,7 +92,9 @@ it('CLI sessions and browser cookies survive a restart', async () => {
 
     await stopServer(child);
     child = undefined;
-    child = await startServer(database, port);
+    // Cookies are not scoped to a port, so the restart may use a different one.
+    ({ child, port } = await startServer(database));
+    baseUrl = `http://127.0.0.1:${port}`;
     const restored = await fetch(`${baseUrl}/sessions/current`, {
       headers: { cookie: cookie! },
     });
