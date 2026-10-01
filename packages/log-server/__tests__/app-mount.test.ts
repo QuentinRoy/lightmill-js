@@ -3,7 +3,7 @@ import request from 'supertest';
 import { describe, it } from 'vitest';
 import { apiMediaType } from '../src/api.ts';
 import { LogServer } from '../src/app.ts';
-import { createServerContext, storeTypes } from './test-utils.ts';
+import { createServerContext, listen, storeTypes } from './test-utils.ts';
 
 describe.for(storeTypes)('LogServer (%s)', (storeType) => {
   it('can be mounted on a sub path', async () => {
@@ -17,7 +17,7 @@ describe.for(storeTypes)('LogServer (%s)', (storeType) => {
       sessionKeys: ['secret'],
     });
     let app = express().use('/api', server.middleware);
-    let api = request.agent(app).host('lightmill-test.com');
+    let api = request.agent(await listen(app)).host('lightmill-test.com');
 
     await api
       .post('/sessions')

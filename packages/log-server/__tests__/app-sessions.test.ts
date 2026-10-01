@@ -10,6 +10,7 @@ import type { DataStore } from '../src/data-store.ts';
 import {
   apiContentTypeRegExp,
   dataStoreCreators,
+  listen,
   sessionStoreCreators,
   storeTypes,
   type WithMockedMethods,
@@ -47,7 +48,7 @@ const suite = storeTypes.map((storeType) => ({
       await use(app);
     },
     api: async ({ app }, use) => {
-      let api = request.agent(app);
+      let api = request.agent(await listen(app));
       await use(api);
     },
   }),
@@ -59,7 +60,7 @@ vitestTest('same-origin sessions set a usable cookie on HTTP', async () => {
     LogServer({ dataStore, sessionKeys: ['secret'], allowCrossOrigin: false })
       .middleware,
   );
-  let api = request.agent(app);
+  let api = request.agent(await listen(app));
   let response = await api
     .post('/sessions')
     .set('content-type', apiMediaType)
@@ -77,7 +78,7 @@ vitestTest('default sessions require HTTPS for a cookie', async () => {
   let app = express().use(
     LogServer({ dataStore, sessionKeys: ['secret'] }).middleware,
   );
-  let response = await request(app)
+  let response = await request(await listen(app))
     .post('/sessions')
     .set('content-type', apiMediaType)
     .send({ data: { type: 'sessions', attributes: { role: 'participant' } } })
@@ -95,7 +96,7 @@ vitestTest(
         .middleware,
     );
 
-    await request(app)
+    await request(await listen(app))
       .get('/sessions/current')
       .expect(404, {
         errors: [
@@ -119,7 +120,7 @@ vitestTest(
         .middleware,
     );
 
-    await request(app)
+    await request(await listen(app))
       .post('/sessions')
       .set('content-type', apiMediaType)
       .send({ data: { type: 'sessions', attributes: { role: 'participant' } } })
@@ -172,7 +173,7 @@ describe.for(suite)(
       });
       let app = express();
       app.use(server.middleware);
-      let api = request.agent(app);
+      let api = request.agent(await listen(app));
       await api
         .post('/sessions')
         .set('content-type', apiMediaType)
