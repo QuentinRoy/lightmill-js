@@ -127,8 +127,8 @@ Create it with the static async factory:
 await SQLiteDataStore.open(dbPath, { logLevel?, selectQueryLimit? })
 ```
 
-`open` throws a `DataStoreError` with code `SCHEMA_OUTDATED` if the database has
-pending migrations. Apply them first with
+`open` throws if the database file does not exist, and a `DataStoreError` with
+code `SCHEMA_OUTDATED` if it has pending migrations. Apply them first with
 `await SQLiteDataStore.migrateDatabase(dbPath)`, which also creates a missing
 database. Back up an existing database first. An in-memory database
 (`':memory:'`) is always migrated.
