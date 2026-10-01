@@ -35,7 +35,8 @@ interface AnyLog extends Typed, OptionallyDated, JsonObjectAndDate {}
  * `paused` that retries ran out and in-flight logs are held until `retry()`.
  * Once the run ends, the state is its status: `completed`, `canceled`, or
  * `interrupted`. Only log batches count: while `flush()` checks for missing
- * logs or a call ends the run, retries show in that call's promise only.
+ * log numbers or a call ends the run, retries show in that call's promise
+ * only.
  */
 export type LoggerState =
   | DeliveryState
@@ -131,8 +132,8 @@ export class LightmillLogger<
   }
 
   /**
-   * Calls `listener` with the new state every time `state` changes. Bound to the logger, so it
-   * can be passed around as is.
+   * Calls `listener` with the new state every time `state` changes. Bound to
+   * the logger, so it can be passed around as is.
    *
    * @returns A function that removes the listener.
    */
