@@ -80,9 +80,17 @@ async function start({
     () => true,
     () => false,
   );
-  let store = new SQLiteDataStore(dbPath);
   if (!doesDbExist) {
-    await store.migrateDatabase();
+    throw new Error(
+      `Database ${dbPath} does not exist. Run "log-server migrate --database ${dbPath}" to create it.`,
+    );
+  }
+  let store = new SQLiteDataStore(dbPath);
+  if ((await store.getPendingMigrations()).length > 0) {
+    await store.close();
+    throw new Error(
+      `Database ${dbPath} needs migrating. Back it up, then run "log-server migrate --database ${dbPath}".`,
+    );
   }
   let sessionStore = new SQLiteSessionStore(dbPath);
   let app = express();

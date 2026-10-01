@@ -159,3 +159,7 @@ resumption after a restart. For example:
 ```sh
 log-server start --database ./data.sqlite --session-key your-secret --session-max-age-days 30
 ```
+
+`start` exits with an error if the database is missing or has pending
+migrations. After upgrading, back up the database file, then run
+`log-server migrate --database <path>`.
