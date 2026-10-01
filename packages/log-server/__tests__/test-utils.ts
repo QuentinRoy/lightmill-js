@@ -94,6 +94,9 @@ export const apiContentTypeRegExp = new RegExp(
   `^${apiMediaType.replaceAll(/(\.|\/|\+)/g, '\\$1')}(;\\s*charset=[^\\s]+)?$`,
 );
 
+export const atomicContentTypeRegExp =
+  /^application\/vnd\.api\+json(;\s*charset=[^\s;]+)?;\s*ext="https:\/\/jsonapi\.org\/ext\/atomic"/;
+
 const baseServerOptions = {
   sessionKeys: ['secret'],
   allowCrossOrigin: false as const,

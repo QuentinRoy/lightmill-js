@@ -6,6 +6,7 @@ import { DataStoreError } from '../src/data-store-errors.ts';
 import type { DataStore, ExperimentId, RunId } from '../src/data-store.ts';
 import {
   apiContentTypeRegExp,
+  atomicContentTypeRegExp,
   createSessionTest,
   storeTypes,
   type StoreType,
@@ -286,8 +287,6 @@ describe.each(storeTypes)('LogServer: post /logs (%s)', (storeType) => {
 
 describe.each(storeTypes)('LogServer: post /operations (%s)', (storeType) => {
   const it = createTest(storeType);
-  const atomicContentTypeRegExp =
-    /^application\/vnd\.api\+json(;\s*charset=[^\s;]+)?;\s*ext="https:\/\/jsonapi\.org\/ext\/atomic"/;
   const add = (
     runId: string,
     number: number,
@@ -330,6 +329,18 @@ describe.each(storeTypes)('LogServer: post /operations (%s)', (storeType) => {
     const numberOf = (id: string) =>
       logs.body.data.find((l: { id: string }) => l.id === id).attributes.number;
     expect([numberOf(second.data.id), numberOf(first.data.id)]).toEqual([2, 1]);
+  });
+
+  it('accepts a body of several hundred kilobytes', async ({
+    expect,
+    participantApi,
+    runId,
+  }) => {
+    const padding = 'x'.repeat(600 * 1024);
+    const response = await post(participantApi, [
+      add(runId, 1, { padding }),
+    ]).expect(200);
+    expect(response.body['atomic:results']).toHaveLength(1);
   });
 
   it('answers the stored ids to a resent batch, and stores what is new', async ({
