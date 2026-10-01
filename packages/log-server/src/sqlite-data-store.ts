@@ -106,7 +106,8 @@ export class SQLiteDataStore implements DataStore {
         }
       }
     } catch (error) {
-      await store.close();
+      // A failing close must not mask the error the caller needs.
+      await store.close().catch(() => {});
       throw error;
     }
     return store;
