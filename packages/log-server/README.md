@@ -21,8 +21,8 @@ import express from 'express';
 import { LogServer, SQLiteDataStore } from '@lightmill/log-server';
 
 const app = express();
-const dataStore = new SQLiteDataStore('./lightmill.db');
-await dataStore.migrateDatabase();
+await SQLiteDataStore.migrateDatabase('./lightmill.db');
+const dataStore = await SQLiteDataStore.open('./lightmill.db');
 
 const { middleware } = LogServer({
   dataStore,
@@ -49,11 +49,10 @@ log-server experiment add pointing-study --database ./data.sqlite
 The command creates the database if needed. An existing name produces an error
 and exit code 1.
 
-If you embed `LogServer`, add the experiment to the datastore after migrating
-the database and before accepting runs. Run this setup only once for each name:
+If you embed `LogServer`, add the experiment to the datastore after opening
+it and before accepting runs. Run this setup only once for each name:
 
 ```ts
-await dataStore.migrateDatabase();
 await dataStore.addExperiment({ experimentName: 'pointing-study' });
 ```
 
@@ -107,31 +106,58 @@ find or resume those runs through the client.
 
 If participants need to resume after a server restart when embedding
 `LogServer`, pass a persistent `express-session` compatible store as
-`sessionStore`. Set `sessionMaxAge` if the browser cookie must also survive
-closing and reopening the browser. Keep `sessionKeys` stable across restarts
-so existing cookies remain valid. The keys sign cookies; they do not store
-session data.
+`sessionStore`, such as the one from
+[`SQLiteDataStore#getSessionStore()`](#class-sqlitedatastore). Set
+`sessionMaxAge` if the browser cookie must also survive closing and reopening
+the browser. Keep `sessionKeys` stable across restarts so existing cookies
+remain valid. The keys sign cookies; they do not store session data.
 
-The standalone `log-server start` command stores sessions in its
-`--database` SQLite file and gives its browser cookie a 30-day lifetime by
-default. Use `--session-max-age-days` or `SESSION_MAX_AGE_DAYS` to change
-that lifetime. Existing sessions are lost if the browser deletes its cookie
-or if the session signing key changes.
+The standalone `log-server start` command uses `getSessionStore()`, so it
+stores sessions in its `--database` SQLite file. It gives its browser cookie a
+30-day lifetime by default. Use `--session-max-age-days` or
+`SESSION_MAX_AGE_DAYS` to change that lifetime. Existing sessions are lost if
+the browser deletes its cookie or if the session signing key changes.
 
 ### `class SQLiteDataStore`
 
 SQLite implementation of the `DataStore` interface.
 
-Constructor:
+Create it with the static async factory:
 
 ```ts
-new SQLiteDataStore(dbPath, {
-  logLevel?,
-  selectQueryLimit?,
-})
+await SQLiteDataStore.open(dbPath, { logLevel?, selectQueryLimit? })
 ```
 
-Implements all `DataStore` methods for experiments, runs, logs, filters, migration, and shutdown.
+`open` throws if the database file does not exist, and a `DataStoreError` with
+code `SCHEMA_OUTDATED` if it has pending migrations. Apply them first with
+`await SQLiteDataStore.migrateDatabase(dbPath)`, which also creates a missing
+database. Back up an existing database first. An in-memory database
+(`':memory:'`) is always migrated.
+
+Implements all `DataStore` methods for experiments, runs, logs, filters, and shutdown.
+
+#### `getSessionStore()`
+
+Returns an `express-session` store that persists sessions in the same SQLite
+database, on the data store's connection. Every call returns the same store.
+
+```ts
+await SQLiteDataStore.migrateDatabase('data.sqlite');
+const dataStore = await SQLiteDataStore.open('data.sqlite');
+LogServer({
+  dataStore,
+  sessionStore: dataStore.getSessionStore(),
+  sessionKeys: ['replace-with-a-secure-secret'],
+});
+```
+
+- The session table comes from a migration, so `open()` fails with
+  `SCHEMA_OUTDATED` until `migrateDatabase()` (or `log-server migrate`) has
+  created it.
+- A session lives as long as its cookie, so `sessionMaxAge` sets both. A
+  session whose cookie has no expiry lives one day.
+- `close()` on the data store ends its session store, and later session
+  operations fail. Close the HTTP server first, so no request is in flight.
 
 ### `DataStore` type
 
@@ -141,7 +167,7 @@ Contract for custom datastore implementations. Includes methods such as:
 - `addRun`, `resumeRun`, `setRunStatus`, `getRuns`
 - `addLogs`, `getLogs`, `getLastLogs`
 - `getLogValueNames`
-- `migrateDatabase`, `close`
+- `close`
 
 ## CLI
 
@@ -159,3 +185,7 @@ resumption after a restart. For example:
 ```sh
 log-server start --database ./data.sqlite --session-key your-secret --session-max-age-days 30
 ```
+
+`start` exits with an error if the database is missing or has pending
+migrations. After upgrading, back up the database file, then run
+`log-server migrate --database <path>`.
