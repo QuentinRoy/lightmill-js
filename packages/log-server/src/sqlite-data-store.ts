@@ -54,6 +54,8 @@ export class SQLiteDataStore implements DataStore {
   #db: Kysely<Database>;
   #selectQueryLimit: number;
 
+  // `private` only exists in TypeScript, but it is safe here: a JavaScript
+  // caller hits the key check below and gets a TypeError.
   private constructor(
     key: symbol,
     db: Kysely<Database>,
