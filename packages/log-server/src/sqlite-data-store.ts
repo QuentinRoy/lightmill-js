@@ -550,8 +550,8 @@ export class SQLiteDataStore implements DataStore {
     }
   }
 
-  async migrateDatabase(): Promise<void> {
-    let migrator = new Migrator({
+  #migrator() {
+    return new Migrator({
       db: this.#db,
       provider: new FileMigrationProvider({
         fs,
@@ -559,6 +559,18 @@ export class SQLiteDataStore implements DataStore {
         migrationFolder: MIGRATION_FOLDER,
       }),
     });
+  }
+
+  /** Names of the migrations `migrateDatabase` would apply. */
+  async getPendingMigrations(): Promise<string[]> {
+    let migrations = await this.#migrator().getMigrations();
+    return migrations
+      .filter(({ executedAt }) => executedAt == null)
+      .map(({ name }) => name);
+  }
+
+  async migrateDatabase(): Promise<void> {
+    let migrator = this.#migrator();
     let result = await migrator.migrateToLatest();
     if (result.error != null && result.error instanceof Error) {
       throw new DataStoreError(

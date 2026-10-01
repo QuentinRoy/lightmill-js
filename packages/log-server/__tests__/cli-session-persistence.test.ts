@@ -7,6 +7,7 @@ import path from 'node:path';
 import * as url from 'node:url';
 import { expect, it } from 'vitest';
 import { apiMediaType } from '../src/api.ts';
+import { SQLiteDataStore } from '../src/sqlite-data-store.ts';
 
 const packageDir = url.fileURLToPath(new URL('..', import.meta.url));
 const cliPath = path.join(packageDir, 'dist', 'cli.js');
@@ -73,6 +74,9 @@ async function stopServer(child: ChildProcess): Promise<void> {
 it('CLI sessions and browser cookies survive a restart', async () => {
   const directory = mkdtempSync(path.join(os.tmpdir(), 'lightmill-sessions-'));
   const database = path.join(directory, 'data.sqlite');
+  const migrated = new SQLiteDataStore(database);
+  await migrated.migrateDatabase();
+  await migrated.close();
   const port = await unusedPort();
   const baseUrl = `http://127.0.0.1:${port}`;
   let child: ChildProcess | undefined;
