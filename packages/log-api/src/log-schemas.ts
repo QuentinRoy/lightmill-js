@@ -164,6 +164,12 @@ export const logRoutes = {
           headers: z.strictObject({ location: z.string() }),
           content: { [mediaType]: { schema: LogPostResponse } },
         },
+        200: {
+          description:
+            'Log already stored: the run holds a log with the same number, type, and values',
+          headers: z.strictObject({ location: z.string() }),
+          content: { [mediaType]: { schema: LogPostResponse } },
+        },
         403: {
           description: 'Forbidden',
           content: {

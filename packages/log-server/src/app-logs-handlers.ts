@@ -91,7 +91,7 @@ export const logHandlers = (): PathHandlers<'/logs'> => ({
         });
       }
       try {
-        let insertedLogId = firstStrict(
+        let { logId: insertedLogId, created } = firstStrict(
           await store.addLogs(run.runId, [
             {
               number: body.data.attributes.number,
@@ -101,9 +101,10 @@ export const logHandlers = (): PathHandlers<'/logs'> => ({
               values: body.data.attributes.values as JsonObject,
             },
           ]),
-        ).logId;
+        );
         return {
-          status: 201,
+          // Nothing was created for a duplicate log (a resend).
+          status: created ? 201 : 200,
           headers: {
             location: `${protocol + '://' + host}/logs/${insertedLogId}`,
           },
@@ -117,7 +118,7 @@ export const logHandlers = (): PathHandlers<'/logs'> => ({
           return getErrorResponse({
             status: 'Conflict',
             code: 'LOG_NUMBER_EXISTS',
-            detail: `Cannot add log to run '${runId}', log number ${body.data.attributes.number} already exists. Ensure the log number is unique within the run.`,
+            detail: `Cannot add log to run '${runId}', log number ${body.data.attributes.number} already exists with a different type or values. Ensure the log number is unique within the run.`,
           });
         }
         throw e;
