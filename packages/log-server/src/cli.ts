@@ -193,7 +193,9 @@ async function addExperiment({ database, name }: AddExperimentParameter) {
   await SQLiteDataStore.migrateDatabase(database);
   let store = await SQLiteDataStore.open(database);
   try {
-    await store.addExperiment({ experimentName: name }).catch((error) => {
+    try {
+      await store.addExperiment({ experimentName: name });
+    } catch (error) {
       if (
         error instanceof DataStoreError &&
         error.code === DataStoreError.EXPERIMENT_EXISTS
@@ -203,7 +205,7 @@ async function addExperiment({ database, name }: AddExperimentParameter) {
         );
       }
       throw error;
-    });
+    }
     log.info(`Created experiment "${name}".`);
   } finally {
     await store.close();
