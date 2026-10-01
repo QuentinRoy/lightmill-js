@@ -18,7 +18,6 @@ export type Logger<Log> = (log: Log) => Promise<void>;
 
 export type RunProps<Task extends Typed, Log> = {
   elements: RunElements<Task>;
-  confirmBeforeUnload?: boolean;
   paused?: boolean;
 } & UseRunParameter<Task, Log>;
 
@@ -26,7 +25,6 @@ export type RunProps<Task extends Typed, Log> = {
 // returning undefined, which could indicate a state isn't being handled.
 export function Run<const T extends RegisteredTask>({
   elements,
-  confirmBeforeUnload = true,
   paused = false,
   ...useRunParameter
 }: RunProps<T, RegisteredLog>): React.JSX.Element | null {
@@ -35,11 +33,6 @@ export function Run<const T extends RegisteredTask>({
   const holdsRunningTask = useHoldsRunningTask(
     interrupted,
     state.status === 'running' ? state.taskKey : null,
-  );
-  // A paused run holds in-flight logs: leaving would lose them, even if the
-  // timeline is completed.
-  useConfirmBeforeUnload(
-    confirmBeforeUnload && (interrupted || state.status !== 'completed'),
   );
 
   if (paused && elements.paused == null) {
@@ -196,19 +189,4 @@ function useLogWrapper<L>(onLog?: Logger<L>): LoggerState<L> {
   });
 
   return loggerState;
-}
-
-function useConfirmBeforeUnload(isEnabled: boolean) {
-  React.useEffect(() => {
-    if (isEnabled) {
-      let handleBeforeUnload = (event: BeforeUnloadEvent) => {
-        event.preventDefault();
-        event.returnValue = '';
-      };
-      globalThis.addEventListener('beforeunload', handleBeforeUnload);
-      return () => {
-        globalThis.removeEventListener('beforeunload', handleBeforeUnload);
-      };
-    }
-  }, [isEnabled]);
 }

@@ -106,11 +106,14 @@ Props:
 - `onLog`: optional async log handler.
 - `onCompleted`: optional callback after completion.
 - `resumeAfter`: optional `{ type, number }` marker to skip completed tasks.
-- `confirmBeforeUnload`: default `true`. Turned off once the timeline is completed, unless `paused` or `loading` is `true`.
 
 ### `LogDeliveryError`
 
 Thrown by `Run` when `paused` is `true` and there is no `elements.paused`: logs could not be delivered and nothing handles it. Catch it with an error boundary.
+
+### `useConfirmBeforeUnload(enabled)`
+
+Asks the browser to confirm before the page is closed or reloaded, for as long as `enabled` is `true` and the calling component is mounted. `Run` never does it by itself: decide when from the state you have, such as the logger's state (see [Handling log delivery failures](#handling-log-delivery-failures)) or the timeline when there is no logger.
 
 ### `useTask(type?)`
 
@@ -133,7 +136,7 @@ Returns a logger function bound to `Run`'s `onLog`.
 ```tsx
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import type { Logger } from '@lightmill/log-client';
-import { Run } from '@lightmill/react-experiment';
+import { Run, useConfirmBeforeUnload } from '@lightmill/react-experiment';
 
 function Experiment({
   logger,
@@ -153,19 +156,12 @@ function Experiment({
     }
   }, [logger, timelineCompleted, state.status]);
 
-  // Run stops confirming unload once the timeline is completed, but logs may
-  // still be on their way to the server.
-  const isDelivering =
-    state.status === 'sending' || state.status === 'retrying';
-  useEffect(() => {
-    if (!isDelivering) return;
-    const confirmUnload = (event: BeforeUnloadEvent) => {
-      event.preventDefault();
-      event.returnValue = '';
-    };
-    window.addEventListener('beforeunload', confirmUnload);
-    return () => window.removeEventListener('beforeunload', confirmUnload);
-  }, [isDelivering]);
+  // Leaving before the run ends loses progress, and logs held or on their way
+  // to the server.
+  const runEnded = ['completed', 'canceled', 'interrupted'].includes(
+    state.status,
+  );
+  useConfirmBeforeUnload(!runEnded);
 
   return (
     <Run
@@ -201,5 +197,3 @@ function Paused({ logger }: { logger: Logger }) {
 ```
 
 `retry()` sends the held logs again. While it runs, the logger state goes back to `sending` and `Run` resumes; if it fails again, the state becomes `paused` once more. `download` stands for whatever your app uses to save a file.
-
-`Run` turns the unload confirmation off once the timeline is completed, unless `paused` is `true`. The `beforeunload` listener above covers the logs still being sent at that point.
