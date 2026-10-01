@@ -1,5 +1,21 @@
 # @lightmill/log-client
 
+## 5.0.0-beta.2
+
+### Major Changes
+
+- [#327](https://github.com/QuentinRoy/lightmill-js/pull/327) [`80e09ae`](https://github.com/QuentinRoy/lightmill-js/commit/80e09aec0f3b8b981580d4f60daa13c6958b1a27) - `Logger#addLog()` sends logs in batches through `POST /operations`, one batch at a time, so a client far from the server no longer exhausts the browser's connections when logging at a high rate. Logs added while a batch waits for the server go in the next one, up to about 512 kB per batch. `addLog()` resolves once the server stores the log's batch. The `requestThrottle` option of `Client` now sets the minimum time in milliseconds between the starts of two batches (default `0`); `flush()` sends at once. A serializer that throws no longer uses up a log number. Needs a `@lightmill/log-server` that serves `POST /operations`: update the server before the client.
+
+### Minor Changes
+
+- [#332](https://github.com/QuentinRoy/lightmill-js/pull/332) [`4f9aab6`](https://github.com/QuentinRoy/lightmill-js/commit/4f9aab622cdf819827ed1de3700ed8e972e7948f) - `flush()` now rejects only while logs it waits for are held after the logger pauses, instead of rethrowing the first error forever. `completeRun()` rejects while logs are held; `cancelRun()` and `interruptRun()` do too, unless passed `{ discardInFlightLogs: true }`, which drops them and rejects their `addLog()` promises. While a call ends the run, `addLog()` and other calls ending it reject.
+
+- [#332](https://github.com/QuentinRoy/lightmill-js/pull/332) [`4f9aab6`](https://github.com/QuentinRoy/lightmill-js/commit/4f9aab622cdf819827ed1de3700ed8e972e7948f) - Once retries run out or the server answers with another error, the logger pauses: the failed batch's `addLog()` promises reject, and every other in-flight log is held with its promise pending, never dropped. `Logger#inFlightLogs` lists them, and `Logger#retry()` sends them again.
+
+- [#332](https://github.com/QuentinRoy/lightmill-js/pull/332) [`4f9aab6`](https://github.com/QuentinRoy/lightmill-js/commit/4f9aab622cdf819827ed1de3700ed8e972e7948f) - The logger retries a batch of logs that fails with a network error, a timeout, a 5xx, a `408`, or a `429` (waiting for `Retry-After`), for up to 2 minutes, waiting a little longer, at random, before each attempt. A request times out after `requestTimeout.base` milliseconds plus `requestTimeout.perKilobyte` milliseconds per kilobyte sent, a new `Client` option (defaults 10000 and 100). A batch the server rejects with `413` is resent in halves. The missing log number check of `flush()` and the request ending a run are retried the same way.
+
+- [#332](https://github.com/QuentinRoy/lightmill-js/pull/332) [`4f9aab6`](https://github.com/QuentinRoy/lightmill-js/commit/4f9aab622cdf819827ed1de3700ed8e972e7948f) - `Logger#state` and `Logger#subscribe()` report log delivery and work with React's `useSyncExternalStore`. `state.status` is `idle`, `sending`, `retrying`, `paused`, or, once the run ends, `completed`, `canceled`, or `interrupted`. `subscribe()` calls its listener with each new state.
+
 ## 5.0.0-beta.1
 
 ### Major Changes

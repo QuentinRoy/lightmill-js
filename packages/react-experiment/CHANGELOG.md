@@ -1,5 +1,19 @@
 # @lightmill/react-experiment
 
+## 4.0.0-beta.1
+
+### Major Changes
+
+- [#343](https://github.com/QuentinRoy/lightmill-js/pull/343) [`1544f54`](https://github.com/QuentinRoy/lightmill-js/commit/1544f543d326bf9f1f9b9f246e4f5e2aec94757d) - `Run` no longer replaces the running task with `elements.loading` when `loading` turns `true`. Like `paused`, it keeps rendering the task, then renders `elements.loading` instead of what comes next, including `elements.completed`. If `loading` goes back to `false` before the task ends, nothing changes on screen: the task keeps its state and timers. When `loading` and `paused` are both `true`, `elements.paused` wins. The task used to unmount, which lost what the participant had entered and restarted its timers.
+
+- [#342](https://github.com/QuentinRoy/lightmill-js/pull/342) [`5238453`](https://github.com/QuentinRoy/lightmill-js/commit/52384530ccf1a94a51573ae7ca7a9e98e53aaa7b) - Remove the `confirmBeforeUnload` prop of `Run`, and add the `useConfirmBeforeUnload(isEnabled)` hook, which asks the browser to confirm before the page is closed or reloaded for as long as `isEnabled` is `true` and the calling component is mounted. `Run` could not tell whether logs were still being sent or held, so its prompt could not protect them. Apps now decide when to prompt from what they know, such as the logger's state.
+  
+  `Run` no longer asks for confirmation by default. To keep a prompt, call the hook from a component that stays mounted. With `@lightmill/log-client`, `useConfirmBeforeUnload(!['completed', 'canceled', 'interrupted'].includes(logger.state.status))` prompts until every log is stored and the run has ended.
+
+### Minor Changes
+
+- [#334](https://github.com/QuentinRoy/lightmill-js/pull/334) [`7bd5c33`](https://github.com/QuentinRoy/lightmill-js/commit/7bd5c334c33726eeea9602a4683105f775ebed34) - `Run` can show a screen while logs cannot be delivered. Set the new `paused` prop to `true` and provide `elements.paused`: `Run` keeps rendering the running task, then renders `elements.paused` instead of what comes next, including `elements.completed`. The timeline and `onCompleted` are not affected. Providing `elements.paused` is recommended: without it, `Run` throws a new `LogDeliveryError` saying that logs could not be delivered.
+
 ## 3.1.0-beta.0
 
 ### Minor Changes

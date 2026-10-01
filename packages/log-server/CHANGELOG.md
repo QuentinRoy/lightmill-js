@@ -1,5 +1,35 @@
 # @lightmill/log-server
 
+## 5.0.0-beta.2
+
+### Major Changes
+
+- [#323](https://github.com/QuentinRoy/lightmill-js/pull/323) [`7828de4`](https://github.com/QuentinRoy/lightmill-js/commit/7828de4b0102904b4936c99be3e64b6660007e6a) - Custom `DataStore` implementations must return `created` with each log from `addLogs`: `true` for a stored log, `false` for a duplicate log already held by the run, which must be returned with its stored id and not stored again. A `DataStoreError` with `LOG_NUMBER_EXISTS_IN_SEQUENCE` must now carry the `logNumber` of the first log that conflicts.
+
+- [#349](https://github.com/QuentinRoy/lightmill-js/pull/349) [`65c9401`](https://github.com/QuentinRoy/lightmill-js/commit/65c94018aa44e3269d7d4cd715c51ebc62bbc17e) - `new SQLiteDataStore(path)` can no longer be called: use `await SQLiteDataStore.open(path, options)`. It throws a `DataStoreError` with code `SCHEMA_OUTDATED` when the database has pending migrations, instead of failing on the first query that needs them, and throws when the file does not exist instead of creating it. To create or migrate a database, run `await SQLiteDataStore.migrateDatabase(path)` first. As an exception, an in-memory database (`':memory:'`) is migrated automatically. The `migrateDatabase()` instance method is removed from `SQLiteDataStore` and from the `DataStore` interface: custom implementations no longer need it. `DataStoreError` is now exported, so embedders can catch it.
+
+- [#345](https://github.com/QuentinRoy/lightmill-js/pull/345) [`9270245`](https://github.com/QuentinRoy/lightmill-js/commit/92702456b537c88922d7a57f7b12aa09aaa83a97) - `log-server start` and `log-server export` no longer create the database. They exit with an error when the database is missing or has pending migrations, instead of running on an outdated schema. Back up the database, then run `log-server migrate` first.
+
+### Minor Changes
+
+- [#326](https://github.com/QuentinRoy/lightmill-js/pull/326) [`468a0f9`](https://github.com/QuentinRoy/lightmill-js/commit/468a0f9a01f23d7680753c4244cf9a23f9e61c8c) - Every route accepts request bodies up to 1 MB, up from 100 kB. A larger body gets a `413 REQUEST_BODY_TOO_LARGE`, a body that is not valid JSON a `400 INVALID_REQUEST_BODY`, and a body with an encoding the server cannot decode a `415 UNSUPPORTED_MEDIA_TYPE`, all JSON:API errors instead of a `500`.
+
+- [#324](https://github.com/QuentinRoy/lightmill-js/pull/324) [`f3d556d`](https://github.com/QuentinRoy/lightmill-js/commit/f3d556defdb58845ec79884446135cc6f577e596) - Requests may carry a `profile` parameter in their `Content-Type`, which is ignored, and the media type is matched regardless of case. Other parameters, such as `charset`, still get a `415`.
+
+- [#323](https://github.com/QuentinRoy/lightmill-js/pull/323) [`7828de4`](https://github.com/QuentinRoy/lightmill-js/commit/7828de4b0102904b4936c99be3e64b6660007e6a) - `POST /logs` accepts a log already stored with the same number, type, and values, and answers `200` with the stored log's id instead of `409 LOG_NUMBER_EXISTS`. A new log still gets `201`, and a log with the same number but different content still gets a `409`.
+
+- [#324](https://github.com/QuentinRoy/lightmill-js/pull/324) [`f3d556d`](https://github.com/QuentinRoy/lightmill-js/commit/f3d556defdb58845ec79884446135cc6f577e596) - `POST /operations` adds many logs of one run in a single request, all or nothing, and answers `200` with the id of each log, in order. Logs the run already holds with the same number, type, and values succeed like new ones. A number repeated within the request, or logs of several runs, get a `400`, and a number stored with different content gets a `409 LOG_NUMBER_EXISTS`, both pointing at the offending operation.
+
+- [#348](https://github.com/QuentinRoy/lightmill-js/pull/348) [`9b3cc63`](https://github.com/QuentinRoy/lightmill-js/commit/9b3cc63078d5984019f5c817f05b0b4130edd1bd) - `SQLiteDataStore#getSessionStore()` returns an `express-session` store that persists sessions in the data store's database. Pass it to `LogServer` as `sessionStore` so participants can resume runs after a restart. A session lives as long as its cookie (`sessionMaxAge`), or one day if the cookie has no expiry. Run `SQLiteDataStore.migrateDatabase(path)` first. Close the HTTP server before the data store: closing the data store ends its session store.
+
+### Patch Changes
+
+- [#350](https://github.com/QuentinRoy/lightmill-js/pull/350) [`0ee63e6`](https://github.com/QuentinRoy/lightmill-js/commit/0ee63e6b688d7ee2bfad0a8cd31081771405190d) - `log-server start --port 0` logs the port the operating system picked, instead of `0`.
+
+- [#364](https://github.com/QuentinRoy/lightmill-js/pull/364) [`3ef31af`](https://github.com/QuentinRoy/lightmill-js/commit/3ef31aff9da09ad1159486e22291300322d5791c) - `POST /runs` returns `403 EXPERIMENT_NOT_FOUND` when the requested experiment does not exist.
+- Updated dependencies [[`468a0f9`](https://github.com/QuentinRoy/lightmill-js/commit/468a0f9a01f23d7680753c4244cf9a23f9e61c8c), [`7828de4`](https://github.com/QuentinRoy/lightmill-js/commit/7828de4b0102904b4936c99be3e64b6660007e6a), [`f3d556d`](https://github.com/QuentinRoy/lightmill-js/commit/f3d556defdb58845ec79884446135cc6f577e596)]:
+  - @lightmill/log-api@5.0.0-beta.2
+
 ## 5.0.0-beta.1
 
 ### Major Changes
