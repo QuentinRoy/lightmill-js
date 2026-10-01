@@ -1,4 +1,8 @@
-import { spawn, type ChildProcess } from 'node:child_process';
+import {
+  spawn,
+  type ChildProcess,
+  type ChildProcessWithoutNullStreams,
+} from 'node:child_process';
 import { once } from 'node:events';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { createServer } from 'node:net';
@@ -55,9 +59,12 @@ async function startServer(
 }
 
 // Resolves false if the child's stdout closes (it exited) first.
-async function printsOutput(child: ChildProcess, text: string) {
+async function printsOutput(
+  child: ChildProcessWithoutNullStreams,
+  text: string,
+) {
   let output = '';
-  for await (const chunk of child.stdout!) {
+  for await (const chunk of child.stdout) {
     output += String(chunk);
     if (output.includes(text)) return true;
   }
