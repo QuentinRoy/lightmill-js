@@ -4,14 +4,28 @@
 import type { paths } from '@lightmill/log-api';
 import express from 'express';
 import { MemoryStore, Store as SessionStore } from 'express-session';
+import { once } from 'node:events';
+import { createServer, type RequestListener, type Server } from 'node:http';
 import { last } from 'remeda';
 import request from 'supertest';
 import type { RequiredKeysOf, Simplify, ValueOf } from 'type-fest';
-import { test, vi, type Mock, type TestAPI } from 'vitest';
+import { onTestFinished, test, vi, type Mock, type TestAPI } from 'vitest';
 import { apiMediaType, type HttpMethod } from '../src/api.ts';
 import { LogServer } from '../src/app.ts';
 import type { DataStore, RunId, RunStatus } from '../src/data-store.ts';
 import { SQLiteDataStore } from '../src/sqlite-data-store.ts';
+
+// supertest would listen on `::` and connect to 127.0.0.1, where another process
+// may hold the same port (e.g. Steam on macOS). Binding 127.0.0.1 avoids that.
+export async function listen(app: RequestListener): Promise<Server> {
+  const server = createServer(app).listen(0, '127.0.0.1');
+  onTestFinished(() => {
+    server.close();
+    server.closeAllConnections();
+  });
+  await once(server, 'listening');
+  return server;
+}
 
 export const host = 'lightmill-test.com';
 
@@ -254,7 +268,7 @@ async function createSessionFixtureContext<
   T extends StoreType,
 >({ type, role }: { type: T; role: R }) {
   let serverContext = await createServerContext({ type });
-  let app = express().use(serverContext.server.middleware);
+  let app = await listen(express().use(serverContext.server.middleware));
   let api = request.agent(app).host(host);
   // This request only matters to get the cookie. After that we'll mock the session anyway.
   const response = await api

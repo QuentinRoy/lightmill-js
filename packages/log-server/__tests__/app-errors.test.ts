@@ -8,6 +8,7 @@ import {
   apiContentTypeRegExp,
   createAllRoute,
   createServerContext,
+  listen,
   storeTypes,
 } from './test-utils.ts';
 
@@ -24,7 +25,7 @@ describe.for(storeTypes)('LogServer Errors (%s server)', (storeType) => {
     api: async ({}, use) => {
       let { server } = await createServerContext({ type: storeType });
       let app = express().use(server.middleware);
-      let api = request.agent(app);
+      let api = request.agent(await listen(app));
       await use(api);
     },
   });
