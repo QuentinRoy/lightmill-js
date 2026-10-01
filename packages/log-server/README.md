@@ -110,9 +110,8 @@ If participants need to resume after a server restart when embedding
 `sessionStore`, such as the one from
 [`SQLiteDataStore#getSessionStore()`](#class-sqlitedatastore). Set
 `sessionMaxAge` if the browser cookie must also survive closing and reopening
-the browser. Keep `sessionKeys` stable across restarts
-so existing cookies remain valid. The keys sign cookies; they do not store
-session data.
+the browser. Keep `sessionKeys` stable across restarts so existing cookies
+remain valid. The keys sign cookies; they do not store session data.
 
 The standalone `log-server start` command uses `getSessionStore()`, so it
 stores sessions in its `--database` SQLite file. It gives its browser cookie a
