@@ -31,14 +31,15 @@ export function Run<const T extends RegisteredTask>({
   ...useRunParameter
 }: RunProps<T, RegisteredLog>): React.JSX.Element | null {
   const { onLog, loading, ...state } = useRun(useRunParameter);
+  const interrupted = paused || loading;
   const holdsRunningTask = useHoldsRunningTask(
-    paused || loading,
+    interrupted,
     state.status === 'running' ? state.taskKey : null,
   );
   // A paused run holds in-flight logs: leaving would lose them, even if the
   // timeline is completed.
   useConfirmBeforeUnload(
-    confirmBeforeUnload && (paused || loading || state.status !== 'completed'),
+    confirmBeforeUnload && (interrupted || state.status !== 'completed'),
   );
 
   if (paused && elements.paused == null) {
@@ -46,18 +47,11 @@ export function Run<const T extends RegisteredTask>({
       'Logs could not be delivered. Provide elements.paused to <Run /> to handle this and avoid losing logs and progress, for example by offering to retry.',
     );
   }
-  // paused wins over loading: it needs the participant's attention.
-  if (paused && !holdsRunningTask) {
+  if (interrupted && !holdsRunningTask) {
+    // paused wins over loading: it needs the participant's attention.
     return (
       <loggerContext.Provider value={onLog ?? noLoggerSymbol}>
-        {elements.paused}
-      </loggerContext.Provider>
-    );
-  }
-  if (loading && !holdsRunningTask) {
-    return (
-      <loggerContext.Provider value={onLog ?? noLoggerSymbol}>
-        {elements.loading}
+        {paused ? elements.paused : elements.loading}
       </loggerContext.Provider>
     );
   }
