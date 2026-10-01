@@ -37,7 +37,7 @@ export class LightmillClient<ClientLog extends LogBase = AnyLog> {
   constructor({
     apiRoot,
     serializeLog,
-    requestThrottle = 0,
+    requestThrottle,
     requestTimeout,
   }: {
     apiRoot: string;
