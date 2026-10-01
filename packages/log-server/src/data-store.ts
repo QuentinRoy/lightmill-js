@@ -2,7 +2,6 @@ import type { JsonObject, Merge, UnionToIntersection } from 'type-fest';
 import type { AllFilter, ExperimentFilter, RunFilter } from './data-filters.ts';
 import {
   runStatuses,
-  type Database,
   type DbExperimentId,
   type DbLogId,
   type DbLogSequenceId,
@@ -15,6 +14,7 @@ import {
   type RunStatus,
   type RunTable,
 } from './db-migrations/2026-09-28-gap-ranges.ts';
+import type { Database } from './db-migrations/2026-10-01-sessions.ts';
 
 export {
   runStatuses,

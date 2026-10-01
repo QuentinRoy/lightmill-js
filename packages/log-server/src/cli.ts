@@ -14,7 +14,6 @@ import { z } from 'zod';
 import { csvExportStream } from './csv-export.ts';
 import { DataStoreError } from './data-store-errors.ts';
 import { LogServer, SQLiteDataStore } from './index.ts';
-import { SQLiteSessionStore } from './sqlite-session-store.ts';
 
 // Constants and setup
 // -------------------
@@ -77,14 +76,13 @@ async function start({
     throw new Error('Session max age must be a positive number of days');
   }
   let store = await openExistingStore(dbPath);
-  let sessionStore = new SQLiteSessionStore(dbPath);
   let app = express();
   if (!sameOrigin) app.use(cors());
   let server = app
     .use(
       LogServer({
         dataStore: store,
-        sessionStore,
+        sessionStore: store.getSessionStore(),
         sessionMaxAge,
         sessionKeys: sessionKey.split(':'),
         hostPassword,
@@ -100,7 +98,6 @@ async function start({
         log.error(error);
       }
       try {
-        sessionStore.close();
         await store.close();
       } catch (closeError) {
         log.error(closeError);
