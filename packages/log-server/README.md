@@ -21,8 +21,9 @@ import express from 'express';
 import { LogServer, SQLiteDataStore } from '@lightmill/log-server';
 
 const app = express();
-const dataStore = new SQLiteDataStore('./lightmill.db');
-await dataStore.migrateDatabase();
+const dataStore = await SQLiteDataStore.open('./lightmill.db', {
+  schema: 'migrate',
+});
 
 const { middleware } = LogServer({
   dataStore,
@@ -49,11 +50,10 @@ log-server experiment add pointing-study --database ./data.sqlite
 The command creates the database if needed. An existing name produces an error
 and exit code 1.
 
-If you embed `LogServer`, add the experiment to the datastore after migrating
-the database and before accepting runs. Run this setup only once for each name:
+If you embed `LogServer`, add the experiment to the datastore after opening
+it and before accepting runs. Run this setup only once for each name:
 
 ```ts
-await dataStore.migrateDatabase();
 await dataStore.addExperiment({ experimentName: 'pointing-study' });
 ```
 
@@ -122,14 +122,19 @@ or if the session signing key changes.
 
 SQLite implementation of the `DataStore` interface.
 
-Constructor:
+Create it with the static async factory:
 
 ```ts
-new SQLiteDataStore(dbPath, {
+await SQLiteDataStore.open(dbPath, {
+  schema?: 'check' | 'migrate' | 'skip',
   logLevel?,
   selectQueryLimit?,
 })
 ```
+
+`schema` says what to do about pending migrations. `'check'` (default) throws a
+`DataStoreError` with code `SCHEMA_OUTDATED`, `'migrate'` applies them (back up
+the database first), and `'skip'` leaves the database as is.
 
 Implements all `DataStore` methods for experiments, runs, logs, filters, migration, and shutdown.
 

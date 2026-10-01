@@ -8,6 +8,7 @@ const dataStoreErrorCodeList = [
   'LOG_NOT_FOUND',
   'RUN_HAS_ENDED',
   'MIGRATION_FAILED',
+  'SCHEMA_OUTDATED',
 ] as const;
 type DataStoreErrorCode = (typeof dataStoreErrorCodeList)[number];
 

@@ -74,8 +74,7 @@ async function stopServer(child: ChildProcess): Promise<void> {
 it('CLI sessions and browser cookies survive a restart', async () => {
   const directory = mkdtempSync(path.join(os.tmpdir(), 'lightmill-sessions-'));
   const database = path.join(directory, 'data.sqlite');
-  const migrated = new SQLiteDataStore(database);
-  await migrated.migrateDatabase();
+  const migrated = await SQLiteDataStore.open(database, { schema: 'migrate' });
   await migrated.close();
   const port = await unusedPort();
   const baseUrl = `http://127.0.0.1:${port}`;

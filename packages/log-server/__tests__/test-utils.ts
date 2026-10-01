@@ -133,9 +133,6 @@ async function createServerContextFromStores<
   type: ServerType;
   serverOptions?: ServerOptions;
 }) {
-  if (dataStore instanceof SQLiteDataStore) {
-    await dataStore.migrateDatabase();
-  }
   return {
     server: LogServer({
       dataStore: dataStore,
@@ -157,8 +154,9 @@ export interface ServerContext {
 }
 export const dataStoreCreators = {
   async sqlite() {
-    const dataStore = new SQLiteDataStore(':memory:');
-    await dataStore.migrateDatabase();
+    const dataStore = await SQLiteDataStore.open(':memory:', {
+      schema: 'migrate',
+    });
     return mockMethods<DataStore>(dataStore);
   },
 } satisfies Record<StoreType, () => Promise<WithMockedMethods<DataStore>>>;

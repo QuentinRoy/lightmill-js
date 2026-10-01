@@ -85,13 +85,18 @@ async function start({
       `Database ${dbPath} does not exist. Run "log-server migrate --database ${dbPath}" to create it.`,
     );
   }
-  let store = new SQLiteDataStore(dbPath);
-  if ((await store.getPendingMigrations()).length > 0) {
-    await store.close();
-    throw new Error(
-      `Database ${dbPath} needs migrating. Back it up, then run "log-server migrate --database ${dbPath}".`,
-    );
-  }
+  let store = await SQLiteDataStore.open(dbPath).catch((error) => {
+    if (
+      error instanceof DataStoreError &&
+      error.code === DataStoreError.SCHEMA_OUTDATED
+    ) {
+      throw new Error(
+        `Database ${dbPath} needs migrating. Back it up, then run "log-server migrate --database ${dbPath}".`,
+        { cause: error },
+      );
+    }
+    throw error;
+  });
   let sessionStore = new SQLiteSessionStore(dbPath);
   let app = express();
   if (!sameOrigin) app.use(cors());
@@ -139,7 +144,7 @@ async function exportLogs({
   output = undefined,
 }: ExportLogsParameter) {
   let filter = { type: logType, experimentName };
-  let store = new SQLiteDataStore(database);
+  let store = await SQLiteDataStore.open(database);
   let stream = csvExportStream(store, filter);
   if (output === undefined) {
     stream.pipe(process.stdout).on('error', handleError);
@@ -180,18 +185,15 @@ async function exportLogs({
 
 type MigrateDatabaseParameter = { database: string };
 async function migrateDatabase({ database }: MigrateDatabaseParameter) {
-  let store = new SQLiteDataStore(database);
-  await store.migrateDatabase();
+  let store = await SQLiteDataStore.open(database, { schema: 'migrate' });
+  await store.close();
 }
 
 type AddExperimentParameter = { database: string; name: string };
 async function addExperiment({ database, name }: AddExperimentParameter) {
-  let store = new SQLiteDataStore(database);
+  let store = await SQLiteDataStore.open(database, { schema: 'migrate' });
   try {
-    await store.migrateDatabase();
-    try {
-      await store.addExperiment({ experimentName: name });
-    } catch (error) {
+    await store.addExperiment({ experimentName: name }).catch((error) => {
       if (
         error instanceof DataStoreError &&
         error.code === DataStoreError.EXPERIMENT_EXISTS
@@ -201,7 +203,7 @@ async function addExperiment({ database, name }: AddExperimentParameter) {
         );
       }
       throw error;
-    }
+    });
     log.info(`Created experiment "${name}".`);
   } finally {
     await store.close();

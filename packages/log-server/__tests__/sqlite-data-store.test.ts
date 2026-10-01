@@ -1,6 +1,9 @@
 /* eslint-disable no-empty-pattern -- Empty objects are required with vitest's fixtures */
 
 import loglevel from 'loglevel';
+import { mkdtempSync, rmSync } from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { times } from 'remeda';
 import {
   afterEach,
@@ -12,6 +15,7 @@ import {
   vi,
   it as vitestIt,
 } from 'vitest';
+import { DataStoreError } from '../src/data-store-errors.ts';
 import type { ExperimentId, LogId, RunId } from '../src/data-store.ts';
 import { SQLiteDataStore } from '../src/sqlite-data-store.ts';
 import { fromAsync } from '../src/utils.ts';
@@ -41,8 +45,7 @@ interface Fixture {
 
 let baseIt = vitestIt.extend<Fixture>({
   store: async ({}, use) => {
-    let store = new SQLiteDataStore(':memory:');
-    await store.migrateDatabase();
+    let store = await SQLiteDataStore.open(':memory:', { schema: 'migrate' });
     await use(store);
     store.close();
   },
@@ -151,16 +154,49 @@ let baseIt = vitestIt.extend<Fixture>({
 
 let it = baseIt;
 
-describe('SQLiteStore', () => {
-  it('creates and closes a new Store instance', async () => {
-    let store = new SQLiteDataStore(':memory:');
+describe('SQLiteStore.open', () => {
+  let directory: string;
+  let database: string;
+  beforeEach(() => {
+    directory = mkdtempSync(path.join(os.tmpdir(), 'lightmill-open-'));
+    database = path.join(directory, 'data.sqlite');
+  });
+  afterEach(() => {
+    rmSync(directory, { recursive: true, force: true });
+  });
+
+  it('opens and closes a migrated database', async () => {
+    await (await SQLiteDataStore.open(database, { schema: 'migrate' })).close();
+    let store = await SQLiteDataStore.open(database);
+    await expect(store.getExperiments()).resolves.toEqual([]);
+    await store.close();
+  });
+
+  it('rejects a database with pending migrations by default', async () => {
+    await (await SQLiteDataStore.open(database, { schema: 'skip' })).close();
+    await expect(SQLiteDataStore.open(database)).rejects.toMatchObject({
+      code: DataStoreError.SCHEMA_OUTDATED,
+    });
+  });
+
+  it('skips the check', async () => {
+    let store = await SQLiteDataStore.open(database, { schema: 'skip' });
+    await store.migrateDatabase();
+    await expect(store.getExperiments()).resolves.toEqual([]);
+    await store.close();
+  });
+
+  it('migrates an outdated database', async () => {
+    await (await SQLiteDataStore.open(database, { schema: 'skip' })).close();
+    let store = await SQLiteDataStore.open(database, { schema: 'migrate' });
+    await expect(store.getExperiments()).resolves.toEqual([]);
     await store.close();
   });
 });
 
 describe('SQLiteStore#migrateDatabase', () => {
-  it('initializes the database', async () => {
-    let store = new SQLiteDataStore(':memory:');
+  it('is a no-op on a migrated database', async () => {
+    let store = await SQLiteDataStore.open(':memory:', { schema: 'migrate' });
     await store.migrateDatabase();
     await store.close();
   });
@@ -2023,10 +2059,10 @@ describe.for([{ queryLimit: 10000 }, { queryLimit: 2 }])(
       queryLimit: async ({}, use) => use(queryLimit),
       context: async ({ queryLimit }, use) => {
         vi.useFakeTimers({ now: new Date('2025-01-01T00:00:01Z') });
-        let store = new SQLiteDataStore(':memory:', {
+        let store = await SQLiteDataStore.open(':memory:', {
+          schema: 'migrate',
           selectQueryLimit: queryLimit,
         });
-        await store.migrateDatabase();
         let e1 = await store.addExperiment({ experimentName: 'experiment-1' });
         let e2 = await store.addExperiment({ experimentName: 'experiment-2' });
         let e1r1 = await store.addRun({

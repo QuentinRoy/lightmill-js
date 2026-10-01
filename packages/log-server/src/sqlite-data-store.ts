@@ -51,25 +51,37 @@ export class SQLiteDataStore implements DataStore {
   #db: Kysely<Database>;
   #selectQueryLimit: number;
 
+  private constructor(db: Kysely<Database>, selectQueryLimit: number) {
+    this.#db = db;
+    this.#selectQueryLimit = selectQueryLimit;
+  }
+
   /**
-   * Creates a SQLite datastore.
+   * Opens a SQLite datastore and checks its schema.
    *
    * @param db Path to the SQLite database file.
    * @param options Datastore options.
+   * @param options.schema What to do about pending migrations: `'check'`
+   * (default) throws a `SCHEMA_OUTDATED` error, `'migrate'` applies them, and
+   * `'skip'` leaves the database as is.
    * @param options.logLevel Log level used for SQL and error logging.
    * @param options.selectQueryLimit Maximum rows returned by large select queries.
    */
-  constructor(
+  static async open(
     db: string,
     {
+      schema = 'check',
       logLevel = loglevel.getLevel(),
       selectQueryLimit = DEFAULT_SELECT_QUERY_LIMIT,
-    }: { logLevel?: LogLevelDesc; selectQueryLimit?: number } = {},
-  ) {
+    }: {
+      schema?: 'check' | 'migrate' | 'skip';
+      logLevel?: LogLevelDesc;
+      selectQueryLimit?: number;
+    } = {},
+  ): Promise<SQLiteDataStore> {
     const logger = loglevel.getLogger('store');
     logger.setLevel(logLevel);
-    this.#selectQueryLimit = selectQueryLimit;
-    this.#db = new Kysely({
+    const kysely = new Kysely<Database>({
       dialect: new SqliteDialect({ database: new SQLiteDB(db) }),
       log: (event) => {
         if (event.level === 'query') {
@@ -80,6 +92,24 @@ export class SQLiteDataStore implements DataStore {
       },
       plugins: [new CamelCasePlugin(), new DeduplicateJoinsPlugin()],
     });
+    const store = new SQLiteDataStore(kysely, selectQueryLimit);
+    try {
+      if (schema === 'migrate') {
+        await store.migrateDatabase();
+      } else if (schema === 'check') {
+        const pending = await store.#getPendingMigrations();
+        if (pending.length > 0) {
+          throw new DataStoreError(
+            `Database ${db} has pending migrations (${pending.join(', ')}). Open it with schema: 'migrate' to apply them.`,
+            DataStoreError.SCHEMA_OUTDATED,
+          );
+        }
+      }
+    } catch (error) {
+      await store.close();
+      throw error;
+    }
+    return store;
   }
 
   async addExperiment({
@@ -561,8 +591,7 @@ export class SQLiteDataStore implements DataStore {
     });
   }
 
-  /** Names of the migrations `migrateDatabase` would apply. */
-  async getPendingMigrations(): Promise<string[]> {
+  async #getPendingMigrations(): Promise<string[]> {
     let migrations = await this.#migrator().getMigrations();
     return migrations
       .filter(({ executedAt }) => executedAt == null)
