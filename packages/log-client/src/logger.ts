@@ -9,12 +9,11 @@ import {
 } from './delivery-queue.ts';
 import type { components, paths } from './generated/openapi.js';
 import { sendWithRetries } from './send-with-retries.ts';
-import { Subject } from './subject.ts';
+import { Subject, subscribeSafely } from './subject.ts';
 import type { LogValuesSerializer, RunStatus } from './types.js';
 import {
   apiMediaType,
   atomicMediaType,
-  callSafely,
   RequestError,
   toError,
 } from './utils.js';
@@ -36,7 +35,8 @@ interface AnyLog extends Typed, OptionallyDated, JsonObjectAndDate {}
  * `paused` that retries ran out and in-flight logs are held until `retry()`.
  * Once the run ends, the state is its status: `completed`, `canceled`, or
  * `interrupted`. Only log batches count: while `flush()` checks for missing
- * logs or a call ends the run, retries show in that call's promise only.
+ * log numbers or a call ends the run, retries show in that call's promise
+ * only.
  */
 export type LoggerState =
   | DeliveryState
@@ -132,17 +132,13 @@ export class LightmillLogger<
   }
 
   /**
-   * Calls `listener` with the new state every time `state` changes. Bound to the logger, so it
-   * can be passed around as is.
+   * Calls `listener` with the new state every time `state` changes. Bound to
+   * the logger, so it can be passed around as is.
    *
    * @returns A function that removes the listener.
    */
-  subscribe = (listener: (state: LoggerState) => void): (() => void) => {
-    const subscription = this.#stateChanges.subscribe({
-      next: (state) => callSafely(() => listener(state)),
-    });
-    return () => subscription.unsubscribe();
-  };
+  subscribe = (listener: (state: LoggerState) => void): (() => void) =>
+    subscribeSafely(this.#stateChanges, listener);
 
   /**
    * Logs added to the logger that the server has not acknowledged yet,
@@ -316,8 +312,8 @@ export class LightmillLogger<
    * Flushes the logger, then marks the run as canceled. Rejects if logs
    * cannot be stored, unless `discardInFlightLogs` is true: in-flight logs
    * are then dropped instead of flushed, and their `addLog()` promises reject.
-   * A batch already being sent is not aborted, so the server may still store
-   * it.
+   * A batch already being sent is aborted, but the server may already have
+   * stored it.
    */
   async cancelRun({ discardInFlightLogs = false } = {}) {
     await this.#endRun('canceled', discardInFlightLogs);
@@ -327,8 +323,8 @@ export class LightmillLogger<
    * Flushes the logger, then marks the run as interrupted. Rejects if logs
    * cannot be stored, unless `discardInFlightLogs` is true: in-flight logs
    * are then dropped instead of flushed, and their `addLog()` promises reject.
-   * A batch already being sent is not aborted, so the server may still store
-   * it.
+   * A batch already being sent is aborted, but the server may already have
+   * stored it.
    */
   async interruptRun({ discardInFlightLogs = false } = {}) {
     await this.#endRun('interrupted', discardInFlightLogs);

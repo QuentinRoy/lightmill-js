@@ -152,6 +152,20 @@ function Experiment({
     }
   }, [logger, timelineCompleted, state.status]);
 
+  // Run stops confirming unload once the timeline is completed, but logs may
+  // still be on their way to the server.
+  const isDelivering =
+    state.status === 'sending' || state.status === 'retrying';
+  useEffect(() => {
+    if (!isDelivering) return;
+    const confirmUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', confirmUnload);
+    return () => window.removeEventListener('beforeunload', confirmUnload);
+  }, [isDelivering]);
+
   return (
     <Run
       timeline={timeline}
@@ -187,4 +201,4 @@ function Paused({ logger }: { logger: Logger }) {
 
 `retry()` sends the held logs again. While it runs, the logger state goes back to `sending` and `Run` resumes; if it fails again, the state becomes `paused` once more. `download` stands for whatever your app uses to save a file.
 
-`Run` turns the unload confirmation off once the timeline is completed, unless `paused` is `true`. Logs still being sent at that point are not protected: add your own `beforeunload` listener if you need it.
+`Run` turns the unload confirmation off once the timeline is completed, unless `paused` is `true`. The `beforeunload` listener above covers the logs still being sent at that point.

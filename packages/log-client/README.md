@@ -14,6 +14,15 @@ This package helps you:
 npm install @lightmill/log-client
 ```
 
+## Browser support
+
+Chrome and Edge 85, Firefox 90, and Safari 15 (macOS and iOS) or later. The
+package ships as ES2022 without transpiling, and uses no browser API newer than
+these versions. Keep it that way, or raise these versions in a major release.
+They are the `browserslist` of its `package.json`, which `pnpm lint` checks
+with eslint-plugin-compat. The plugin misses some APIs, such as
+`AbortSignal.any()`, so check new ones against MDN too.
+
 ## Usage
 
 ```ts
@@ -83,14 +92,14 @@ pauses. It never drops logs on its own:
 - `logger.retry()` sends them again, and resolves once they are stored;
 - `flush()` and `completeRun()` reject while logs are held; `cancelRun()` and
   `interruptRun()` too, unless passed `{ discardInFlightLogs: true }` (a batch
-  already being sent is not aborted, so the server may still store it).
+  already being sent is aborted, but the server may already have stored it).
 - while `completeRun()`, `cancelRun()` or `interruptRun()` ends the run,
   `addLog()` and other calls ending it reject.
 
 `logger.state` reports delivery: `idle`, `sending`, `retrying` (with `error`,
 `attempt` and `delayMs`), `paused` (with `error`), or the ended run's status.
-Only log batches count: retries while `flush()` checks for missing logs or a
-call ends the run show in that call's promise only.
+Only log batches count: retries while `flush()` checks for missing log numbers
+or a call ends the run show in that call's promise only.
 It stays the same object until it changes, and `logger.subscribe(listener)`
 calls `listener` with the new state on each change, so they work with React's
 `useSyncExternalStore`:

@@ -80,15 +80,3 @@ export function toError(error: unknown) {
     ? error
     : new Error('Unknown error', { cause: error });
 }
-
-// A throwing listener must not stop its caller. Its error is reported like an
-// uncaught one.
-export function callSafely(listener: () => void) {
-  try {
-    listener();
-  } catch (error) {
-    queueMicrotask(() => {
-      throw error;
-    });
-  }
-}

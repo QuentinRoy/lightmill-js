@@ -12,17 +12,18 @@ export interface Retry {
 
 // Sends a request again after network errors, timeouts, 5xx, 408 and 429,
 // until it succeeds, fails with another status, the next attempt would start
-// more than retryDurationMs after the first failure, or isCanceled returns
-// true. Each attempt resends the same request and is aborted after timeoutMs.
+// more than retryDurationMs after the first failure, or signal aborts. Each
+// attempt resends the same request and is aborted after timeoutMs or when
+// signal aborts.
 export async function sendWithRetries<T>(
   send: (signal: AbortSignal) => Promise<T>,
   {
     timeoutMs,
-    isCanceled = () => false,
+    signal,
     onRetry = () => {},
   }: {
     timeoutMs: number;
-    isCanceled?: () => boolean;
+    signal?: AbortSignal;
     onRetry?: (retry: Retry) => void;
   },
 ): Promise<T> {
@@ -30,10 +31,10 @@ export async function sendWithRetries<T>(
   for (let attempt = 1; ; attempt++) {
     let error: Error;
     try {
-      return await sendWithTimeout(send, timeoutMs);
+      return await sendWithTimeout(send, timeoutMs, signal);
     } catch (caughtError) {
       error = toError(caughtError);
-      if (!isRetriable(error) || isCanceled()) throw error;
+      if (!isRetriable(error) || signal?.aborted) throw error;
     }
     firstFailure ??= Date.now();
     const backoffMs =
@@ -47,29 +48,43 @@ export async function sendWithRetries<T>(
     if (Date.now() + delayMs - firstFailure > retryDurationMs) throw error;
     onRetry({ error, attempt, delayMs });
     await new Promise((resolve) => setTimeout(resolve, delayMs));
-    if (isCanceled()) throw error;
+    if (signal?.aborted) throw error;
   }
 }
 
+// AbortSignal.any() and AbortSignal#reason would be shorter, but they would
+// raise the browser baseline (see the README).
 async function sendWithTimeout<T>(
   send: (signal: AbortSignal) => Promise<T>,
   timeoutMs: number,
+  signal: AbortSignal | undefined,
 ): Promise<T> {
   const controller = new AbortController();
+  let abortError: DOMException | null = null;
+  const abort = (error: DOMException) => {
+    abortError ??= error;
+    controller.abort();
+  };
   const timeout = setTimeout(() => {
-    controller.abort(
+    abort(
       new DOMException(
         `The server did not answer within ${Math.round(timeoutMs)} ms`,
         'TimeoutError',
       ),
     );
   }, timeoutMs);
+  const abortWithSignal = () => {
+    abort(new DOMException('The request was aborted', 'AbortError'));
+  };
+  signal?.addEventListener('abort', abortWithSignal, { once: true });
+  if (signal?.aborted) abortWithSignal();
   try {
     return await send(controller.signal);
   } catch (error) {
-    throw controller.signal.aborted ? controller.signal.reason : error;
+    throw abortError ?? error;
   } finally {
     clearTimeout(timeout);
+    signal?.removeEventListener('abort', abortWithSignal);
   }
 }
 
