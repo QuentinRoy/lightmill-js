@@ -62,23 +62,23 @@ export class SQLiteDataStore implements DataStore {
    * `SQLiteDataStore.migrateDatabase` first on a new or outdated database.
    * An in-memory database (`':memory:'`) is always new, so it is migrated.
    *
-   * @param db Path to the SQLite database file.
+   * @param dbPath Path to the SQLite database file.
    * @param options Datastore options.
    * @param options.logLevel Log level used for SQL and error logging.
    * @param options.selectQueryLimit Maximum rows returned by large select queries.
    * @throws {DataStoreError} `SCHEMA_OUTDATED` if migrations are pending.
    */
   static async open(
-    db: string,
+    dbPath: string,
     {
       logLevel = loglevel.getLevel(),
       selectQueryLimit = DEFAULT_SELECT_QUERY_LIMIT,
     }: { logLevel?: LogLevelDesc; selectQueryLimit?: number } = {},
   ): Promise<SQLiteDataStore> {
-    const isMemory = db === ':memory:';
+    const isMemory = dbPath === ':memory:';
     // Opening a missing file would create it empty, and a mistyped path would
     // silently leave an empty database behind.
-    const kysely = createKysely(db, logLevel, { fileMustExist: !isMemory });
+    const kysely = createKysely(dbPath, logLevel, { fileMustExist: !isMemory });
     try {
       if (isMemory) {
         await migrate(kysely);
@@ -86,7 +86,7 @@ export class SQLiteDataStore implements DataStore {
         const pending = await getPendingMigrations(kysely);
         if (pending.length > 0) {
           throw new DataStoreError(
-            `Database ${db} has pending migrations (${pending.join(', ')}). Run SQLiteDataStore.migrateDatabase first.`,
+            `Database ${dbPath} has pending migrations (${pending.join(', ')}). Run SQLiteDataStore.migrateDatabase first.`,
             DataStoreError.SCHEMA_OUTDATED,
           );
         }
@@ -103,15 +103,15 @@ export class SQLiteDataStore implements DataStore {
    * Creates the database if needed and applies its pending migrations. Back
    * up an existing database first.
    *
-   * @param db Path to the SQLite database file.
+   * @param dbPath Path to the SQLite database file.
    * @param options.logLevel Log level used for SQL and error logging.
    * @throws {DataStoreError} `MIGRATION_FAILED` if a migration fails.
    */
   static async migrateDatabase(
-    db: string,
+    dbPath: string,
     { logLevel = loglevel.getLevel() }: { logLevel?: LogLevelDesc } = {},
   ): Promise<void> {
-    const kysely = createKysely(db, logLevel);
+    const kysely = createKysely(dbPath, logLevel);
     try {
       await migrate(kysely);
     } finally {
@@ -593,14 +593,16 @@ export class SQLiteDataStore implements DataStore {
 }
 
 function createKysely(
-  db: string,
+  dbPath: string,
   logLevel: LogLevelDesc,
   sqliteOptions: SQLiteDB.Options = {},
 ) {
   const logger = loglevel.getLogger('store');
   logger.setLevel(logLevel);
   return new Kysely<Database>({
-    dialect: new SqliteDialect({ database: new SQLiteDB(db, sqliteOptions) }),
+    dialect: new SqliteDialect({
+      database: new SQLiteDB(dbPath, sqliteOptions),
+    }),
     log: (event) => {
       if (event.level === 'query') {
         logger.debug(event.query.sql, event.query.parameters);
