@@ -89,9 +89,14 @@ async function start({
         ...(sameOrigin ? { allowCrossOrigin: false } : {}),
       }).middleware,
     )
-    .listen(port, () => {
-      log.info(`Listening on port ${port}`);
-    });
+    .listen(port);
+  server.on('listening', () => {
+    // With `--port 0`, the OS picks the port.
+    const address = server.address();
+    const boundPort =
+      address != null && typeof address === 'object' ? address.port : port;
+    log.info(`Listening on port ${boundPort}`);
+  });
   process.on('SIGTERM', () => {
     server.close(async (error) => {
       if (error != null) {
