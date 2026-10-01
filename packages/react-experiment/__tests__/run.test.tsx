@@ -56,6 +56,7 @@ describe('run', () => {
         <div>
           <h1>Type {task.type}</h1>
           <p data-testid="data">{task[dataProp] as string}</p>
+          <input aria-label="Notes" />
           <button onClick={onTaskCompleted}>Complete</button>
         </div>
       );
@@ -237,7 +238,8 @@ describe('run', () => {
     expect(screen.getByTestId('data')).toHaveTextContent('42');
 
     rerender(<Run elements={config} timeline={tasks} loading />);
-    expect(screen.getByTestId('loading')).toBeInTheDocument();
+    expect(screen.getByRole('heading')).toHaveTextContent('Type B');
+    expect(screen.queryByTestId('loading')).not.toBeInTheDocument();
 
     rerender(<Run elements={config} timeline={tasks} />);
     expect(screen.getByRole('heading')).toHaveTextContent('Type B');
@@ -344,6 +346,66 @@ describe('run', () => {
     expect(screen.getByRole('heading')).toHaveTextContent('Bad Task');
     fireEvent.click(screen.getByRole('button'));
     expect(wrapper).toHaveBeenCalledTimes(2);
+  });
+
+  describe('loading while a task is running', () => {
+    const elements = () => ({
+      tasks: {
+        A: <Task type="A" dataProp="a" />,
+        B: <Task type="B" dataProp="b" />,
+      },
+      loading: <div data-testid="loading" />,
+      paused: <div data-testid="paused" />,
+      completed: <div data-testid="end" />,
+    });
+    const timeline: Task[] = [
+      { type: 'A', a: 'hello' },
+      { type: 'B', b: 42 },
+    ];
+
+    it('keeps the running task, then renders elements.loading once it is completed', async () => {
+      const user = userEvent.setup();
+      const els = elements();
+      const { rerender } = render(<Run elements={els} timeline={timeline} />);
+      rerender(<Run elements={els} timeline={timeline} loading />);
+      expect(screen.getByRole('heading')).toHaveTextContent('Type A');
+      await user.click(screen.getByText('Complete'));
+      expect(screen.getByTestId('loading')).toBeInTheDocument();
+      expect(screen.queryByRole('heading')).not.toBeInTheDocument();
+    });
+
+    it('does not remount the task if loading ends before it is completed', async () => {
+      const user = userEvent.setup();
+      const els = elements();
+      const { rerender } = render(<Run elements={els} timeline={timeline} />);
+      await user.type(screen.getByRole('textbox'), 'typed');
+      rerender(<Run elements={els} timeline={timeline} loading />);
+      rerender(<Run elements={els} timeline={timeline} />);
+      expect(screen.getByRole('textbox')).toHaveValue('typed');
+    });
+
+    it('renders elements.loading instead of completed while loading', async () => {
+      const user = userEvent.setup();
+      const els = elements();
+      const { rerender } = render(<Run elements={els} timeline={timeline} />);
+      await user.click(screen.getByText('Complete'));
+      rerender(<Run elements={els} timeline={timeline} loading />);
+      await user.click(screen.getByText('Complete'));
+      expect(screen.getByTestId('loading')).toBeInTheDocument();
+      rerender(<Run elements={els} timeline={timeline} />);
+      expect(screen.getByTestId('end')).toBeInTheDocument();
+    });
+
+    it('renders elements.paused over elements.loading when both are set', async () => {
+      const user = userEvent.setup();
+      const els = elements();
+      const { rerender } = render(<Run elements={els} timeline={timeline} />);
+      rerender(<Run elements={els} timeline={timeline} loading paused />);
+      expect(screen.getByRole('heading')).toHaveTextContent('Type A');
+      await user.click(screen.getByText('Complete'));
+      expect(screen.getByTestId('paused')).toBeInTheDocument();
+      expect(screen.queryByTestId('loading')).not.toBeInTheDocument();
+    });
   });
 
   describe('paused', () => {
@@ -521,46 +583,6 @@ describe('run', () => {
         expect.stringContaining('Logs could not be delivered'),
       );
       spy.mockRestore();
-    });
-
-    it('asks for confirmation before unload while paused, even once completed', async () => {
-      const user = userEvent.setup();
-      const els = elements();
-      const { rerender } = render(
-        <Run elements={els} timeline={singleTaskTimeline} />,
-      );
-      rerender(<Run elements={els} timeline={singleTaskTimeline} paused />);
-      await user.click(screen.getByText('Complete'));
-      const event = new Event('beforeunload', { cancelable: true });
-      globalThis.dispatchEvent(event);
-      expect(event.defaultPrevented).toBe(true);
-    });
-
-    it('never asks for confirmation before unload if confirmBeforeUnload is false', async () => {
-      const user = userEvent.setup();
-      const els = elements();
-      const { rerender } = render(
-        <Run
-          elements={els}
-          timeline={singleTaskTimeline}
-          confirmBeforeUnload={false}
-        />,
-      );
-      rerender(
-        <Run
-          elements={els}
-          timeline={singleTaskTimeline}
-          confirmBeforeUnload={false}
-          paused
-        />,
-      );
-      const duringTask = new Event('beforeunload', { cancelable: true });
-      globalThis.dispatchEvent(duringTask);
-      expect(duringTask.defaultPrevented).toBe(false);
-      await user.click(screen.getByText('Complete'));
-      const whilePaused = new Event('beforeunload', { cancelable: true });
-      globalThis.dispatchEvent(whilePaused);
-      expect(whilePaused.defaultPrevented).toBe(false);
     });
   });
 });

@@ -18,7 +18,6 @@ export type Logger<Log> = (log: Log) => Promise<void>;
 
 export type RunProps<Task extends Typed, Log> = {
   elements: RunElements<Task>;
-  confirmBeforeUnload?: boolean;
   paused?: boolean;
 } & UseRunParameter<Task, Log>;
 
@@ -26,19 +25,14 @@ export type RunProps<Task extends Typed, Log> = {
 // returning undefined, which could indicate a state isn't being handled.
 export function Run<const T extends RegisteredTask>({
   elements,
-  confirmBeforeUnload = true,
   paused = false,
   ...useRunParameter
 }: RunProps<T, RegisteredLog>): React.JSX.Element | null {
-  const { onLog, ...state } = useRun(useRunParameter);
+  const { onLog, loading, ...state } = useRun(useRunParameter);
+  const interrupted = paused || loading;
   const holdsRunningTask = useHoldsRunningTask(
-    paused,
+    interrupted,
     state.status === 'running' ? state.taskKey : null,
-  );
-  // A paused run holds in-flight logs: leaving would lose them, even if the
-  // timeline is completed.
-  useConfirmBeforeUnload(
-    confirmBeforeUnload && (paused || state.status !== 'completed'),
   );
 
   if (paused && elements.paused == null) {
@@ -46,10 +40,11 @@ export function Run<const T extends RegisteredTask>({
       'Logs could not be delivered. Provide elements.paused to <Run /> to handle this and avoid losing logs and progress, for example by offering to retry.',
     );
   }
-  if (paused && !holdsRunningTask) {
+  if (interrupted && !holdsRunningTask) {
+    // paused wins over loading: it needs the participant's attention.
     return (
       <loggerContext.Provider value={onLog ?? noLoggerSymbol}>
-        {elements.paused}
+        {paused ? elements.paused : elements.loading}
       </loggerContext.Provider>
     );
   }
@@ -94,24 +89,25 @@ export function Run<const T extends RegisteredTask>({
   }
 }
 
-// While paused, the task that was running when the pause began stays rendered
-// (interrupting it would only lose what the participant is doing). Once the
-// timeline moves on, elements.paused replaces whatever comes next.
+// While interrupted (paused or loading), the task that was running when the
+// interruption began stays rendered (unmounting it would only lose what the
+// participant is doing). Once the timeline moves on, elements.paused or
+// elements.loading replaces whatever comes next.
 function useHoldsRunningTask(
-  paused: boolean,
+  interrupted: boolean,
   runningTaskKey: symbol | null,
 ): boolean {
-  // null means not paused; heldTaskKey is null if no task was running when the
-  // pause began.
+  // null means not interrupted; heldTaskKey is null if no task was running when
+  // the interruption began.
   const [pause, setPause] = React.useState<{
     heldTaskKey: symbol | null;
   } | null>(null);
   // React restarts the render right after a state update made during render,
   // before anything is committed, so the held task is the one that was
-  // rendered when paused turned true.
-  if (paused && pause == null) {
+  // rendered when the interruption began.
+  if (interrupted && pause == null) {
     setPause({ heldTaskKey: runningTaskKey });
-  } else if (!paused && pause != null) {
+  } else if (!interrupted && pause != null) {
     setPause(null);
   }
   const heldTaskKey = pause == null ? runningTaskKey : pause.heldTaskKey;
@@ -128,6 +124,7 @@ type UseRunParameter<Task extends { type: string }, Log> = {
 );
 type RunState<Task, Log> = Exclude<TimelineState<Task>, { status: 'error' }> & {
   onLog: ((newLog: Log) => void) | null;
+  loading: boolean;
 };
 function useRun<T extends { type: string }, L>({
   onCompleted,
@@ -160,12 +157,10 @@ function useRun<T extends { type: string }, L>({
   if (loggerState.status === 'error') {
     throw loggerState.error;
   }
-  if (loading) {
-    return { status: 'loading', onLog: logWrapper };
-  } else if (timeline == null) {
+  if (!loading && timeline == null) {
     throw new Error('Timeline must be set when loading is false');
   }
-  return { ...timelineState, onLog: logWrapper };
+  return { ...timelineState, onLog: logWrapper, loading };
 }
 
 type LoggerState<L> =
@@ -194,19 +189,4 @@ function useLogWrapper<L>(onLog?: Logger<L>): LoggerState<L> {
   });
 
   return loggerState;
-}
-
-function useConfirmBeforeUnload(isEnabled: boolean) {
-  React.useEffect(() => {
-    if (isEnabled) {
-      let handleBeforeUnload = (event: BeforeUnloadEvent) => {
-        event.preventDefault();
-        event.returnValue = '';
-      };
-      globalThis.addEventListener('beforeunload', handleBeforeUnload);
-      return () => {
-        globalThis.removeEventListener('beforeunload', handleBeforeUnload);
-      };
-    }
-  }, [isEnabled]);
 }
