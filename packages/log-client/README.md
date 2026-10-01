@@ -14,6 +14,12 @@ This package helps you:
 npm install @lightmill/log-client
 ```
 
+## Browser support
+
+Chrome and Edge 85, Firefox 90, and Safari 15 (macOS and iOS) or later. The
+package ships as ES2022 without transpiling, and uses no browser API newer than
+these versions. Keep it that way, or raise these versions in a major release.
+
 ## Usage
 
 ```ts

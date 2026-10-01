@@ -259,7 +259,8 @@ export class DeliveryQueue<Item extends { number: number; size: number }> {
    */
   async retry() {
     if (this.#state.status !== 'paused') return;
-    const last = this.inFlight.at(-1);
+    const inFlight = this.inFlight;
+    const last = inFlight[inFlight.length - 1];
     if (last == null) throw new Error('A paused queue holds items');
     // Leaves the paused state, which would keep flushUpTo() from sending.
     this.#update(this.#deliveryState());
