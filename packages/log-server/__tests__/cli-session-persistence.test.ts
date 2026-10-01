@@ -25,42 +25,45 @@ async function unusedPort(): Promise<number> {
   return port;
 }
 
+// The port is free when picked but another process can take it before the CLI
+// binds it, so retry on a fresh port when the CLI exits before listening.
 async function startServer(
   database: string,
-  port: number,
-): Promise<ChildProcess> {
-  const child = spawn(
-    process.execPath,
-    [
-      cliPath,
-      'start',
-      '--database',
-      database,
-      '--port',
-      String(port),
-      '--session-key',
-      'test-session-key',
-      '--session-max-age-days',
-      '7',
-      '--same-origin',
-    ],
-    { stdio: 'pipe', env: { ...process.env, NODE_ENV: 'production' } },
-  );
-  const url = `http://127.0.0.1:${port}/sessions/current`;
-  for (let attempt = 0; attempt < 100; attempt++) {
-    if (child.exitCode !== null) {
-      throw new Error(`CLI exited before becoming ready: ${child.exitCode}`);
-    }
-    try {
-      const response = await fetch(url);
-      if (response.status === 404) return child;
-    } catch {
-      // The server has not started listening yet.
-    }
-    await new Promise((resolve) => setTimeout(resolve, 50));
+): Promise<{ child: ChildProcess; port: number }> {
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const port = await unusedPort();
+    const child = spawn(
+      process.execPath,
+      [
+        cliPath,
+        'start',
+        '--database',
+        database,
+        '--port',
+        String(port),
+        '--session-key',
+        'test-session-key',
+        '--session-max-age-days',
+        '7',
+        '--same-origin',
+      ],
+      { stdio: 'pipe', env: { ...process.env, NODE_ENV: 'production' } },
+    );
+    const outcome = await Promise.race([
+      waitForOutput(child, 'Listening on port').then(() => 'listening'),
+      once(child, 'exit').then(() => 'exited'),
+    ]);
+    if (outcome === 'listening') return { child, port };
   }
-  child.kill('SIGTERM');
-  throw new Error('CLI did not become ready');
+  throw new Error('CLI could not bind a port');
+}
+
+async function waitForOutput(child: ChildProcess, text: string) {
+  let output = '';
+  for await (const chunk of child.stdout!) {
+    output += String(chunk);
+    if (output.includes(text)) return;
+  }
 }
 
 async function stopServer(child: ChildProcess): Promise<void> {
@@ -73,11 +76,11 @@ async function stopServer(child: ChildProcess): Promise<void> {
 it('CLI sessions and browser cookies survive a restart', async () => {
   const directory = mkdtempSync(path.join(os.tmpdir(), 'lightmill-sessions-'));
   const database = path.join(directory, 'data.sqlite');
-  const port = await unusedPort();
-  const baseUrl = `http://127.0.0.1:${port}`;
   let child: ChildProcess | undefined;
   try {
-    child = await startServer(database, port);
+    let port: number;
+    ({ child, port } = await startServer(database));
+    let baseUrl = `http://127.0.0.1:${port}`;
     const response = await fetch(`${baseUrl}/sessions`, {
       method: 'POST',
       headers: { 'content-type': apiMediaType },
@@ -99,7 +102,9 @@ it('CLI sessions and browser cookies survive a restart', async () => {
 
     await stopServer(child);
     child = undefined;
-    child = await startServer(database, port);
+    // Cookies are not scoped to a port, so the restart may use a different one.
+    ({ child, port } = await startServer(database));
+    baseUrl = `http://127.0.0.1:${port}`;
     const restored = await fetch(`${baseUrl}/sessions/current`, {
       headers: { cookie: cookie! },
     });
