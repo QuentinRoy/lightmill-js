@@ -75,9 +75,12 @@ export class SQLiteDataStore implements DataStore {
       selectQueryLimit = DEFAULT_SELECT_QUERY_LIMIT,
     }: { logLevel?: LogLevelDesc; selectQueryLimit?: number } = {},
   ): Promise<SQLiteDataStore> {
-    const kysely = createKysely(db, logLevel);
+    const isMemory = db === ':memory:';
+    // Opening a missing file would create it empty, and a mistyped path would
+    // silently leave an empty database behind.
+    const kysely = createKysely(db, logLevel, { fileMustExist: !isMemory });
     try {
-      if (db === ':memory:') {
+      if (isMemory) {
         await migrate(kysely);
       } else {
         const pending = await getPendingMigrations(kysely);
@@ -589,11 +592,15 @@ export class SQLiteDataStore implements DataStore {
   }
 }
 
-function createKysely(db: string, logLevel: LogLevelDesc) {
+function createKysely(
+  db: string,
+  logLevel: LogLevelDesc,
+  sqliteOptions: SQLiteDB.Options = {},
+) {
   const logger = loglevel.getLogger('store');
   logger.setLevel(logLevel);
   return new Kysely<Database>({
-    dialect: new SqliteDialect({ database: new SQLiteDB(db) }),
+    dialect: new SqliteDialect({ database: new SQLiteDB(db, sqliteOptions) }),
     log: (event) => {
       if (event.level === 'query') {
         logger.debug(event.query.sql, event.query.parameters);

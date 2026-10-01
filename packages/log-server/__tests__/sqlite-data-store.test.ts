@@ -1,7 +1,7 @@
 /* eslint-disable no-empty-pattern -- Empty objects are required with vitest's fixtures */
 
 import loglevel from 'loglevel';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { times } from 'remeda';
@@ -178,6 +178,11 @@ describe('SQLiteStore.open', () => {
     await expect(SQLiteDataStore.open(database)).rejects.toMatchObject({
       code: DataStoreError.SCHEMA_OUTDATED,
     });
+  });
+
+  it('does not create a missing database', async () => {
+    await expect(SQLiteDataStore.open(database)).rejects.toThrow();
+    expect(existsSync(database)).toBe(false);
   });
 
   it('migrates an in-memory database', async () => {
