@@ -1,4 +1,5 @@
 import SQLiteDB from 'better-sqlite3';
+import type { Store as ExpressSessionStore } from 'express-session';
 import {
   CamelCasePlugin,
   DeduplicateJoinsPlugin,
@@ -38,6 +39,7 @@ import {
   type RunStatus,
   toDbId,
 } from './data-store.ts';
+import { SessionStore } from './session-store.ts';
 
 const __dirname = url.fileURLToPath(new URL('.', import.meta.url));
 
@@ -48,8 +50,11 @@ const MIGRATION_FOLDER = path.join(__dirname, 'db-migrations');
  * SQLite-backed implementation of the Lightmill `DataStore` interface.
  */
 export class SQLiteDataStore implements DataStore {
+  // Transactions must not await real I/O: one then stays open across event
+  // loop turns, holding the file's write lock against other processes.
   #db: Kysely<Database>;
   #selectQueryLimit: number;
+  #sessionStore: SessionStore | undefined;
 
   /**
    * Creates a SQLite datastore.
@@ -80,6 +85,16 @@ export class SQLiteDataStore implements DataStore {
       },
       plugins: [new CamelCasePlugin(), new DeduplicateJoinsPlugin()],
     });
+  }
+
+  /**
+   * The express-session store persisting sessions in this database, on this
+   * data store's connection. Pass it to `LogServer` as `sessionStore`. Every
+   * call returns the same store, which `close()` ends along with the data store.
+   */
+  getSessionStore(): ExpressSessionStore {
+    this.#sessionStore ??= new SessionStore(this.#db);
+    return this.#sessionStore;
   }
 
   async addExperiment({
