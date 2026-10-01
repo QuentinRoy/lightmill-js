@@ -1,6 +1,7 @@
 import js from '@eslint/js';
 import { Linter } from 'eslint';
 import eslintConfigPrettier from 'eslint-config-prettier';
+import compat from 'eslint-plugin-compat';
 import jsdoc from 'eslint-plugin-jsdoc';
 import reactPlugin from 'eslint-plugin-react';
 import globals from 'globals';
@@ -56,6 +57,12 @@ export default tseslint.config(
   {
     files: ['packages/**/src/**/*@(.mjs|.js|.ts|.cjs|.jsx|.tsx)'],
     rules: { 'no-console': 'error' },
+  },
+  {
+    // log-client ships untranspiled to the browsers in its browserslist.
+    ...compat.configs['flat/recommended'],
+    files: ['packages/log-client/src/**/*.ts'],
+    settings: { lintAllEsApis: true },
   },
   {
     files: ['*.cjs'],

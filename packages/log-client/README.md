@@ -19,6 +19,9 @@ npm install @lightmill/log-client
 Chrome and Edge 85, Firefox 90, and Safari 15 (macOS and iOS) or later. The
 package ships as ES2022 without transpiling, and uses no browser API newer than
 these versions. Keep it that way, or raise these versions in a major release.
+They are the `browserslist` of its `package.json`, which `pnpm lint` checks
+with eslint-plugin-compat. The plugin misses some APIs, such as
+`AbortSignal.any()`, so check new ones against MDN too.
 
 ## Usage
 
