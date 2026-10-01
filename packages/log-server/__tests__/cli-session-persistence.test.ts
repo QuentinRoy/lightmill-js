@@ -5,7 +5,6 @@ import {
 } from 'node:child_process';
 import { once } from 'node:events';
 import { mkdtempSync, rmSync } from 'node:fs';
-import { createServer } from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 import * as url from 'node:url';
@@ -16,65 +15,44 @@ import { SQLiteDataStore } from '../src/sqlite-data-store.ts';
 const packageDir = url.fileURLToPath(new URL('..', import.meta.url));
 const cliPath = path.join(packageDir, 'dist', 'cli.js');
 
-async function unusedPort(): Promise<number> {
-  const server = createServer();
-  server.listen(0, '127.0.0.1');
-  await once(server, 'listening');
-  const address = server.address();
-  if (address == null || typeof address === 'string') {
-    throw new Error('Could not allocate a test port');
-  }
-  const port = address.port;
-  server.close();
-  await once(server, 'close');
-  return port;
-}
-
-// The port is free when picked but another process can take it before the CLI
-// binds it, so retry on a fresh port when the CLI exits before listening.
 async function startServer(
   database: string,
 ): Promise<{ child: ChildProcess; port: number }> {
-  for (let attempt = 0; attempt < 5; attempt++) {
-    const port = await unusedPort();
-    const child = spawn(
-      process.execPath,
-      [
-        cliPath,
-        'start',
-        '--database',
-        database,
-        '--port',
-        String(port),
-        '--session-key',
-        'test-session-key',
-        '--session-max-age-days',
-        '7',
-        '--same-origin',
-      ],
-      {
-        stdio: 'pipe',
-        // The "Listening" line is info-level; a LOG_LEVEL inherited from the
-        // developer's shell would hide it.
-        env: { ...process.env, NODE_ENV: 'production', LOG_LEVEL: 'info' },
-      },
-    );
-    if (await printsOutput(child, 'Listening on port')) return { child, port };
-  }
-  throw new Error('CLI could not bind a port');
+  const child = spawn(
+    process.execPath,
+    [
+      cliPath,
+      'start',
+      '--database',
+      database,
+      // Port 0 lets the OS pick a free port when the CLI binds it, so no other
+      // process can take it in between.
+      '--port',
+      '0',
+      '--session-key',
+      'test-session-key',
+      '--session-max-age-days',
+      '7',
+      '--same-origin',
+    ],
+    {
+      stdio: 'pipe',
+      // The "Listening" line is info-level; a LOG_LEVEL inherited from the
+      // developer's shell would hide it.
+      env: { ...process.env, NODE_ENV: 'production', LOG_LEVEL: 'info' },
+    },
+  );
+  return { child, port: await listeningPort(child) };
 }
 
-// Resolves false if the child's stdout closes (it exited) first.
-async function printsOutput(
-  child: ChildProcessWithoutNullStreams,
-  text: string,
-) {
+async function listeningPort(child: ChildProcessWithoutNullStreams) {
   let output = '';
   for await (const chunk of child.stdout) {
     output += String(chunk);
-    if (output.includes(text)) return true;
+    const match = /Listening on port (\d+)/.exec(output);
+    if (match != null) return Number(match[1]);
   }
-  return false;
+  throw new Error('CLI exited before listening');
 }
 
 async function stopServer(child: ChildProcess): Promise<void> {
