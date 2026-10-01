@@ -374,6 +374,25 @@ describe('run', () => {
       expect(screen.queryByRole('heading')).not.toBeInTheDocument();
     });
 
+    it('keeps the running task in StrictMode', async () => {
+      const user = userEvent.setup();
+      const els = elements();
+      const { rerender } = render(
+        <React.StrictMode>
+          <Run elements={els} timeline={timeline} />
+        </React.StrictMode>,
+      );
+      rerender(
+        <React.StrictMode>
+          <Run elements={els} timeline={timeline} paused />
+        </React.StrictMode>,
+      );
+      expect(screen.getByRole('heading')).toHaveTextContent('Type A');
+      expect(screen.queryByTestId('paused')).not.toBeInTheDocument();
+      await user.click(screen.getByText('Complete'));
+      expect(screen.getByTestId('paused')).toBeInTheDocument();
+    });
+
     it('renders the next task once no longer paused', async () => {
       const user = userEvent.setup();
       const els = elements();
