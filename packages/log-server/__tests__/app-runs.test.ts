@@ -13,6 +13,7 @@ import {
   createServerContext,
   generateCombinations,
   host,
+  listen,
   runStatus,
   storeTypes,
   type WithMockedMethods,
@@ -39,7 +40,7 @@ const suite = storeTypes
         });
         const app = express();
         app.use(server.middleware);
-        const api = request.agent(app).host(host);
+        const api = request.agent(await listen(app)).host(host);
         await api
           .post('/sessions')
           .set('content-type', apiMediaType)
