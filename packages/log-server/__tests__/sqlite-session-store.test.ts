@@ -1,5 +1,6 @@
+import SQLiteDB from 'better-sqlite3';
 import express from 'express';
-import type { SessionData } from 'express-session';
+import session, { type SessionData } from 'express-session';
 import { mkdtempSync, rmSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -48,9 +49,15 @@ async function createSession(api: request.Test) {
     .set('Content-Type', 'application/vnd.api+json')
     .send({ data: { type: 'sessions', attributes: { role: 'participant' } } })
     .expect(201);
-  return response.headers['set-cookie']!.map(
-    (c: string) => c.split(';', 1)[0]!,
+  const cookies = (response.get('Set-Cookie') ?? []).map(
+    (cookie) => cookie.split(';', 1)[0] ?? cookie,
   );
+  expect(cookies).not.toHaveLength(0);
+  return cookies;
+}
+
+function toError(error: unknown) {
+  return error instanceof Error ? error : new Error(String(error));
 }
 
 describe('getSessionStore through LogServer', () => {
@@ -102,10 +109,9 @@ describe('getSessionStore through LogServer', () => {
 
 describe('getSessionStore', () => {
   const day = 24 * 60 * 60 * 1000;
-  const sessionData = (expires?: Date) =>
-    ({
-      cookie: { originalMaxAge: null, ...(expires ? { expires } : {}) },
-    }) as SessionData;
+  const sessionData = (expires?: Date): SessionData => ({
+    cookie: new session.Cookie(expires ? { expires } : {}),
+  });
 
   async function openStore() {
     const dataStore = new SQLiteDataStore(database);
@@ -114,13 +120,13 @@ describe('getSessionStore', () => {
     const get = (sid: string) =>
       new Promise<SessionData | null | undefined>((resolve, reject) =>
         store.get(sid, (error, data) =>
-          error ? reject(error as Error) : resolve(data),
+          error ? reject(toError(error)) : resolve(data),
         ),
       );
     const set = (sid: string, data: SessionData) =>
       new Promise<void>((resolve, reject) =>
         store.set(sid, data, (error) =>
-          error ? reject(error as Error) : resolve(),
+          error ? reject(toError(error)) : resolve(),
         ),
       );
     return { dataStore, store, get, set };
@@ -178,6 +184,19 @@ describe('getSessionStore', () => {
         cause: expect.any(Error),
       }),
     );
+    await dataStore.close();
+  });
+
+  it('reports a corrupt session instead of hanging', async () => {
+    const { dataStore, store, set } = await openStore();
+    await set('sid', sessionData(new Date(Date.now() + day)));
+    new SQLiteDB(database)
+      .prepare("UPDATE lightmill_sessions SET data = 'not json'")
+      .run();
+    const error = await new Promise<unknown>((resolve) =>
+      store.get('sid', resolve),
+    );
+    expect(error).toBeInstanceOf(SyntaxError);
     await dataStore.close();
   });
 

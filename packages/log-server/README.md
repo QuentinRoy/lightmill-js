@@ -115,10 +115,10 @@ so existing cookies remain valid. The keys sign cookies; they do not store
 session data.
 
 The standalone `log-server start` command uses `getSessionStore()`, so it
-stores sessions in its `--database` SQLite file, and gives its browser cookie a 30-day lifetime by
-default. Use `--session-max-age-days` or `SESSION_MAX_AGE_DAYS` to change
-that lifetime. Existing sessions are lost if the browser deletes its cookie
-or if the session signing key changes.
+stores sessions in its `--database` SQLite file. It gives its browser cookie a
+30-day lifetime by default. Use `--session-max-age-days` or
+`SESSION_MAX_AGE_DAYS` to change that lifetime. Existing sessions are lost if
+the browser deletes its cookie or if the session signing key changes.
 
 ### `class SQLiteDataStore`
 

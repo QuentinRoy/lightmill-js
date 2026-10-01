@@ -23,17 +23,20 @@ export class SessionStore extends session.Store {
     sid: string,
     callback: (error: unknown, session?: SessionData | null) => void,
   ): void {
-    this.#db
-      .selectFrom('lightmillSessions')
-      .where('sid', '=', sid)
-      .where('expiresAt', '>', Date.now())
-      .select('data')
-      .executeTakeFirst()
-      .then(
-        (row) =>
-          callback(null, row === undefined ? null : JSON.parse(row.data)),
-        (error: unknown) => callback(rethrowMissingTable(error)),
-      );
+    // Parsing is part of the async function, so a corrupt row reaches the
+    // callback instead of leaving it uncalled.
+    settle(
+      (async () => {
+        const row = await this.#db
+          .selectFrom('lightmillSessions')
+          .where('sid', '=', sid)
+          .where('expiresAt', '>', Date.now())
+          .select('data')
+          .executeTakeFirst();
+        return row === undefined ? null : (JSON.parse(row.data) as SessionData);
+      })(),
+      callback,
+    );
   }
 
   set(
@@ -44,12 +47,13 @@ export class SessionStore extends session.Store {
     const now = Date.now();
     const expiresAt =
       data.cookie.expires?.getTime() ?? now + FALLBACK_LIFETIME_MS;
-    this.#db
-      .deleteFrom('lightmillSessions')
-      .where('expiresAt', '<=', now)
-      .execute()
-      .then(() =>
-        this.#db
+    settle(
+      (async () => {
+        await this.#db
+          .deleteFrom('lightmillSessions')
+          .where('expiresAt', '<=', now)
+          .execute();
+        await this.#db
           .insertInto('lightmillSessions')
           .values({ sid, data: JSON.stringify(data), expiresAt })
           .onConflict((conflict) =>
@@ -60,27 +64,32 @@ export class SessionStore extends session.Store {
                 expiresAt: eb.ref('excluded.expiresAt'),
               })),
           )
-          .execute(),
-      )
-      .then(
-        () => callback?.(),
-        (error: unknown) => callback?.(rethrowMissingTable(error)),
-      );
+          .execute();
+      })(),
+      callback,
+    );
   }
 
   destroy(sid: string, callback?: (error?: unknown) => void): void {
-    this.#db
-      .deleteFrom('lightmillSessions')
-      .where('sid', '=', sid)
-      .execute()
-      .then(
-        () => callback?.(),
-        (error: unknown) => callback?.(rethrowMissingTable(error)),
-      );
+    settle(
+      this.#db.deleteFrom('lightmillSessions').where('sid', '=', sid).execute(),
+      callback,
+    );
   }
 }
 
-function rethrowMissingTable(error: unknown): unknown {
+// Reports the outcome of `promise` the express-session way.
+function settle<T>(
+  promise: Promise<T>,
+  callback: ((error: unknown, result?: T) => void) | undefined,
+): void {
+  promise.then(
+    (result) => callback?.(null, result),
+    (error: unknown) => callback?.(explainMissingTable(error)),
+  );
+}
+
+function explainMissingTable(error: unknown): unknown {
   if (
     error instanceof SQLiteDB.SqliteError &&
     error.message.includes('no such table: lightmill_sessions')
