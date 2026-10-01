@@ -50,8 +50,6 @@ const MIGRATION_FOLDER = path.join(__dirname, 'db-migrations');
  * SQLite-backed implementation of the Lightmill `DataStore` interface.
  */
 export class SQLiteDataStore implements DataStore {
-  // Transactions must not await real I/O: one then stays open across event
-  // loop turns, holding the file's write lock against other processes.
   #db: Kysely<Database>;
   #selectQueryLimit: number;
   #sessionStore: SessionStore | undefined;
@@ -151,6 +149,9 @@ export class SQLiteDataStore implements DataStore {
     experimentId: ExperimentId;
     runStatus?: RunStatus | undefined;
   }): Promise<RunRecord> {
+    // Transactions in this class must not await real I/O: one then stays open
+    // across event loop turns, holding the file's write lock against other
+    // processes.
     return this.#db.transaction().execute(async (trx) => {
       let result = await trx
         .insertInto('run')
