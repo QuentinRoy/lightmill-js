@@ -32,7 +32,6 @@ async function openServer(options: { sessionMaxAge?: number } = {}) {
   }).middleware;
   const server = await listen(express().use(middleware));
   return {
-    dataStore,
     // A plain request, so no cookie is carried over unless the test sends it.
     api: () => request(server),
     close: async () => {

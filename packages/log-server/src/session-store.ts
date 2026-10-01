@@ -23,20 +23,7 @@ export class SessionStore extends session.Store {
     sid: string,
     callback: (error: unknown, session?: SessionData | null) => void,
   ): void {
-    // Parsing is part of the async function, so a corrupt row reaches the
-    // callback instead of leaving it uncalled.
-    settle(
-      (async () => {
-        const row = await this.#db
-          .selectFrom('lightmillSessions')
-          .where('sid', '=', sid)
-          .where('expiresAt', '>', Date.now())
-          .select('data')
-          .executeTakeFirst();
-        return row === undefined ? null : (JSON.parse(row.data) as SessionData);
-      })(),
-      callback,
-    );
+    settle(this.#read(sid), callback);
   }
 
   set(
@@ -44,30 +31,7 @@ export class SessionStore extends session.Store {
     data: SessionData,
     callback?: (error?: unknown) => void,
   ): void {
-    const now = Date.now();
-    const expiresAt =
-      data.cookie.expires?.getTime() ?? now + FALLBACK_LIFETIME_MS;
-    settle(
-      (async () => {
-        await this.#db
-          .deleteFrom('lightmillSessions')
-          .where('expiresAt', '<=', now)
-          .execute();
-        await this.#db
-          .insertInto('lightmillSessions')
-          .values({ sid, data: JSON.stringify(data), expiresAt })
-          .onConflict((conflict) =>
-            conflict
-              .column('sid')
-              .doUpdateSet((eb) => ({
-                data: eb.ref('excluded.data'),
-                expiresAt: eb.ref('excluded.expiresAt'),
-              })),
-          )
-          .execute();
-      })(),
-      callback,
-    );
+    settle(this.#write(sid, data), callback);
   }
 
   destroy(sid: string, callback?: (error?: unknown) => void): void {
@@ -75,6 +39,40 @@ export class SessionStore extends session.Store {
       this.#db.deleteFrom('lightmillSessions').where('sid', '=', sid).execute(),
       callback,
     );
+  }
+
+  // Parsing happens in the async method, so a corrupt row reaches the callback
+  // instead of leaving it uncalled.
+  async #read(sid: string): Promise<SessionData | null> {
+    const row = await this.#db
+      .selectFrom('lightmillSessions')
+      .where('sid', '=', sid)
+      .where('expiresAt', '>', Date.now())
+      .select('data')
+      .executeTakeFirst();
+    return row === undefined ? null : JSON.parse(row.data);
+  }
+
+  async #write(sid: string, data: SessionData): Promise<void> {
+    const now = Date.now();
+    const expiresAt =
+      data.cookie.expires?.getTime() ?? now + FALLBACK_LIFETIME_MS;
+    await this.#db
+      .deleteFrom('lightmillSessions')
+      .where('expiresAt', '<=', now)
+      .execute();
+    await this.#db
+      .insertInto('lightmillSessions')
+      .values({ sid, data: JSON.stringify(data), expiresAt })
+      .onConflict((conflict) =>
+        conflict
+          .column('sid')
+          .doUpdateSet((eb) => ({
+            data: eb.ref('excluded.data'),
+            expiresAt: eb.ref('excluded.expiresAt'),
+          })),
+      )
+      .execute();
   }
 }
 
