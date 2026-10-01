@@ -154,7 +154,6 @@ LogServer({
   error that says so.
 - A session lives as long as its cookie, so `sessionMaxAge` sets both. A
   session whose cookie has no expiry lives one day.
-- Keep `sessionKeys` stable across restarts so existing cookies remain valid.
 - `close()` on the data store ends its session store, and later session
   operations fail. Close the HTTP server first, so no request is in flight.
 
