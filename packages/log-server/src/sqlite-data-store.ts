@@ -56,11 +56,15 @@ export class SQLiteDataStore implements DataStore {
 
   // `private` only exists in TypeScript, but it is safe here: a JavaScript
   // caller hits the key check below and gets a TypeError.
-  private constructor(
-    key: symbol,
-    db: Kysely<Database>,
-    selectQueryLimit: number,
-  ) {
+  private constructor({
+    key,
+    db,
+    selectQueryLimit,
+  }: {
+    key: symbol;
+    db: Kysely<Database>;
+    selectQueryLimit: number;
+  }) {
     if (key !== constructorKey) {
       throw new TypeError(
         'SQLiteDataStore cannot be constructed directly. Use SQLiteDataStore.open.',
@@ -109,7 +113,11 @@ export class SQLiteDataStore implements DataStore {
       await kysely.destroy().catch(() => {});
       throw error;
     }
-    return new SQLiteDataStore(constructorKey, kysely, selectQueryLimit);
+    return new SQLiteDataStore({
+      key: constructorKey,
+      db: kysely,
+      selectQueryLimit,
+    });
   }
 
   /**
