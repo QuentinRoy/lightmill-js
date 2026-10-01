@@ -4,6 +4,7 @@ export class RequestError extends Error {
   #name = 'RequestError';
   #status: number;
   #statusText: string;
+  #headers: Headers;
   #errors: ErrorResource[];
 
   constructor(fetchResponse: {
@@ -31,6 +32,11 @@ export class RequestError extends Error {
     }
     this.#status = fetchResponse.response.status;
     this.#statusText = fetchResponse.response.statusText;
+    this.#headers = fetchResponse.response.headers;
+  }
+
+  get headers() {
+    return this.#headers;
   }
 
   get errors() {
@@ -66,3 +72,11 @@ export function assertNever(value: never, isCrashing: boolean = false): never {
 }
 
 export const apiMediaType = 'application/vnd.api+json';
+export const atomicMediaType =
+  `${apiMediaType};ext="https://jsonapi.org/ext/atomic"` as const;
+
+export function toError(error: unknown) {
+  return error instanceof Error
+    ? error
+    : new Error('Unknown error', { cause: error });
+}

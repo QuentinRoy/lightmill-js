@@ -10,7 +10,7 @@ import { setupServer, SetupServerApi } from 'msw/node';
 import type { IsNever, RequiredKeysOf } from 'type-fest';
 import { test, vi, type Mock } from 'vitest';
 import { type paths } from '../src/generated/openapi.js';
-import { apiMediaType } from '../src/utils.js';
+import { apiMediaType, atomicMediaType } from '../src/utils.js';
 
 export type ApiMediaType = typeof apiMediaType;
 const _httpMethods = [
@@ -33,16 +33,12 @@ type ApiRequestBody<
   Path extends keyof paths,
   Method extends PathMethod<Path>,
 > = paths extends { [P in Path]: { [M in Method]: infer Route } }
-  ? Route extends {
-      requestBody: { content: { [K in ApiMediaType]: infer Content } };
-    }
-    ? Content
+  ? Route extends { requestBody: { content: infer Content } }
+    ? Content[keyof Content]
     : Route extends { requestBody?: never }
       ? undefined
-      : Route extends {
-            requestBody?: { content: { [K in ApiMediaType]: infer Content } };
-          }
-        ? Content | undefined
+      : Route extends { requestBody?: { content: infer Content } }
+        ? Content[keyof Content] | undefined
         : never
   : never;
 
@@ -56,6 +52,10 @@ type ApiRequestPathParams<
     ? R
     : Record<PropertyKey, never>
   : never;
+
+// Lets a handler answer outside the API spec, e.g. with a 503 or a network
+// error (HttpResponse.error()).
+export type RawResponse = { raw: Response };
 
 type BaseServerHandler<
   Params = Record<string, string | readonly string[] | undefined>,
@@ -72,7 +72,7 @@ type BaseServerHandler<
   params: Params;
   body: Body;
   request: StrictRequest<Body>;
-}) => Promise<Response> | Response;
+}) => Promise<Response | RawResponse> | Response | RawResponse;
 
 type ServerHandler<
   Path extends keyof paths,
@@ -87,9 +87,11 @@ type ServerHandler<
         : ApiRequestBody<Path, Method>,
       {
         [Status in keyof Responses]: Responses[Status] extends {
-          content: { [K in ApiMediaType]: infer Body extends JsonBodyType };
+          content: infer Content;
         }
-          ? { body: Body; status: Status extends number ? Status : never }
+          ? Content[keyof Content] extends infer Body extends JsonBodyType
+            ? { body: Body; status: Status extends number ? Status : never }
+            : never
           : never;
       }[keyof Responses]
     >
@@ -194,6 +196,22 @@ export class MockServer {
         },
         get: async () => {
           throw new Error('Not implemented: GET /logs');
+        },
+      },
+
+      '/operations': {
+        post: async ({ body }) => {
+          return {
+            body: {
+              'atomic:results': body['atomic:operations'].map((operation) => ({
+                data: {
+                  id: `log-${operation.data.attributes.number}`,
+                  type: 'logs' as const,
+                },
+              })),
+            },
+            status: 200,
+          };
         },
       },
 
@@ -411,7 +429,7 @@ export class MockServer {
     const resolverPath = `${this.#baseUrl}${translatePath(path)}`;
     return http[method](resolverPath, async (info) => {
       try {
-        checkHeaders(info.request);
+        checkHeaders(path, info.request);
       } catch (err: unknown) {
         if (!(err instanceof Error)) {
           throw new Error(
@@ -423,12 +441,13 @@ export class MockServer {
           { status: 400 },
         );
       }
-      const { body, status } = await requestHandler({
+      const result = await requestHandler({
         params: info.params,
         body: info.request.body == null ? undefined : await info.request.json(),
         request: info.request,
       });
-      return HttpResponse.json(body, { status: status ?? 200 });
+      if ('raw' in result) return result.raw;
+      return HttpResponse.json(result.body, { status: result.status ?? 200 });
     });
   }
 
@@ -558,12 +577,14 @@ function parseUrlQuery(url: string) {
   }, {});
 }
 
-function checkHeaders(request: StrictRequest<any>) {
+function checkHeaders(path: string, request: StrictRequest<any>) {
   if (request.body == null) return;
+  const expectedContentType =
+    path === '/operations' ? atomicMediaType : apiMediaType;
   const actualContentType = request.headers.get('content-type');
-  if (actualContentType !== apiMediaType) {
+  if (actualContentType !== expectedContentType) {
     throw new Error(
-      `Expected 'content-type' header to be '${apiMediaType}', but got '${actualContentType}'`,
+      `Expected 'content-type' header to be '${expectedContentType}', but got '${actualContentType}'`,
     );
   }
 }

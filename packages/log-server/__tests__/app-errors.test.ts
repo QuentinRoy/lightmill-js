@@ -3,9 +3,10 @@
 import express from 'express';
 import request from 'supertest';
 import { afterEach, describe, test, vi } from 'vitest';
-import { apiMediaType } from '../src/api.ts';
+import { apiMediaType, atomicMediaType } from '../src/api.ts';
 import {
   apiContentTypeRegExp,
+  atomicContentTypeRegExp,
   createAllRoute,
   createServerContext,
   listen,
@@ -19,6 +20,15 @@ afterEach(() => {
 });
 
 type Fixture = { api: request.Agent };
+
+// Body errors happen before routing, so each route answers them with its own
+// media type: the trailing slash checks the lookup does not depend on its
+// exact spelling.
+const bodyErrorRoutes = [
+  ['/logs', apiMediaType, apiContentTypeRegExp],
+  ['/operations', atomicMediaType, atomicContentTypeRegExp],
+  ['/operations/', atomicMediaType, atomicContentTypeRegExp],
+] as const;
 
 describe.for(storeTypes)('LogServer Errors (%s server)', (storeType) => {
   const it = test.extend<Fixture>({
@@ -80,6 +90,71 @@ describe.for(storeTypes)('LogServer Errors (%s server)', (storeType) => {
         ],
       }
     `);
+  });
+
+  it.for(bodyErrorRoutes)(
+    'returns a 413 error if the body of a request to %s is over 1 MB',
+    async ([path, mediaType, contentTypeRegExp], { api, expect }) => {
+      const response = await api
+        .post(path)
+        .set('Content-Type', mediaType)
+        // The JSON around the padding puts the body over 1 MB.
+        .send(JSON.stringify({ padding: 'x'.repeat(1024 * 1024) }))
+        .expect('Content-Type', contentTypeRegExp)
+        .expect(413);
+      expect(response.body).toEqual({
+        errors: [
+          {
+            status: 'Payload Too Large',
+            code: 'REQUEST_BODY_TOO_LARGE',
+            detail: expect.any(String),
+          },
+        ],
+      });
+    },
+  );
+
+  it.for(bodyErrorRoutes)(
+    'returns a 400 error if the body of a request to %s is not valid JSON',
+    async ([path, mediaType, contentTypeRegExp], { api, expect }) => {
+      const response = await api
+        .post(path)
+        .set('Content-Type', mediaType)
+        .send('{"data": ')
+        .expect('Content-Type', contentTypeRegExp)
+        .expect(400);
+      expect(response.body).toEqual({
+        errors: [
+          {
+            status: 'Bad Request',
+            code: 'INVALID_REQUEST_BODY',
+            detail: expect.any(String),
+          },
+        ],
+      });
+    },
+  );
+
+  it('returns a 415 error if the body of a request has an encoding the server cannot decode', async ({
+    api,
+    expect,
+  }) => {
+    const response = await api
+      .post('/logs')
+      .set('Content-Type', apiMediaType)
+      .set('Content-Encoding', 'not-an-encoding')
+      .send('{}')
+      .expect('Content-Type', apiContentTypeRegExp)
+      .expect(415);
+    expect(response.body).toEqual({
+      errors: [
+        {
+          status: 'Unsupported Media Type',
+          code: 'UNSUPPORTED_MEDIA_TYPE',
+          detail: expect.any(String),
+        },
+      ],
+    });
   });
 
   it('returns a 405 error if an unsupported method is used with an existing resource', async ({

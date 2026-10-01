@@ -12,6 +12,10 @@ export const RequestValidationErrorResponse = getErrorDocumentSchema(
         }),
       })
       .openapi('InvalidRequestBodyError'),
+    // No source: there is no document to point into.
+    getErrorSchema({ code: 'INVALID_REQUEST_BODY', statusCode: 400 })
+      .describe('The request body is not valid JSON')
+      .openapi('MalformedRequestBodyError'),
     getErrorSchema({ code: 'INVALID_REQUEST_QUERY', statusCode: 400 })
       .extend({
         source: z.strictObject({
@@ -47,6 +51,10 @@ export const UnsupportedMediaTypeErrorResponse = getErrorDocumentSchema(
   getErrorSchema({ code: 'UNSUPPORTED_MEDIA_TYPE', statusCode: 415 }),
 ).openapi('UnsupportedMediaTypeErrorResponse');
 
+export const RequestBodyTooLargeErrorResponse = getErrorDocumentSchema(
+  getErrorSchema({ code: 'REQUEST_BODY_TOO_LARGE', statusCode: 413 }),
+).openapi('RequestBodyTooLargeErrorResponse');
+
 export const SessionRequiredErrorResponse = getErrorDocumentSchema(
   getErrorSchema({ code: 'SESSION_REQUIRED', statusCode: 403 }),
 ).openapi('SessionRequiredErrorResponse');
@@ -58,6 +66,7 @@ export const ServerErrorResponse = z
     InternalServerErrorResponse,
     MethodNotAllowedErrorResponse,
     UnsupportedMediaTypeErrorResponse,
+    RequestBodyTooLargeErrorResponse,
     SessionRequiredErrorResponse,
   ])
   .openapi('ServerErrorResponse');

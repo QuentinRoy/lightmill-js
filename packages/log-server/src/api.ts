@@ -100,6 +100,44 @@ export function getAllowedAndFilteredRunIds(
 
 export const apiMediaType = 'application/vnd.api+json' as const;
 export type ApiMediaType = typeof apiMediaType;
+export const atomicMediaType =
+  `${apiMediaType};ext="https://jsonapi.org/ext/atomic"` as const;
+
+/**
+ * Whether a Content-Type header is the same JSON:API media type as `expected`:
+ * same type, same extensions. JSON:API only allows the `ext` and `profile`
+ * parameters, both quoted. A server may ignore profiles, so they are ignored.
+ */
+export function isContentType(header: string, expected: string) {
+  const actual = parseJsonApiMediaType(header);
+  const wanted = parseJsonApiMediaType(expected);
+  return (
+    actual != null &&
+    wanted != null &&
+    actual.type === wanted.type &&
+    actual.extensions.join(' ') === wanted.extensions.join(' ')
+  );
+}
+
+function parseJsonApiMediaType(value: string) {
+  const parametersStart = value.indexOf(';');
+  const type = (parametersStart < 0 ? value : value.slice(0, parametersStart))
+    .trim()
+    .toLowerCase();
+  const parameters = parametersStart < 0 ? '' : value.slice(parametersStart);
+  // Only `; name="quoted value"` pairs are valid, possibly none.
+  if (!/^(\s*;\s*[\w-]+="[^"]*")*\s*$/.test(parameters)) return null;
+  let extensions: string[] | undefined;
+  // Each match captures a parameter's name, then its value without the quotes.
+  for (const match of parameters.matchAll(/;\s*([\w-]+)="([^"]*)"/g)) {
+    const name = match[1]?.toLowerCase();
+    if (name === 'profile') continue;
+    // Extension URIs are case-sensitive, unlike parameter names.
+    if (name !== 'ext' || extensions != null) return null;
+    extensions = (match[2] ?? '').split(' ').filter(Boolean).sort();
+  }
+  return { type, extensions: extensions ?? [] };
+}
 
 export function parseCookies(cookieHeader: string | undefined) {
   if (cookieHeader == null) return {};
@@ -130,6 +168,7 @@ export const httpStatuses = {
   405: 'Method Not Allowed',
   406: 'Not Acceptable',
   409: 'Conflict',
+  413: 'Payload Too Large',
   415: 'Unsupported Media Type',
   500: 'Internal Server Error',
 } as const;

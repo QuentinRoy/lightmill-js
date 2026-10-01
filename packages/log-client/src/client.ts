@@ -1,7 +1,7 @@
 import createClient from 'openapi-fetch';
 import type { components, paths } from './generated/openapi.js';
 import { anyLogSerializer } from './log-serializer.js';
-import { LightmillLogger } from './logger.js';
+import { LightmillLogger, type RequestTimeout } from './logger.js';
 import type {
   AnyLog,
   GetLogValuesWithType,
@@ -19,6 +19,8 @@ import { apiMediaType } from './utils.ts';
 export class LightmillClient<ClientLog extends LogBase = AnyLog> {
   #fetchClient;
   #serializeLog;
+  #requestThrottle;
+  #requestTimeout;
 
   /**
    * Creates a Lightmill API client.
@@ -26,14 +28,22 @@ export class LightmillClient<ClientLog extends LogBase = AnyLog> {
    * @param options Client configuration.
    * @param options.apiRoot Base URL of the log server API.
    * @param options.serializeLog Optional custom serializer for log values.
+   * @param options.requestThrottle Minimum time in milliseconds between the
+   * starts of two log batches. Defaults to 0. `flush()` ignores it.
+   * @param options.requestTimeout How long the logger waits for the server
+   * before retrying a request: `base` milliseconds (default 10000) plus
+   * `perKilobyte` milliseconds per kilobyte sent (default 100).
    */
   constructor({
     apiRoot,
     serializeLog,
-  }: { apiRoot: string; requestThrottle?: number } & (Exclude<
-    ClientLog,
-    AnyLog
-  > extends never
+    requestThrottle,
+    requestTimeout,
+  }: {
+    apiRoot: string;
+    requestThrottle?: number;
+    requestTimeout?: Partial<RequestTimeout>;
+  } & (Exclude<ClientLog, AnyLog> extends never
     ? // We use `Exclude` above to check if all possible `ClientLog` values
       // extends `AnyLog`'s value. `InputLog extends AnyLog` may possibly not be
       // serializable by default because `ClientLog` may contain types of values
@@ -48,6 +58,8 @@ export class LightmillClient<ClientLog extends LogBase = AnyLog> {
     // AnyLog, so we can use the default serializer.
     this.#serializeLog = serializeLog ?? anyLogSerializer;
     this.#fetchClient = createClient<paths>({ baseUrl: apiRoot });
+    this.#requestThrottle = requestThrottle;
+    this.#requestTimeout = requestTimeout;
   }
 
   async #getSession() {
@@ -356,6 +368,8 @@ export class LightmillClient<ClientLog extends LogBase = AnyLog> {
       fetchClient: this.#fetchClient,
       runId,
       lastLogNumber: lastLogNumber,
+      requestThrottle: this.#requestThrottle,
+      requestTimeout: this.#requestTimeout,
     });
   }
 

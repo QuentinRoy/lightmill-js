@@ -48,5 +48,12 @@
   "keywords": [
     "logger",
     "client"
+  ],
+  "browserslist": [
+    "chrome >= 85",
+    "edge >= 85",
+    "firefox >= 90",
+    "safari >= 15",
+    "ios_saf >= 15"
   ]
 }

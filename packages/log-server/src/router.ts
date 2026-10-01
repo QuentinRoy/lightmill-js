@@ -8,7 +8,9 @@ import type { Simplify } from 'type-fest';
 import { z } from 'zod/v4';
 import {
   apiMediaType,
+  atomicMediaType,
   httpStatusCodeFromText,
+  isContentType,
   parseCookies,
   type HttpStatusCodeFromText,
   type HttpStatusText,
@@ -58,7 +60,7 @@ export function validateHandlers({
       );
       let bodySchema;
       if ('body' in routeRequest) {
-        bodySchema = routeRequest.body.content[apiMediaType].schema;
+        bodySchema = Object.values(routeRequest.body.content)[0].schema;
         let isRequired =
           'required' in routeRequest.body &&
           routeRequest.body.required === true;
@@ -120,21 +122,28 @@ export function createRouter({
   for (const [path, methods] of unsafeEntries(handlers)) {
     const expressPath = path.replace(/{(\w+)}/g, ':$1');
     const route = router.route(expressPath);
+    const routeConfigs: Record<string, RouteWithBody> = LogApi.routes[path];
     for (const [method, handler] of unsafeEntries(methods)) {
+      const routeConfig = routeConfigs[method];
+      if (routeConfig == null) {
+        throw new TypeError(`No route config for ${method} ${path}`);
+      }
+      const expectedMediaType = getRequestMediaType(routeConfig);
       route[method](async (request, response) => {
         const { headers, params, query, body, session } = request;
+        const contentType = headers['content-type'];
         if (
-          ('content-type' in headers &&
-            headers['content-type'] != apiMediaType) ||
-          (request.body != null && !('content-type' in headers))
+          (contentType != null &&
+            !isContentType(contentType, expectedMediaType)) ||
+          (request.body != null && contentType == null)
         ) {
           await processResponse({
             result: getErrorResponse({
               status: 'Unsupported Media Type',
               code: 'UNSUPPORTED_MEDIA_TYPE',
               detail:
-                `Content type must be '${apiMediaType}'.` +
-                ` Set 'Content-Type' header to '${apiMediaType}'.`,
+                `Content type must be '${expectedMediaType}'.` +
+                ` Set 'Content-Type' header to '${expectedMediaType}'.`,
             }),
             request,
             response,
@@ -151,7 +160,18 @@ export function createRouter({
           protocol: request.protocol,
           host: request.host,
         });
-        await processResponse({ result, request, response });
+        await processResponse({
+          // Errors raised outside the handler (e.g. validation) don't know
+          // about the extension, but a response to a request using one must
+          // carry it too.
+          result:
+            expectedMediaType === atomicMediaType &&
+            (result.contentType ?? apiMediaType) === apiMediaType
+              ? { ...result, contentType: atomicMediaType }
+              : result,
+          request,
+          response,
+        });
       });
     }
     route.all(async (request, response) => {
@@ -191,6 +211,36 @@ export function createRouter({
   });
 
   return router;
+}
+
+// A route accepts a single request media type: the plain one unless its body
+// is declared with another (the atomic operations extension).
+// The index signature lets routes without a body match: TypeScript rejects
+// them otherwise, for sharing no property with an all-optional type.
+type RouteWithBody = {
+  request: { body?: { content: object }; [key: string]: unknown };
+};
+function getRequestMediaType(route: RouteWithBody) {
+  return route.request.body != null &&
+    atomicMediaType in route.request.body.content
+    ? atomicMediaType
+    : apiMediaType;
+}
+
+/**
+ * The media type the router answers with on `path`, for responses produced
+ * outside of it (e.g. by the body parser, which runs before routing).
+ */
+export function getResponseMediaType(path: string) {
+  const routes: Record<string, Record<string, RouteWithBody>> = LogApi.routes;
+  // Express matches a trailing slash too.
+  const methods = routes[path.replace(/\/+$/, '')];
+  return methods != null &&
+    Object.values(methods).some(
+      (route) => getRequestMediaType(route) === atomicMediaType,
+    )
+    ? atomicMediaType
+    : apiMediaType;
 }
 
 function validateHandler({
@@ -508,24 +558,22 @@ type RequestSchemas<
 
 type RequestBodySchemaFromRoute<P extends Path, M extends keyof Routes[P]> =
   RequestSchemas<P, M> extends {
-    body: {
-      required?: infer Required;
-      content: {
-        [K in typeof apiMediaType]: {
-          schema: infer B extends StandardSchemaV1;
-        };
-      };
-    };
+    body: { required?: infer Required; content: infer Content };
   }
-    ? Required extends true
-      ? StandardSchemaV1<
-          StandardSchemaV1.InferInput<B>,
-          StandardSchemaV1.InferOutput<B>
-        >
-      : StandardSchemaV1<
-          StandardSchemaV1.InferInput<B> | null,
-          StandardSchemaV1.InferOutput<B> | null
-        >
+    ? Content extends Record<
+        string,
+        { schema: infer B extends StandardSchemaV1 }
+      >
+      ? Required extends true
+        ? StandardSchemaV1<
+            StandardSchemaV1.InferInput<B>,
+            StandardSchemaV1.InferOutput<B>
+          >
+        : StandardSchemaV1<
+            StandardSchemaV1.InferInput<B> | null,
+            StandardSchemaV1.InferOutput<B> | null
+          >
+      : never
     : StandardSchemaV1<null>;
 
 type RequestParameterSchemaFromRoute<

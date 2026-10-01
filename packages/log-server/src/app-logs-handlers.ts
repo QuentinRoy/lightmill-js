@@ -1,5 +1,6 @@
 import type { routes } from '@lightmill/log-api';
 import type { StandardSchemaV1 } from '@standard-schema/spec';
+import type { SessionData } from 'express-session';
 import { Readable } from 'node:stream';
 import type { JsonObject } from 'type-fest';
 import { parseAcceptHeader } from './accept-headers.ts';
@@ -13,9 +14,45 @@ import {
 import { csvExportStream } from './csv-export.ts';
 import type { AllFilter } from './data-filters.ts';
 import { DataStoreError } from './data-store-errors.ts';
-import type { DataStore } from './data-store.ts';
+import type { DataStore, RunId } from './data-store.ts';
 import type { HandlerResponseFromRoute, PathHandlers } from './router.ts';
 import { arrayify, firstStrict } from './utils.ts';
+
+/**
+ * The run logs can be added to, or the error response explaining why they
+ * cannot: the session has no access to it, it does not exist, or it is not
+ * running.
+ */
+export async function getRunAcceptingLogs(
+  store: DataStore,
+  sessionData: SessionData['data'],
+  runId: RunId,
+) {
+  let runNotFoundError = getErrorResponse({
+    status: 'Forbidden',
+    code: 'RUN_NOT_FOUND',
+    detail: `Run "${runId}" not found`,
+  });
+  if (sessionData.role !== 'host' && !sessionData.runs.includes(runId)) {
+    return { error: runNotFoundError };
+  }
+  let matchingRuns = await store.getRuns({ runId });
+  if (matchingRuns.length > 1) {
+    throw new Error(`Multiple runs found for id '${runId}'`);
+  }
+  let run = matchingRuns[0];
+  if (run == null) return { error: runNotFoundError };
+  if (run.runStatus != 'running') {
+    return {
+      error: getErrorResponse({
+        status: 'Forbidden',
+        code: 'INVALID_RUN_STATUS',
+        detail: `Cannot add logs to run '${runId}', run is not running. Ensure the run is running before adding logs.`,
+      }),
+    };
+  }
+  return { run };
+}
 
 export const logHandlers = (): PathHandlers<'/logs'> => ({
   '/logs': {
@@ -69,29 +106,11 @@ export const logHandlers = (): PathHandlers<'/logs'> => ({
 
     async post({ dataStore: store, body, sessionData, protocol, host }) {
       let runId = body.data.relationships.run.data.id;
-      let runNotFoundError = getErrorResponse({
-        status: 'Forbidden',
-        code: 'RUN_NOT_FOUND',
-        detail: `Run "${runId}" not found`,
-      });
-      if (sessionData.role !== 'host' && !sessionData.runs.includes(runId)) {
-        return runNotFoundError;
-      }
-      let matchingRuns = await store.getRuns({ runId });
-      if (matchingRuns.length > 1) {
-        throw new Error(`Multiple runs found for id '${runId}'`);
-      }
-      let run = matchingRuns[0];
-      if (run == null) return runNotFoundError;
-      if (run.runStatus != 'running') {
-        return getErrorResponse({
-          status: 'Forbidden',
-          code: 'INVALID_RUN_STATUS',
-          detail: `Cannot add logs to run '${runId}', run is not running. Ensure the run is running before adding logs.`,
-        });
-      }
+      let runOrError = await getRunAcceptingLogs(store, sessionData, runId);
+      if ('error' in runOrError) return runOrError.error;
+      let { run } = runOrError;
       try {
-        let insertedLogId = firstStrict(
+        let { logId: insertedLogId, created } = firstStrict(
           await store.addLogs(run.runId, [
             {
               number: body.data.attributes.number,
@@ -101,9 +120,10 @@ export const logHandlers = (): PathHandlers<'/logs'> => ({
               values: body.data.attributes.values as JsonObject,
             },
           ]),
-        ).logId;
+        );
         return {
-          status: 201,
+          // Nothing was created for a duplicate log (a resend).
+          status: created ? 201 : 200,
           headers: {
             location: `${protocol + '://' + host}/logs/${insertedLogId}`,
           },
@@ -117,7 +137,7 @@ export const logHandlers = (): PathHandlers<'/logs'> => ({
           return getErrorResponse({
             status: 'Conflict',
             code: 'LOG_NUMBER_EXISTS',
-            detail: `Cannot add log to run '${runId}', log number ${body.data.attributes.number} already exists. Ensure the log number is unique within the run.`,
+            detail: `Cannot add log to run '${runId}', log number ${body.data.attributes.number} already exists with a different type or values. Ensure the log number is unique within the run.`,
           });
         }
         throw e;

@@ -7,6 +7,7 @@ import {
   mediaType,
 } from './jsonapi.ts';
 import * as Run from './run-schemas.ts';
+import { RequestBodyTooLargeErrorResponse } from './server-errors.ts';
 import { StringOrArrayOfStrings } from './utils.ts';
 import { z, type RouteConfig } from './zod-openapi.ts';
 
@@ -164,6 +165,12 @@ export const logRoutes = {
           headers: z.strictObject({ location: z.string() }),
           content: { [mediaType]: { schema: LogPostResponse } },
         },
+        200: {
+          description:
+            'Log already stored: the run holds a log with the same number, type, and values',
+          headers: z.strictObject({ location: z.string() }),
+          content: { [mediaType]: { schema: LogPostResponse } },
+        },
         403: {
           description: 'Forbidden',
           content: {
@@ -185,6 +192,12 @@ export const logRoutes = {
                 getErrorSchema({ code: 'LOG_NUMBER_EXISTS', statusCode: 409 }),
               ),
             },
+          },
+        },
+        413: {
+          description: 'The request body is over the size limit (1 MB)',
+          content: {
+            [mediaType]: { schema: RequestBodyTooLargeErrorResponse },
           },
         },
       },

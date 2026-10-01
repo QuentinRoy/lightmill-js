@@ -153,13 +153,17 @@ export interface DataStore {
    * Adds logs to a run
    * @param runId The run ID to add logs to
    * @param logs The logs to add
-   * @returns Array of created log IDs
-   * @throws {StoreError} If the run doesn't exist or if there are log number conflicts
+   * @returns The ID of each log, in the order they were given. `created` is
+   * false for a duplicate log: one the run already holds with the same number,
+   * type, and values, which is not stored again.
+   * @throws {StoreError} If the run doesn't exist, or if a log number is
+   * already used with different content (LOG_NUMBER_EXISTS_IN_SEQUENCE, with
+   * the `logNumber` of the first conflicting log in `logs`)
    */
   addLogs(
     runId: RunId,
     logs: Array<{ type: string; number: number; values: JsonObject }>,
-  ): Promise<Array<{ logId: LogId }>>;
+  ): Promise<Array<{ logId: LogId; created: boolean }>>;
 
   /**
    * Gets all unique log value property names that match the filter

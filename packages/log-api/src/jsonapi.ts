@@ -41,6 +41,7 @@ export const httpStatuses = {
   404: 'Not Found',
   405: 'Method Not Allowed',
   409: 'Conflict',
+  413: 'Payload Too Large',
   415: 'Unsupported Media Type',
   500: 'Internal Server Error',
 } as const;
@@ -108,6 +109,8 @@ export function getErrorDocumentSchema<
 }
 
 export const mediaType = 'application/vnd.api+json' as const;
+export const atomicMediaType =
+  `${mediaType};ext="https://jsonapi.org/ext/atomic"` as const;
 
 export const EmptyDataDocument = getDataDocumentSchema({
   data: z.null(),

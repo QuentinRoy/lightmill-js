@@ -1200,7 +1200,7 @@ describe('SQLiteStore#resumeRun', () => {
 
 describe('SQLiteStore#addLogs', () => {
   function anyLogResult(n: number, e: ExpectStatic = expect) {
-    let o = { logId: e.any(String) };
+    let o = { logId: e.any(String), created: true };
     return times(n, () => o);
   }
 
@@ -1263,6 +1263,93 @@ describe('SQLiteStore#addLogs', () => {
       store.addLogs(e1run1, [
         { type: 'log', number: 3, values: { x: 3 } },
         { type: 'log', number: 4, values: { x: 3 } },
+      ]),
+    ).rejects.toThrowErrorMatchingInlineSnapshot(
+      `[StoreError: Cannot add log: duplicated log number in the sequence.]`,
+    );
+  });
+
+  it('accepts a resent log and returns the stored id', async ({
+    expect,
+    store,
+    e1run1,
+  }) => {
+    const [first] = await store.addLogs(e1run1, [
+      { type: 'log', number: 1, values: { x: 1, y: { a: 1, b: [2] } } },
+    ]);
+    await expect(
+      store.addLogs(e1run1, [
+        // Key order does not matter.
+        { type: 'log', number: 1, values: { y: { b: [2], a: 1 }, x: 1 } },
+      ]),
+    ).resolves.toEqual([{ logId: first.logId, created: false }]);
+    await expect(store.getLogValueNames({ runId: e1run1 })).resolves.toEqual([
+      'x',
+      'y',
+    ]);
+  });
+
+  it('adds only the new logs of a batch that partly duplicates stored ones', async ({
+    expect,
+    store,
+    e1run1,
+  }) => {
+    const [first] = await store.addLogs(e1run1, [
+      { type: 'log', number: 1, values: { x: 1 } },
+    ]);
+    const result = await store.addLogs(e1run1, [
+      { type: 'log', number: 2, values: { z: 1 } },
+      { type: 'log', number: 1, values: { x: 1 } },
+    ]);
+    expect(result[1]).toEqual({ logId: first.logId, created: false });
+    expect(result[0]).toMatchObject({ created: true });
+    expect(result[0].logId).not.toEqual(first.logId);
+    await expect(store.getLogValueNames({ runId: e1run1 })).resolves.toEqual([
+      'x',
+      'z',
+    ]);
+  });
+
+  it('refuses a conflicting log (same number, different type) and stores nothing of its batch', async ({
+    expect,
+    store,
+    e1run1,
+  }) => {
+    await store.addLogs(e1run1, [{ type: 'log', number: 1, values: {} }]);
+    await expect(
+      store.addLogs(e1run1, [
+        { type: 'log', number: 2, values: {} },
+        { type: 'other', number: 1, values: {} },
+      ]),
+    ).rejects.toThrowErrorMatchingInlineSnapshot(
+      `[StoreError: Cannot add log: duplicated log number in the sequence.]`,
+    );
+    await expect(
+      store.addLogs(e1run1, [{ type: 'log', number: 2, values: {} }]),
+    ).resolves.toEqual(anyLogResult(1, expect));
+  });
+
+  it('compares a resent log with the run current sequence only', async ({
+    expect,
+    store,
+    e1run1,
+  }) => {
+    await store.addLogs(e1run1, [
+      { type: 'log', number: 1, values: {} },
+      { type: 'log', number: 2, values: { x: 'canceled' } },
+    ]);
+    await store.resumeRun(e1run1, { after: 1 });
+    const [added] = await store.addLogs(e1run1, [
+      { type: 'log', number: 2, values: { x: 'kept' } },
+    ]);
+    await expect(
+      store.addLogs(e1run1, [
+        { type: 'log', number: 2, values: { x: 'kept' } },
+      ]),
+    ).resolves.toEqual([{ logId: added.logId, created: false }]);
+    await expect(
+      store.addLogs(e1run1, [
+        { type: 'log', number: 2, values: { x: 'canceled' } },
       ]),
     ).rejects.toThrowErrorMatchingInlineSnapshot(
       `[StoreError: Cannot add log: duplicated log number in the sequence.]`,

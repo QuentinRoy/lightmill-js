@@ -1,6 +1,7 @@
 import * as React from 'react';
 import type { RegisteredLog, RegisteredTask, Typed } from './config.js';
 import { loggerContext, noLoggerSymbol, timelineContext } from './contexts.js';
+import { LogDeliveryError } from './errors.js';
 import useManagedTimeline, {
   type AnyIteratorOrIterable,
   type TimelineState,
@@ -10,6 +11,7 @@ export type RunElements<T extends Typed> = {
   tasks: Record<T['type'], React.ReactElement>;
   loading?: React.ReactElement;
   completed?: React.ReactElement;
+  paused?: React.ReactElement;
 };
 
 export type Logger<Log> = (log: Log) => Promise<void>;
@@ -17,6 +19,7 @@ export type Logger<Log> = (log: Log) => Promise<void>;
 export type RunProps<Task extends Typed, Log> = {
   elements: RunElements<Task>;
   confirmBeforeUnload?: boolean;
+  paused?: boolean;
 } & UseRunParameter<Task, Log>;
 
 // This component uses explicit return type to prevent the function from
@@ -24,10 +27,32 @@ export type RunProps<Task extends Typed, Log> = {
 export function Run<const T extends RegisteredTask>({
   elements,
   confirmBeforeUnload = true,
+  paused = false,
   ...useRunParameter
 }: RunProps<T, RegisteredLog>): React.JSX.Element | null {
   const { onLog, ...state } = useRun(useRunParameter);
-  useConfirmBeforeUnload(confirmBeforeUnload && state.status !== 'completed');
+  const holdsRunningTask = useHoldsRunningTask(
+    paused,
+    state.status === 'running' ? state.taskKey : null,
+  );
+  // A paused run holds in-flight logs: leaving would lose them, even if the
+  // timeline is completed.
+  useConfirmBeforeUnload(
+    confirmBeforeUnload && (paused || state.status !== 'completed'),
+  );
+
+  if (paused && elements.paused == null) {
+    throw new LogDeliveryError(
+      'Logs could not be delivered. Provide elements.paused to <Run /> to handle this and avoid losing logs and progress, for example by offering to retry.',
+    );
+  }
+  if (paused && !holdsRunningTask) {
+    return (
+      <loggerContext.Provider value={onLog ?? noLoggerSymbol}>
+        {elements.paused}
+      </loggerContext.Provider>
+    );
+  }
 
   switch (state.status) {
     case 'running': {
@@ -67,6 +92,30 @@ export function Run<const T extends RegisteredTask>({
       throw new Error('Unhandled timeline state');
     }
   }
+}
+
+// While paused, the task that was running when the pause began stays rendered
+// (interrupting it would only lose what the participant is doing). Once the
+// timeline moves on, elements.paused replaces whatever comes next.
+function useHoldsRunningTask(
+  paused: boolean,
+  runningTaskKey: symbol | null,
+): boolean {
+  // null means not paused; heldTaskKey is null if no task was running when the
+  // pause began.
+  const [pause, setPause] = React.useState<{
+    heldTaskKey: symbol | null;
+  } | null>(null);
+  // React restarts the render right after a state update made during render,
+  // before anything is committed, so the held task is the one that was
+  // rendered when paused turned true.
+  if (paused && pause == null) {
+    setPause({ heldTaskKey: runningTaskKey });
+  } else if (!paused && pause != null) {
+    setPause(null);
+  }
+  const heldTaskKey = pause == null ? runningTaskKey : pause.heldTaskKey;
+  return heldTaskKey != null && heldTaskKey === runningTaskKey;
 }
 
 type UseRunParameter<Task extends { type: string }, Log> = {
