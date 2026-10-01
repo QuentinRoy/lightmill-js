@@ -9,7 +9,14 @@ export type TimelineState<Task> =
   | { status: 'idle' }
   | { status: 'canceled' }
   | { status: 'error'; error: Error }
-  | { status: 'running'; task: Task; onTaskCompleted: () => void };
+  | {
+      status: 'running';
+      task: Task;
+      // Different for each started task, even if the timeline yields the same
+      // task object twice.
+      taskKey: symbol;
+      onTaskCompleted: () => void;
+    };
 
 export type AnyIteratorOrIterable<Task> =
   | AsyncIterator<Task>
@@ -56,6 +63,7 @@ export default function useManagedTimeline<Task extends { type: string }>(
         setState({
           status: 'running',
           task,
+          taskKey: Symbol('task'),
           onTaskCompleted() {
             if (hasBeenCompleted) throw new Error('Task already completed');
             runner.completeTask();
