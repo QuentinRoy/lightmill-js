@@ -1,7 +1,7 @@
 import type { Store as SessionStore } from 'express-session';
 import request from 'supertest';
 import { beforeEach, describe, expect } from 'vitest';
-import { apiMediaType } from '../src/api.ts';
+import { apiMediaType, atomicMediaType } from '../src/api.ts';
 import { DataStoreError } from '../src/data-store-errors.ts';
 import type { DataStore, ExperimentId, RunId } from '../src/data-store.ts';
 import {
@@ -255,6 +255,7 @@ describe.each(storeTypes)('LogServer: post /logs (%s)', (storeType) => {
         throw new DataStoreError(
           'Error message that should not be seen by the user',
           DataStoreError.LOG_NUMBER_EXISTS_IN_SEQUENCE,
+          { logNumber: 2 },
         );
       });
       await api
@@ -281,6 +282,292 @@ describe.each(storeTypes)('LogServer: post /logs (%s)', (storeType) => {
         .expect('Content-Type', apiContentTypeRegExp);
     },
   );
+});
+
+describe.each(storeTypes)('LogServer: post /operations (%s)', (storeType) => {
+  const it = createTest(storeType);
+  const atomicContentTypeRegExp =
+    /^application\/vnd\.api\+json(;\s*charset=[^\s;]+)?;\s*ext="https:\/\/jsonapi\.org\/ext\/atomic"/;
+  const add = (
+    runId: string,
+    number: number,
+    values: object = { n: number },
+  ) => ({
+    op: 'add',
+    data: {
+      type: 'logs',
+      attributes: { number, logType: 'test', values },
+      relationships: { run: { data: { type: 'runs', id: runId } } },
+    },
+  });
+  const post = (api: request.Agent, operations: object[]) =>
+    api
+      .post('/operations')
+      .set('Content-Type', atomicMediaType)
+      .send({ 'atomic:operations': operations });
+
+  it('adds logs and answers their ids in order', async ({
+    expect,
+    participantApi,
+    runId,
+    dataStore,
+  }) => {
+    const response = await post(participantApi, [add(runId, 2), add(runId, 1)])
+      .expect(200)
+      .expect('Content-Type', atomicContentTypeRegExp);
+    expect(response.body).toEqual({
+      'atomic:results': [
+        { data: { type: 'logs', id: expect.any(String) } },
+        { data: { type: 'logs', id: expect.any(String) } },
+      ],
+    });
+    expect(dataStore.addLogs).toHaveBeenCalledTimes(1);
+    const [second, first] = response.body['atomic:results'];
+    const logs = await participantApi
+      .get('/logs')
+      .set('Accept', apiMediaType)
+      .expect(200);
+    const numberOf = (id: string) =>
+      logs.body.data.find((l: { id: string }) => l.id === id).attributes.number;
+    expect([numberOf(second.data.id), numberOf(first.data.id)]).toEqual([2, 1]);
+  });
+
+  it('answers the stored ids to a resent batch, and stores what is new', async ({
+    expect,
+    participantApi,
+    runId,
+  }) => {
+    const first = await post(participantApi, [
+      add(runId, 1),
+      add(runId, 2),
+    ]).expect(200);
+    const resent = await post(participantApi, [
+      add(runId, 2),
+      add(runId, 1),
+      add(runId, 3),
+    ]).expect(200);
+    const [id1, id2] = first.body['atomic:results'];
+    expect(resent.body['atomic:results'].slice(0, 2)).toEqual([id2, id1]);
+  });
+
+  it('stores nothing if one log conflicts with a stored one', async ({
+    expect,
+    participantApi,
+    runId,
+  }) => {
+    await post(participantApi, [add(runId, 1)]).expect(200);
+    const response = await post(participantApi, [
+      add(runId, 2),
+      add(runId, 1, { other: 1 }),
+    ])
+      .expect(409)
+      .expect('Content-Type', atomicContentTypeRegExp);
+    expect(response.body).toEqual({
+      errors: [
+        {
+          status: 'Conflict',
+          code: 'LOG_NUMBER_EXISTS',
+          detail: expect.any(String),
+          source: { pointer: '/atomic:operations/1/data/attributes/number' },
+        },
+      ],
+    });
+    // Number 2 was not stored by the failed batch, so it is still free.
+    await post(participantApi, [add(runId, 2, { other: 2 })]).expect(200);
+  });
+
+  it('points at the first conflicting log', async ({
+    expect,
+    participantApi,
+    runId,
+  }) => {
+    await post(participantApi, [add(runId, 1), add(runId, 2)]).expect(200);
+    const response = await post(participantApi, [
+      add(runId, 3),
+      add(runId, 2, { other: 2 }),
+      add(runId, 1, { other: 1 }),
+    ]).expect(409);
+    expect(response.body.errors[0].source.pointer).toBe(
+      '/atomic:operations/1/data/attributes/number',
+    );
+  });
+
+  it('refuses a number repeated within the batch', async ({
+    expect,
+    participantApi,
+    runId,
+  }) => {
+    const response = await post(participantApi, [add(runId, 1), add(runId, 1)])
+      .expect(400)
+      .expect('Content-Type', atomicContentTypeRegExp);
+    expect(response.body).toEqual({
+      errors: [
+        {
+          status: 'Bad Request',
+          code: 'INVALID_REQUEST_BODY',
+          detail: expect.any(String),
+          source: { pointer: '/atomic:operations/1/data/attributes/number' },
+        },
+      ],
+    });
+  });
+
+  it('refuses logs of several runs', async ({
+    expect,
+    participantApi,
+    runId,
+  }) => {
+    const response = await post(participantApi, [
+      add(runId, 1),
+      add('other-run', 2),
+    ])
+      .expect(400)
+      .expect('Content-Type', atomicContentTypeRegExp);
+    expect(response.body).toEqual({
+      errors: [
+        {
+          status: 'Bad Request',
+          code: 'INVALID_REQUEST_BODY',
+          detail: expect.any(String),
+          source: {
+            pointer: '/atomic:operations/1/data/relationships/run/data/id',
+          },
+        },
+      ],
+    });
+  });
+
+  it('refuses operations other than adding logs', async ({
+    expect,
+    participantApi,
+    runId,
+  }) => {
+    const response = await post(participantApi, [
+      { ...add(runId, 1), op: 'remove' },
+    ])
+      .expect(400)
+      .expect('Content-Type', atomicContentTypeRegExp);
+    expect(response.body.errors[0]).toMatchObject({
+      code: 'INVALID_REQUEST_BODY',
+      source: { pointer: '/atomic:operations/0/op' },
+    });
+    await post(participantApi, []).expect(400);
+  });
+
+  it('refuses logs for a run that is not running', async ({
+    expect,
+    participantApi,
+    runId,
+    dataStore,
+  }) => {
+    await participantApi
+      .patch(`/runs/${runId}`)
+      .set('Content-Type', apiMediaType)
+      .send({
+        data: { id: runId, type: 'runs', attributes: { status: 'completed' } },
+      })
+      .expect(200);
+    dataStore.addLogs.mockClear();
+    const response = await post(participantApi, [add(runId, 1)])
+      .expect(403)
+      .expect('Content-Type', atomicContentTypeRegExp);
+    expect(response.body.errors[0]).toMatchObject({
+      code: 'INVALID_RUN_STATUS',
+    });
+    expect(dataStore.addLogs).not.toHaveBeenCalled();
+  });
+
+  it('refuses to add a resource that is not a log', async ({
+    expect,
+    participantApi,
+    runId,
+  }) => {
+    const operation = add(runId, 1);
+    const response = await post(participantApi, [
+      { ...operation, data: { ...operation.data, type: 'runs' } },
+    ])
+      .expect(400)
+      .expect('Content-Type', atomicContentTypeRegExp);
+    expect(response.body.errors[0]).toMatchObject({
+      code: 'INVALID_REQUEST_BODY',
+      source: { pointer: '/atomic:operations/0/data/type' },
+    });
+  });
+
+  it('refuses a run the client has no access to', async ({
+    expect,
+    participantApi,
+    dataStore,
+  }) => {
+    const response = await post(participantApi, [add('does-not-exist', 1)])
+      .expect(403)
+      .expect('Content-Type', atomicContentTypeRegExp);
+    expect(response.body).toEqual({
+      errors: [
+        {
+          status: 'Forbidden',
+          code: 'RUN_NOT_FOUND',
+          detail: 'Run "does-not-exist" not found',
+        },
+      ],
+    });
+    expect(dataStore.addLogs).not.toHaveBeenCalled();
+  });
+
+  it.for([
+    'Application/Vnd.Api+JSON; EXT="https://jsonapi.org/ext/atomic"',
+    `${atomicMediaType}; profile="https://example.com/profile"`,
+  ])(
+    'accepts the content type %s',
+    async (contentType, { participantApi, runId }) => {
+      await participantApi
+        .post('/operations')
+        .set('Content-Type', contentType)
+        .send({ 'atomic:operations': [add(runId, 1)] })
+        .expect(200);
+    },
+  );
+
+  it.for([
+    'application/vnd.api+json; ext="https://JSONAPI.org/ext/atomic"',
+    `${atomicMediaType}; charset=utf-8`,
+    'application/vnd.api+json; ext=https://jsonapi.org/ext/atomic',
+    'application/vnd.api+json; ext="https://jsonapi.org/ext/atomic https://example.com/ext"',
+  ])(
+    'refuses the content type %s',
+    async (contentType, { participantApi, runId }) => {
+      await participantApi
+        .post('/operations')
+        .set('Content-Type', contentType)
+        .send({ 'atomic:operations': [add(runId, 1)] })
+        .expect(415);
+    },
+  );
+
+  it('refuses an unknown extension', async ({ participantApi, runId }) => {
+    await participantApi
+      .post('/operations')
+      .set('Content-Type', `${apiMediaType};ext="https://example.com/ext"`)
+      .send({ 'atomic:operations': [add(runId, 1)] })
+      .expect(415);
+  });
+
+  it('requires the atomic operations media type', async ({
+    participantApi,
+    runId,
+  }) => {
+    const body = { 'atomic:operations': [add(runId, 1)] };
+    await participantApi
+      .post('/operations')
+      .set('Content-Type', apiMediaType)
+      .send(body)
+      .expect(415);
+    await participantApi
+      .post('/logs')
+      .set('Content-Type', atomicMediaType)
+      .send(add(runId, 1))
+      .expect(415);
+  });
 });
 
 describe.each(storeTypes)('LogServer: get /logs (%s)', (storeType) => {

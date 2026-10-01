@@ -108,6 +108,8 @@ export function getErrorDocumentSchema<
 }
 
 export const mediaType = 'application/vnd.api+json' as const;
+export const atomicMediaType =
+  `${mediaType};ext="https://jsonapi.org/ext/atomic"` as const;
 
 export const EmptyDataDocument = getDataDocumentSchema({
   data: z.null(),

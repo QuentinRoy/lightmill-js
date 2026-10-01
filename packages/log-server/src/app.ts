@@ -7,6 +7,7 @@ import MemorySessionStoreModule from 'memorystore';
 import { apiMediaType } from './api.ts';
 import { experimentHandlers } from './app-experiments-handlers.ts';
 import { logHandlers } from './app-logs-handlers.ts';
+import { operationHandlers } from './app-operations-handlers.ts';
 import { runHandlers } from './app-runs-handlers.ts';
 import { sessionHandlers } from './app-sessions-handlers.ts';
 import type { DataStore } from './data-store.ts';
@@ -89,6 +90,7 @@ export function LogServer({
       ...experimentHandlers(),
       ...runHandlers(),
       ...logHandlers(),
+      ...operationHandlers(),
     },
   });
 

@@ -12,13 +12,34 @@ const dataStoreErrorCodeList = [
 type DataStoreErrorCode = (typeof dataStoreErrorCodeList)[number];
 
 export class DataStoreError extends ErrorWithCodes(dataStoreErrorCodeList) {
+  /** The number of the conflicting log, set for LOG_NUMBER_EXISTS_IN_SEQUENCE. */
+  logNumber: number | undefined;
+  constructor(
+    message: string,
+    code: 'LOG_NUMBER_EXISTS_IN_SEQUENCE',
+    options: ErrorOptions & { logNumber: number },
+  );
+  constructor(
+    message: string,
+    code: Exclude<DataStoreErrorCode, 'LOG_NUMBER_EXISTS_IN_SEQUENCE'>,
+    options?: ErrorOptions,
+  );
   constructor(
     message: string,
     code: DataStoreErrorCode,
-    options?: ErrorOptions,
+    options?: ErrorOptions & { logNumber?: number },
   ) {
     super(message, code, options);
     this.name = 'StoreError';
+    // The overloads enforce this for TypeScript callers, not for JavaScript
+    // ones.
+    if (
+      code === 'LOG_NUMBER_EXISTS_IN_SEQUENCE' &&
+      options?.logNumber == null
+    ) {
+      throw new TypeError(`${code} requires the conflicting logNumber`);
+    }
+    this.logNumber = options?.logNumber;
   }
 }
 

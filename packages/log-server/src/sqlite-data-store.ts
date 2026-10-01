@@ -593,8 +593,12 @@ async function findDuplicateIds(
 ) {
   // The unique constraint can't tell a repeat inside the batch from a stored
   // log, and a repeat is never a resend.
-  if (new Set(logs.map((l) => l.number)).size !== logs.length) {
-    throw createLogNumberExistsError(cause);
+  const batchNumbers = new Set<number>();
+  for (const log of logs) {
+    if (batchNumbers.has(log.number)) {
+      throw createLogNumberExistsError(cause, log.number);
+    }
+    batchNumbers.add(log.number);
   }
   const storedLogs = await trx
     .selectFrom('log')
@@ -622,18 +626,18 @@ async function findDuplicateIds(
       stored.logType !== log.type ||
       !isDeepStrictEqual(parseJsonObject(stored.values), log.values)
     ) {
-      throw createLogNumberExistsError(cause);
+      throw createLogNumberExistsError(cause, log.number);
     }
     duplicateIds.set(log.number, stored.logId);
   }
   return duplicateIds;
 }
 
-function createLogNumberExistsError(cause: unknown) {
+function createLogNumberExistsError(cause: unknown, logNumber: number) {
   return new DataStoreError(
     `Cannot add log: duplicated log number in the sequence.`,
     DataStoreError.LOG_NUMBER_EXISTS_IN_SEQUENCE,
-    { cause },
+    { cause, logNumber },
   );
 }
 
