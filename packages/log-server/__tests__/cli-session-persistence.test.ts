@@ -51,7 +51,12 @@ async function startServer(
         '7',
         '--same-origin',
       ],
-      { stdio: 'pipe', env: { ...process.env, NODE_ENV: 'production' } },
+      {
+        stdio: 'pipe',
+        // The "Listening" line is info-level; a LOG_LEVEL inherited from the
+        // developer's shell would hide it.
+        env: { ...process.env, NODE_ENV: 'production', LOG_LEVEL: 'info' },
+      },
     );
     if (await printsOutput(child, 'Listening on port')) return { child, port };
   }
