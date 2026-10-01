@@ -35,3 +35,28 @@ export interface Observer<T, E extends Error> {
 export interface Subscription {
   unsubscribe(): void;
 }
+
+/**
+ * Calls `listener` with every value `subject` emits.
+ *
+ * @returns A function that removes the listener.
+ */
+export function subscribeSafely<T>(
+  subject: Subject<T>,
+  listener: (value: T) => void,
+): () => void {
+  const subscription = subject.subscribe({
+    next: (value) => {
+      // A throwing listener must not stop its caller. Its error is reported
+      // like an uncaught one.
+      try {
+        listener(value);
+      } catch (error) {
+        queueMicrotask(() => {
+          throw error;
+        });
+      }
+    },
+  });
+  return () => subscription.unsubscribe();
+}

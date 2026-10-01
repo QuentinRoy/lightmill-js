@@ -9,12 +9,11 @@ import {
 } from './delivery-queue.ts';
 import type { components, paths } from './generated/openapi.js';
 import { sendWithRetries } from './send-with-retries.ts';
-import { Subject } from './subject.ts';
+import { Subject, subscribeSafely } from './subject.ts';
 import type { LogValuesSerializer, RunStatus } from './types.js';
 import {
   apiMediaType,
   atomicMediaType,
-  callSafely,
   RequestError,
   toError,
 } from './utils.js';
@@ -137,12 +136,8 @@ export class LightmillLogger<
    *
    * @returns A function that removes the listener.
    */
-  subscribe = (listener: (state: LoggerState) => void): (() => void) => {
-    const subscription = this.#stateChanges.subscribe({
-      next: (state) => callSafely(() => listener(state)),
-    });
-    return () => subscription.unsubscribe();
-  };
+  subscribe = (listener: (state: LoggerState) => void): (() => void) =>
+    subscribeSafely(this.#stateChanges, listener);
 
   /**
    * Logs added to the logger that the server has not acknowledged yet,

@@ -1,6 +1,5 @@
 import type { Retry } from './send-with-retries.ts';
-import { Subject } from './subject.ts';
-import { callSafely } from './utils.ts';
+import { Subject, subscribeSafely } from './subject.ts';
 
 export type DeliveryState = Readonly<
   | { status: 'idle' }
@@ -108,12 +107,8 @@ export class DeliveryQueue<Item extends { number: number; size: number }> {
    *
    * @returns A function that removes the listener.
    */
-  subscribe = (listener: (state: DeliveryState) => void): (() => void) => {
-    const subscription = this.#stateChanges.subscribe({
-      next: (state) => callSafely(() => listener(state)),
-    });
-    return () => subscription.unsubscribe();
-  };
+  subscribe = (listener: (state: DeliveryState) => void): (() => void) =>
+    subscribeSafely(this.#stateChanges, listener);
 
   /**
    * Items that are not stored yet, whether queued, being sent, or held while
