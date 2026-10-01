@@ -326,7 +326,7 @@ describe('DeliveryQueue#discard', () => {
     await Promise.all([firstRejection, secondRejection]);
     expect(queue.state).toEqual({ status: 'idle' });
     expect(queue.inFlight).toEqual([]);
-    expect(sent[0].hooks.isCanceled()).toBe(true);
+    expect(sent[0].hooks.signal.aborted).toBe(true);
   });
 
   test('ignores the outcome of the batch it dropped', async () => {

@@ -778,6 +778,30 @@ describe('LogClient retries', () => {
     expect(logger.inFlightLogs).toEqual([]);
     expect(logger.state).toEqual({ status: 'canceled' });
   });
+
+  it('aborts the batch being sent when discarding in-flight logs', async ({
+    logger,
+    server,
+  }) => {
+    const signals: AbortSignal[] = [];
+    server.handlers['/operations'].post.mockImplementationOnce(
+      ({ request }) => {
+        signals.push(request.signal);
+        return new Promise<never>(() => {});
+      },
+    );
+    server.handlers['/runs/{id}'].patch.mockImplementationOnce(() =>
+      rawResponse(403),
+    );
+    const log = logger.addLog({ type: 'mock-log' }).catch((e) => e);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(signals).toHaveLength(1);
+    await expect(
+      logger.cancelRun({ discardInFlightLogs: true }),
+    ).rejects.toMatchObject({ status: 403 });
+    expect(signals[0]?.aborted).toBe(true);
+    await expect(log).resolves.toMatchObject({ name: 'AddLogError' });
+  });
 });
 
 describe('LogClient#completeRun', () => {

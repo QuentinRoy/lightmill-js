@@ -18,7 +18,7 @@ export interface SendFailure {
 }
 
 export interface SendHooks {
-  isCanceled(): boolean;
+  signal: AbortSignal;
   onRetry(retry: Retry): void;
 }
 
@@ -48,6 +48,11 @@ interface Entry<Item> {
   reject: (error: Error) => void;
 }
 
+interface Batch<Item> {
+  entries: Array<Entry<Item>>;
+  controller: AbortController;
+}
+
 /**
  * Sends items in numbered batches, one at a time. A batch that fails for good
  * pauses the queue, which holds its items until `retry()`.
@@ -60,7 +65,7 @@ export class DeliveryQueue<Item extends { number: number; size: number }> {
   // Items waiting for a batch, in number order, including held items.
   #queue: Array<Entry<Item>> = [];
   // The batch waiting for the server's response. There is at most one.
-  #sending: Array<Entry<Item>> | null = null;
+  #sending: Batch<Item> | null = null;
   // The next batch, once scheduled. Its timeout is null when it waits for a
   // microtask rather than for throttleMs.
   #scheduled: { timeout: ReturnType<typeof setTimeout> | null } | null = null;
@@ -75,8 +80,8 @@ export class DeliveryQueue<Item extends { number: number; size: number }> {
 
   /**
    * @param options.send Posts one batch, retries included, and returns null
-   * once it is stored. It must stop retrying when `isCanceled()` returns true,
-   * and report each retry it schedules with `onRetry`.
+   * once it is stored. It must abort its request and stop retrying when
+   * `signal` aborts, and report each retry it schedules with `onRetry`.
    * @param options.throttleMs Minimum time between the starts of two batches.
    * @param options.budget Maximum total `size` of a batch of several items.
    */
@@ -120,7 +125,7 @@ export class DeliveryQueue<Item extends { number: number; size: number }> {
 
   // In number order: the sending batch, then the queue.
   #entries() {
-    return [...(this.#sending ?? []), ...this.#queue];
+    return [...(this.#sending?.entries ?? []), ...this.#queue];
   }
 
   /**
@@ -168,14 +173,15 @@ export class DeliveryQueue<Item extends { number: number; size: number }> {
     this.#scheduled = null;
     // The queue may have been discarded since the batch was scheduled.
     if (this.#queue.length === 0) return;
-    const batch = this.#takeBatch();
-    const batchSize = batch.reduce((total, { item }) => total + item.size, 0);
+    const entries = this.#takeBatch();
+    const batchSize = entries.reduce((total, { item }) => total + item.size, 0);
+    const batch = { entries, controller: new AbortController() };
     this.#sending = batch;
     this.#lastBatchStart = Date.now();
     const failure = await this.#send(
-      batch.map(({ item }) => item),
+      entries.map(({ item }) => item),
       {
-        isCanceled: () => this.#sending !== batch,
+        signal: batch.controller.signal,
         onRetry: (retry) =>
           this.#update(Object.freeze({ status: 'retrying', ...retry })),
       },
@@ -185,20 +191,20 @@ export class DeliveryQueue<Item extends { number: number; size: number }> {
     this.#sending = null;
     let state: DeliveryState;
     if (failure == null) {
-      for (const entry of batch) {
+      for (const entry of entries) {
         entry.resolve();
       }
       state = this.#deliveryState();
-    } else if (failure.tooLarge && batch.length > 1) {
+    } else if (failure.tooLarge && entries.length > 1) {
       // Something between the client and the server accepts smaller bodies
       // than the server does. Resend in halves, down to a single item.
       this.#budget = Math.floor(batchSize / 2);
-      this.#queue.unshift(...batch);
+      this.#queue.unshift(...entries);
       state = this.#deliveryState();
     } else {
-      this.#queue.unshift(...batch);
+      this.#queue.unshift(...entries);
       state = Object.freeze({ status: 'paused', error: failure.error });
-      for (const entry of batch) {
+      for (const entry of entries) {
         entry.reject(failure.error);
       }
     }
@@ -289,19 +295,20 @@ export class DeliveryQueue<Item extends { number: number; size: number }> {
   #hasInFlightUpTo(number: number): boolean {
     // Numbers only increase from the sending batch to the end of the queue, so
     // the first item in flight is enough to tell.
-    const first = this.#sending?.[0] ?? this.#queue[0];
+    const first = this.#sending?.entries[0] ?? this.#queue[0];
     return first != null && first.item.number <= number;
   }
 
   /**
    * Drops the items in flight, and rejects their promises with a
-   * `DiscardedError`. A batch being sent is not aborted, so the server may
-   * still store it.
+   * `DiscardedError`. A batch being sent is aborted, but the server may
+   * already have stored it.
    *
    * @returns The discarded items.
    */
   discard(): Item[] {
     const discarded = this.#entries();
+    this.#sending?.controller.abort();
     this.#sending = null;
     this.#queue = [];
     for (const entry of discarded) {

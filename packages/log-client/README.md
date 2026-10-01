@@ -83,7 +83,7 @@ pauses. It never drops logs on its own:
 - `logger.retry()` sends them again, and resolves once they are stored;
 - `flush()` and `completeRun()` reject while logs are held; `cancelRun()` and
   `interruptRun()` too, unless passed `{ discardInFlightLogs: true }` (a batch
-  already being sent is not aborted, so the server may still store it).
+  already being sent is aborted, but the server may already have stored it).
 - while `completeRun()`, `cancelRun()` or `interruptRun()` ends the run,
   `addLog()` and other calls ending it reject.
 

@@ -312,8 +312,8 @@ export class LightmillLogger<
    * Flushes the logger, then marks the run as canceled. Rejects if logs
    * cannot be stored, unless `discardInFlightLogs` is true: in-flight logs
    * are then dropped instead of flushed, and their `addLog()` promises reject.
-   * A batch already being sent is not aborted, so the server may still store
-   * it.
+   * A batch already being sent is aborted, but the server may already have
+   * stored it.
    */
   async cancelRun({ discardInFlightLogs = false } = {}) {
     await this.#endRun('canceled', discardInFlightLogs);
@@ -323,8 +323,8 @@ export class LightmillLogger<
    * Flushes the logger, then marks the run as interrupted. Rejects if logs
    * cannot be stored, unless `discardInFlightLogs` is true: in-flight logs
    * are then dropped instead of flushed, and their `addLog()` promises reject.
-   * A batch already being sent is not aborted, so the server may still store
-   * it.
+   * A batch already being sent is aborted, but the server may already have
+   * stored it.
    */
   async interruptRun({ discardInFlightLogs = false } = {}) {
     await this.#endRun('interrupted', discardInFlightLogs);
