@@ -49,21 +49,19 @@ async function startServer(
       ],
       { stdio: 'pipe', env: { ...process.env, NODE_ENV: 'production' } },
     );
-    const outcome = await Promise.race([
-      waitForOutput(child, 'Listening on port').then(() => 'listening'),
-      once(child, 'exit').then(() => 'exited'),
-    ]);
-    if (outcome === 'listening') return { child, port };
+    if (await printsOutput(child, 'Listening on port')) return { child, port };
   }
   throw new Error('CLI could not bind a port');
 }
 
-async function waitForOutput(child: ChildProcess, text: string) {
+// Resolves false if the child's stdout closes (it exited) first.
+async function printsOutput(child: ChildProcess, text: string) {
   let output = '';
   for await (const chunk of child.stdout!) {
     output += String(chunk);
-    if (output.includes(text)) return;
+    if (output.includes(text)) return true;
   }
+  return false;
 }
 
 async function stopServer(child: ChildProcess): Promise<void> {
