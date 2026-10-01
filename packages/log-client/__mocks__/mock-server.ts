@@ -53,6 +53,10 @@ type ApiRequestPathParams<
     : Record<PropertyKey, never>
   : never;
 
+// Lets a handler answer outside the API spec, e.g. with a 503 or a network
+// error (HttpResponse.error()).
+export type RawResponse = { raw: Response };
+
 type BaseServerHandler<
   Params = Record<string, string | readonly string[] | undefined>,
   Body extends JsonBodyType = JsonBodyType,
@@ -68,7 +72,7 @@ type BaseServerHandler<
   params: Params;
   body: Body;
   request: StrictRequest<Body>;
-}) => Promise<Response> | Response;
+}) => Promise<Response | RawResponse> | Response | RawResponse;
 
 type ServerHandler<
   Path extends keyof paths,
@@ -437,12 +441,13 @@ export class MockServer {
           { status: 400 },
         );
       }
-      const { body, status } = await requestHandler({
+      const result = await requestHandler({
         params: info.params,
         body: info.request.body == null ? undefined : await info.request.json(),
         request: info.request,
       });
-      return HttpResponse.json(body, { status: status ?? 200 });
+      if ('raw' in result) return result.raw;
+      return HttpResponse.json(result.body, { status: result.status ?? 200 });
     });
   }
 

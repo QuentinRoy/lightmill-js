@@ -1,9 +1,15 @@
 import type { Client as FetchClient } from 'openapi-fetch';
 import type { JsonValue } from 'type-fest';
 import type { components, paths } from './generated/openapi.js';
+import { sendWithRetries } from './send-with-retries.ts';
 import { Subject } from './subject.ts';
 import type { LogValuesSerializer, RunStatus } from './types.js';
-import { apiMediaType, atomicMediaType, RequestError } from './utils.js';
+import {
+  apiMediaType,
+  atomicMediaType,
+  RequestError,
+  toError,
+} from './utils.js';
 
 interface Typed<Type extends string = string> {
   type: Type;
@@ -16,14 +22,55 @@ interface JsonObjectAndDate {
 }
 interface AnyLog extends Typed, OptionallyDated, JsonObjectAndDate {}
 
+/**
+ * State of a logger's log delivery. `idle` and `sending` tell whether logs are
+ * in flight, `retrying` that the last batch failed and will be sent again,
+ * `paused` that retries ran out and in-flight logs are held until `retry()`.
+ * Once the run ends, the state is its status: `completed`, `canceled`, or
+ * `interrupted`. Only log batches count: while `flush()` checks for missing
+ * logs or a call ends the run, retries show in that call's promise only.
+ */
+export type LoggerState = Readonly<
+  | { status: 'idle' }
+  | { status: 'sending' }
+  | { status: 'retrying'; error: Error; attempt: number; delayMs: number }
+  | { status: 'paused'; error: Error }
+  | { status: 'completed' | 'canceled' | 'interrupted' }
+>;
+
+/**
+ * How long a request may take before it is aborted and retried: `base`
+ * milliseconds plus `perKilobyte` milliseconds for each kilobyte sent.
+ */
+export interface RequestTimeout {
+  base: number;
+  perKilobyte: number;
+}
+
+const defaultRequestTimeout: RequestTimeout = {
+  base: 10_000,
+  perKilobyte: 100,
+};
+
 // Serialized operations (not the whole request body) are counted, so the
 // body stays about this size, under the server's 1 MB limit.
-const batchBudget = 512 * 1024;
+const defaultBatchBudget = 512 * 1024;
 const textEncoder = new TextEncoder();
+
+// States without data are constants so that `state` stays the same object
+// until it changes.
+const idleState: LoggerState = Object.freeze({ status: 'idle' });
+const sendingState: LoggerState = Object.freeze({ status: 'sending' });
+const endedStates: Record<Exclude<RunStatus, 'running'>, LoggerState> = {
+  completed: Object.freeze({ status: 'completed' }),
+  canceled: Object.freeze({ status: 'canceled' }),
+  interrupted: Object.freeze({ status: 'interrupted' }),
+};
 
 type AddLogOperation = components['schemas']['AddLogOperation'];
 
-interface QueuedLog {
+interface QueuedLog<ClientLog> {
+  log: ClientLog;
   logNumber: number;
   operation: AddLogOperation;
   size: number;
@@ -37,22 +84,31 @@ export class LightmillLogger<
   #serializeValues: LogValuesSerializer<ClientLog>;
   #runId: string;
   #runStatus: RunStatus = 'running';
+  // Set while a call ends the run. Logs added then would be sent to a run
+  // that is ending.
+  #ending = false;
   #lastLogNumber: number;
   #fetchClient: FetchClient<paths, `${string}/${string}`>;
   #requestThrottle: number;
-  // Logs waiting for a batch, in log number order.
-  #queue: Array<QueuedLog> = [];
+  #requestTimeout: RequestTimeout;
+  // Lowered when the server answers 413 to a batch of several logs.
+  #batchBudget = defaultBatchBudget;
+  // Logs waiting for a batch, in log number order, including held logs.
+  #queue: Array<QueuedLog<ClientLog>> = [];
   // The batch waiting for the server's response. There is at most one.
-  #sendingBatch: Array<QueuedLog> | null = null;
+  #sendingBatch: Array<QueuedLog<ClientLog>> | null = null;
   // The next batch, once scheduled. Its timeout is null when it waits for a
   // microtask rather than for requestThrottle.
   #scheduledBatch: { timeout: ReturnType<typeof setTimeout> | null } | null =
     null;
   #lastBatchStart = -Infinity;
-  // Logs up to this number skip requestThrottle because flush() waits for them.
+  // Logs up to this number skip requestThrottle because flush() or retry()
+  // waits for them.
   #flushedLogNumber = 0;
-  #error: Error | null = null;
-  #logResponseSubject = new Subject<number>();
+  #state: LoggerState = idleState;
+  #stateChanges = new Subject<LoggerState>();
+  // Emits on every change, even one that leaves the state as it is.
+  #changes = new Subject<void>();
 
   constructor({
     runId,
@@ -60,26 +116,66 @@ export class LightmillLogger<
     lastLogNumber,
     fetchClient,
     requestThrottle = 0,
+    requestTimeout,
   }: {
     runId: string;
     lastLogNumber: number;
     fetchClient: FetchClient<paths, `${string}/${string}`>;
     serializeLog: LogValuesSerializer<ClientLog>;
     requestThrottle?: number;
+    requestTimeout?: Partial<RequestTimeout>;
   }) {
     this.#serializeValues = serializeLog;
     this.#runId = runId;
     this.#fetchClient = fetchClient;
     this.#lastLogNumber = lastLogNumber;
     this.#requestThrottle = requestThrottle;
+    this.#requestTimeout = { ...defaultRequestTimeout, ...requestTimeout };
   }
 
-  async addLog({ type, ...values }: ClientLog) {
+  /**
+   * The current state. It is the same object until the state changes.
+   */
+  get state(): LoggerState {
+    return this.#state;
+  }
+
+  /**
+   * Calls `listener` with the new state every time `state` changes. Bound to the logger, so it
+   * can be passed around as is.
+   *
+   * @returns A function that removes the listener.
+   */
+  subscribe = (listener: (state: LoggerState) => void): (() => void) => {
+    const subscription = this.#stateChanges.subscribe({
+      next: (state) => callSafely(() => listener(state)),
+    });
+    return () => subscription.unsubscribe();
+  };
+
+  /**
+   * Logs added to the logger that the server has not acknowledged yet,
+   * whether queued, being sent, or held while the logger is paused.
+   */
+  get inFlightLogs(): ReadonlyArray<ClientLog> {
+    return this.#inFlight().map(({ log }) => log);
+  }
+
+  // In log number order: the sending batch, then the queue.
+  #inFlight() {
+    return [...(this.#sendingBatch ?? []), ...this.#queue];
+  }
+
+  async addLog(log: ClientLog) {
     if (this.#runStatus !== 'running') {
       throw new Error(
         `Can only add logs when logger is running. Logger is ${this.#runStatus}`,
       );
     }
+    if (this.#ending) {
+      throw new Error('Cannot add logs while the run is ending');
+    }
+    const { type, ...values } = log;
     if (type == null) {
       throw new Error(
         'Trying to add a log without a type. Logs must have a type',
@@ -108,14 +204,21 @@ export class LightmillLogger<
     // + 1 for the comma separating operations.
     const size = textEncoder.encode(JSON.stringify(operation)).byteLength + 1;
     const promise = new Promise<void>((resolve, reject) => {
-      this.#queue.push({ logNumber, operation, size, resolve, reject });
+      this.#queue.push({ log, logNumber, operation, size, resolve, reject });
     });
+    this.#update();
     this.#scheduleBatch();
     return promise;
   }
 
   #scheduleBatch() {
-    if (this.#sendingBatch != null || this.#queue.length === 0) return;
+    if (
+      this.#sendingBatch != null ||
+      this.#state.status === 'paused' ||
+      this.#queue.length === 0
+    ) {
+      return;
+    }
     const delay =
       this.#queue[0].logNumber <= this.#flushedLogNumber
         ? 0
@@ -138,53 +241,103 @@ export class LightmillLogger<
 
   async #sendBatch() {
     this.#scheduledBatch = null;
+    // The queue may have been discarded since the batch was scheduled.
+    if (this.#queue.length === 0) return;
     const batch = this.#takeBatch();
+    const batchSize = batch.reduce((total, log) => total + log.size, 0);
     this.#sendingBatch = batch;
     this.#lastBatchStart = Date.now();
-    let error: Error | null = null;
-    try {
-      const response = await this.#fetchClient.POST('/operations', {
-        credentials: 'include',
-        headers: { 'content-type': atomicMediaType },
-        body: { 'atomic:operations': batch.map((log) => log.operation) },
-      });
-      if (response.error != null) {
-        error = new RequestError(response);
-      }
-    } catch (caughtError) {
-      error =
-        caughtError instanceof Error
-          ? caughtError
-          : new Error('Unknown error', { cause: caughtError });
-    }
+    const error = await this.#postBatch(batch, batchSize);
+    // Ending the run with discardInFlightLogs dropped this batch.
+    if (this.#sendingBatch !== batch) return;
     this.#sendingBatch = null;
+    let state = this.#deliveryState();
     if (error == null) {
       for (const log of batch) {
         log.resolve();
-        this.#logResponseSubject.next(log.logNumber);
       }
+    } else if (
+      error instanceof RequestError &&
+      error.status === 413 &&
+      batch.length > 1
+    ) {
+      // Something between the client and the server accepts smaller bodies
+      // than the server does. Resend in halves, down to a single log.
+      this.#batchBudget = Math.floor(batchSize / 2);
+      this.#queue.unshift(...batch);
     } else {
+      this.#queue.unshift(...batch);
+      state = Object.freeze({ status: 'paused', error });
       for (const log of batch) {
-        const logError = new AddLogError(error.message, {
-          cause: error,
-          logNumber: log.logNumber,
-        });
-        this.#error = logError;
-        log.reject(logError);
-        this.#logResponseSubject.error(logError);
+        log.reject(
+          new AddLogError(error.message, {
+            cause: error,
+            logNumber: log.logNumber,
+          }),
+        );
       }
     }
+    this.#update(state);
     this.#scheduleBatch();
   }
 
-  // Takes queued logs up to batchBudget, and always at least one so a log
+  // Returns the error that ended the batch's retries, or null once it is
+  // stored. A failure is returned rather than thrown because it is an expected
+  // outcome: #sendBatch settles it like a success.
+  async #postBatch(
+    batch: Array<QueuedLog<ClientLog>>,
+    batchSize: number,
+  ): Promise<Error | null> {
+    let results;
+    try {
+      results = await sendWithRetries(
+        async (signal) => {
+          const response = await this.#fetchClient.POST('/operations', {
+            credentials: 'include',
+            headers: { 'content-type': atomicMediaType },
+            body: { 'atomic:operations': batch.map((log) => log.operation) },
+            signal,
+          });
+          if (response.error != null) {
+            throw new RequestError(response);
+          }
+          return response.data['atomic:results'];
+        },
+        {
+          timeoutMs: this.#timeoutMs(batchSize),
+          isCanceled: () => this.#sendingBatch !== batch,
+          onRetry: (retry) =>
+            this.#update(Object.freeze({ status: 'retrying', ...retry })),
+        },
+      );
+    } catch (error) {
+      if (
+        error instanceof RequestError &&
+        (error.status === 404 || error.status === 405)
+      ) {
+        return new Error(
+          'The server does not serve POST /operations. Update @lightmill/log-server.',
+          { cause: error },
+        );
+      }
+      return toError(error);
+    }
+    if (results.length !== batch.length) {
+      return new Error(
+        `The server answered a batch of ${batch.length} logs with ${results.length} results`,
+      );
+    }
+    return null;
+  }
+
+  // Takes queued logs up to the batch budget, and always at least one so a log
   // over the budget goes alone.
   #takeBatch() {
     let size = 0;
     let count = 0;
     while (
       count < this.#queue.length &&
-      (count === 0 || size + this.#queue[count].size <= batchBudget)
+      (count === 0 || size + this.#queue[count].size <= this.#batchBudget)
     ) {
       size += this.#queue[count].size;
       count++;
@@ -192,38 +345,58 @@ export class LightmillLogger<
     return this.#queue.splice(0, count);
   }
 
-  async flush() {
-    if (!this.#hasInFlightLogsUpTo(this.#lastLogNumber)) {
-      if (this.#error) {
-        throw this.#error;
-      }
-      return;
+  #timeoutMs(bytes: number) {
+    const { base, perKilobyte } = this.#requestTimeout;
+    return base + (perKilobyte * bytes) / 1024;
+  }
+
+  #deliveryState() {
+    return this.#sendingBatch != null || this.#queue.length > 0
+      ? sendingState
+      : idleState;
+  }
+
+  // Only the batch loop, retry() and ending the run set a state. Otherwise the
+  // state stays paused or retrying, or follows the logs in flight.
+  #update(state?: LoggerState) {
+    if (this.#runStatus !== 'running') {
+      state = endedStates[this.#runStatus];
+    } else if (state == null) {
+      const { status } = this.#state;
+      state =
+        status === 'paused' || status === 'retrying'
+          ? this.#state
+          : this.#deliveryState();
     }
+    if (state !== this.#state) {
+      this.#state = state;
+      this.#stateChanges.next(state);
+    }
+    this.#changes.next();
+  }
+
+  /**
+   * Sends the logs held since the logger paused, with a fresh retry budget.
+   * Does nothing if the logger is not paused.
+   *
+   * @returns A promise that resolves once the logs in flight when it was
+   * called are stored, or rejects if the logger pauses again before.
+   */
+  async retry() {
+    if (this.#state.status !== 'paused') return;
     const lastLogNumber = this.#lastLogNumber;
     this.#flushedLogNumber = lastLogNumber;
+    this.#update(this.#deliveryState());
     this.#scheduleBatch();
-    await new Promise<void>((resolve, reject) => {
-      const subscription = this.#logResponseSubject.subscribe({
-        next: () => {
-          if (!this.#hasInFlightLogsUpTo(lastLogNumber)) {
-            subscription.unsubscribe();
-            resolve();
-          }
-        },
-        error: (error) => {
-          // We are only interested in logs that were added before the flush
-          // call. Errors that are related to logs added after the flush call
-          // should not reject the flush.
-          if (
-            !(error instanceof AddLogError) ||
-            error.logNumber <= lastLogNumber
-          ) {
-            subscription.unsubscribe();
-            reject(error);
-          }
-        },
-      });
-    });
+    await this.#waitForLogsUpTo(lastLogNumber);
+  }
+
+  async flush() {
+    const lastLogNumber = this.#lastLogNumber;
+    if (!this.#hasInFlightLogsUpTo(lastLogNumber)) return;
+    this.#flushedLogNumber = lastLogNumber;
+    this.#scheduleBatch();
+    await this.#waitForLogsUpTo(lastLogNumber);
     const firstMissingLogNumber = await this.#fetchFirstMissingLogNumber();
     // A missing log number at or before lastLogNumber is not in flight
     // anymore, so that log was lost.
@@ -237,6 +410,25 @@ export class LightmillLogger<
     }
   }
 
+  // Resolves once no log up to logNumber is in flight, and rejects if the
+  // logger pauses before.
+  #waitForLogsUpTo(logNumber: number) {
+    return new Promise<void>((resolve, reject) => {
+      const check = () => {
+        const state = this.#state;
+        if (!this.#hasInFlightLogsUpTo(logNumber)) {
+          subscription.unsubscribe();
+          resolve();
+        } else if (state.status === 'paused') {
+          subscription.unsubscribe();
+          reject(state.error);
+        }
+      };
+      const subscription = this.#changes.subscribe({ next: check });
+      check();
+    });
+  }
+
   #hasInFlightLogsUpTo(logNumber: number): boolean {
     // Log numbers only increase from the sending batch to the end of the
     // queue, so the first in-flight log is enough to tell.
@@ -245,56 +437,130 @@ export class LightmillLogger<
   }
 
   async #fetchFirstMissingLogNumber() {
-    const response = await this.#fetchClient.GET('/runs/{id}', {
-      credentials: 'include',
-      params: { path: { id: this.#runId } },
-      headers: { 'content-type': apiMediaType },
-    });
-    if (response.error != null) {
-      throw new RequestError(response);
-    }
-    return response.data.data.attributes.firstMissingLogNumber;
+    return sendWithRetries(
+      async (signal) => {
+        const response = await this.#fetchClient.GET('/runs/{id}', {
+          credentials: 'include',
+          params: { path: { id: this.#runId } },
+          headers: { 'content-type': apiMediaType },
+          signal,
+        });
+        if (response.error != null) {
+          throw new RequestError(response);
+        }
+        return response.data.data.attributes.firstMissingLogNumber;
+      },
+      { timeoutMs: this.#timeoutMs(0) },
+    );
   }
 
+  /**
+   * Flushes the logger, then marks the run as completed. Rejects if logs
+   * cannot be stored: complete the run only once every log is stored.
+   */
   async completeRun() {
     await this.#endRun('completed');
   }
 
-  async cancelRun() {
-    await this.#endRun('canceled');
+  /**
+   * Flushes the logger, then marks the run as canceled. Rejects if logs
+   * cannot be stored, unless `discardInFlightLogs` is true: in-flight logs
+   * are then dropped instead of flushed, and their `addLog()` promises reject.
+   * A batch already being sent is not aborted, so the server may still store
+   * it.
+   */
+  async cancelRun({ discardInFlightLogs = false } = {}) {
+    await this.#endRun('canceled', discardInFlightLogs);
   }
 
-  async interruptRun() {
-    await this.#endRun('interrupted');
+  /**
+   * Flushes the logger, then marks the run as interrupted. Rejects if logs
+   * cannot be stored, unless `discardInFlightLogs` is true: in-flight logs
+   * are then dropped instead of flushed, and their `addLog()` promises reject.
+   * A batch already being sent is not aborted, so the server may still store
+   * it.
+   */
+  async interruptRun({ discardInFlightLogs = false } = {}) {
+    await this.#endRun('interrupted', discardInFlightLogs);
   }
 
-  async #endRun(runStatus: 'canceled' | 'completed' | 'interrupted') {
+  async #endRun(
+    runStatus: 'canceled' | 'completed' | 'interrupted',
+    discardInFlightLogs = false,
+  ) {
     if (this.#runStatus !== 'running') {
       throw new Error(
-        `Cannot end a run that is not running. Run is ${runStatus}`,
+        `Cannot end a run that is not running. Run is ${this.#runStatus}`,
       );
     }
-    await this.flush();
-    let response = await this.#fetchClient.PATCH('/runs/{id}', {
-      credentials: 'include',
-      params: { path: { id: this.#runId } },
-      headers: { 'content-type': apiMediaType },
-      body: {
-        data: {
-          type: 'runs',
-          id: this.#runId,
-          attributes: { status: runStatus },
-        },
-      },
-    });
-    if (response.error) {
-      throw new RequestError(response);
+    if (this.#ending) {
+      throw new Error('The run is already ending');
     }
-    this.#runStatus = runStatus;
+    this.#ending = true;
+    try {
+      if (discardInFlightLogs) {
+        this.#discardInFlightLogs();
+      } else {
+        await this.flush();
+      }
+      // The server answers 200 when the run already has the target status, so
+      // a retry after a lost response succeeds.
+      await sendWithRetries(
+        async (signal) => {
+          const response = await this.#fetchClient.PATCH('/runs/{id}', {
+            credentials: 'include',
+            params: { path: { id: this.#runId } },
+            headers: { 'content-type': apiMediaType },
+            body: {
+              data: {
+                type: 'runs',
+                id: this.#runId,
+                attributes: { status: runStatus },
+              },
+            },
+            signal,
+          });
+          if (response.error != null) {
+            throw new RequestError(response);
+          }
+        },
+        { timeoutMs: this.#timeoutMs(0) },
+      );
+      this.#runStatus = runStatus;
+      this.#update();
+    } finally {
+      this.#ending = false;
+    }
+  }
+
+  #discardInFlightLogs() {
+    const discarded = this.#inFlight();
+    this.#sendingBatch = null;
+    this.#queue = [];
+    for (const log of discarded) {
+      log.reject(
+        new AddLogError('The log was discarded when the run ended', {
+          logNumber: log.logNumber,
+        }),
+      );
+    }
+    this.#update(this.#deliveryState());
   }
 }
 
 export type Logger = LightmillLogger;
+
+// A throwing listener must not stop the logger. Its error is reported like an
+// uncaught one.
+function callSafely(listener: () => void) {
+  try {
+    listener();
+  } catch (error) {
+    queueMicrotask(() => {
+      throw error;
+    });
+  }
+}
 
 class AddLogError extends Error {
   name = 'AddLogError' as const;
