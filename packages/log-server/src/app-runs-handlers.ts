@@ -60,11 +60,13 @@ export const runHandlers = (): PathHandlers<'/runs'> => ({
             detail: 'Client already has ongoing runs, end them first',
           });
         }
-        const run = await store.addRun({
-          runStatus: status,
-          experimentId: experimentId,
-          runName: name,
-        });
+        const run = await store.withTransaction((tx) =>
+          tx.addRun({
+            runStatus: status,
+            experimentId: experimentId,
+            runName: name,
+          }),
+        );
         return {
           sessionData: {
             ...sessionData,
@@ -246,8 +248,11 @@ export const runHandlers = (): PathHandlers<'/runs'> => ({
               ` Ensure the last log number is less than or equal to the last log number of the run.`,
           });
         }
-        await store.resumeRun(targetRun.runId, {
-          after: requestedLastLogNumber,
+        await store.withTransaction(async (tx) => {
+          await tx.cancelLogsAfter(targetRun.runId, {
+            after: requestedLastLogNumber,
+          });
+          await tx.setRunStatus(targetRun.runId, 'running');
         });
       } else if (futureRunStatus !== oldRunStatus) {
         if (futureRunStatus === 'idle') {
@@ -255,7 +260,9 @@ export const runHandlers = (): PathHandlers<'/runs'> => ({
             'Transitioning to an idle status is not supposed to be allowed',
           );
         }
-        await store.setRunStatus(targetRun.runId, futureRunStatus);
+        await store.withTransaction((tx) =>
+          tx.setRunStatus(targetRun.runId, futureRunStatus),
+        );
       }
       const { runs } = await getRunResources(store, {
         filter: { runId: targetRun.runId },

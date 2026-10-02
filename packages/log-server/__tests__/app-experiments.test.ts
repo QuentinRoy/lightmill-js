@@ -3,6 +3,7 @@ import { apiMediaType } from '../src/api.ts';
 import {
   apiContentTypeRegExp,
   createSessionTest,
+  seed,
   storeTypes,
 } from './test-utils.ts';
 
@@ -43,7 +44,9 @@ describe.for(hostTests)(
       session: { api, dataStore },
       expect,
     }) => {
-      await dataStore.addExperiment({ experimentName: 'exp-name' });
+      await seed(dataStore, (tx) =>
+        tx.addExperiment({ experimentName: 'exp-name' }),
+      );
 
       const answer = await api
         .post('/experiments')
@@ -109,16 +112,20 @@ describe.for(allTests)(
           vi.useFakeTimers({ now: new Date('2023-01-01T00:00:00Z') });
           const experiments = await Promise.all(
             ['exp-1-name', 'exp-2-name', 'exp-3-name'].map((name) =>
-              dataStore.addExperiment({ experimentName: name }),
+              seed(dataStore, (tx) =>
+                tx.addExperiment({ experimentName: name }),
+              ),
             ),
           );
           const runs = await Promise.all(
             experiments.map((exp, index) => {
-              return dataStore.addRun({
-                experimentId: exp.experimentId,
-                runName: `run-${index + 1}-name`,
-                runStatus: 'running',
-              });
+              return seed(dataStore, (tx) =>
+                tx.addRun({
+                  experimentId: exp.experimentId,
+                  runName: `run-${index + 1}-name`,
+                  runStatus: 'running',
+                }),
+              );
             }),
           );
           vi.useRealTimers();
@@ -178,9 +185,9 @@ describe.for(allTests)(
     it('returns an experiment by ID', async ({
       session: { api, dataStore },
     }) => {
-      let { experimentId } = await dataStore.addExperiment({
-        experimentName: 'exp-1-name',
-      });
+      let { experimentId } = await seed(dataStore, (tx) =>
+        tx.addExperiment({ experimentName: 'exp-1-name' }),
+      );
 
       await api
         .get(`/experiments/${experimentId}`)

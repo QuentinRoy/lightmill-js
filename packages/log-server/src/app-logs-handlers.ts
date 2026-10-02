@@ -111,15 +111,17 @@ export const logHandlers = (): PathHandlers<'/logs'> => ({
       let { run } = runOrError;
       try {
         let { logId: insertedLogId, created } = firstStrict(
-          await store.addLogs(run.runId, [
-            {
-              number: body.data.attributes.number,
-              type: body.data.attributes.logType,
-              // values is necessarily a JsonObject since it's coming from the
-              // request body.
-              values: body.data.attributes.values as JsonObject,
-            },
-          ]),
+          await store.withTransaction((tx) =>
+            tx.addLogs(run.runId, [
+              {
+                number: body.data.attributes.number,
+                type: body.data.attributes.logType,
+                // values is necessarily a JsonObject since it's coming from the
+                // request body.
+                values: body.data.attributes.values as JsonObject,
+              },
+            ]),
+          ),
         );
         return {
           // Nothing was created for a duplicate log (a resend).

@@ -53,7 +53,9 @@ If you embed `LogServer`, add the experiment to the datastore after opening
 it and before accepting runs. Run this setup only once for each name:
 
 ```ts
-await dataStore.addExperiment({ experimentName: 'pointing-study' });
+await dataStore.withTransaction((tx) =>
+  tx.addExperiment({ experimentName: 'pointing-study' }),
+);
 ```
 
 For a running server, create a host session with `POST /sessions` and then
@@ -134,7 +136,9 @@ code `SCHEMA_OUTDATED` if it has pending migrations. Apply them first with
 database. Back up an existing database first. An in-memory database
 (`':memory:'`) is always migrated.
 
-Implements all `DataStore` methods for experiments, runs, logs, filters, and shutdown.
+Implements `DataStore`. A transaction takes SQLite's write lock when it
+starts, and waits for it up to the driver's default of five seconds before it
+rejects with `TRANSACTION_CONFLICT`.
 
 #### `getSessionStore()`
 
@@ -161,13 +165,66 @@ LogServer({
 
 ### `DataStore` type
 
-Contract for custom datastore implementations. Includes methods such as:
+Contract for custom datastore implementations. Reads work anywhere, and every
+write goes through `withTransaction`:
 
-- `addExperiment`, `getExperiments`
-- `addRun`, `resumeRun`, `setRunStatus`, `getRuns`
-- `addLogs`, `getLogs`, `getLastLogs`
-- `getLogValueNames`
-- `close`
+- Reads, on the store and inside a transaction: `getExperiments`, `getRuns`,
+  `getLogs`, `getLastLogs`, `getLogValueNames`.
+- `withTransaction(fn)`: runs `fn` with a `DataStoreTransaction` and resolves
+  with what `fn` returns.
+- `close()`, and `[Symbol.asyncDispose]()`, which does the same.
+
+A `DataStoreTransaction` adds the writes `addExperiment`, `addRun`,
+`setRunStatus`, `cancelLogsAfter`, and `addLogs`. Run lifecycle rules, like
+which status can follow which, are not part of this contract: a custom
+datastore only needs to reject what its backend states itself, like a foreign
+key or a duplicate run name.
+
+```ts
+await dataStore.withTransaction(async (tx) => {
+  const run = await tx.addRun({ experimentId, runStatus: 'running' });
+  await tx.addLogs(run.runId, [{ type: 'start', number: 1, values: {} }]);
+});
+```
+
+`withTransaction` guarantees:
+
+- **Isolation.** Transactions are serializable. A transaction that cannot be
+  serialized, or waits too long for a lock, rejects with a `DataStoreError`
+  with code `TRANSACTION_CONFLICT`, and nothing is persisted. Trying again may
+  succeed.
+- **Commit and rollback.** `fn` resolving commits, and `fn` throwing rolls
+  back and rejects with the same error. Never commit or roll back yourself.
+  After a rejected call on the transaction, `fn` must throw: nothing is
+  promised about a transaction that kept going.
+- **Callback rule.** `fn` must only make calls on its transaction, and await
+  each of them. The datastore holds a lock while `fn` runs, and `fn` may run
+  again after a conflict. A call still pending when `fn` finishes rolls the
+  transaction back and rejects with a `TypeError`.
+- **No nesting.** The transaction has no `withTransaction`. In JavaScript,
+  calling one throws a `TypeError`.
+- **Scope.** Once `fn` finishes, every call on the transaction, and every pull
+  of a log generator it returned, rejects with `TRANSACTION_ENDED`.
+- **Failed commit or rollback.** A commit that fails rejects with
+  `TRANSACTION_COMMIT_FAILED` (`cause` is the commit error), or
+  `TRANSACTION_CONFLICT` when it failed from a conflict. A rollback that fails
+  rejects with `TRANSACTION_ROLLBACK_FAILED`: `cause` is the rollback error,
+  `originalError` is the error that caused the rollback, and what was
+  persisted is unknown.
+- **Closing.** `close()` rejects new operations with `STORE_CLOSED` at once,
+  waits for the ones in flight, then releases the connection. It can be
+  called many times. Calling it inside `fn` deadlocks. The creator of a
+  datastore closes it: `LogServer` never closes the one it is given.
+
+The documented `DataStoreError` codes are the same for every datastore, and a
+driver error is their `cause`. A failure with no documented code propagates
+unchanged.
+
+`DataStore` is an `AsyncDisposable`, so a script can write
+`await using store = await SQLiteDataStore.open(path)`. That syntax needs
+TypeScript 5.2 or later, and runs natively on Node 24 and later. On Node 22,
+compile with a target below `esnext`. Type declarations reference the
+`esnext.disposable` library, so type-only consumers need nothing more.
 
 ## CLI
 

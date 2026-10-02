@@ -3,12 +3,14 @@ import request from 'supertest';
 import { beforeEach, describe, expect } from 'vitest';
 import { apiMediaType, atomicMediaType } from '../src/api.ts';
 import { DataStoreError } from '../src/data-store-errors.ts';
-import type { DataStore, ExperimentId, RunId } from '../src/data-store.ts';
+import type { ExperimentId, RunId } from '../src/data-store.ts';
 import {
   apiContentTypeRegExp,
   atomicContentTypeRegExp,
   createSessionTest,
+  seed,
   storeTypes,
+  type MockedDataStore,
   type StoreType,
   type WithMockedMethods,
 } from './test-utils.ts';
@@ -16,7 +18,7 @@ import {
 type TestContext = {
   runId: RunId;
   experimentId: ExperimentId;
-  dataStore: WithMockedMethods<DataStore>;
+  dataStore: MockedDataStore;
   sessionStore: WithMockedMethods<SessionStore>;
   participantApi: request.Agent;
   hostApi: request.Agent;
@@ -116,7 +118,7 @@ describe.each(storeTypes)('LogServer: post /logs (%s)', (storeType) => {
       expect(response.body).toEqual({
         data: { type: 'logs', id: expect.any(String) },
       });
-      expect(dataStore.addLogs).toHaveBeenCalledWith(runId, [
+      expect(dataStore.tx.addLogs).toHaveBeenCalledWith(runId, [
         { type: 'test', values: { x: 'x' }, number: 1 },
       ]);
       expect(response.headers.location).toBe(
@@ -192,7 +194,7 @@ describe.each(storeTypes)('LogServer: post /logs (%s)', (storeType) => {
         ],
       })
       .expect('Content-Type', apiContentTypeRegExp);
-    expect(dataStore.addLogs).not.toHaveBeenCalled();
+    expect(dataStore.tx.addLogs).not.toHaveBeenCalled();
   });
 
   it('allows hosts to add logs to any run', async ({
@@ -244,7 +246,7 @@ describe.each(storeTypes)('LogServer: post /logs (%s)', (storeType) => {
           ],
         })
         .expect('Content-Type', apiContentTypeRegExp);
-      expect(dataStore.addLogs).not.toHaveBeenCalled();
+      expect(dataStore.tx.addLogs).not.toHaveBeenCalled();
     },
   );
 
@@ -252,7 +254,7 @@ describe.each(storeTypes)('LogServer: post /logs (%s)', (storeType) => {
     'refuses to add logs if their number is already in used (%s user)',
     async (userType, { participantApi, hostApi, dataStore, runId }) => {
       const api = userType === 'host' ? hostApi : participantApi;
-      dataStore.addLogs.mockImplementation(async () => {
+      dataStore.tx.addLogs.mockImplementation(async () => {
         throw new DataStoreError(
           'Error message that should not be seen by the user',
           DataStoreError.LOG_NUMBER_EXISTS_IN_SEQUENCE,
@@ -320,7 +322,7 @@ describe.each(storeTypes)('LogServer: post /operations (%s)', (storeType) => {
         { data: { type: 'logs', id: expect.any(String) } },
       ],
     });
-    expect(dataStore.addLogs).toHaveBeenCalledTimes(1);
+    expect(dataStore.tx.addLogs).toHaveBeenCalledTimes(1);
     const [second, first] = response.body['atomic:results'];
     const logs = await participantApi
       .get('/logs')
@@ -478,14 +480,14 @@ describe.each(storeTypes)('LogServer: post /operations (%s)', (storeType) => {
         data: { id: runId, type: 'runs', attributes: { status: 'completed' } },
       })
       .expect(200);
-    dataStore.addLogs.mockClear();
+    dataStore.tx.addLogs.mockClear();
     const response = await post(participantApi, [add(runId, 1)])
       .expect(403)
       .expect('Content-Type', atomicContentTypeRegExp);
     expect(response.body.errors[0]).toMatchObject({
       code: 'INVALID_RUN_STATUS',
     });
-    expect(dataStore.addLogs).not.toHaveBeenCalled();
+    expect(dataStore.tx.addLogs).not.toHaveBeenCalled();
   });
 
   it('refuses to add a resource that is not a log', async ({
@@ -522,7 +524,7 @@ describe.each(storeTypes)('LogServer: post /operations (%s)', (storeType) => {
         },
       ],
     });
-    expect(dataStore.addLogs).not.toHaveBeenCalled();
+    expect(dataStore.tx.addLogs).not.toHaveBeenCalled();
   });
 
   it.for([
@@ -586,20 +588,22 @@ describe.each(storeTypes)('LogServer: get /logs (%s)', (storeType) => {
 
   beforeEach<TestContext>(
     async ({ dataStore: dataStore, runId, experimentId }) => {
-      await dataStore.addLogs(runId, [
-        { type: 'log-type', values: { x: 'x1', y: 'y1' }, number: 1 },
-        { type: 'log-type', values: { y: 'y2', x: 'x2' }, number: 2 },
-        { type: 'log-type', values: { y: 'y3', x: 'x3' }, number: 3 },
-      ]);
-      let newRun = await dataStore.addRun({
-        runName: 'other-run',
-        experimentId,
-        runStatus: 'running',
-      });
-      await dataStore.addLogs(newRun.runId, [
-        { type: 'log-type', values: { x: 'x4', y: 'y4' }, number: 1 },
-        { type: 'log-type', values: { y: 'y5', x: 'x5' }, number: 2 },
-      ]);
+      await seed(dataStore, (tx) =>
+        tx.addLogs(runId, [
+          { type: 'log-type', values: { x: 'x1', y: 'y1' }, number: 1 },
+          { type: 'log-type', values: { y: 'y2', x: 'x2' }, number: 2 },
+          { type: 'log-type', values: { y: 'y3', x: 'x3' }, number: 3 },
+        ]),
+      );
+      let newRun = await seed(dataStore, (tx) =>
+        tx.addRun({ runName: 'other-run', experimentId, runStatus: 'running' }),
+      );
+      await seed(dataStore, (tx) =>
+        tx.addLogs(newRun.runId, [
+          { type: 'log-type', values: { x: 'x4', y: 'y4' }, number: 1 },
+          { type: 'log-type', values: { y: 'y5', x: 'x5' }, number: 2 },
+        ]),
+      );
     },
   );
 
@@ -660,16 +664,8 @@ describe.each(storeTypes)('LogServer: get /logs (%s)', (storeType) => {
 
   it('returns only logs a participant has access to', async ({
     expect,
-    dataStore,
-    experimentId,
     participantApi,
   }) => {
-    dataStore.addRun({ runName: 'other-run', experimentId });
-    dataStore.addLogs('other-run', [
-      { type: 'log-type', values: { x: 'x4', y: 'y4' }, number: 1 },
-      { type: 'log-type', values: { y: 'y5', x: 'x5' }, number: 2 },
-    ]);
-
     let result = await participantApi
       .set('Accept', apiMediaType)
       .get('/logs')
@@ -693,47 +689,63 @@ describe.each(storeTypes)('LogServer: get /logs (%s)', (storeType) => {
         async ({ dataStore, experimentId: otherExperimentId }, use) => {
           const testRunName = 'log-test-run';
           const testExperimentName = 'log-test-experiment';
-          const { experimentId: testExperimentId } =
-            await dataStore.addExperiment({
-              experimentName: testExperimentName,
-            });
-          const { runId: testRunId } = await dataStore.addRun({
-            runName: testRunName,
-            experimentId: testExperimentId,
-            runStatus: 'running',
-          });
-          const { runId: r1 } = await dataStore.addRun({
-            runName: 'other-run-1',
-            experimentId: testExperimentId,
-            runStatus: 'running',
-          });
-          const { runId: r2 } = await dataStore.addRun({
-            runName: testRunName,
-            experimentId: otherExperimentId,
-            runStatus: 'running',
-          });
-          const { runId: r3 } = await dataStore.addRun({
-            runName: 'other-run-2',
-            experimentId: otherExperimentId,
-            runStatus: 'running',
-          });
+          const { experimentId: testExperimentId } = await seed(
+            dataStore,
+            (tx) => tx.addExperiment({ experimentName: testExperimentName }),
+          );
+          const { runId: testRunId } = await seed(dataStore, (tx) =>
+            tx.addRun({
+              runName: testRunName,
+              experimentId: testExperimentId,
+              runStatus: 'running',
+            }),
+          );
+          const { runId: r1 } = await seed(dataStore, (tx) =>
+            tx.addRun({
+              runName: 'other-run-1',
+              experimentId: testExperimentId,
+              runStatus: 'running',
+            }),
+          );
+          const { runId: r2 } = await seed(dataStore, (tx) =>
+            tx.addRun({
+              runName: testRunName,
+              experimentId: otherExperimentId,
+              runStatus: 'running',
+            }),
+          );
+          const { runId: r3 } = await seed(dataStore, (tx) =>
+            tx.addRun({
+              runName: 'other-run-2',
+              experimentId: otherExperimentId,
+              runStatus: 'running',
+            }),
+          );
           let v = 1;
-          await dataStore.addLogs(testRunId, [
-            { type: 'log-type', values: { value: v++ }, number: 1 },
-            { type: 'test-type', values: { value: v++ }, number: 2 },
-          ]);
-          await dataStore.addLogs(r1, [
-            { type: 'log-type', values: { value: v++ }, number: 1 },
-            { type: 'test-type', values: { value: v++ }, number: 2 },
-          ]);
-          await dataStore.addLogs(r2, [
-            { type: 'test-type', values: { value: v++ }, number: 1 },
-            { type: 'log-type', values: { value: v++ }, number: 2 },
-          ]);
-          await dataStore.addLogs(r3, [
-            { type: 'test-type', values: { value: v++ }, number: 1 },
-            { type: 'log-type', values: { value: v++ }, number: 2 },
-          ]);
+          await seed(dataStore, (tx) =>
+            tx.addLogs(testRunId, [
+              { type: 'log-type', values: { value: v++ }, number: 1 },
+              { type: 'test-type', values: { value: v++ }, number: 2 },
+            ]),
+          );
+          await seed(dataStore, (tx) =>
+            tx.addLogs(r1, [
+              { type: 'log-type', values: { value: v++ }, number: 1 },
+              { type: 'test-type', values: { value: v++ }, number: 2 },
+            ]),
+          );
+          await seed(dataStore, (tx) =>
+            tx.addLogs(r2, [
+              { type: 'test-type', values: { value: v++ }, number: 1 },
+              { type: 'log-type', values: { value: v++ }, number: 2 },
+            ]),
+          );
+          await seed(dataStore, (tx) =>
+            tx.addLogs(r3, [
+              { type: 'test-type', values: { value: v++ }, number: 1 },
+              { type: 'log-type', values: { value: v++ }, number: 2 },
+            ]),
+          );
           use({
             testRunId: r1,
             testRunName,
@@ -848,13 +860,14 @@ describe.for(storeTypes)('LogServer: get /logs/{id} (%s)', (storeType) => {
     participantApi,
     experimentId,
   }) => {
-    const { runId } = await dataStore.addRun({
-      experimentId,
-      runStatus: 'running',
-    });
-    const [logRecord] = await dataStore.addLogs(runId, [
-      { type: 'log-type', values: { value: 'v' }, number: 1 },
-    ]);
+    const { runId } = await seed(dataStore, (tx) =>
+      tx.addRun({ experimentId, runStatus: 'running' }),
+    );
+    const [logRecord] = await seed(dataStore, (tx) =>
+      tx.addLogs(runId, [
+        { type: 'log-type', values: { value: 'v' }, number: 1 },
+      ]),
+    );
     dataStore.getLogs.mockImplementation(async function* () {});
     await participantApi
       .get(`/logs/${logRecord!.logId}`)
@@ -888,9 +901,11 @@ describe.for(storeTypes)('LogServer: get /logs/{id} (%s)', (storeType) => {
   });
 
   it('returns the log', async ({ dataStore, participantApi, runId }) => {
-    const [logRecord] = await dataStore.addLogs(runId, [
-      { type: 'log-type', values: { value: 'v' }, number: 1 },
-    ]);
+    const [logRecord] = await seed(dataStore, (tx) =>
+      tx.addLogs(runId, [
+        { type: 'log-type', values: { value: 'v' }, number: 1 },
+      ]),
+    );
     const logId = logRecord!.logId;
     await participantApi
       .get(`/logs/${logId}`)

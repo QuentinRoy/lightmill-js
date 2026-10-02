@@ -58,15 +58,17 @@ export const operationHandlers = (): PathHandlers<'/operations'> => ({
       const { run } = runOrError;
 
       try {
-        const results = await store.addLogs(
-          run.runId,
-          operations.map(({ data }) => ({
-            number: data.attributes.number,
-            type: data.attributes.logType,
-            // values is necessarily a JsonObject since it's coming from the
-            // request body.
-            values: data.attributes.values as JsonObject,
-          })),
+        const results = await store.withTransaction((tx) =>
+          tx.addLogs(
+            run.runId,
+            operations.map(({ data }) => ({
+              number: data.attributes.number,
+              type: data.attributes.logType,
+              // values is necessarily a JsonObject since it's coming from the
+              // request body.
+              values: data.attributes.values as JsonObject,
+            })),
+          ),
         );
         return {
           contentType: atomicMediaType,
