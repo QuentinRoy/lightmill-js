@@ -16,6 +16,7 @@ import {
   type HttpStatusText,
   type UserRole,
 } from './api.ts';
+import { DataStoreError } from './data-store-errors.ts';
 import type { DataStore, RunId } from './data-store.ts';
 import {
   toJsonPointer,
@@ -159,6 +160,23 @@ export function createRouter({
           dataStore,
           protocol: request.protocol,
           host: request.host,
+        }).catch((error: unknown) => {
+          // The store persisted nothing, and the same request may succeed.
+          if (
+            error instanceof DataStoreError &&
+            error.code === 'TRANSACTION_CONFLICT'
+          ) {
+            return {
+              ...getErrorResponse({
+                status: 'Service Unavailable',
+                code: 'SERVICE_UNAVAILABLE',
+                detail:
+                  'The server could not process the request right now, and nothing was saved. Try again.',
+              }),
+              headers: { 'retry-after': '1' },
+            };
+          }
+          throw error;
         });
         await processResponse({
           // Errors raised outside the handler (e.g. validation) don't know

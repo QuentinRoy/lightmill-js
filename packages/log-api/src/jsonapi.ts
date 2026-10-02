@@ -44,6 +44,7 @@ export const httpStatuses = {
   413: 'Payload Too Large',
   415: 'Unsupported Media Type',
   500: 'Internal Server Error',
+  503: 'Service Unavailable',
 } as const;
 export type HttpStatusMap = typeof httpStatuses;
 export type HttpStatusCode = keyof HttpStatusMap;

@@ -2145,6 +2145,24 @@ export function describeDataStoreContract(
         ).resolves.toMatchObject({ runName: 'run1' });
       });
 
+      it('refuses to bring back a canceled run whose name was taken since', async ({
+        expect,
+        store,
+        e1run1: run,
+        experiment1,
+      }) => {
+        await store.withTransaction((tx) => tx.setRunStatus(run, 'canceled'));
+        await store.withTransaction((tx) =>
+          tx.addRun({ experimentId: experiment1, runName: 'run1' }),
+        );
+        await expect(
+          store.withTransaction((tx) => tx.setRunStatus(run, 'running')),
+        ).rejects.toMatchObject({ code: DataStoreError.RUN_EXISTS });
+        await expect(store.getRuns({ runId: run })).resolves.toMatchObject([
+          { runStatus: 'canceled' },
+        ]);
+      });
+
       it('lets only one of two concurrent transactions take a name', async ({
         expect,
         store,

@@ -98,8 +98,8 @@ describe('SQLite constraints and triggers', () => {
   const logRows = (...numbers: number[]) =>
     numbers.map((number) => ({ type: 'log', number, values: { x: number } }));
 
-  // Lifecycle rules SQLite still enforces with triggers. They are not part of
-  // the DataStore contract, so the contract suite does not cover them.
+  // The server decides which status can follow which, so the database only
+  // refuses a status that does not exist.
   describe('run status', () => {
     it('refuses to set an unknown status', async ({
       expect,
@@ -110,74 +110,6 @@ describe('SQLite constraints and triggers', () => {
         // @ts-expect-error we are intentionally setting an unknown status
         store.withTransaction((tx) => tx.setRunStatus(e1run1, 'unknown')),
       ).rejects.toThrow();
-    });
-
-    it('refuses to update a completed run', async ({
-      expect,
-      store,
-      e1run1,
-    }) => {
-      await store.withTransaction((tx) => tx.setRunStatus(e1run1, 'completed'));
-      await expect(
-        store.withTransaction((tx) => tx.setRunStatus(e1run1, 'idle')),
-      ).rejects.toMatchObject({ code: DataStoreError.RUN_HAS_ENDED });
-      await expect(
-        store.withTransaction((tx) => tx.setRunStatus(e1run1, 'running')),
-      ).rejects.toMatchObject({ code: DataStoreError.RUN_HAS_ENDED });
-    });
-
-    it('cancels a completed run', async ({ expect, store, e1run1 }) => {
-      await store.withTransaction((tx) => tx.setRunStatus(e1run1, 'completed'));
-      await expect(
-        store.withTransaction((tx) => tx.setRunStatus(e1run1, 'canceled')),
-      ).resolves.toBeUndefined();
-    });
-
-    it('refuses to update a canceled run', async ({
-      expect,
-      store,
-      e1run1,
-    }) => {
-      await store.withTransaction((tx) => tx.setRunStatus(e1run1, 'canceled'));
-      await expect(
-        store.withTransaction((tx) => tx.setRunStatus(e1run1, 'running')),
-      ).rejects.toMatchObject({ code: DataStoreError.RUN_HAS_ENDED });
-      await expect(
-        store.withTransaction((tx) => tx.setRunStatus(e1run1, 'canceled')),
-      ).rejects.toMatchObject({ code: DataStoreError.RUN_HAS_ENDED });
-      await expect(
-        store.withTransaction((tx) => tx.setRunStatus(e1run1, 'completed')),
-      ).rejects.toMatchObject({ code: DataStoreError.RUN_HAS_ENDED });
-    });
-
-    it('completes a resumed run even if it was interrupted', async ({
-      expect,
-      store,
-      runWithTwoLogs: { run },
-    }) => {
-      await store.withTransaction((tx) => tx.setRunStatus(run, 'interrupted'));
-      await store.withTransaction(async (tx) => {
-        await tx.cancelLogsAfter(run, { after: 2 });
-        await tx.setRunStatus(run, 'running');
-      });
-      await expect(
-        store.withTransaction((tx) => tx.setRunStatus(run, 'completed')),
-      ).resolves.toBeUndefined();
-    });
-
-    it('cancels a resumed run even if it was interrupted before', async ({
-      expect,
-      store,
-      runWithTwoLogs: { run },
-    }) => {
-      await store.withTransaction((tx) => tx.setRunStatus(run, 'interrupted'));
-      await store.withTransaction(async (tx) => {
-        await tx.cancelLogsAfter(run, { after: 2 });
-        await tx.setRunStatus(run, 'running');
-      });
-      await expect(
-        store.withTransaction((tx) => tx.setRunStatus(run, 'canceled')),
-      ).resolves.toBeUndefined();
     });
   });
 

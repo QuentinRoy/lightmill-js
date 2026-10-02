@@ -1,6 +1,6 @@
 import type { JsonObject } from 'type-fest';
 import { atomicMediaType, getErrorResponse } from './api.ts';
-import { getRunAcceptingLogs } from './app-logs-handlers.ts';
+import { addLogsToAccessibleRun } from './app-logs-handlers.ts';
 import { DataStoreError } from './data-store-errors.ts';
 import type { PathHandlers } from './router.ts';
 
@@ -51,25 +51,21 @@ export const operationHandlers = (): PathHandlers<'/operations'> => ({
         seenNumbers.add(data.attributes.number);
       }
 
-      const runOrError = await getRunAcceptingLogs(store, sessionData, runId);
-      if ('error' in runOrError) {
-        return inAtomic(runOrError.error);
-      }
-      const { run } = runOrError;
-
       try {
-        const results = await store.withTransaction((tx) =>
-          tx.addLogs(
-            run.runId,
-            operations.map(({ data }) => ({
-              number: data.attributes.number,
-              type: data.attributes.logType,
-              // values is necessarily a JsonObject since it's coming from the
-              // request body.
-              values: data.attributes.values as JsonObject,
-            })),
-          ),
+        const intake = await addLogsToAccessibleRun(
+          store,
+          sessionData,
+          runId,
+          operations.map(({ data }) => ({
+            number: data.attributes.number,
+            type: data.attributes.logType,
+            // values is necessarily a JsonObject since it's coming from the
+            // request body.
+            values: data.attributes.values as JsonObject,
+          })),
         );
+        if ('error' in intake) return inAtomic(intake.error);
+        const { results } = intake;
         return {
           contentType: atomicMediaType,
           body: {

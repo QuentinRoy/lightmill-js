@@ -1,9 +1,11 @@
 /* eslint-disable no-empty-pattern */
 
 import express from 'express';
+import { MemoryStore } from 'express-session';
 import request from 'supertest';
 import { afterEach, describe, test, vi } from 'vitest';
 import { apiMediaType, atomicMediaType } from '../src/api.ts';
+import { DataStoreError } from '../src/data-store-errors.ts';
 import {
   apiContentTypeRegExp,
   atomicContentTypeRegExp,
@@ -11,6 +13,7 @@ import {
   createServerContext,
   listen,
   storeTypes,
+  type MockedDataStore,
 } from './__fixtures__/test-utils.ts';
 
 let allRoutes = createAllRoute();
@@ -368,4 +371,93 @@ describe.for(storeTypes)('LogServer Errors (%s server)', (storeType) => {
       `);
     },
   );
+});
+
+describe.for(storeTypes)('LogServer: busy store (%s server)', (storeType) => {
+  const it = test.extend<{ api: request.Agent; dataStore: MockedDataStore }>({
+    dataStore: async ({}, use) => {
+      const { dataStore } = await createServerContext({ type: storeType });
+      await use(dataStore);
+    },
+    api: async ({ dataStore }, use) => {
+      const { server } = await createServerContext({
+        dataStore,
+        sessionStore: new MemoryStore(),
+      });
+      const api = request.agent(await listen(express().use(server.middleware)));
+      await api
+        .post('/sessions')
+        .set('Content-Type', apiMediaType)
+        .send({ data: { type: 'sessions', attributes: { role: 'host' } } })
+        .expect(201);
+      await use(api);
+    },
+  });
+  const conflict = () =>
+    new DataStoreError(
+      'The transaction conflicted with another one.',
+      DataStoreError.TRANSACTION_CONFLICT,
+    );
+  const serviceUnavailable = {
+    errors: [
+      {
+        status: 'Service Unavailable',
+        code: 'SERVICE_UNAVAILABLE',
+        detail:
+          'The server could not process the request right now, and nothing was saved. Try again.',
+      },
+    ],
+  };
+
+  it('answers 503 with Retry-After when a transaction conflicts', async ({
+    api,
+    dataStore,
+  }) => {
+    dataStore.withTransaction.mockRejectedValueOnce(conflict());
+    await api
+      .post('/runs')
+      .set('Content-Type', apiMediaType)
+      .send({
+        data: {
+          type: 'runs',
+          attributes: { name: null, status: 'idle' },
+          relationships: {
+            experiment: { data: { type: 'experiments', id: '1' } },
+          },
+        },
+      })
+      .expect('Content-Type', apiContentTypeRegExp)
+      .expect('Retry-After', '1')
+      .expect(503, serviceUnavailable);
+  });
+
+  it('answers 503 when a read conflicts', async ({ api, dataStore }) => {
+    dataStore.getRuns.mockRejectedValueOnce(conflict());
+    await api
+      .get('/runs')
+      .expect('Retry-After', '1')
+      .expect(503, serviceUnavailable);
+  });
+
+  it('keeps the atomic operations media type', async ({ api, dataStore }) => {
+    dataStore.withTransaction.mockRejectedValueOnce(conflict());
+    await api
+      .post('/operations')
+      .set('Content-Type', atomicMediaType)
+      .send({
+        'atomic:operations': [
+          {
+            op: 'add',
+            data: {
+              type: 'logs',
+              attributes: { number: 1, logType: 'test', values: {} },
+              relationships: { run: { data: { type: 'runs', id: '1' } } },
+            },
+          },
+        ],
+      })
+      .expect('Content-Type', atomicContentTypeRegExp)
+      .expect('Retry-After', '1')
+      .expect(503, serviceUnavailable);
+  });
 });

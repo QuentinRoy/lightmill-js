@@ -124,7 +124,7 @@ const RunGetCollectionResponse = getDataDocumentSchema({
 const runOnGoingErrorHttpCode = 403 as const;
 const CannotCreateRunErrorResponse = getErrorDocumentSchema(
   getErrorSchema({
-    code: ['ONGOING_RUNS', 'EXPERIMENT_NOT_FOUND'],
+    code: ['ONGOING_RUNS', 'EXPERIMENT_NOT_FOUND', 'INVALID_RUN_STATUS'],
     statusCode: runOnGoingErrorHttpCode,
   }),
 ).openapi('CannotCreateRunErrorResponse');
@@ -151,6 +151,15 @@ const RunInvalidUpdateErrorResponse = getErrorDocumentSchema(
     statusCode: 403,
   }),
 ).openapi('RunInvalidUpdateErrorResponse');
+const RunImmutableAttributeErrorResponse = getErrorDocumentSchema(
+  getErrorSchema({ code: 'IMMUTABLE_RUN_ATTRIBUTE', statusCode: 403 }).extend({
+    source: z.strictObject({
+      pointer: z
+        .string()
+        .describe('Pointer to the attribute of the request body that differs'),
+    }),
+  }),
+).openapi('RunImmutableAttributeErrorResponse');
 
 // Route configuration
 // -----------------------------------------------------------------------------
@@ -240,6 +249,7 @@ export const runRoutes = {
               schema: z.union([
                 CannotCreateRunErrorResponse,
                 RunInvalidUpdateErrorResponse,
+                RunImmutableAttributeErrorResponse,
               ]),
             },
           },
