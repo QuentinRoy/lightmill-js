@@ -179,15 +179,11 @@ export class SQLiteDataStore implements DataStore {
 
   // Each page is an operation of its own, so a long export holds neither the
   // connection nor a lock between pulls.
-  async *getLogs(filter: AllFilter = {}): AsyncGenerator<Log> {
-    for await (const log of streamLogs((after) =>
-      this.#operate(() => this.#queries.getLogsPage(filter, after)),
-    )) {
-      yield log;
-      // A page holds several logs: the pulls it serves must stop with the
-      // store too.
-      this.#assertAvailable();
-    }
+  getLogs(filter: AllFilter = {}): AsyncGenerator<Log> {
+    return streamLogs(
+      (after) => this.#operate(() => this.#queries.getLogsPage(filter, after)),
+      () => this.#assertAvailable(),
+    );
   }
 
   /**
@@ -214,25 +210,20 @@ export class SQLiteDataStore implements DataStore {
         const scope = createTransactionScope(
           new Queries(connection, this.#selectQueryLimit),
         );
-        let outcome: { value: T } | { error: unknown };
+        let value: T;
         try {
-          outcome = { value: await fn(scope.store) };
-        } catch (error) {
-          outcome = { error };
-        }
-        // A pending call can't be canceled, and the connection can't be
-        // released under it.
-        const hadPendingCalls = await scope.end();
-        if ('value' in outcome && hadPendingCalls) {
-          outcome = {
-            error: new TypeError(
+          value = await fn(scope.store);
+          // A pending call can't be canceled, and the connection can't be
+          // released under it.
+          if (await scope.end()) {
+            throw new TypeError(
               'A transaction call was still pending when the callback finished. Await every call made on the transaction.',
-            ),
-          };
-        }
-        if ('error' in outcome) {
-          await this.#rollback(connection, outcome.error);
-          throw outcome.error;
+            );
+          }
+        } catch (error) {
+          await scope.end();
+          await this.#rollback(connection, error);
+          throw error;
         }
         try {
           await sql`COMMIT`.execute(connection);
@@ -246,7 +237,7 @@ export class SQLiteDataStore implements DataStore {
             { cause: commitError },
           );
         }
-        return outcome.value;
+        return value;
       }),
     );
   }
@@ -280,22 +271,18 @@ export class SQLiteDataStore implements DataStore {
   }
 
   #operate<T>(run: () => Promise<T>): Promise<T> {
-    try {
+    const promise = (async () => {
       this.#assertAvailable();
-    } catch (error) {
-      return Promise.reject(error);
-    }
-    const promise = run().then(
-      (result) => {
+      try {
+        const result = await run();
         // A read queued behind a transaction whose rollback failed ran on a
         // connection that may still be inside it.
         if (this.#poison != null) throw this.#poison;
         return result;
-      },
-      (error) => {
+      } catch (error) {
         throw mapBusyError(error);
-      },
-    );
+      }
+    })();
     track(this.#inFlight, promise);
     return promise;
   }
@@ -797,13 +784,22 @@ export function mapBusyError(error: unknown): unknown {
   return error;
 }
 
+/**
+ * `assertAvailable` runs when a pull resumes after a log: a page holds several
+ * logs, and the pulls it serves must stop with the store or the transaction
+ * too.
+ */
 async function* streamLogs(
   fetchPage: (after: Log | null) => Promise<Log[]>,
+  assertAvailable: () => void,
 ): AsyncGenerator<Log> {
   let after: Log | null = null;
   do {
     const page: Log[] = await fetchPage(after);
-    yield* page;
+    for (const log of page) {
+      yield log;
+      assertAvailable();
+    }
     after = last(page) ?? null;
   } while (after != null);
 }
@@ -825,14 +821,14 @@ function createTransactionScope(queries: Queries) {
     }
   };
   const call = <T>(run: () => Promise<T>): Promise<T> => {
-    try {
+    const promise = (async () => {
       assertActive();
-    } catch (error) {
-      return Promise.reject(error);
-    }
-    const promise = run().catch((error) => {
-      throw mapBusyError(error);
-    });
+      try {
+        return await run();
+      } catch (error) {
+        throw mapBusyError(error);
+      }
+    })();
     track(pending, promise);
     return promise;
   };
@@ -848,16 +844,11 @@ function createTransactionScope(queries: Queries) {
     getRuns: (filter) => call(() => queries.getRuns(filter)),
     getLastLogs: (filter) => call(() => queries.getLastLogs(filter)),
     getLogValueNames: (filter) => call(() => queries.getLogValueNames(filter)),
-    async *getLogs(filter = {}) {
-      for await (const log of streamLogs((after) =>
-        call(() => queries.getLogsPage(filter, after)),
-      )) {
-        yield log;
-        // A page holds several logs: the pulls it serves must end with the
-        // transaction too.
-        assertActive();
-      }
-    },
+    getLogs: (filter = {}) =>
+      streamLogs(
+        (after) => call(() => queries.getLogsPage(filter, after)),
+        assertActive,
+      ),
   };
   return {
     // The type has no withTransaction. This answers JavaScript callers.
