@@ -30,7 +30,8 @@
     "prepublish": "pnpm run build",
     "test": "cross-env NODE_ENV=test vitest --typecheck",
     "cli": "node ./src/cli.ts",
-    "cli-watch": "node --watch ./src/cli.ts"
+    "cli-watch": "node --watch ./src/cli.ts",
+    "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",

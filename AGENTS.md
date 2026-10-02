@@ -34,4 +34,4 @@ Data loss is the worst failure. Every path that can drop data a caller handed ov
 
 ## Finishing
 
-Before handing off, run `pnpm lint` and `pnpm test` (which also typechecks). A pull request that implements an issue says `Fixes #N` in its body. Leave merging to the maintainer. Close your beads when the pull request opens ([why and when to reopen](docs/agents/issue-tracker.md#closing-beads)).
+Before handing off, run `pnpm lint`, `pnpm typecheck`, and `pnpm test`. `pnpm typecheck` needs the packages built first (`pnpm build-all`). A pull request that implements an issue says `Fixes #N` in its body. Leave merging to the maintainer. Close your beads when the pull request opens ([why and when to reopen](docs/agents/issue-tracker.md#closing-beads)).

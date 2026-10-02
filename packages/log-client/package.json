@@ -43,7 +43,8 @@
     "generate-openapi-types": "openapi-typescript node_modules/@lightmill/log-api/dist/openapi.yaml --output src/generated/openapi.ts",
     "build-ts": "tsc -b tsconfig.build.json",
     "build": "pnpm run generate-openapi-types && pnpm run build-ts",
-    "prepublish": "pnpm run build"
+    "prepublish": "pnpm run build",
+    "typecheck": "tsc --noEmit"
   },
   "keywords": [
     "logger",

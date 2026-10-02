@@ -28,10 +28,12 @@
     "build-js": "tsc -b tsconfig.build.json",
     "build": "pnpm run build-api && pnpm run build-js",
     "watch:build": "onchange -i 'src/*' -i 'scripts/*.ts' -- pnpm build",
-    "prepublish": "pnpm run build"
+    "prepublish": "pnpm run build",
+    "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
     "@std/yaml": "jsr:^1.0.8",
+    "@types/node": "catalog:",
     "onchange": "^7.1.0",
     "openapi-typescript": "^7.8.0"
   },

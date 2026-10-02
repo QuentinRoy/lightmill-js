@@ -16,6 +16,6 @@ export default defineConfig({
     environment: 'node',
     include: ['**/__tests__/*.test.ts'],
     root: resolve(dirname),
-    typecheck: { enabled: true, ignoreSourceErrors: true },
+    typecheck: { enabled: true },
   },
 });
