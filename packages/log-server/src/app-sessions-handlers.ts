@@ -83,7 +83,7 @@ export const sessionHandlers = ({
       };
     },
 
-    async delete({ sessionData, parameters: { path } }) {
+    async delete({ sessionData, parameters: { path }, lockSession }) {
       if (path.id !== 'current' || sessionData == null) {
         return getErrorResponse({
           status: 'Not Found',
@@ -91,7 +91,10 @@ export const sessionHandlers = ({
           detail: `Session "${path.id}" not found.`,
         });
       }
-      return { status: 200, sessionData: null, body: { data: null } };
+      return lockSession(async ({ destroy }) => {
+        await destroy();
+        return { status: 200, body: { data: null } };
+      });
     },
   },
 });

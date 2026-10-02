@@ -8,6 +8,9 @@ import type { HandlerResponseFromRoute, PathHandlers } from './router.ts';
 import { createRun, RunRejection, updateRun } from './run-lifecycle.ts';
 import { arrayify, firstStrict } from './utils.ts';
 
+// The statuses of a run that has not ended: idle, and the ongoing ones.
+const unendedStatuses = ['idle', 'running', 'interrupted'] as const;
+
 export const runHandlers = (): PathHandlers<'/runs'> => ({
   '/runs': {
     async get({ sessionData, parameters, dataStore: store }) {
@@ -34,65 +37,69 @@ export const runHandlers = (): PathHandlers<'/runs'> => ({
         body: included == null ? { data: runs } : { data: runs, included },
       };
     },
-    async post({ dataStore: store, sessionData, body, protocol, host }) {
+    async post({ dataStore: store, lockSession, body, protocol, host }) {
       const { status, name } = body.data.attributes;
       const { id: experimentId } = body.data.relationships.experiment.data;
-      try {
-        const onGoingRuns = await store.getRuns({
+      return lockSession(async ({ sessionData, save }) => {
+        // Runs never go back from ended, so a run that passes this check
+        // cannot start counting before the one created below.
+        const unendedRuns = await store.getRuns({
           runId: sessionData.runs,
-          runStatus: ['running', 'interrupted'],
+          runStatus: unendedStatuses,
         });
-        if (onGoingRuns.length > 0) {
+        if (unendedRuns.length > 0) {
           return getErrorResponse({
             status: 'Forbidden',
             code: 'ONGOING_RUNS',
-            detail: 'Client already has ongoing runs, end them first',
+            detail: `Client already has runs that haven't ended, end them first`,
           });
         }
-        const run = await store.withTransaction((tx) =>
-          createRun(tx, { status, experimentId, runName: name }),
-        );
-        return {
-          sessionData: {
+        try {
+          const run = await store.withTransaction((tx) =>
+            createRun(tx, { status, experimentId, runName: name }),
+          );
+          await save({
             ...sessionData,
             runs: [...sessionData.runs, run.runId],
-          },
-          status: 201,
-          body: { data: { id: run.runId, type: 'runs' } },
-          headers: {
-            location: `${protocol + '://' + host}/runs/${run.runId}` as const,
-          },
-        };
-      } catch (e) {
-        if (e instanceof RunRejection && e.code === 'INVALID_RUN_STATUS') {
-          return getErrorResponse({
-            status: 'Forbidden',
-            code: 'INVALID_RUN_STATUS',
-            detail: e.message,
           });
+          return {
+            status: 201,
+            body: { data: { id: run.runId, type: 'runs' } },
+            headers: {
+              location: `${protocol + '://' + host}/runs/${run.runId}` as const,
+            },
+          };
+        } catch (e) {
+          if (e instanceof RunRejection && e.code === 'INVALID_RUN_STATUS') {
+            return getErrorResponse({
+              status: 'Forbidden',
+              code: 'INVALID_RUN_STATUS',
+              detail: e.message,
+            });
+          }
+          if (
+            e instanceof DataStoreError &&
+            e.code === DataStoreError.RUN_EXISTS
+          ) {
+            return getErrorResponse({
+              code: 'RUN_EXISTS',
+              status: 'Conflict',
+              detail: `A run named ${name} already exists for experiment ${experimentId}`,
+            });
+          }
+          if (
+            e instanceof DataStoreError &&
+            e.code === DataStoreError.EXPERIMENT_NOT_FOUND
+          ) {
+            return getErrorResponse({
+              code: 'EXPERIMENT_NOT_FOUND',
+              status: 'Forbidden',
+              detail: `Experiment "${experimentId}" not found.`,
+            });
+          }
+          throw e;
         }
-        if (
-          e instanceof DataStoreError &&
-          e.code === DataStoreError.RUN_EXISTS
-        ) {
-          return getErrorResponse({
-            code: 'RUN_EXISTS',
-            status: 'Conflict',
-            detail: `A run named ${name} already exists for experiment ${experimentId}`,
-          });
-        }
-        if (
-          e instanceof DataStoreError &&
-          e.code === DataStoreError.EXPERIMENT_NOT_FOUND
-        ) {
-          return getErrorResponse({
-            code: 'EXPERIMENT_NOT_FOUND',
-            status: 'Forbidden',
-            detail: `Experiment "${experimentId}" not found.`,
-          });
-        }
-        throw e;
-      }
+      });
     },
   },
 
@@ -186,19 +193,6 @@ export const runHandlers = (): PathHandlers<'/runs'> => ({
       }
 
       const newRunStatus = body.data.attributes?.status;
-      if (newRunStatus !== 'canceled') {
-        let otherOngoingRuns = await store.getRuns({
-          runStatus: ['running', 'interrupted'],
-          runId: (sessionData.runs ?? []).filter((r) => r !== runId),
-        });
-        if (otherOngoingRuns.length > 0) {
-          return getErrorResponse({
-            status: 'Forbidden',
-            code: 'ONGOING_RUNS',
-            detail: `Client already has ongoing runs. End them first before updating this run.`,
-          });
-        }
-      }
 
       try {
         await store.withTransaction((tx) =>
