@@ -99,7 +99,9 @@ it('CLI sessions and browser cookies survive a restart', async () => {
       headers: { cookie: cookie! },
     });
     expect(restored.status).toBe(200);
-    expect((await restored.json()).data.attributes.role).toBe('participant');
+    expect(await restored.json()).toMatchObject({
+      data: { attributes: { role: 'participant' } },
+    });
   } finally {
     if (child !== undefined) await stopServer(child);
     rmSync(directory, { recursive: true, force: true });

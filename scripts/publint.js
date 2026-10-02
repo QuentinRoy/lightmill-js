@@ -2,6 +2,7 @@ import { spawn } from 'node:child_process';
 import { readdir } from 'node:fs/promises';
 import { parseArgs } from 'node:util';
 
+/** @param {string} path */
 function publint(path) {
   return new Promise((resolve, reject) => {
     const child = spawn('publint', [path]);

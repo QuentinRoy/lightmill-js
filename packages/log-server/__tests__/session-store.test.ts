@@ -42,7 +42,7 @@ async function openServer(options: { sessionMaxAge?: number } = {}) {
   };
 }
 
-async function createSession(api: request.Test) {
+async function createSession(api: request.Agent) {
   const response = await api
     .post('/sessions')
     .set('Content-Type', 'application/vnd.api+json')
@@ -109,7 +109,9 @@ describe('getSessionStore through LogServer', () => {
 describe('getSessionStore', () => {
   const day = 24 * 60 * 60 * 1000;
   const sessionData = (expires?: Date): SessionData => ({
-    cookie: new session.Cookie(expires ? { expires } : {}),
+    // @types/express-session declares the Cookie constructor without options.
+    cookie: Object.assign(new session.Cookie(), expires ? { expires } : {}),
+    data: { role: 'participant', runs: [] },
   });
 
   async function openStore() {

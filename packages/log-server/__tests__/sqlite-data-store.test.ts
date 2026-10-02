@@ -18,7 +18,7 @@ import {
 import { DataStoreError } from '../src/data-store-errors.ts';
 import type { ExperimentId, LogId, RunId } from '../src/data-store.ts';
 import { SQLiteDataStore } from '../src/sqlite-data-store.ts';
-import { fromAsync } from '../src/utils.ts';
+import { firstStrict, fromAsync } from '../src/utils.ts';
 
 // Prevent kysely from logging anything.
 loglevel.setDefaultLevel('silent');
@@ -828,8 +828,6 @@ describe('SQLiteStore#getRuns', () => {
         runName: [],
         experimentId: experiment1,
         runStatus: 'completed',
-        firstMissingLogNumber: null,
-        lastLogNumber: 0,
       }),
     ).resolves.toEqual([]);
   });
@@ -1321,9 +1319,11 @@ describe('SQLiteStore#addLogs', () => {
     store,
     e1run1,
   }) => {
-    const [first] = await store.addLogs(e1run1, [
-      { type: 'log', number: 1, values: { x: 1, y: { a: 1, b: [2] } } },
-    ]);
+    const first = firstStrict(
+      await store.addLogs(e1run1, [
+        { type: 'log', number: 1, values: { x: 1, y: { a: 1, b: [2] } } },
+      ]),
+    );
     await expect(
       store.addLogs(e1run1, [
         // Key order does not matter.
@@ -1341,16 +1341,18 @@ describe('SQLiteStore#addLogs', () => {
     store,
     e1run1,
   }) => {
-    const [first] = await store.addLogs(e1run1, [
-      { type: 'log', number: 1, values: { x: 1 } },
-    ]);
+    const first = firstStrict(
+      await store.addLogs(e1run1, [
+        { type: 'log', number: 1, values: { x: 1 } },
+      ]),
+    );
     const result = await store.addLogs(e1run1, [
       { type: 'log', number: 2, values: { z: 1 } },
       { type: 'log', number: 1, values: { x: 1 } },
     ]);
     expect(result[1]).toEqual({ logId: first.logId, created: false });
     expect(result[0]).toMatchObject({ created: true });
-    expect(result[0].logId).not.toEqual(first.logId);
+    expect(firstStrict(result).logId).not.toEqual(first.logId);
     await expect(store.getLogValueNames({ runId: e1run1 })).resolves.toEqual([
       'x',
       'z',
@@ -1386,9 +1388,11 @@ describe('SQLiteStore#addLogs', () => {
       { type: 'log', number: 2, values: { x: 'canceled' } },
     ]);
     await store.resumeRun(e1run1, { after: 1 });
-    const [added] = await store.addLogs(e1run1, [
-      { type: 'log', number: 2, values: { x: 'kept' } },
-    ]);
+    const added = firstStrict(
+      await store.addLogs(e1run1, [
+        { type: 'log', number: 2, values: { x: 'kept' } },
+      ]),
+    );
     await expect(
       store.addLogs(e1run1, [
         { type: 'log', number: 2, values: { x: 'kept' } },

@@ -4,11 +4,11 @@ import {
   describe,
   expect,
   it,
-  MockedClass,
+  type MockedClass,
   vi,
 } from 'vitest';
 import StaticExperimentDesign from '../src/static-experiment-design.js';
-import UntypedTimelineIterator, { Run } from '../src/timeline-iterator.js';
+import UntypedTimelineIterator, { type Run } from '../src/timeline-iterator.js';
 
 vi.mock('../src/timeline-iterator.js', () => {
   return {
@@ -23,7 +23,6 @@ const TimelineIterator = UntypedTimelineIterator as MockedClass<
 
 let design: StaticExperimentDesign<{ id: string }>;
 beforeEach(() => {
-  // @ts-expect-error This is a mock.
   TimelineIterator.mockImplementation(function (timeline: Run<unknown>) {
     return { id: `mock-iterator-${timeline.id}` };
   });

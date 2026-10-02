@@ -1,8 +1,8 @@
-import type { paths } from '@lightmill/log-api';
 import { HttpResponse } from 'msw';
 import createClient from 'openapi-fetch';
 import { beforeEach, describe, expect, vi } from 'vitest';
 import { MockServer, serverTest } from '../__mocks__/mock-server.js';
+import type { paths } from '../src/generated/openapi.js';
 import { LightmillLogger, type LoggerState } from '../src/logger.js';
 import { DeferManager } from './test-utils.ts';
 
@@ -337,7 +337,7 @@ describe('LogClient#flush', () => {
     let oldGetRun = server.handlers['/runs/{id}'].get.getMockImplementation()!;
     server.handlers['/runs/{id}'].get.mockImplementation(async (...args) => {
       let result = await oldGetRun(...args);
-      if (result.status !== 200) return result;
+      if ('raw' in result || result.status !== 200) return result;
       result.body.data.attributes = {
         ...result.body.data.attributes,
         // Should be ignored by first flush call.
@@ -369,7 +369,7 @@ describe('LogClient#flush', () => {
     let oldGetRun = server.handlers['/runs/{id}'].get.getMockImplementation()!;
     server.handlers['/runs/{id}'].get.mockImplementation(async (...args) => {
       let result = await oldGetRun(...args);
-      if (result.status !== 200) return result;
+      if ('raw' in result || result.status !== 200) return result;
       result.body.data.attributes = {
         ...result.body.data.attributes,
         firstMissingLogNumber: 1,

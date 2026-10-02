@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import TimelineIterator, { Run } from '../src/timeline-iterator.js';
+import TimelineIterator, { type Run } from '../src/timeline-iterator.js';
 
 let run: Run<{ id: string; type: string; testData?: string }>;
 

@@ -1,14 +1,14 @@
 /* eslint-disable no-empty-pattern */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
-import type { paths } from '@lightmill/log-api';
+import type { routes } from '@lightmill/log-api';
 import express from 'express';
 import { MemoryStore, Store as SessionStore } from 'express-session';
 import { once } from 'node:events';
 import { createServer, type RequestListener, type Server } from 'node:http';
 import { last } from 'remeda';
 import request from 'supertest';
-import type { RequiredKeysOf, Simplify, ValueOf } from 'type-fest';
+import type { Simplify, ValueOf } from 'type-fest';
 import { onTestFinished, test, vi, type Mock, type TestAPI } from 'vitest';
 import { apiMediaType, type HttpMethod } from '../src/api.ts';
 import { LogServer } from '../src/app.ts';
@@ -29,9 +29,10 @@ export async function listen(app: RequestListener): Promise<Server> {
 
 export const host = 'lightmill-test.com';
 
+type ApiRoutes = typeof routes;
 type RouteMap<T = unknown> = {
-  [P in keyof paths]: {
-    [M in RequiredKeysOf<paths[P]> as Extract<M, HttpMethod>]: T;
+  [P in keyof ApiRoutes]: {
+    [M in keyof ApiRoutes[P] as Extract<M, HttpMethod>]: T;
   };
 };
 type Route = Simplify<
@@ -63,6 +64,7 @@ export function createAllRoute() {
     '/runs/{id}': { get: {}, patch: {} },
     '/logs': { get: {}, post: {} },
     '/logs/{id}': { get: {} },
+    '/operations': { post: {} },
   };
   const result: Array<Route & RouteEntry> = [];
   for (let p of Object.keys(routeMap)) {
