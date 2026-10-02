@@ -45,7 +45,7 @@ describe('TimelineRunner', () => {
   });
 
   it('run tasks and corresponding handlers', async () => {
-    let logCall = vi.fn<LogCallArgs, LogCallResult>();
+    let logCall = vi.fn<(...args: LogCallArgs) => LogCallResult>();
     type LogCallArgs = [handlerName: string, ...rest: unknown[]];
     type LogCallResult = Promise<void>;
     let runner = new TimelineRunner<Task>({
@@ -105,7 +105,7 @@ describe('TimelineRunner', () => {
         yield deffer.promise;
       }
     }
-    let onTaskStarted = vi.fn<unknown[], void>(() => {
+    let onTaskStarted = vi.fn<(...args: unknown[]) => void>(() => {
       expect(runner.status).toBe('running');
     });
     let onTimelineStarted = vi.fn(() => {

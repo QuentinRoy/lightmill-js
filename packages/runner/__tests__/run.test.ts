@@ -15,8 +15,8 @@ const Indexer = () => {
 };
 
 describe('run', () => {
-  let genTasks: Mock<[], AsyncGenerator<{ id: string }>>;
-  let runTask: Mock<[{ id: string }], Promise<void>>;
+  let genTasks: Mock<() => AsyncGenerator<{ id: string }>>;
+  let runTask: Mock<(task: { id: string }) => Promise<void>>;
 
   beforeEach(() => {
     const getCallIndex = Indexer();
