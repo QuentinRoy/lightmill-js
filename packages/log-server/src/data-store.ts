@@ -94,6 +94,14 @@ export interface ExperimentRecord {
   experimentCreatedAt: Date;
 }
 
+/** A log to add to a run. */
+export interface NewLog {
+  type: string;
+  number: number;
+  // Always a JsonObject: it comes from a JSON request body.
+  values: JsonObject;
+}
+
 /**
  * What can be read anywhere: on the store itself, or inside a transaction.
  */
@@ -221,7 +229,7 @@ export interface DataStoreTransaction extends DataStoreReader {
    */
   addLogs(
     runId: RunId,
-    logs: Array<{ type: string; number: number; values: JsonObject }>,
+    logs: Array<NewLog>,
   ): Promise<Array<{ logId: LogId; created: boolean }>>;
 }
 

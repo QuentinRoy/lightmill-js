@@ -45,10 +45,12 @@ export async function up(db: Kysely<Database>) {
     await sql`DROP TRIGGER prevent_completed_run_status_update`.execute(trx);
     await sql`DROP TRIGGER prevent_non_running_run_log_insert`.execute(trx);
 
+    // Runs without a name never collide: a unique index treats each NULL as
+    // different from every other value, so it needs no `run_name IS NOT NULL`.
     await sql`
       CREATE UNIQUE INDEX unique_not_canceled_run_name
       ON run (experiment_id, run_name)
-      WHERE run_name IS NOT NULL AND run_status <> 'canceled'
+      WHERE run_status <> 'canceled'
     `.execute(trx);
   });
 }

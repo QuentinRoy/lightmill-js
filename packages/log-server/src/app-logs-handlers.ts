@@ -14,7 +14,7 @@ import {
 import { csvExportStream } from './csv-export.ts';
 import type { AllFilter } from './data-filters.ts';
 import { DataStoreError } from './data-store-errors.ts';
-import type { DataStore, DataStoreTransaction, RunId } from './data-store.ts';
+import type { DataStore, NewLog, RunId } from './data-store.ts';
 import type { HandlerResponseFromRoute, PathHandlers } from './router.ts';
 import { addLogsToRun, RunRejection } from './run-lifecycle.ts';
 import { arrayify, firstStrict } from './utils.ts';
@@ -29,7 +29,7 @@ export async function addLogsToAccessibleRun(
   store: DataStore,
   sessionData: SessionData['data'],
   runId: RunId,
-  logs: Parameters<DataStoreTransaction['addLogs']>[1],
+  logs: Array<NewLog>,
 ) {
   const runNotFound = (detail: string) => ({
     error: getErrorResponse({
@@ -116,7 +116,7 @@ export const logHandlers = (): PathHandlers<'/logs'> => ({
     async post({ dataStore: store, body, sessionData, protocol, host }) {
       let runId = body.data.relationships.run.data.id;
       try {
-        let intake = await addLogsToAccessibleRun(store, sessionData, runId, [
+        let outcome = await addLogsToAccessibleRun(store, sessionData, runId, [
           {
             number: body.data.attributes.number,
             type: body.data.attributes.logType,
@@ -125,8 +125,8 @@ export const logHandlers = (): PathHandlers<'/logs'> => ({
             values: body.data.attributes.values as JsonObject,
           },
         ]);
-        if ('error' in intake) return intake.error;
-        let { logId: insertedLogId, created } = firstStrict(intake.results);
+        if ('error' in outcome) return outcome.error;
+        let { logId: insertedLogId, created } = firstStrict(outcome.results);
         return {
           // Nothing was created for a duplicate log (a resend).
           status: created ? 201 : 200,

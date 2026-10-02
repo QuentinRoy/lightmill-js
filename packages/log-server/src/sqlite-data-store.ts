@@ -19,7 +19,7 @@ import path from 'node:path';
 import * as url from 'node:url';
 import { isDeepStrictEqual } from 'node:util';
 import { last, pick } from 'remeda';
-import type { JsonObject, JsonValue } from 'type-fest';
+import type { JsonValue } from 'type-fest';
 import {
   type AllFilter,
   createQueryFilterAll,
@@ -38,6 +38,7 @@ import {
   fromDbId,
   type Log,
   type LogId,
+  type NewLog,
   type RunId,
   type RunRecord,
   type RunStatus,
@@ -536,7 +537,7 @@ class Queries {
 
   async addLogs(
     runId: RunId,
-    logs: Array<{ type: string; number: number; values: JsonObject }>,
+    logs: Array<NewLog>,
   ): Promise<Array<{ logId: LogId; created: boolean }>> {
     const dbRunId = toDbId(runId);
     if (logs.length === 0) return [];
@@ -923,7 +924,7 @@ async function migrate(db: Kysely<Database>) {
 async function findDuplicateIds(
   trx: Kysely<Database>,
   sequenceId: number,
-  logs: Array<{ type: string; number: number; values: JsonObject }>,
+  logs: Array<NewLog>,
   cause: unknown,
 ) {
   // The unique constraint can't tell a repeat inside the batch from a stored

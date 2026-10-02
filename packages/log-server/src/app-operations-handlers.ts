@@ -52,7 +52,7 @@ export const operationHandlers = (): PathHandlers<'/operations'> => ({
       }
 
       try {
-        const intake = await addLogsToAccessibleRun(
+        const outcome = await addLogsToAccessibleRun(
           store,
           sessionData,
           runId,
@@ -64,8 +64,8 @@ export const operationHandlers = (): PathHandlers<'/operations'> => ({
             values: data.attributes.values as JsonObject,
           })),
         );
-        if ('error' in intake) return inAtomic(intake.error);
-        const { results } = intake;
+        if ('error' in outcome) return inAtomic(outcome.error);
+        const { results } = outcome;
         return {
           contentType: atomicMediaType,
           body: {

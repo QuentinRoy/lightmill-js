@@ -1,6 +1,7 @@
 import type {
   DataStoreTransaction,
   ExperimentId,
+  NewLog,
   RunId,
   RunRecord,
   RunStatus,
@@ -48,17 +49,12 @@ export interface RunUpdate {
   resumeAfter?: number | undefined;
 }
 
-/** What is left to write once `decideRunUpdate` approved an update. */
-export interface RunChange {
-  status?: RunStatus;
-  resumeAfter?: number;
-}
-
 /**
- * Decides what to write for `update` on `run`, or throws the `RunRejection`
- * refusing it. Pure: it only looks at the record it is given.
+ * Decides what to write for `update` on `run`: the part of it that changes
+ * something, or throws the `RunRejection` refusing it. Pure: it only looks at
+ * the record it is given.
  */
-export function decideRunUpdate(run: RunRecord, update: RunUpdate): RunChange {
+export function decideRunUpdate(run: RunRecord, update: RunUpdate): RunUpdate {
   const { resumeAfter } = update;
   const newStatus = update.status !== run.runStatus ? update.status : undefined;
   if (newStatus === undefined && resumeAfter === undefined) return {};
@@ -68,13 +64,7 @@ export function decideRunUpdate(run: RunRecord, update: RunUpdate): RunChange {
       throw new RunRejection(
         'INVALID_STATUS_TRANSITION',
         { from: run.runStatus, to: newStatus },
-        allowed.length > 0
-          ? `Cannot change run status from ${run.runStatus} to ${newStatus}.` +
-            ` Allowed transitions are: ${new Intl.ListFormat('en', {
-              style: 'long',
-              type: 'disjunction',
-            }).format(allowed.map((s) => `${run.runStatus} -> ${s}`))}.`
-          : `Cannot change run status. Run status ${run.runStatus} is terminal.`,
+        transitionMessage(run.runStatus, newStatus, allowed),
       );
     }
   }
@@ -104,10 +94,22 @@ export function decideRunUpdate(run: RunRecord, update: RunUpdate): RunChange {
       `Cannot complete run: log number ${run.firstMissingLogNumber} is missing. Add all logs before completing the run.`,
     );
   }
-  return {
-    ...(newStatus === undefined ? {} : { status: newStatus }),
-    ...(resumeAfter === undefined ? {} : { resumeAfter }),
-  };
+  return { status: newStatus, resumeAfter };
+}
+
+function transitionMessage(
+  from: RunStatus,
+  to: RunStatus,
+  allowed: readonly RunStatus[],
+) {
+  if (allowed.length === 0) {
+    return `Cannot change run status: the run is ${from}.`;
+  }
+  const list = new Intl.ListFormat('en', {
+    style: 'long',
+    type: 'disjunction',
+  }).format(allowed.map((status) => `${from} -> ${status}`));
+  return `Cannot change run status from ${from} to ${to}. Allowed transitions are: ${list}.`;
 }
 
 /** A run can only be created before it ends: idle, or already running. */
@@ -170,7 +172,7 @@ export async function updateRun(
 export async function addLogsToRun(
   tx: DataStoreTransaction,
   runId: RunId,
-  logs: Parameters<DataStoreTransaction['addLogs']>[1],
+  logs: Array<NewLog>,
 ) {
   const run = await getRun(tx, runId);
   if (run.runStatus !== 'running') {
