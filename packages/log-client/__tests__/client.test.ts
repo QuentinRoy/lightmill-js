@@ -1,7 +1,7 @@
-import type { paths } from '@lightmill/log-api';
 import { describe, expect, vi } from 'vitest';
 import { serverTest, type ApiMediaType } from '../__mocks__/mock-server.js';
 import { LightmillClient } from '../src/client.js';
+import type { paths } from '../src/generated/openapi.js';
 import { LightmillLogger } from '../src/logger.js';
 
 const it = serverTest.extend<{ client: LightmillClient; timer: void }>({
