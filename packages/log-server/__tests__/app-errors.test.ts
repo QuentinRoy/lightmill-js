@@ -348,7 +348,12 @@ describe.for(storeTypes)('LogServer Errors (%s server)', (storeType) => {
     async (route, { expect, api }) => {
       let response = await api[route.method](route.path)
         .set('Cookie', ['lightmill-session-id=invalid'])
-        .expect('Content-Type', apiContentTypeRegExp)
+        .expect(
+          'Content-Type',
+          route.path === '/operations'
+            ? atomicContentTypeRegExp
+            : apiContentTypeRegExp,
+        )
         .expect(403);
       expect(response.body).toMatchInlineSnapshot(`
         {
