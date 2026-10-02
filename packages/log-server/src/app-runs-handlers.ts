@@ -8,7 +8,7 @@ import type { HandlerResponseFromRoute, PathHandlers } from './router.ts';
 import { createRun, RunRejection, updateRun } from './run-lifecycle.ts';
 import { arrayify, firstStrict } from './utils.ts';
 
-const unendedStatuses = ['idle', 'running', 'interrupted'] as const;
+const ongoingStatuses = ['idle', 'running', 'interrupted'] as const;
 
 export const runHandlers = (): PathHandlers<'/runs'> => ({
   '/runs': {
@@ -43,15 +43,15 @@ export const runHandlers = (): PathHandlers<'/runs'> => ({
         // This is not in the data transaction, which stays store-only. It does
         // not need to be: the lock keeps other creations out, and a run never
         // goes back from ended, so the answer cannot go stale.
-        const unendedRuns = await store.getRuns({
+        const ongoingRuns = await store.getRuns({
           runId: sessionData.runs,
-          runStatus: unendedStatuses,
+          runStatus: ongoingStatuses,
         });
-        if (unendedRuns.length > 0) {
+        if (ongoingRuns.length > 0) {
           return getErrorResponse({
             status: 'Forbidden',
             code: 'ONGOING_RUNS',
-            detail: `Client already has runs that haven't ended, end them first`,
+            detail: 'Client already has ongoing runs, end them first',
           });
         }
         try {

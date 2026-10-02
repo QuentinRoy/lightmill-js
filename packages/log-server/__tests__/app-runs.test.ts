@@ -110,10 +110,10 @@ describeForAll(
       },
     );
 
-    const unendedStatuses: RunStatus[] = ['idle', 'running', 'interrupted'];
+    const ongoingStatuses: RunStatus[] = ['idle', 'running', 'interrupted'];
     const endedStatuses: RunStatus[] = ['completed', 'canceled'];
     it.for(
-      unendedStatuses.flatMap((existing) =>
+      ongoingStatuses.flatMap((existing) =>
         (['idle', 'running'] as const).map((created) => ({
           existing,
           created,
@@ -135,8 +135,7 @@ describeForAll(
               {
                 status: 'Forbidden',
                 code: 'ONGOING_RUNS',
-                detail:
-                  "Client already has runs that haven't ended, end them first",
+                detail: 'Client already has ongoing runs, end them first',
               },
             ],
           })
