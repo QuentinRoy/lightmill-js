@@ -131,6 +131,11 @@ Redis on a single server do. A store that reads from a copy of the data that
 can lag behind, or reports a write as done before it can be read, does not.
 Nothing checks this.
 
+If your store has a `touch` method, it must only refresh the expiry.
+`express-session` calls it when a request ends, with the session as that
+request first loaded it, so a `touch` that saved that copy would undo what a
+later request saved.
+
 Two limits remain:
 
 - Requests are ordered inside one server process. If several processes share a
