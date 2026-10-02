@@ -879,8 +879,8 @@ describeForAll(
 
     it(
       sessionType === 'host'
-        ? 'returns a 200 with all runs with requested related lastLogs'
-        : 'returns a 200 with participant-owned runs with requested related lastLogs',
+        ? 'returns a 200 with all runs with requested related lastLogs and experiment'
+        : 'returns a 200 with participant-owned runs with requested related lastLogs and experiment',
       async ({ expect, context: { api, dataStore, sessionStore } }) => {
         const {
           runIds: [r1],

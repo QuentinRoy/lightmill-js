@@ -275,7 +275,7 @@ exports[`LogServer: get /runs ('host' / 'sqlite') > returns a 200 with all runs 
 }
 `;
 
-exports[`LogServer: get /runs ('host' / 'sqlite') > returns a 200 with all runs with requested related lastLogs 2`] = `
+exports[`LogServer: get /runs ('host' / 'sqlite') > returns a 200 with all runs with requested related lastLogs and experiment 1`] = `
 {
   "data": [
     {
@@ -538,7 +538,7 @@ exports[`LogServer: get /runs ('participant' / 'sqlite') > returns a 200 with pa
 }
 `;
 
-exports[`LogServer: get /runs ('participant' / 'sqlite') > returns a 200 with participant-owned runs with requested related lastLogs 2`] = `
+exports[`LogServer: get /runs ('participant' / 'sqlite') > returns a 200 with participant-owned runs with requested related lastLogs and experiment 1`] = `
 {
   "data": [
     {
