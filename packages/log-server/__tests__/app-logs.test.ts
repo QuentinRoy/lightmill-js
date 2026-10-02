@@ -8,7 +8,6 @@ import {
   apiContentTypeRegExp,
   atomicContentTypeRegExp,
   createSessionTest,
-  seed,
   storeTypes,
   type MockedDataStore,
   type StoreType,
@@ -588,17 +587,17 @@ describe.each(storeTypes)('LogServer: get /logs (%s)', (storeType) => {
 
   beforeEach<TestContext>(
     async ({ dataStore: dataStore, runId, experimentId }) => {
-      await seed(dataStore, (tx) =>
+      await dataStore.withTransaction((tx) =>
         tx.addLogs(runId, [
           { type: 'log-type', values: { x: 'x1', y: 'y1' }, number: 1 },
           { type: 'log-type', values: { y: 'y2', x: 'x2' }, number: 2 },
           { type: 'log-type', values: { y: 'y3', x: 'x3' }, number: 3 },
         ]),
       );
-      let newRun = await seed(dataStore, (tx) =>
+      let newRun = await dataStore.withTransaction((tx) =>
         tx.addRun({ runName: 'other-run', experimentId, runStatus: 'running' }),
       );
-      await seed(dataStore, (tx) =>
+      await dataStore.withTransaction((tx) =>
         tx.addLogs(newRun.runId, [
           { type: 'log-type', values: { x: 'x4', y: 'y4' }, number: 1 },
           { type: 'log-type', values: { y: 'y5', x: 'x5' }, number: 2 },
@@ -689,32 +688,32 @@ describe.each(storeTypes)('LogServer: get /logs (%s)', (storeType) => {
         async ({ dataStore, experimentId: otherExperimentId }, use) => {
           const testRunName = 'log-test-run';
           const testExperimentName = 'log-test-experiment';
-          const { experimentId: testExperimentId } = await seed(
-            dataStore,
-            (tx) => tx.addExperiment({ experimentName: testExperimentName }),
-          );
-          const { runId: testRunId } = await seed(dataStore, (tx) =>
+          const { experimentId: testExperimentId } =
+            await dataStore.withTransaction((tx) =>
+              tx.addExperiment({ experimentName: testExperimentName }),
+            );
+          const { runId: testRunId } = await dataStore.withTransaction((tx) =>
             tx.addRun({
               runName: testRunName,
               experimentId: testExperimentId,
               runStatus: 'running',
             }),
           );
-          const { runId: r1 } = await seed(dataStore, (tx) =>
+          const { runId: r1 } = await dataStore.withTransaction((tx) =>
             tx.addRun({
               runName: 'other-run-1',
               experimentId: testExperimentId,
               runStatus: 'running',
             }),
           );
-          const { runId: r2 } = await seed(dataStore, (tx) =>
+          const { runId: r2 } = await dataStore.withTransaction((tx) =>
             tx.addRun({
               runName: testRunName,
               experimentId: otherExperimentId,
               runStatus: 'running',
             }),
           );
-          const { runId: r3 } = await seed(dataStore, (tx) =>
+          const { runId: r3 } = await dataStore.withTransaction((tx) =>
             tx.addRun({
               runName: 'other-run-2',
               experimentId: otherExperimentId,
@@ -722,25 +721,25 @@ describe.each(storeTypes)('LogServer: get /logs (%s)', (storeType) => {
             }),
           );
           let v = 1;
-          await seed(dataStore, (tx) =>
+          await dataStore.withTransaction((tx) =>
             tx.addLogs(testRunId, [
               { type: 'log-type', values: { value: v++ }, number: 1 },
               { type: 'test-type', values: { value: v++ }, number: 2 },
             ]),
           );
-          await seed(dataStore, (tx) =>
+          await dataStore.withTransaction((tx) =>
             tx.addLogs(r1, [
               { type: 'log-type', values: { value: v++ }, number: 1 },
               { type: 'test-type', values: { value: v++ }, number: 2 },
             ]),
           );
-          await seed(dataStore, (tx) =>
+          await dataStore.withTransaction((tx) =>
             tx.addLogs(r2, [
               { type: 'test-type', values: { value: v++ }, number: 1 },
               { type: 'log-type', values: { value: v++ }, number: 2 },
             ]),
           );
-          await seed(dataStore, (tx) =>
+          await dataStore.withTransaction((tx) =>
             tx.addLogs(r3, [
               { type: 'test-type', values: { value: v++ }, number: 1 },
               { type: 'log-type', values: { value: v++ }, number: 2 },
@@ -860,10 +859,10 @@ describe.for(storeTypes)('LogServer: get /logs/{id} (%s)', (storeType) => {
     participantApi,
     experimentId,
   }) => {
-    const { runId } = await seed(dataStore, (tx) =>
+    const { runId } = await dataStore.withTransaction((tx) =>
       tx.addRun({ experimentId, runStatus: 'running' }),
     );
-    const [logRecord] = await seed(dataStore, (tx) =>
+    const [logRecord] = await dataStore.withTransaction((tx) =>
       tx.addLogs(runId, [
         { type: 'log-type', values: { value: 'v' }, number: 1 },
       ]),
@@ -901,7 +900,7 @@ describe.for(storeTypes)('LogServer: get /logs/{id} (%s)', (storeType) => {
   });
 
   it('returns the log', async ({ dataStore, participantApi, runId }) => {
-    const [logRecord] = await seed(dataStore, (tx) =>
+    const [logRecord] = await dataStore.withTransaction((tx) =>
       tx.addLogs(runId, [
         { type: 'log-type', values: { value: 'v' }, number: 1 },
       ]),

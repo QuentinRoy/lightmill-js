@@ -15,7 +15,6 @@ import {
   host,
   listen,
   runStatus,
-  seed,
   storeTypes,
   type MockedDataStore,
   type WithMockedMethods,
@@ -50,7 +49,7 @@ const suite = storeTypes
             data: { type: 'sessions', attributes: { role: sessionType } },
           })
           .expect(201);
-        const { experimentId } = await seed(dataStore, (tx) =>
+        const { experimentId } = await dataStore.withTransaction((tx) =>
           tx.addExperiment({ experimentName: 'my-experiment-name' }),
         );
         await use({ dataStore, sessionStore, api, experimentId });
@@ -182,7 +181,7 @@ describeForAll(
     it('refuses to create a run if a run with this name already exists for this experiment', async ({
       context: { api, dataStore, experimentId },
     }) => {
-      await seed(dataStore, (tx) =>
+      await dataStore.withTransaction((tx) =>
         tx.addRun({ runName: 'test-run', experimentId }),
       );
       await api
@@ -234,7 +233,7 @@ describeForAll(
       it("returns a 404 error to participants if they don't have access to the run", async ({
         context: { api, dataStore, experimentId },
       }) => {
-        const { runId } = await seed(dataStore, (tx) =>
+        const { runId } = await dataStore.withTransaction((tx) =>
           tx.addRun({ runName: 'my-run-name', experimentId: experimentId }),
         );
         await api
@@ -254,7 +253,7 @@ describeForAll(
       it('returns a run to hosts even if it is not theirs', async ({
         context: { api, dataStore, experimentId },
       }) => {
-        const { runId } = await seed(dataStore, (tx) =>
+        const { runId } = await dataStore.withTransaction((tx) =>
           tx.addRun({ runName: 'my-run-name', experimentId: experimentId }),
         );
         await api.get(`/runs/${runId}`).expect(200);
@@ -265,10 +264,10 @@ describeForAll(
       context: { api, dataStore, sessionStore, experimentId },
       expect,
     }) => {
-      const { runId } = await seed(dataStore, (tx) =>
+      const { runId } = await dataStore.withTransaction((tx) =>
         tx.addRun({ runName: 'run-name', runStatus: 'running', experimentId }),
       );
-      const logs = await seed(dataStore, (tx) =>
+      const logs = await dataStore.withTransaction((tx) =>
         tx.addLogs(runId, [
           { type: 'log-type-1', number: 1, values: {} },
           { type: 'log-type-3', number: 2, values: { p3: 'v3' } },
@@ -318,10 +317,10 @@ describeForAll(
       context: { api, dataStore, experimentId, sessionStore },
       expect,
     }) => {
-      const { runId } = await seed(dataStore, (tx) =>
+      const { runId } = await dataStore.withTransaction((tx) =>
         tx.addRun({ experimentId, runStatus: 'running', runName: null }),
       );
-      const logs = await seed(dataStore, (tx) =>
+      const logs = await dataStore.withTransaction((tx) =>
         tx.addLogs(runId, [
           { type: 'log-type', number: 1, values: {} },
           { type: 'log-type', number: 2, values: {} },
@@ -377,11 +376,11 @@ describeForAll(
       it('returns a 404 error if a participant tries to change the status of the run but does not have access to that run', async ({
         context: { api, dataStore, experimentId, sessionStore },
       }) => {
-        const { runId: otherRunId } = await seed(dataStore, (tx) =>
+        const { runId: otherRunId } = await dataStore.withTransaction((tx) =>
           tx.addRun({ experimentId, runName: null }),
         );
         await addRunToSession({ api, runId: otherRunId, sessionStore });
-        const { runId } = await seed(dataStore, (tx) =>
+        const { runId } = await dataStore.withTransaction((tx) =>
           tx.addRun({ experimentId, runName: null }),
         );
         await api
@@ -400,11 +399,11 @@ describeForAll(
       it('returns a 404 error if a participant tries to resume a run but does not have access to that run', async ({
         context: { api, dataStore, experimentId, sessionStore },
       }) => {
-        const { runId: otherRunId } = await seed(dataStore, (tx) =>
+        const { runId: otherRunId } = await dataStore.withTransaction((tx) =>
           tx.addRun({ experimentId, runName: null }),
         );
         await addRunToSession({ api, runId: otherRunId, sessionStore });
-        const { runId } = await seed(dataStore, (tx) =>
+        const { runId } = await dataStore.withTransaction((tx) =>
           tx.addRun({ experimentId, runName: null }),
         );
         await api
@@ -441,7 +440,7 @@ describeForAll(
         { originalStatus, targetStatus },
         { expect, context: { api, dataStore, experimentId, sessionStore } },
       ) => {
-        const { runId } = await seed(dataStore, (tx) =>
+        const { runId } = await dataStore.withTransaction((tx) =>
           tx.addRun({ experimentId, runStatus: originalStatus, runName: null }),
         );
         await addRunToSession({ api, runId, sessionStore });
@@ -485,7 +484,7 @@ describeForAll(
         { originalStatus, targetStatus },
         { expect, context: { api, dataStore, experimentId, sessionStore } },
       ) => {
-        const { runId } = await seed(dataStore, (tx) =>
+        const { runId } = await dataStore.withTransaction((tx) =>
           tx.addRun({ experimentId, runStatus: originalStatus }),
         );
         await addRunToSession({ api, runId, sessionStore });
@@ -511,7 +510,7 @@ describeForAll(
       expect,
       context: { api, dataStore, experimentId, sessionStore },
     }) => {
-      const runRecord = await seed(dataStore, (tx) =>
+      const runRecord = await dataStore.withTransaction((tx) =>
         tx.addRun({ experimentId }),
       );
       await addRunToSession({ api, runId: runRecord.runId, sessionStore });
@@ -543,7 +542,7 @@ describeForAll(
         status,
         { expect, context: { api, dataStore, sessionStore, experimentId } },
       ) => {
-        const runRecord = await seed(dataStore, (tx) =>
+        const runRecord = await dataStore.withTransaction((tx) =>
           tx.addRun({ experimentId, runStatus: status }),
         );
         await addRunToSession({ api, runId: runRecord.runId, sessionStore });
@@ -563,10 +562,10 @@ describeForAll(
       expect,
       context: { api, dataStore, sessionStore, experimentId },
     }) => {
-      const runRecord = await seed(dataStore, (tx) =>
+      const runRecord = await dataStore.withTransaction((tx) =>
         tx.addRun({ experimentId, runStatus: 'running' }),
       );
-      await seed(dataStore, (tx) =>
+      await dataStore.withTransaction((tx) =>
         tx.addLogs(runRecord.runId, [
           { type: 'log-type', number: 1, values: {} },
           // Log with number 2 is missing, so there are missing logs.
@@ -599,10 +598,10 @@ describeForAll(
       expect,
       context: { api, dataStore, sessionStore, experimentId },
     }) => {
-      const { runId } = await seed(dataStore, (tx) =>
+      const { runId } = await dataStore.withTransaction((tx) =>
         tx.addRun({ experimentId, runStatus: 'running' }),
       );
-      await seed(dataStore, (tx) =>
+      await dataStore.withTransaction((tx) =>
         tx.addLogs(runId, [
           { type: 'log-type', number: 1, values: {} },
           { type: 'log-type', number: 10 ** 12, values: {} },
@@ -640,10 +639,10 @@ describeForAll(
       expect,
       context: { api, experimentId, dataStore, sessionStore },
     }) => {
-      const { runId } = await seed(dataStore, (tx) =>
+      const { runId } = await dataStore.withTransaction((tx) =>
         tx.addRun({ experimentId, runStatus: 'running' }),
       );
-      await seed(dataStore, (tx) =>
+      await dataStore.withTransaction((tx) =>
         tx.addLogs(runId, [
           { type: 'log-type', number: 1, values: { v: 1 } },
           { type: 'log-type', number: 2, values: { v: 2 } },
@@ -678,17 +677,17 @@ describeForAll(
         status,
         { expect, context: { api, dataStore, experimentId, sessionStore } },
       ) => {
-        const { runId } = await seed(dataStore, (tx) =>
+        const { runId } = await dataStore.withTransaction((tx) =>
           tx.addRun({ experimentId, runStatus: 'running' }),
         );
-        await seed(dataStore, (tx) =>
+        await dataStore.withTransaction((tx) =>
           tx.addLogs(runId, [
             { type: 'log-type', number: 1, values: { v: 'v1' } },
             { type: 'log-type', number: 2, values: { v: 'v2' } },
             { type: 'log-type', number: 3, values: { v: 'v3' } },
           ]),
         );
-        await seed(dataStore, (tx) => tx.setRunStatus(runId, status));
+        await dataStore.withTransaction((tx) => tx.setRunStatus(runId, status));
         await addRunToSession({ api, runId, sessionStore });
         await api
           .patch(`/runs/${runId}`)
@@ -724,17 +723,19 @@ describeForAll(
       expect,
       context: { api, experimentId, dataStore, sessionStore },
     }) => {
-      const { runId } = await seed(dataStore, (tx) =>
+      const { runId } = await dataStore.withTransaction((tx) =>
         tx.addRun({ experimentId, runStatus: 'running' }),
       );
-      await seed(dataStore, (tx) =>
+      await dataStore.withTransaction((tx) =>
         tx.addLogs(runId, [
           { type: 'log-type', number: 1, values: { v: 'v1' } },
           { type: 'log-type', number: 2, values: { v: 'v2' } },
           { type: 'log-type', number: 3, values: { v: 'v3' } },
         ]),
       );
-      await seed(dataStore, (tx) => tx.setRunStatus(runId, 'interrupted'));
+      await dataStore.withTransaction((tx) =>
+        tx.setRunStatus(runId, 'interrupted'),
+      );
       await addRunToSession({ api, runId, sessionStore });
       await api
         .patch(`/runs/${runId}`)
@@ -769,20 +770,20 @@ describeForAll(
         context: { api, dataStore, sessionStore, experimentId },
       }) => {
         const baseRunOptions = { experimentId, runStatus: 'running' as const };
-        const { runId: r1 } = await seed(dataStore, (tx) =>
+        const { runId: r1 } = await dataStore.withTransaction((tx) =>
           tx.addRun({ ...baseRunOptions, runName: 'run-1' }),
         );
-        await seed(dataStore, (tx) =>
+        await dataStore.withTransaction((tx) =>
           tx.addLogs(r1, [
             { type: 'log-type', number: 1, values: { v: 'r1l1' } },
             { type: 'log-type', number: 2, values: { v: 'r1l2' } },
             { type: 'log-type', number: 4, values: { v: 'r1l4' } },
           ]),
         );
-        const { runId: r2 } = await seed(dataStore, (tx) =>
+        const { runId: r2 } = await dataStore.withTransaction((tx) =>
           tx.addRun({ ...baseRunOptions, runName: 'run-2' }),
         );
-        await seed(dataStore, (tx) =>
+        await dataStore.withTransaction((tx) =>
           tx.addLogs(r2, [
             { type: 'log-type', number: 1, values: { v: 'r2l1' } },
           ]),
@@ -797,33 +798,33 @@ describeForAll(
     );
 
     async function setup3runsIn2experiments(dataStore: DataStore) {
-      const { experimentId: e1 } = await seed(dataStore, (tx) =>
+      const { experimentId: e1 } = await dataStore.withTransaction((tx) =>
         tx.addExperiment({ experimentName: 'experiment-1' }),
       );
-      const { runId: r1 } = await seed(dataStore, (tx) =>
+      const { runId: r1 } = await dataStore.withTransaction((tx) =>
         tx.addRun({ experimentId: e1, runStatus: 'running', runName: 'run-1' }),
       );
-      await seed(dataStore, (tx) =>
+      await dataStore.withTransaction((tx) =>
         tx.addLogs(r1, [
           { type: 'log-type', number: 1, values: { v: 'r1l1' } },
           { type: 'log-type', number: 2, values: { v: 'r1l2' } },
           { type: 'log-type', number: 4, values: { v: 'r1l4' } },
         ]),
       );
-      const { runId: r2 } = await seed(dataStore, (tx) =>
+      const { runId: r2 } = await dataStore.withTransaction((tx) =>
         tx.addRun({
           experimentId: e1,
           runStatus: 'completed',
           runName: 'run-2',
         }),
       );
-      const { experimentId: e2 } = await seed(dataStore, (tx) =>
+      const { experimentId: e2 } = await dataStore.withTransaction((tx) =>
         tx.addExperiment({ experimentName: 'experiment-2' }),
       );
-      const { runId: r3 } = await seed(dataStore, (tx) =>
+      const { runId: r3 } = await dataStore.withTransaction((tx) =>
         tx.addRun({ experimentId: e2, runStatus: 'running' }),
       );
-      await seed(dataStore, (tx) =>
+      await dataStore.withTransaction((tx) =>
         tx.addLogs(r3, [
           { type: 'log-type', number: 1, values: { v: 'r3l1' } },
         ]),

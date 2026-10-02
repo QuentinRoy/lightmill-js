@@ -423,14 +423,6 @@ export function mockDataStore(store: DataStore): MockedDataStore {
   ) as MockedDataStore;
 }
 
-/** Writes through a store, for tests that need data. */
-export function seed<T>(
-  store: DataStore,
-  fn: (tx: DataStoreTransaction) => Promise<T>,
-): Promise<T> {
-  return store.withTransaction(fn);
-}
-
 export async function addRunToSession({
   api,
   runId,

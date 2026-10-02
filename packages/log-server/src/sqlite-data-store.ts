@@ -55,6 +55,7 @@ const constructorKey = Symbol('SQLiteDataStore constructor key');
 export class SQLiteDataStore implements DataStore {
   #db: Kysely<Database>;
   #queries: Queries;
+  #selectQueryLimit: number;
   #sessionStore: SessionStore | undefined;
   // Root reads and transactions that were admitted and have not settled.
   #inFlight = new Set<Promise<void>>();
@@ -80,6 +81,7 @@ export class SQLiteDataStore implements DataStore {
       );
     }
     this.#db = db;
+    this.#selectQueryLimit = selectQueryLimit;
     this.#queries = new Queries(db, selectQueryLimit);
   }
 
@@ -210,7 +212,7 @@ export class SQLiteDataStore implements DataStore {
           throw mapBusyError(error);
         }
         const scope = createTransactionScope(
-          new Queries(connection, this.#queries.selectQueryLimit),
+          new Queries(connection, this.#selectQueryLimit),
         );
         let outcome: { value: T } | { error: unknown };
         try {
@@ -322,11 +324,11 @@ export class SQLiteDataStore implements DataStore {
  */
 class Queries {
   #db: Kysely<Database>;
-  readonly selectQueryLimit: number;
+  #selectQueryLimit: number;
 
   constructor(db: Kysely<Database>, selectQueryLimit: number) {
     this.#db = db;
-    this.selectQueryLimit = selectQueryLimit;
+    this.#selectQueryLimit = selectQueryLimit;
   }
 
   async addExperiment({
@@ -733,7 +735,7 @@ class Queries {
       .orderBy('experimentName')
       .orderBy('runName')
       .orderBy('logNumber')
-      .limit(this.selectQueryLimit)
+      .limit(this.#selectQueryLimit)
       .$if(after != null, (qb) =>
         qb.where((eb) => {
           if (after === null) throw new Error('after is null');

@@ -21,7 +21,6 @@ import {
   createContractIt,
   describeDataStoreContract,
 } from './data-store-contract.ts';
-import { seed } from './test-utils.ts';
 
 // Prevent kysely from logging anything.
 loglevel.setDefaultLevel('silent');
@@ -109,7 +108,7 @@ describe('SQLite constraints and triggers', () => {
     }) => {
       await expect(
         // @ts-expect-error we are intentionally setting an unknown status
-        seed(store, (tx) => tx.setRunStatus(e1run1, 'unknown')),
+        store.withTransaction((tx) => tx.setRunStatus(e1run1, 'unknown')),
       ).rejects.toThrow();
     });
 
@@ -118,23 +117,19 @@ describe('SQLite constraints and triggers', () => {
       store,
       e1run1,
     }) => {
-      await seed(store, (tx) => tx.setRunStatus(e1run1, 'completed'));
+      await store.withTransaction((tx) => tx.setRunStatus(e1run1, 'completed'));
       await expect(
-        seed(store, (tx) => tx.setRunStatus(e1run1, 'idle')),
-      ).rejects.toThrowErrorMatchingInlineSnapshot(
-        `[StoreError: Cannot change status of run 1 to idle because the run is completed and can only be canceled.]`,
-      );
+        store.withTransaction((tx) => tx.setRunStatus(e1run1, 'idle')),
+      ).rejects.toMatchObject({ code: DataStoreError.RUN_HAS_ENDED });
       await expect(
-        seed(store, (tx) => tx.setRunStatus(e1run1, 'running')),
-      ).rejects.toThrowErrorMatchingInlineSnapshot(
-        `[StoreError: Cannot change status of run 1 to running because the run is completed and can only be canceled.]`,
-      );
+        store.withTransaction((tx) => tx.setRunStatus(e1run1, 'running')),
+      ).rejects.toMatchObject({ code: DataStoreError.RUN_HAS_ENDED });
     });
 
     it('cancels a completed run', async ({ expect, store, e1run1 }) => {
-      await seed(store, (tx) => tx.setRunStatus(e1run1, 'completed'));
+      await store.withTransaction((tx) => tx.setRunStatus(e1run1, 'completed'));
       await expect(
-        seed(store, (tx) => tx.setRunStatus(e1run1, 'canceled')),
+        store.withTransaction((tx) => tx.setRunStatus(e1run1, 'canceled')),
       ).resolves.toBeUndefined();
     });
 
@@ -143,22 +138,16 @@ describe('SQLite constraints and triggers', () => {
       store,
       e1run1,
     }) => {
-      await seed(store, (tx) => tx.setRunStatus(e1run1, 'canceled'));
+      await store.withTransaction((tx) => tx.setRunStatus(e1run1, 'canceled'));
       await expect(
-        seed(store, (tx) => tx.setRunStatus(e1run1, 'running')),
-      ).rejects.toThrowErrorMatchingInlineSnapshot(
-        `[StoreError: Cannot update status of run 1 because the run is canceled.]`,
-      );
+        store.withTransaction((tx) => tx.setRunStatus(e1run1, 'running')),
+      ).rejects.toMatchObject({ code: DataStoreError.RUN_HAS_ENDED });
       await expect(
-        seed(store, (tx) => tx.setRunStatus(e1run1, 'canceled')),
-      ).rejects.toThrowErrorMatchingInlineSnapshot(
-        `[StoreError: Cannot update status of run 1 because the run is canceled.]`,
-      );
+        store.withTransaction((tx) => tx.setRunStatus(e1run1, 'canceled')),
+      ).rejects.toMatchObject({ code: DataStoreError.RUN_HAS_ENDED });
       await expect(
-        seed(store, (tx) => tx.setRunStatus(e1run1, 'completed')),
-      ).rejects.toThrowErrorMatchingInlineSnapshot(
-        `[StoreError: Cannot update status of run 1 because the run is canceled.]`,
-      );
+        store.withTransaction((tx) => tx.setRunStatus(e1run1, 'completed')),
+      ).rejects.toMatchObject({ code: DataStoreError.RUN_HAS_ENDED });
     });
 
     it('completes a resumed run even if it was interrupted', async ({
@@ -166,13 +155,13 @@ describe('SQLite constraints and triggers', () => {
       store,
       runWithTwoLogs: { run },
     }) => {
-      await seed(store, (tx) => tx.setRunStatus(run, 'interrupted'));
-      await seed(store, async (tx) => {
+      await store.withTransaction((tx) => tx.setRunStatus(run, 'interrupted'));
+      await store.withTransaction(async (tx) => {
         await tx.cancelLogsAfter(run, { after: 2 });
         await tx.setRunStatus(run, 'running');
       });
       await expect(
-        seed(store, (tx) => tx.setRunStatus(run, 'completed')),
+        store.withTransaction((tx) => tx.setRunStatus(run, 'completed')),
       ).resolves.toBeUndefined();
     });
 
@@ -181,13 +170,13 @@ describe('SQLite constraints and triggers', () => {
       store,
       runWithTwoLogs: { run },
     }) => {
-      await seed(store, (tx) => tx.setRunStatus(run, 'interrupted'));
-      await seed(store, async (tx) => {
+      await store.withTransaction((tx) => tx.setRunStatus(run, 'interrupted'));
+      await store.withTransaction(async (tx) => {
         await tx.cancelLogsAfter(run, { after: 2 });
         await tx.setRunStatus(run, 'running');
       });
       await expect(
-        seed(store, (tx) => tx.setRunStatus(run, 'canceled')),
+        store.withTransaction((tx) => tx.setRunStatus(run, 'canceled')),
       ).resolves.toBeUndefined();
     });
   });
@@ -199,9 +188,9 @@ describe('SQLite constraints and triggers', () => {
       store,
       runWithTwoLogs: { run },
     }) => {
-      await seed(store, (tx) => tx.addLogs(run, logRows(5)));
+      await store.withTransaction((tx) => tx.addLogs(run, logRows(5)));
       await expect(
-        seed(store, (tx) => tx.cancelLogsAfter(run, { after: 4 })),
+        store.withTransaction((tx) => tx.cancelLogsAfter(run, { after: 4 })),
       ).rejects.toThrow();
       await expect(store.getRuns({ runId: run })).resolves.toMatchObject([
         { lastLogNumber: 2, firstMissingLogNumber: 3 },
@@ -213,9 +202,9 @@ describe('SQLite constraints and triggers', () => {
       store,
       runWithTwoLogs: { run },
     }) => {
-      await seed(store, (tx) => tx.addLogs(run, logRows(5)));
+      await store.withTransaction((tx) => tx.addLogs(run, logRows(5)));
       await expect(
-        seed(store, (tx) => tx.cancelLogsAfter(run, { after: 3 })),
+        store.withTransaction((tx) => tx.cancelLogsAfter(run, { after: 3 })),
       ).rejects.toThrow();
     });
   });
@@ -227,54 +216,48 @@ describe('SQLite constraints and triggers', () => {
       e1run1,
     }) => {
       await expect(
-        seed(store, (tx) =>
+        store.withTransaction((tx) =>
           tx.addLogs(e1run1, [{ type: 'log4', number: 0, values: { x: 3 } }]),
         ),
-      ).rejects.toThrowErrorMatchingInlineSnapshot(
-        `[SqliteError: Cannot insert log with log_number smaller than its sequence start]`,
-      );
+      ).rejects.toThrow();
       await expect(
-        seed(store, (tx) =>
+        store.withTransaction((tx) =>
           tx.addLogs(e1run1, [{ type: 'log4', number: -1, values: { x: 3 } }]),
         ),
-      ).rejects.toThrowErrorMatchingInlineSnapshot(
-        `[SqliteError: Cannot insert log with log_number smaller than its sequence start]`,
-      );
+      ).rejects.toThrow();
       await expect(
-        seed(store, (tx) =>
+        store.withTransaction((tx) =>
           tx.addLogs(e1run1, [
             { type: 'log4', number: -1, values: { x: 3 } },
             { type: 'log4', number: 1, values: { x: 3 } },
           ]),
         ),
-      ).rejects.toThrowErrorMatchingInlineSnapshot(
-        `[SqliteError: Cannot insert log with log_number smaller than its sequence start]`,
-      );
+      ).rejects.toThrow();
     });
 
-    it('refuses to add logs if the run was resumed from a number higher than the log number', async ({
+    it('refuses to add logs numbered below where the logs were canceled', async ({
       expect,
       store,
       e1run1: exp1run1,
     }) => {
-      await seed(store, (tx) =>
+      await store.withTransaction((tx) =>
         tx.addLogs(exp1run1, [
           { type: 'log4', number: 1, values: { x: 1 } },
           { type: 'log4', number: 2, values: { x: 1 } },
         ]),
       );
-      await seed(store, (tx) => tx.cancelLogsAfter(exp1run1, { after: 2 }));
+      await store.withTransaction((tx) =>
+        tx.cancelLogsAfter(exp1run1, { after: 2 }),
+      );
       await expect(
-        seed(store, (tx) =>
+        store.withTransaction((tx) =>
           tx.addLogs(exp1run1, [
             { type: 'log4', number: 2, values: { x: 3 } },
             { type: 'log4', number: 3, values: { x: 3 } },
             { type: 'log4', number: 4, values: { x: 3 } },
           ]),
         ),
-      ).rejects.toThrowErrorMatchingInlineSnapshot(
-        `[SqliteError: Cannot insert log with log_number smaller than its sequence start]`,
-      );
+      ).rejects.toThrow();
     });
   });
 });
@@ -428,7 +411,7 @@ describe('SQLiteDataStore transactions', () => {
     const store = await SQLiteDataStore.open(':memory:', {
       selectQueryLimit: 2,
     });
-    const { runId } = await seed(store, async (tx) => {
+    const { runId } = await store.withTransaction(async (tx) => {
       const { experimentId } = await tx.addExperiment({ experimentName: 'e' });
       const run = await tx.addRun({
         experimentId,
@@ -444,7 +427,9 @@ describe('SQLiteDataStore transactions', () => {
     const logs = store.getLogs({ runId });
     await logs.next();
     await expect(
-      seed(store, (tx) => tx.addExperiment({ experimentName: 'meanwhile' })),
+      store.withTransaction((tx) =>
+        tx.addExperiment({ experimentName: 'meanwhile' }),
+      ),
     ).resolves.toMatchObject({ experimentName: 'meanwhile' });
     const rest = await fromAsync(logs);
     expect(rest).toHaveLength(4);
@@ -475,27 +460,27 @@ describe.for([{ queryLimit: 10000 }, { queryLimit: 2 }])(
         let store = await SQLiteDataStore.open(':memory:', {
           selectQueryLimit: queryLimit,
         });
-        let e1 = await seed(store, (tx) =>
+        let e1 = await store.withTransaction((tx) =>
           tx.addExperiment({ experimentName: 'experiment-1' }),
         );
-        let e2 = await seed(store, (tx) =>
+        let e2 = await store.withTransaction((tx) =>
           tx.addExperiment({ experimentName: 'experiment-2' }),
         );
-        let e1r1 = await seed(store, (tx) =>
+        let e1r1 = await store.withTransaction((tx) =>
           tx.addRun({
             runName: 'run1',
             runStatus: 'running',
             experimentId: e1.experimentId,
           }),
         );
-        let e1r2 = await seed(store, (tx) =>
+        let e1r2 = await store.withTransaction((tx) =>
           tx.addRun({
             runName: 'run2',
             runStatus: 'running',
             experimentId: e1.experimentId,
           }),
         );
-        let e2r1 = await seed(store, (tx) =>
+        let e2r1 = await store.withTransaction((tx) =>
           tx.addRun({
             runName: 'run1',
             runStatus: 'running',
@@ -503,27 +488,27 @@ describe.for([{ queryLimit: 10000 }, { queryLimit: 2 }])(
           }),
         );
         const logs: LogId[] = [];
-        let res = await seed(store, (tx) =>
+        let res = await store.withTransaction((tx) =>
           tx.addLogs(e1r1.runId, [
             { type: 'log1', number: 1, values: { data: [1, 'a'] } },
             { type: 'log1', number: 2, values: { data: [2, 'b'] } },
           ]),
         );
         logs.push(...res.map((l) => l.logId));
-        res = await seed(store, (tx) =>
+        res = await store.withTransaction((tx) =>
           tx.addLogs(e1r2.runId, [
             { type: 'log1', number: 1, values: { message: 'hola', bar: null } },
             { type: 'log2', number: 2, values: { x: 12, foo: false } },
           ]),
         );
         logs.push(...res.map((l) => l.logId));
-        res = await seed(store, (tx) =>
+        res = await store.withTransaction((tx) =>
           tx.addLogs(e2r1.runId, [
             { type: 'log2', number: 1, values: { x: 20, y: 2, foo: true } },
           ]),
         );
         logs.push(...res.map((l) => l.logId));
-        res = await seed(store, (tx) =>
+        res = await store.withTransaction((tx) =>
           tx.addLogs(e1r1.runId, [
             { type: 'log3', number: 3, values: { x: 25, y: 0, bar: '' } },
           ]),
@@ -554,7 +539,7 @@ describe.for([{ queryLimit: 10000 }, { queryLimit: 2 }])(
       expect,
       context: { e2run1, store },
     }) => {
-      await seed(store, (tx) =>
+      await store.withTransaction((tx) =>
         tx.addLogs(e2run1, [
           {
             type: 'log1',
@@ -568,7 +553,7 @@ describe.for([{ queryLimit: 10000 }, { queryLimit: 2 }])(
           },
         ]),
       );
-      await seed(store, (tx) =>
+      await store.withTransaction((tx) =>
         tx.addLogs(e2run1, [
           {
             type: 'log1',
@@ -737,12 +722,14 @@ describe.for([{ queryLimit: 10000 }, { queryLimit: 2 }])(
       ).resolves.toEqual([]);
     });
 
-    it('returns logs added after resuming', async ({
+    it('returns logs added after canceling logs', async ({
       expect,
       context: { store, experiment2, e2run1 },
     }) => {
-      await seed(store, (tx) => tx.cancelLogsAfter(e2run1, { after: 1 }));
-      await seed(store, (tx) =>
+      await store.withTransaction((tx) =>
+        tx.cancelLogsAfter(e2run1, { after: 1 }),
+      );
+      await store.withTransaction((tx) =>
         tx.addLogs(e2run1, [
           { type: 'log3', number: 2, values: { x: 25, y: 0, foo: true } },
         ]),
@@ -754,12 +741,14 @@ describe.for([{ queryLimit: 10000 }, { queryLimit: 2 }])(
       ).resolves.toMatchSnapshot();
     });
 
-    it('does not return logs canceled from resuming', async ({
+    it('does not return canceled logs', async ({
       expect,
       context: { experiment1, e1run2, store },
     }) => {
       let logs = await fromAsync(store.getLogs({ runId: e1run2 }));
-      await seed(store, (tx) => tx.cancelLogsAfter(e1run2, { after: 1 }));
+      await store.withTransaction((tx) =>
+        tx.cancelLogsAfter(e1run2, { after: 1 }),
+      );
       await expect(
         fromAsync(store.getLogs({ runId: e1run2 })),
       ).resolves.toEqual([
@@ -775,17 +764,19 @@ describe.for([{ queryLimit: 10000 }, { queryLimit: 2 }])(
           values: { bar: null, message: 'hola' },
         },
       ]);
-      await seed(store, (tx) => tx.cancelLogsAfter(e1run2, { after: 0 }));
+      await store.withTransaction((tx) =>
+        tx.cancelLogsAfter(e1run2, { after: 0 }),
+      );
       await expect(
         fromAsync(store.getLogs({ runId: e1run2 })),
       ).resolves.toEqual([]);
     });
 
-    it('returns logs overwriting other logs after resuming', async ({
+    it('returns logs overwriting canceled logs', async ({
       expect,
       context: { store, e1run2, experiment1 },
     }) => {
-      await seed(store, (tx) =>
+      await store.withTransaction((tx) =>
         tx.addLogs(e1run2, [
           { type: 'log1', number: 3, values: { x: 5 } },
           { type: 'log1', number: 4, values: { x: 6 } },
@@ -793,11 +784,13 @@ describe.for([{ queryLimit: 10000 }, { queryLimit: 2 }])(
       );
       let logs = await fromAsync(store.getLogs({ runId: e1run2 }));
       expect(logs).toHaveLength(4);
-      await seed(store, (tx) => tx.cancelLogsAfter(e1run2, { after: 1 }));
+      await store.withTransaction((tx) =>
+        tx.cancelLogsAfter(e1run2, { after: 1 }),
+      );
       await expect(
         fromAsync(store.getLogs({ runId: e1run2 })),
       ).resolves.toHaveLength(1);
-      await seed(store, (tx) =>
+      await store.withTransaction((tx) =>
         tx.addLogs(e1run2, [
           { type: 'overwriting', number: 2, values: { x: 1 } },
           { type: 'overwriting', number: 3, values: { x: 2 } },

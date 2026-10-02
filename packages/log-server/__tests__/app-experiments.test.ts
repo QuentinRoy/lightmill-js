@@ -3,7 +3,6 @@ import { apiMediaType } from '../src/api.ts';
 import {
   apiContentTypeRegExp,
   createSessionTest,
-  seed,
   storeTypes,
 } from './test-utils.ts';
 
@@ -44,7 +43,7 @@ describe.for(hostTests)(
       session: { api, dataStore },
       expect,
     }) => {
-      await seed(dataStore, (tx) =>
+      await dataStore.withTransaction((tx) =>
         tx.addExperiment({ experimentName: 'exp-name' }),
       );
 
@@ -112,14 +111,14 @@ describe.for(allTests)(
           vi.useFakeTimers({ now: new Date('2023-01-01T00:00:00Z') });
           const experiments = await Promise.all(
             ['exp-1-name', 'exp-2-name', 'exp-3-name'].map((name) =>
-              seed(dataStore, (tx) =>
+              dataStore.withTransaction((tx) =>
                 tx.addExperiment({ experimentName: name }),
               ),
             ),
           );
           const runs = await Promise.all(
             experiments.map((exp, index) => {
-              return seed(dataStore, (tx) =>
+              return dataStore.withTransaction((tx) =>
                 tx.addRun({
                   experimentId: exp.experimentId,
                   runName: `run-${index + 1}-name`,
@@ -185,7 +184,7 @@ describe.for(allTests)(
     it('returns an experiment by ID', async ({
       session: { api, dataStore },
     }) => {
-      let { experimentId } = await seed(dataStore, (tx) =>
+      let { experimentId } = await dataStore.withTransaction((tx) =>
         tx.addExperiment({ experimentName: 'exp-1-name' }),
       );
 

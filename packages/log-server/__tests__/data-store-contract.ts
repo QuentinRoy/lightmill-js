@@ -19,7 +19,6 @@ import type {
   RunId,
 } from '../src/data-store.ts';
 import { firstStrict, fromAsync } from '../src/utils.ts';
-import { seed } from './test-utils.ts';
 
 interface Fixture {
   store: DataStore;
@@ -34,7 +33,14 @@ interface Fixture {
   runningRuns: [RunId, RunId, RunId];
   runWithTwoLogs: { run: RunId; logs: [LogId, LogId] };
   unknownRun: RunId;
+  unknownExperiment: ExperimentId;
   mockTime: Date;
+}
+
+// Ids are numeric strings in every store we have, so the one after the
+// highest is free.
+function unusedId(ids: string[]) {
+  return String(Math.max(0, ...ids.map(Number)) + 1);
 }
 
 export function createContractIt(createStore: () => Promise<DataStore>) {
@@ -47,7 +53,7 @@ export function createContractIt(createStore: () => Promise<DataStore>) {
     experiment1: async ({ store }, use) => {
       const now = new Date('2022-11-01T00:00:00Z');
       vi.useFakeTimers({ now, toFake: ['Date'] });
-      let { experimentId } = await seed(store, (tx) =>
+      let { experimentId } = await store.withTransaction((tx) =>
         tx.addExperiment({ experimentName: 'experiment-1' }),
       );
       vi.useRealTimers();
@@ -56,7 +62,7 @@ export function createContractIt(createStore: () => Promise<DataStore>) {
     experiment2: async ({ store }, use) => {
       const now = new Date('2022-11-02T00:00:00Z');
       vi.useFakeTimers({ now, toFake: ['Date'] });
-      let { experimentId } = await seed(store, (tx) =>
+      let { experimentId } = await store.withTransaction((tx) =>
         tx.addExperiment({ experimentName: 'experiment-2' }),
       );
       vi.useRealTimers();
@@ -65,7 +71,7 @@ export function createContractIt(createStore: () => Promise<DataStore>) {
     experiment3: async ({ store }, use) => {
       const now = new Date('2022-11-03T00:00:00Z');
       vi.useFakeTimers({ now, toFake: ['Date'] });
-      let { experimentId } = await seed(store, (tx) =>
+      let { experimentId } = await store.withTransaction((tx) =>
         tx.addExperiment({ experimentName: 'experiment-3' }),
       );
       vi.useRealTimers();
@@ -77,7 +83,7 @@ export function createContractIt(createStore: () => Promise<DataStore>) {
     e1run1: async ({ store, experiment1 }, use) => {
       vi.useFakeTimers();
       vi.setSystemTime('2023-01-01T00:00:00.000Z');
-      let { runId } = await seed(store, (tx) =>
+      let { runId } = await store.withTransaction((tx) =>
         tx.addRun({
           runName: 'run1',
           experimentId: experiment1,
@@ -90,7 +96,7 @@ export function createContractIt(createStore: () => Promise<DataStore>) {
     e1run2: async ({ store, experiment1 }, use) => {
       vi.useFakeTimers();
       vi.setSystemTime('2023-01-01T00:00:00.000Z');
-      let { runId } = await seed(store, (tx) =>
+      let { runId } = await store.withTransaction((tx) =>
         tx.addRun({
           runName: 'run2',
           experimentId: experiment1,
@@ -103,7 +109,7 @@ export function createContractIt(createStore: () => Promise<DataStore>) {
     e2run1: async ({ store, experiment2 }, use) => {
       vi.useFakeTimers();
       vi.setSystemTime('2023-01-01T00:00:00.000Z');
-      let { runId } = await seed(store, (tx) =>
+      let { runId } = await store.withTransaction((tx) =>
         tx.addRun({
           runName: 'run1',
           experimentId: experiment2,
@@ -117,16 +123,11 @@ export function createContractIt(createStore: () => Promise<DataStore>) {
       await use([run1, run2, run3]);
     },
     unknownRun: async ({ store }, use) => {
-      let runs = await store.getRuns();
-      // Starting at 100 because the probability of a collision is very low
-      // since we don't create more than a few runs.
-      let i = 100;
-      let id = i.toString();
-      while (runs.find((run) => run.runId === id) != null) {
-        i++;
-        id = i.toString();
-      }
-      await use(id);
+      await use(unusedId((await store.getRuns()).map((run) => run.runId)));
+    },
+    unknownExperiment: async ({ store }, use) => {
+      const experiments = await store.getExperiments();
+      await use(unusedId(experiments.map((e) => e.experimentId)));
     },
     mockTime: async ({}, use) => {
       const now = new Date('2024-01-01T00:00:00Z');
@@ -135,10 +136,10 @@ export function createContractIt(createStore: () => Promise<DataStore>) {
       vi.useRealTimers();
     },
     runWithTwoLogs: async ({ store, experiment3 }, use) => {
-      const { runId } = await seed(store, (tx) =>
+      const { runId } = await store.withTransaction((tx) =>
         tx.addRun({ experimentId: experiment3, runStatus: 'running' }),
       );
-      const logs = await seed(store, (tx) =>
+      const logs = await store.withTransaction((tx) =>
         tx.addLogs(runId, [
           { type: 'log', number: 1, values: { x: 1 } },
           { type: 'log', number: 2, values: { x: 2 } },
@@ -146,12 +147,13 @@ export function createContractIt(createStore: () => Promise<DataStore>) {
       );
       await use({
         run: runId,
+        // The fixture adds exactly two logs.
         logs: logs.map((l) => l.logId) as [LogId, LogId],
       });
     },
     runningRuns: async ({ store, runs }, use) => {
       for (const runId of runs) {
-        await seed(store, (tx) => tx.setRunStatus(runId, 'running'));
+        await store.withTransaction((tx) => tx.setRunStatus(runId, 'running'));
       }
       await use(runs);
     },
@@ -174,7 +176,7 @@ export function describeDataStoreContract(
       store,
       mockTime,
     }) => {
-      let result = await seed(store, (tx) =>
+      let result = await store.withTransaction((tx) =>
         tx.addExperiment({ experimentName: 'experiment-1' }),
       );
       expect(result).toMatchObject({
@@ -182,7 +184,7 @@ export function describeDataStoreContract(
         experimentCreatedAt: mockTime,
       });
       expect(result.experimentId).toBeDefined();
-      result = await seed(store, (tx) =>
+      result = await store.withTransaction((tx) =>
         tx.addExperiment({ experimentName: 'experiment-2' }),
       );
       expect(result).toMatchObject({
@@ -191,7 +193,7 @@ export function describeDataStoreContract(
       });
       expect(result.experimentId).toBeDefined();
       await expect(() =>
-        seed(store, (tx) =>
+        store.withTransaction((tx) =>
           tx.addExperiment({ experimentName: 'experiment-1' }),
         ),
       ).rejects.toMatchObject({ code: DataStoreError.EXPERIMENT_EXISTS });
@@ -336,13 +338,13 @@ export function describeDataStoreContract(
       experiment2,
     }) => {
       const runs = [
-        await seed(store, (tx) =>
+        await store.withTransaction((tx) =>
           tx.addRun({ runName: 'run1', experimentId: experiment1 }),
         ),
-        await seed(store, (tx) =>
+        await store.withTransaction((tx) =>
           tx.addRun({ runName: 'run2', experimentId: experiment1 }),
         ),
-        await seed(store, (tx) =>
+        await store.withTransaction((tx) =>
           tx.addRun({ runName: 'run3', experimentId: experiment2 }),
         ),
       ];
@@ -354,11 +356,13 @@ export function describeDataStoreContract(
       store: store,
       experiment1: experimentId,
     }) => {
-      await seed(store, (tx) =>
+      await store.withTransaction((tx) =>
         tx.addRun({ runName: 'run-name', experimentId }),
       );
       await expect(
-        seed(store, (tx) => tx.addRun({ runName: 'run-name', experimentId })),
+        store.withTransaction((tx) =>
+          tx.addRun({ runName: 'run-name', experimentId }),
+        ),
       ).rejects.toMatchObject({ code: DataStoreError.RUN_EXISTS });
     });
 
@@ -369,12 +373,12 @@ export function describeDataStoreContract(
       experiment2,
     }) => {
       await expect(
-        seed(store, (tx) =>
+        store.withTransaction((tx) =>
           tx.addRun({ runName: 'run-id', experimentId: experiment1 }),
         ),
       ).resolves.toSatisfy(isAddRunResult);
       await expect(
-        seed(store, (tx) =>
+        store.withTransaction((tx) =>
           tx.addRun({ runName: 'run-id', experimentId: experiment2 }),
         ),
       ).resolves.toSatisfy(isAddRunResult);
@@ -386,22 +390,25 @@ export function describeDataStoreContract(
       experiment1,
     }) => {
       await expect(
-        seed(store, (tx) => tx.addRun({ experimentId: experiment1 })),
+        store.withTransaction((tx) => tx.addRun({ experimentId: experiment1 })),
       ).resolves.toSatisfy(isAddRunResult);
       await expect(
-        seed(store, (tx) => tx.addRun({ experimentId: experiment1 })),
+        store.withTransaction((tx) => tx.addRun({ experimentId: experiment1 })),
       ).resolves.toSatisfy(isAddRunResult);
       await expect(
-        seed(store, (tx) => tx.addRun({ experimentId: experiment1 })),
+        store.withTransaction((tx) => tx.addRun({ experimentId: experiment1 })),
       ).resolves.toSatisfy(isAddRunResult);
     });
 
     it('throws with a meaningful error if the experiment does not exist', async ({
       expect,
       store: store,
+      unknownExperiment,
     }) => {
       await expect(
-        seed(store, (tx) => tx.addRun({ experimentId: 'doesNotExist' })),
+        store.withTransaction((tx) =>
+          tx.addRun({ experimentId: unknownExperiment }),
+        ),
       ).rejects.toMatchObject({ code: DataStoreError.EXPERIMENT_NOT_FOUND });
     });
   });
@@ -732,7 +739,9 @@ export function describeDataStoreContract(
       runs: _r,
     }) => {
       // Add a run without a name to ensure runName is null does not match.
-      await seed(store, (tx) => tx.addRun({ experimentId: experiment1 }));
+      await store.withTransaction((tx) =>
+        tx.addRun({ experimentId: experiment1 }),
+      );
       // Check that the runs are actually created first (vitest fixtures can be a bit tricky, e.g.
       // if comments are added in the test arguments, I've had issues).
       await expect(store.getRuns()).resolves.toHaveLength(4);
@@ -777,7 +786,7 @@ export function describeDataStoreContract(
       store,
       e1run1: run,
     }) => {
-      await seed(store, (tx) => tx.addLogs(run, logs(1, 2, 3)));
+      await store.withTransaction((tx) => tx.addLogs(run, logs(1, 2, 3)));
       await expect(getLogNumbers(store, run)).resolves.toEqual({
         firstMissingLogNumber: null,
         lastLogNumber: 3,
@@ -789,7 +798,7 @@ export function describeDataStoreContract(
       store,
       e1run1: run,
     }) => {
-      await seed(store, (tx) => tx.addLogs(run, logs(1, 5)));
+      await store.withTransaction((tx) => tx.addLogs(run, logs(1, 5)));
       await expect(getLogNumbers(store, run)).resolves.toEqual({
         firstMissingLogNumber: 2,
         lastLogNumber: 1,
@@ -801,69 +810,77 @@ export function describeDataStoreContract(
       store,
       e1run1: run,
     }) => {
-      await seed(store, (tx) => tx.addLogs(run, logs(1, 1e12)));
+      await store.withTransaction((tx) => tx.addLogs(run, logs(1, 1e12)));
       await expect(getLogNumbers(store, run)).resolves.toEqual({
         firstMissingLogNumber: 2,
         lastLogNumber: 1,
       });
-      await seed(store, (tx) => tx.addLogs(run, logs(Number.MAX_SAFE_INTEGER)));
-      await seed(store, (tx) => tx.addLogs(run, logs(2)));
+      await store.withTransaction((tx) =>
+        tx.addLogs(run, logs(Number.MAX_SAFE_INTEGER)),
+      );
+      await store.withTransaction((tx) => tx.addLogs(run, logs(2)));
       await expect(getLogNumbers(store, run)).resolves.toEqual({
         firstMissingLogNumber: 3,
         lastLogNumber: 2,
       });
     });
 
-    it('drops missing log numbers canceled by a resume', async ({
+    it('drops missing log numbers canceled by cancelLogsAfter', async ({
       expect,
       store,
       e1run1: run,
     }) => {
-      await seed(store, (tx) => tx.addLogs(run, logs(1, 2, 5, 9)));
-      await seed(store, (tx) => tx.cancelLogsAfter(run, { after: 2 }));
+      await store.withTransaction((tx) => tx.addLogs(run, logs(1, 2, 5, 9)));
+      await store.withTransaction((tx) =>
+        tx.cancelLogsAfter(run, { after: 2 }),
+      );
       await expect(getLogNumbers(store, run)).resolves.toEqual({
         firstMissingLogNumber: null,
         lastLogNumber: 2,
       });
-      await seed(store, (tx) => tx.addLogs(run, logs(3, 4)));
+      await store.withTransaction((tx) => tx.addLogs(run, logs(3, 4)));
       await expect(getLogNumbers(store, run)).resolves.toEqual({
         firstMissingLogNumber: null,
         lastLogNumber: 4,
       });
     });
 
-    it('tracks missing log numbers through a split, a resume, and a fill', async ({
+    it('tracks missing log numbers through a split, a cancellation, and a fill', async ({
       expect,
       store,
       e1run1: run,
     }) => {
-      await seed(store, (tx) => tx.addLogs(run, logs(1, 10, 5)));
-      await seed(store, (tx) => tx.cancelLogsAfter(run, { after: 1 }));
-      await seed(store, (tx) => tx.addLogs(run, logs(3)));
+      await store.withTransaction((tx) => tx.addLogs(run, logs(1, 10, 5)));
+      await store.withTransaction((tx) =>
+        tx.cancelLogsAfter(run, { after: 1 }),
+      );
+      await store.withTransaction((tx) => tx.addLogs(run, logs(3)));
       await expect(getLogNumbers(store, run)).resolves.toEqual({
         firstMissingLogNumber: 2,
         lastLogNumber: 1,
       });
-      await seed(store, (tx) => tx.addLogs(run, logs(2)));
+      await store.withTransaction((tx) => tx.addLogs(run, logs(2)));
       await expect(getLogNumbers(store, run)).resolves.toEqual({
         firstMissingLogNumber: null,
         lastLogNumber: 3,
       });
     });
 
-    it('tracks missing log numbers through a fill, a resume, and a far-ahead log', async ({
+    it('tracks missing log numbers through a fill, a cancellation, and a far-ahead log', async ({
       expect,
       store,
       e1run1: run,
     }) => {
-      await seed(store, (tx) => tx.addLogs(run, logs(1, 3)));
-      await seed(store, (tx) => tx.addLogs(run, logs(2)));
-      await seed(store, (tx) => tx.cancelLogsAfter(run, { after: 3 }));
+      await store.withTransaction((tx) => tx.addLogs(run, logs(1, 3)));
+      await store.withTransaction((tx) => tx.addLogs(run, logs(2)));
+      await store.withTransaction((tx) =>
+        tx.cancelLogsAfter(run, { after: 3 }),
+      );
       await expect(getLogNumbers(store, run)).resolves.toEqual({
         firstMissingLogNumber: null,
         lastLogNumber: 3,
       });
-      await seed(store, (tx) => tx.addLogs(run, logs(1e12)));
+      await store.withTransaction((tx) => tx.addLogs(run, logs(1e12)));
       await expect(getLogNumbers(store, run)).resolves.toEqual({
         firstMissingLogNumber: 4,
         lastLogNumber: 3,
@@ -875,33 +892,41 @@ export function describeDataStoreContract(
       store,
       e1run1: run,
     }) => {
-      await seed(store, (tx) => tx.addLogs(run, logs(1, 2, 3, 4, 5, 6)));
-      await seed(store, (tx) => tx.cancelLogsAfter(run, { after: 1 }));
+      await store.withTransaction((tx) =>
+        tx.addLogs(run, logs(1, 2, 3, 4, 5, 6)),
+      );
+      await store.withTransaction((tx) =>
+        tx.cancelLogsAfter(run, { after: 1 }),
+      );
       await expect(getLogNumbers(store, run)).resolves.toEqual({
         firstMissingLogNumber: null,
         lastLogNumber: 1,
       });
-      await seed(store, (tx) => tx.cancelLogsAfter(run, { after: 0 }));
+      await store.withTransaction((tx) =>
+        tx.cancelLogsAfter(run, { after: 0 }),
+      );
       await expect(getLogNumbers(store, run)).resolves.toEqual({
         firstMissingLogNumber: null,
         lastLogNumber: 0,
       });
     });
 
-    it('ignores missing log numbers canceled by a resume', async ({
+    it('ignores missing log numbers canceled by cancelLogsAfter', async ({
       expect,
       store,
       e1run1: run,
     }) => {
-      await seed(store, (tx) => tx.addLogs(run, logs(2, 3, 1, 8)));
-      await seed(store, (tx) => tx.addLogs(run, logs(5)));
-      await seed(store, (tx) => tx.cancelLogsAfter(run, { after: 3 }));
-      await seed(store, (tx) => tx.addLogs(run, logs(6)));
+      await store.withTransaction((tx) => tx.addLogs(run, logs(2, 3, 1, 8)));
+      await store.withTransaction((tx) => tx.addLogs(run, logs(5)));
+      await store.withTransaction((tx) =>
+        tx.cancelLogsAfter(run, { after: 3 }),
+      );
+      await store.withTransaction((tx) => tx.addLogs(run, logs(6)));
       await expect(getLogNumbers(store, run)).resolves.toEqual({
         firstMissingLogNumber: 4,
         lastLogNumber: 3,
       });
-      await seed(store, (tx) => tx.addLogs(run, logs(4)));
+      await store.withTransaction((tx) => tx.addLogs(run, logs(4)));
       await expect(getLogNumbers(store, run)).resolves.toEqual({
         firstMissingLogNumber: 5,
         lastLogNumber: 4,
@@ -913,8 +938,8 @@ export function describeDataStoreContract(
       store,
       e1run1: run,
     }) => {
-      await seed(store, (tx) => tx.addLogs(run, logs(1, 5)));
-      await seed(store, (tx) => tx.addLogs(run, logs(2)));
+      await store.withTransaction((tx) => tx.addLogs(run, logs(1, 5)));
+      await store.withTransaction((tx) => tx.addLogs(run, logs(2)));
       await expect(getLogNumbers(store, run)).resolves.toEqual({
         firstMissingLogNumber: 3,
         lastLogNumber: 2,
@@ -926,13 +951,13 @@ export function describeDataStoreContract(
       store,
       e1run1: run,
     }) => {
-      await seed(store, (tx) => tx.addLogs(run, logs(1, 5)));
-      await seed(store, (tx) => tx.addLogs(run, logs(4)));
+      await store.withTransaction((tx) => tx.addLogs(run, logs(1, 5)));
+      await store.withTransaction((tx) => tx.addLogs(run, logs(4)));
       await expect(getLogNumbers(store, run)).resolves.toEqual({
         firstMissingLogNumber: 2,
         lastLogNumber: 1,
       });
-      await seed(store, (tx) => tx.addLogs(run, logs(2, 3)));
+      await store.withTransaction((tx) => tx.addLogs(run, logs(2, 3)));
       await expect(getLogNumbers(store, run)).resolves.toEqual({
         firstMissingLogNumber: null,
         lastLogNumber: 5,
@@ -944,13 +969,13 @@ export function describeDataStoreContract(
       store,
       e1run1: run,
     }) => {
-      await seed(store, (tx) => tx.addLogs(run, logs(1, 10)));
-      await seed(store, (tx) => tx.addLogs(run, logs(5)));
+      await store.withTransaction((tx) => tx.addLogs(run, logs(1, 10)));
+      await store.withTransaction((tx) => tx.addLogs(run, logs(5)));
       await expect(getLogNumbers(store, run)).resolves.toEqual({
         firstMissingLogNumber: 2,
         lastLogNumber: 1,
       });
-      await seed(store, (tx) => tx.addLogs(run, logs(2, 3, 4)));
+      await store.withTransaction((tx) => tx.addLogs(run, logs(2, 3, 4)));
       await expect(getLogNumbers(store, run)).resolves.toEqual({
         firstMissingLogNumber: 6,
         lastLogNumber: 5,
@@ -962,13 +987,13 @@ export function describeDataStoreContract(
       store,
       e1run1: run,
     }) => {
-      await seed(store, (tx) => tx.addLogs(run, logs(1, 3, 6)));
-      await seed(store, (tx) => tx.addLogs(run, logs(2)));
+      await store.withTransaction((tx) => tx.addLogs(run, logs(1, 3, 6)));
+      await store.withTransaction((tx) => tx.addLogs(run, logs(2)));
       await expect(getLogNumbers(store, run)).resolves.toEqual({
         firstMissingLogNumber: 4,
         lastLogNumber: 3,
       });
-      await seed(store, (tx) => tx.addLogs(run, logs(5, 4)));
+      await store.withTransaction((tx) => tx.addLogs(run, logs(5, 4)));
       await expect(getLogNumbers(store, run)).resolves.toEqual({
         firstMissingLogNumber: null,
         lastLogNumber: 6,
@@ -983,10 +1008,10 @@ export function describeDataStoreContract(
       runs,
     }) => {
       await expect(
-        seed(store, (tx) => tx.setRunStatus(runs[0], 'completed')),
+        store.withTransaction((tx) => tx.setRunStatus(runs[0], 'completed')),
       ).resolves.toBeUndefined();
       await expect(
-        seed(store, (tx) => tx.setRunStatus(runs[1], 'canceled')),
+        store.withTransaction((tx) => tx.setRunStatus(runs[1], 'canceled')),
       ).resolves.toBeUndefined();
     });
 
@@ -996,14 +1021,14 @@ export function describeDataStoreContract(
       unknownRun,
     }) => {
       await expect(
-        seed(store, (tx) => tx.setRunStatus(unknownRun, 'completed')),
+        store.withTransaction((tx) => tx.setRunStatus(unknownRun, 'completed')),
       ).rejects.toMatchObject({ code: DataStoreError.RUN_NOT_FOUND });
     });
   });
 
   describe('DataStore#cancelLogsAfter', () => {
     const cancelAfter = (store: DataStore, run: RunId, after: number) =>
-      seed(store, (tx) => tx.cancelLogsAfter(run, { after }));
+      store.withTransaction((tx) => tx.cancelLogsAfter(run, { after }));
     async function getLastLogNumber(store: DataStore, runId: RunId) {
       const [run] = await store.getRuns({ runId });
       if (run == null) throw new Error(`Run ${runId} not found`);
@@ -1051,7 +1076,7 @@ export function describeDataStoreContract(
       expect(kept.map((log) => log.number)).toEqual([1]);
       // The canceled number can be written again, with other content.
       await expect(
-        seed(store, (tx) =>
+        store.withTransaction((tx) =>
           tx.addLogs(run, [
             { type: 'log', number: 2, values: { other: true } },
           ]),
@@ -1064,7 +1089,7 @@ export function describeDataStoreContract(
       store,
       runWithTwoLogs: { run },
     }) => {
-      await seed(store, (tx) => tx.setRunStatus(run, 'interrupted'));
+      await store.withTransaction((tx) => tx.setRunStatus(run, 'interrupted'));
       await cancelAfter(store, run, 1);
       await expect(store.getRuns({ runId: run })).resolves.toMatchObject([
         { runStatus: 'interrupted' },
@@ -1104,7 +1129,7 @@ export function describeDataStoreContract(
       store,
     }) => {
       await expect(
-        seed(store, (tx) =>
+        store.withTransaction((tx) =>
           tx.addLogs(e1run1, [
             { type: 'log', number: 1, values: { foo: 'hello', bar: null } },
             { type: 'log', number: 2, values: { x: [1, 2], y: null } },
@@ -1112,7 +1137,7 @@ export function describeDataStoreContract(
         ),
       ).resolves.toEqual(anyLogResult(2, expect));
       await expect(
-        seed(store, (tx) =>
+        store.withTransaction((tx) =>
           tx.addLogs(e1run2, [
             { number: 3, type: 'other-log', values: { x: 12, foo: false } },
             { number: 4, type: 'log', values: { message: 'hola' } },
@@ -1127,7 +1152,7 @@ export function describeDataStoreContract(
       store,
     }) => {
       await expect(
-        seed(store, (tx) =>
+        store.withTransaction((tx) =>
           tx.addLogs(exp1run2, [
             { type: 'log', number: 1, values: {} },
             { type: 'log', number: 2, values: {} },
@@ -1135,7 +1160,7 @@ export function describeDataStoreContract(
         ),
       ).resolves.toEqual(anyLogResult(2, expect));
       await expect(
-        seed(store, (tx) =>
+        store.withTransaction((tx) =>
           tx.addLogs(exp2run1, [
             { number: 3, type: 'other-log', values: {} },
             { number: 4, type: 'log', values: {} },
@@ -1149,7 +1174,7 @@ export function describeDataStoreContract(
       store,
       e1run1,
     }) => {
-      await seed(store, (tx) =>
+      await store.withTransaction((tx) =>
         tx.addLogs(e1run1, [
           { type: 'log', number: 1, values: { x: 1 } },
           { type: 'log', number: 2, values: { x: 2 } },
@@ -1157,14 +1182,14 @@ export function describeDataStoreContract(
         ]),
       );
       await expect(
-        seed(store, (tx) =>
+        store.withTransaction((tx) =>
           tx.addLogs(e1run1, [{ type: 'log', number: 2, values: { x: 3 } }]),
         ),
       ).rejects.toMatchObject({
         code: DataStoreError.LOG_NUMBER_EXISTS_IN_SEQUENCE,
       });
       await expect(
-        seed(store, (tx) =>
+        store.withTransaction((tx) =>
           tx.addLogs(e1run1, [
             { type: 'log', number: 3, values: { x: 3 } },
             { type: 'log', number: 4, values: { x: 3 } },
@@ -1181,14 +1206,14 @@ export function describeDataStoreContract(
       e1run1,
     }) => {
       const first = firstStrict(
-        await seed(store, (tx) =>
+        await store.withTransaction((tx) =>
           tx.addLogs(e1run1, [
             { type: 'log', number: 1, values: { x: 1, y: { a: 1, b: [2] } } },
           ]),
         ),
       );
       await expect(
-        seed(store, (tx) =>
+        store.withTransaction((tx) =>
           tx.addLogs(e1run1, [
             // Key order does not matter.
             { type: 'log', number: 1, values: { y: { b: [2], a: 1 }, x: 1 } },
@@ -1207,11 +1232,11 @@ export function describeDataStoreContract(
       e1run1,
     }) => {
       const first = firstStrict(
-        await seed(store, (tx) =>
+        await store.withTransaction((tx) =>
           tx.addLogs(e1run1, [{ type: 'log', number: 1, values: { x: 1 } }]),
         ),
       );
-      const result = await seed(store, (tx) =>
+      const result = await store.withTransaction((tx) =>
         tx.addLogs(e1run1, [
           { type: 'log', number: 2, values: { z: 1 } },
           { type: 'log', number: 1, values: { x: 1 } },
@@ -1231,11 +1256,11 @@ export function describeDataStoreContract(
       store,
       e1run1,
     }) => {
-      await seed(store, (tx) =>
+      await store.withTransaction((tx) =>
         tx.addLogs(e1run1, [{ type: 'log', number: 1, values: {} }]),
       );
       await expect(
-        seed(store, (tx) =>
+        store.withTransaction((tx) =>
           tx.addLogs(e1run1, [
             { type: 'log', number: 2, values: {} },
             { type: 'other', number: 1, values: {} },
@@ -1245,7 +1270,7 @@ export function describeDataStoreContract(
         code: DataStoreError.LOG_NUMBER_EXISTS_IN_SEQUENCE,
       });
       await expect(
-        seed(store, (tx) =>
+        store.withTransaction((tx) =>
           tx.addLogs(e1run1, [{ type: 'log', number: 2, values: {} }]),
         ),
       ).resolves.toEqual(anyLogResult(1, expect));
@@ -1256,29 +1281,31 @@ export function describeDataStoreContract(
       store,
       e1run1,
     }) => {
-      await seed(store, (tx) =>
+      await store.withTransaction((tx) =>
         tx.addLogs(e1run1, [
           { type: 'log', number: 1, values: {} },
           { type: 'log', number: 2, values: { x: 'canceled' } },
         ]),
       );
-      await seed(store, (tx) => tx.cancelLogsAfter(e1run1, { after: 1 }));
+      await store.withTransaction((tx) =>
+        tx.cancelLogsAfter(e1run1, { after: 1 }),
+      );
       const added = firstStrict(
-        await seed(store, (tx) =>
+        await store.withTransaction((tx) =>
           tx.addLogs(e1run1, [
             { type: 'log', number: 2, values: { x: 'kept' } },
           ]),
         ),
       );
       await expect(
-        seed(store, (tx) =>
+        store.withTransaction((tx) =>
           tx.addLogs(e1run1, [
             { type: 'log', number: 2, values: { x: 'kept' } },
           ]),
         ),
       ).resolves.toEqual([{ logId: added.logId, created: false }]);
       await expect(
-        seed(store, (tx) =>
+        store.withTransaction((tx) =>
           tx.addLogs(e1run1, [
             { type: 'log', number: 2, values: { x: 'canceled' } },
           ]),
@@ -1294,7 +1321,7 @@ export function describeDataStoreContract(
       store,
     }) => {
       await expect(
-        seed(store, (tx) =>
+        store.withTransaction((tx) =>
           tx.addLogs(e1run1, [
             { type: 'log2', number: 1, values: { x: 3 } },
             { type: 'log1', number: 3, values: { x: 1 } },
@@ -1306,7 +1333,7 @@ export function describeDataStoreContract(
         code: DataStoreError.LOG_NUMBER_EXISTS_IN_SEQUENCE,
       });
       await expect(
-        seed(store, (tx) =>
+        store.withTransaction((tx) =>
           tx.addLogs(e1run1, [
             { type: 'log1', number: 2, values: { x: 1 } },
             { type: 'log2', number: 2, values: { x: 3 } },
@@ -1323,7 +1350,7 @@ export function describeDataStoreContract(
       store,
     }) => {
       await expect(
-        seed(store, (tx) =>
+        store.withTransaction((tx) =>
           tx.addLogs(exp1run1, [
             { type: 'log', number: 1, values: { x: 1 } },
             { type: 'log', number: 2, values: { x: 2 } },
@@ -1331,7 +1358,7 @@ export function describeDataStoreContract(
         ),
       ).resolves.toEqual(anyLogResult(2, expect));
       await expect(
-        seed(store, (tx) =>
+        store.withTransaction((tx) =>
           tx.addLogs(exp2run1, [
             { type: 'log', number: 2, values: { x: 3 } },
             { type: 'log', number: 1, values: { x: 1 } },
@@ -1339,7 +1366,7 @@ export function describeDataStoreContract(
         ),
       ).resolves.toEqual(anyLogResult(2, expect));
       await expect(
-        seed(store, (tx) =>
+        store.withTransaction((tx) =>
           tx.addLogs(exp1run2, [
             { type: 'log', number: 2, values: { x: 3 } },
             { type: 'log', number: 1, values: { x: 1 } },
@@ -1350,7 +1377,7 @@ export function describeDataStoreContract(
 
     it('adds non consecutive logs', async ({ expect, store, e1run1 }) => {
       await expect(
-        seed(store, (tx) =>
+        store.withTransaction((tx) =>
           tx.addLogs(e1run1, [
             { type: 'log', number: 1, values: { x: 0 } },
             { type: 'log', number: 3, values: { x: 1 } },
@@ -1358,7 +1385,7 @@ export function describeDataStoreContract(
         ),
       ).resolves.toEqual(anyLogResult(2, expect));
       await expect(
-        seed(store, (tx) =>
+        store.withTransaction((tx) =>
           tx.addLogs(e1run1, [
             { type: 'log', number: 5, values: { x: 2 } },
             { type: 'log', number: 6, values: { x: 3 } },
@@ -1369,7 +1396,7 @@ export function describeDataStoreContract(
 
     it('fills in missing logs', async ({ expect, store, e1run1 }) => {
       await expect(
-        seed(store, (tx) =>
+        store.withTransaction((tx) =>
           tx.addLogs(e1run1, [
             { type: 'log1', number: 2, values: { x: 0 } },
             { type: 'log1', number: 5, values: { x: 1 } },
@@ -1378,7 +1405,7 @@ export function describeDataStoreContract(
         ),
       ).resolves.toEqual(anyLogResult(3, expect));
       await expect(
-        seed(store, (tx) =>
+        store.withTransaction((tx) =>
           tx.addLogs(e1run1, [
             { type: 'log4', number: 7, values: { x: 3 } },
             { type: 'log5', number: 3, values: { x: 4 } },
@@ -1386,7 +1413,7 @@ export function describeDataStoreContract(
         ),
       ).resolves.toEqual(anyLogResult(2, expect));
       await expect(
-        seed(store, (tx) =>
+        store.withTransaction((tx) =>
           tx.addLogs(e1run1, [
             { type: 'log4', number: 1, values: { x: 3 } },
             { type: 'log4', number: 8, values: { x: 3 } },
@@ -1394,7 +1421,7 @@ export function describeDataStoreContract(
         ),
       ).resolves.toEqual(anyLogResult(2, expect));
       await expect(
-        seed(store, (tx) =>
+        store.withTransaction((tx) =>
           tx.addLogs(e1run1, [
             { type: 'log4', number: 10, values: { x: 3 } },
             { type: 'log4', number: 6, values: { x: 3 } },
@@ -1403,17 +1430,19 @@ export function describeDataStoreContract(
       ).resolves.toEqual(anyLogResult(2, expect));
     });
 
-    it('adds logs to a resumed run', async ({ expect, store, e1run1 }) => {
-      await seed(store, (tx) =>
+    it('adds logs after canceling logs', async ({ expect, store, e1run1 }) => {
+      await store.withTransaction((tx) =>
         tx.addLogs(e1run1, [
           { type: 'log4', number: 1, values: { x: 1 } },
           { type: 'log4', number: 2, values: { x: 2 } },
           { type: 'log4', number: 3, values: { x: 3 } },
         ]),
       );
-      await seed(store, (tx) => tx.cancelLogsAfter(e1run1, { after: 3 }));
+      await store.withTransaction((tx) =>
+        tx.cancelLogsAfter(e1run1, { after: 3 }),
+      );
       await expect(
-        seed(store, (tx) =>
+        store.withTransaction((tx) =>
           tx.addLogs(e1run1, [
             { type: 'log4', number: 4, values: { x: 3 } },
             { type: 'log4', number: 5, values: { x: 3 } },
@@ -1423,21 +1452,23 @@ export function describeDataStoreContract(
       ).resolves.toEqual(anyLogResult(3, expect));
     });
 
-    it('adds logs even if they have the same number as other logs added before resuming', async ({
+    it('adds logs even if they have the same number as logs that were canceled', async ({
       expect,
       store,
       e1run1: exp1run1,
     }) => {
-      await seed(store, (tx) =>
+      await store.withTransaction((tx) =>
         tx.addLogs(exp1run1, [
           { type: 'log4', number: 1, values: { x: 1 } },
           { type: 'log4', number: 2, values: { x: 2 } },
           { type: 'log4', number: 3, values: { x: 3 } },
         ]),
       );
-      await seed(store, (tx) => tx.cancelLogsAfter(exp1run1, { after: 1 }));
+      await store.withTransaction((tx) =>
+        tx.cancelLogsAfter(exp1run1, { after: 1 }),
+      );
       await expect(
-        seed(store, (tx) =>
+        store.withTransaction((tx) =>
           tx.addLogs(exp1run1, [
             { type: 'log4', number: 2, values: { x: 3 } },
             { type: 'log4', number: 3, values: { x: 3 } },
@@ -1446,21 +1477,23 @@ export function describeDataStoreContract(
       ).resolves.toEqual(anyLogResult(2, expect));
     });
 
-    it('adds logs to a resumed even if it creates a gap in log numbers', async ({
+    it('adds logs after canceling logs, even if it creates a gap in log numbers', async ({
       expect,
       store,
       e1run1: exp1run1,
     }) => {
-      await seed(store, (tx) =>
+      await store.withTransaction((tx) =>
         tx.addLogs(exp1run1, [
           { type: 'log4', number: 1, values: { x: 1 } },
           { type: 'log4', number: 2, values: { x: 2 } },
           { type: 'log4', number: 3, values: { x: 3 } },
         ]),
       );
-      await seed(store, (tx) => tx.cancelLogsAfter(exp1run1, { after: 3 }));
+      await store.withTransaction((tx) =>
+        tx.cancelLogsAfter(exp1run1, { after: 3 }),
+      );
       await expect(
-        seed(store, (tx) =>
+        store.withTransaction((tx) =>
           tx.addLogs(exp1run1, [
             { type: 'log4', number: 7, values: { x: 3 } },
             { type: 'log4', number: 8, values: { x: 3 } },
@@ -1487,21 +1520,21 @@ export function describeDataStoreContract(
     // baseIt's fixture.
     const it: TestAPI<Fixture> = baseIt.extend<Fixture>({
       context: async ({ store, experiment1, experiment2 }, use) => {
-        let { runId: exp1run1 } = await seed(store, (tx) =>
+        let { runId: exp1run1 } = await store.withTransaction((tx) =>
           tx.addRun({
             runName: 'run1',
             experimentId: experiment1,
             runStatus: 'running',
           }),
         );
-        let { runId: exp1run2 } = await seed(store, (tx) =>
+        let { runId: exp1run2 } = await store.withTransaction((tx) =>
           tx.addRun({
             runName: 'run2',
             experimentId: experiment1,
             runStatus: 'running',
           }),
         );
-        let { runId: exp2run1 } = await seed(store, (tx) =>
+        let { runId: exp2run1 } = await store.withTransaction((tx) =>
           tx.addRun({
             runName: 'run1',
             experimentId: experiment2,
@@ -1513,24 +1546,24 @@ export function describeDataStoreContract(
         while (knownRunIds.has(unknownRun)) {
           unknownRun = unknownRun + 'x';
         }
-        await seed(store, (tx) =>
+        await store.withTransaction((tx) =>
           tx.addLogs(exp1run1, [
             { number: 2, type: 'log1', values: { x: 10 } },
             { number: 3, type: 'log1', values: { x: 11 } },
           ]),
         );
-        await seed(store, (tx) =>
+        await store.withTransaction((tx) =>
           tx.addLogs(exp1run1, [
             { number: 8, type: 'log1', values: { x: 20 } },
             { number: 5, type: 'log1', values: { x: 21 } },
           ]),
         );
-        await seed(store, (tx) =>
+        await store.withTransaction((tx) =>
           tx.addLogs(exp1run1, [
             { number: 1, type: 'log2', values: { x: 30 } },
           ]),
         );
-        await seed(store, (tx) =>
+        await store.withTransaction((tx) =>
           tx.addLogs(exp1run2, [
             { number: 1, type: 'log2', values: { x: 40 } },
             { number: 2, type: 'log1', values: { x: 41 } },
@@ -1577,7 +1610,7 @@ export function describeDataStoreContract(
     }) => {
       // No logs from this run are actually confirmed since
       // log number 1 and 2 are missing.
-      await seed(store, (tx) =>
+      await store.withTransaction((tx) =>
         tx.addLogs(exp2run1, [
           { number: 3, type: 'log3', values: { x: 51 } },
           { number: 4, type: 'log2', values: { x: 50 } },
@@ -1585,7 +1618,7 @@ export function describeDataStoreContract(
         ]),
       );
 
-      await seed(store, (tx) =>
+      await store.withTransaction((tx) =>
         tx.addLogs(exp1run2, [
           { number: 4, type: 'log2', values: { x: 54 } },
           { number: 6, type: 'log2', values: { x: 56 } },
@@ -1602,12 +1635,14 @@ export function describeDataStoreContract(
       ]);
     });
 
-    it('ignores missing logs canceled by a resume', async ({
+    it('ignores missing logs canceled by cancelLogsAfter', async ({
       expect,
       context: { store, logBases, exp1run1 },
     }) => {
-      await seed(store, (tx) => tx.cancelLogsAfter(exp1run1, { after: 3 }));
-      await seed(store, (tx) =>
+      await store.withTransaction((tx) =>
+        tx.cancelLogsAfter(exp1run1, { after: 3 }),
+      );
+      await store.withTransaction((tx) =>
         tx.addLogs(exp1run1, [{ number: 4, type: 'log1', values: { x: 60 } }]),
       );
       await expect(store.getLastLogs({ runId: exp1run1 })).resolves.toEqual([
@@ -1622,7 +1657,7 @@ export function describeDataStoreContract(
     }) => {
       // No logs from this run are actually confirmed since
       // log number 1 and 2 are missing.
-      await seed(store, (tx) =>
+      await store.withTransaction((tx) =>
         tx.addLogs(exp2run1, [
           { number: 3, type: 'log3', values: { x: 51 } },
           { number: 4, type: 'log2', values: { x: 50 } },
@@ -1630,7 +1665,7 @@ export function describeDataStoreContract(
         ]),
       );
 
-      await seed(store, (tx) =>
+      await store.withTransaction((tx) =>
         tx.addLogs(exp1run2, [
           { number: 4, type: 'log2', values: { x: 54 } },
           { number: 5, type: 'log2', values: { x: 55 } },
@@ -1639,7 +1674,9 @@ export function describeDataStoreContract(
         ]),
       );
 
-      await seed(store, (tx) => tx.cancelLogsAfter(exp1run2, { after: 3 }));
+      await store.withTransaction((tx) =>
+        tx.cancelLogsAfter(exp1run2, { after: 3 }),
+      );
 
       await expect(store.getLastLogs()).resolves.toEqual([
         { ...logBases.e1r1, type: 'log1', number: 3, values: { x: 11 } },
@@ -1656,10 +1693,12 @@ export function describeDataStoreContract(
       await expect(store.getLastLogs({ logType: 'unknown' })).resolves.toEqual(
         [],
       );
-      const { experimentId } = await seed(store, (tx) =>
+      const { experimentId } = await store.withTransaction((tx) =>
         tx.addExperiment({ experimentName: 'any' }),
       );
-      const { runId } = await seed(store, (tx) => tx.addRun({ experimentId }));
+      const { runId } = await store.withTransaction((tx) =>
+        tx.addRun({ experimentId }),
+      );
       await expect(store.getLastLogs({ runId })).resolves.toEqual([]);
     });
 
@@ -1691,18 +1730,18 @@ export function describeDataStoreContract(
       context: { store, exp2, exp2run1, logBases },
     }) => {
       // I want a confirmed log in exp2run1.
-      await seed(store, (tx) =>
+      await store.withTransaction((tx) =>
         tx.addLogs(exp2run1, [{ number: 1, type: 'log5', values: { x: 60 } }]),
       );
       // I also want a run with a name that's not run1 or run2
-      let { runId: runx } = await seed(store, (tx) =>
+      let { runId: runx } = await store.withTransaction((tx) =>
         tx.addRun({
           runName: 'runx',
           runStatus: 'running',
           experimentId: exp2,
         }),
       );
-      await seed(store, (tx) =>
+      await store.withTransaction((tx) =>
         tx.addLogs(runx, [
           { number: 1, type: 'log5', values: { x: 70 } },
           { number: 2, type: 'log5', values: { x: 71 } },
@@ -1733,7 +1772,7 @@ export function describeDataStoreContract(
       context: { store, logBases, exp2run1 },
     }) => {
       // I want a confirmed log in experiment-2.
-      await seed(store, (tx) =>
+      await store.withTransaction((tx) =>
         tx.addLogs(exp2run1, [{ number: 1, type: 'log5', values: { x: 60 } }]),
       );
       await expect(
@@ -1765,7 +1804,7 @@ export function describeDataStoreContract(
       context: { store, logBases, exp2run1, exp1, exp2 },
     }) => {
       // I want a log in experiment-2.
-      await seed(store, (tx) =>
+      await store.withTransaction((tx) =>
         tx.addLogs(exp2run1, [{ number: 1, type: 'log5', values: { x: 60 } }]),
       );
       await expect(store.getLastLogs({ experimentId: exp1 })).resolves.toEqual([
@@ -1825,7 +1864,7 @@ export function describeDataStoreContract(
   describe('DataStore#getLogValueNames', () => {
     beforeEach<Fixture>(
       async ({ store, runningRuns: [e1run1, e1run2, e2run1] }) => {
-        await seed(store, (tx) =>
+        await store.withTransaction((tx) =>
           tx.addLogs(e1run1, [
             {
               type: 'log1',
@@ -1839,13 +1878,13 @@ export function describeDataStoreContract(
             },
           ]),
         );
-        await seed(store, (tx) =>
+        await store.withTransaction((tx) =>
           tx.addLogs(e1run2, [
             { type: 'log2', values: { x: 12, foo: false }, number: 3 },
             { type: 'log1', values: { message: 'hola', bar: null }, number: 4 },
           ]),
         );
-        await seed(store, (tx) =>
+        await store.withTransaction((tx) =>
           tx.addLogs(e2run1, [
             { type: 'log2', values: { x: 25, y: 0, foo: true }, number: 5 },
           ]),
@@ -1936,21 +1975,25 @@ export function describeDataStoreContract(
     });
 
     it('ignores values from canceled logs', async ({ store }) => {
-      let { experimentId } = await seed(store, (tx) =>
+      let { experimentId } = await store.withTransaction((tx) =>
         tx.addExperiment({ experimentName: 'exp' }),
       );
-      let { runId } = await seed(store, (tx) =>
+      let { runId } = await store.withTransaction((tx) =>
         tx.addRun({ experimentId, runStatus: 'running' }),
       );
-      await seed(store, (tx) =>
+      await store.withTransaction((tx) =>
         tx.addLogs(runId, [
           { type: 'log', number: 1, values: { x: 'x' } },
           { type: 'log', number: 2, values: { x: 'x' } },
           { type: 'log', number: 3, values: { nope: 'nope' } },
         ]),
       );
-      await seed(store, (tx) => tx.setRunStatus(runId, 'interrupted'));
-      await seed(store, (tx) => tx.cancelLogsAfter(runId, { after: 2 }));
+      await store.withTransaction((tx) =>
+        tx.setRunStatus(runId, 'interrupted'),
+      );
+      await store.withTransaction((tx) =>
+        tx.cancelLogsAfter(runId, { after: 2 }),
+      );
       await expect(store.getLogValueNames({ runId })).resolves.toEqual(['x']);
     });
   });
@@ -2053,7 +2096,7 @@ export function describeDataStoreContract(
       store,
       e1run1: run,
     }) => {
-      await seed(store, (tx) => tx.addLogs(run, [log(1)]));
+      await store.withTransaction((tx) => tx.addLogs(run, [log(1)]));
       await store.withTransaction(async (tx) => {
         await expect(
           tx.addLogs(run, [{ type: 'other', number: 1, values: {} }]),
@@ -2073,7 +2116,7 @@ export function describeDataStoreContract(
       store,
       e1run1: run,
     }) => {
-      await seed(store, (tx) => tx.addLogs(run, [log(1)]));
+      await store.withTransaction((tx) => tx.addLogs(run, [log(1)]));
       await expect(
         store.withTransaction(async (tx) => {
           await tx.addLogs(run, [log(2)]);
@@ -2094,9 +2137,9 @@ export function describeDataStoreContract(
         e1run1: run,
         experiment1,
       }) => {
-        await seed(store, (tx) => tx.setRunStatus(run, 'canceled'));
+        await store.withTransaction((tx) => tx.setRunStatus(run, 'canceled'));
         await expect(
-          seed(store, (tx) =>
+          store.withTransaction((tx) =>
             tx.addRun({ experimentId: experiment1, runName: 'run1' }),
           ),
         ).resolves.toMatchObject({ runName: 'run1' });
@@ -2109,7 +2152,7 @@ export function describeDataStoreContract(
       }) => {
         const results = await Promise.allSettled(
           times(2, () =>
-            seed(store, (tx) =>
+            store.withTransaction((tx) =>
               tx.addRun({ experimentId: experiment1, runName: 'same' }),
             ),
           ),
@@ -2228,12 +2271,13 @@ export function describeDataStoreContract(
       it('swallows the rejection of a call left pending', async ({
         expect,
         store,
+        unknownExperiment,
       }) => {
         const unhandled = vi.fn();
         process.once('unhandledRejection', unhandled);
         await expect(
           store.withTransaction(async (tx) => {
-            void tx.addRun({ experimentId: 'doesNotExist' });
+            void tx.addRun({ experimentId: unknownExperiment });
           }),
         ).rejects.toThrow(TypeError);
         await new Promise((resolve) => setTimeout(resolve, 10));
