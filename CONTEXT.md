@@ -33,3 +33,14 @@ A log whose number is at or above where a later resume of its run starts. The se
 
 **Duplicate log**:
 A log sent with the number, type, and values of a log the server already holds in the run's current log sequence. Storing it again changes nothing. A log with the same number but different content is a conflict, not a duplicate.
+
+**Ended run**:
+A run that is completed or canceled.
+_Avoid_: closed run, finished run, terminal run
+
+**Ongoing run**:
+A run that has started and not ended: running or interrupted.
+_Avoid_: active run, open run
+
+**Idle run**:
+A run that was created but not started. It accepts no logs and has not ended.
