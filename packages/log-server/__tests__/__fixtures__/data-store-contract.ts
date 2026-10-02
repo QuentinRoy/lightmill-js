@@ -10,15 +10,15 @@ import {
   vi,
   it as vitestIt,
 } from 'vitest';
-import { DataStoreError } from '../src/data-store-errors.ts';
+import { DataStoreError } from '../../src/data-store-errors.ts';
 import type {
   DataStore,
   DataStoreTransaction,
   ExperimentId,
   LogId,
   RunId,
-} from '../src/data-store.ts';
-import { firstStrict, fromAsync } from '../src/utils.ts';
+} from '../../src/data-store.ts';
+import { firstStrict, fromAsync } from '../../src/utils.ts';
 
 interface Fixture {
   store: DataStore;

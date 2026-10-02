@@ -8,7 +8,7 @@ import request from 'supertest';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LogServer } from '../src/app.ts';
 import { SQLiteDataStore } from '../src/sqlite-data-store.ts';
-import { listen } from './test-utils.ts';
+import { listen } from './__fixtures__/test-utils.ts';
 
 let directory: string;
 let database: string;

@@ -20,7 +20,7 @@ import { fromAsync } from '../src/utils.ts';
 import {
   createContractIt,
   describeDataStoreContract,
-} from './data-store-contract.ts';
+} from './__fixtures__/data-store-contract.ts';
 
 // Prevent kysely from logging anything.
 loglevel.setDefaultLevel('silent');

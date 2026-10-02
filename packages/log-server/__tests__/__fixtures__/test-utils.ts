@@ -10,15 +10,15 @@ import { last } from 'remeda';
 import request from 'supertest';
 import type { Simplify, ValueOf } from 'type-fest';
 import { onTestFinished, test, vi, type Mock, type TestAPI } from 'vitest';
-import { apiMediaType, type HttpMethod } from '../src/api.ts';
-import { LogServer } from '../src/app.ts';
+import { apiMediaType, type HttpMethod } from '../../src/api.ts';
+import { LogServer } from '../../src/app.ts';
 import type {
   DataStore,
   DataStoreTransaction,
   RunId,
   RunStatus,
-} from '../src/data-store.ts';
-import { SQLiteDataStore } from '../src/sqlite-data-store.ts';
+} from '../../src/data-store.ts';
+import { SQLiteDataStore } from '../../src/sqlite-data-store.ts';
 
 // supertest would listen on `::` and connect to 127.0.0.1, where another process
 // may hold the same port (e.g. Steam on macOS). Binding 127.0.0.1 avoids that.

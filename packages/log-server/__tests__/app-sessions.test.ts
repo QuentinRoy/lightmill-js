@@ -14,7 +14,7 @@ import {
   sessionStoreCreators,
   storeTypes,
   type WithMockedMethods,
-} from './test-utils.ts';
+} from './__fixtures__/test-utils.ts';
 
 type BaseFixture = {
   dataStore: WithMockedMethods<DataStore>;

@@ -3,7 +3,11 @@ import request from 'supertest';
 import { describe, it } from 'vitest';
 import { apiMediaType } from '../src/api.ts';
 import { LogServer } from '../src/app.ts';
-import { createServerContext, listen, storeTypes } from './test-utils.ts';
+import {
+  createServerContext,
+  listen,
+  storeTypes,
+} from './__fixtures__/test-utils.ts';
 
 describe.for(storeTypes)('LogServer (%s)', (storeType) => {
   it('can be mounted on a sub path', async () => {

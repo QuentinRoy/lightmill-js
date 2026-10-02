@@ -4,7 +4,7 @@ import {
   apiContentTypeRegExp,
   createSessionTest,
   storeTypes,
-} from './test-utils.ts';
+} from './__fixtures__/test-utils.ts';
 
 afterEach(() => {
   vi.resetAllMocks();

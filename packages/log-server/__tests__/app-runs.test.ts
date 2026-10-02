@@ -18,7 +18,7 @@ import {
   storeTypes,
   type MockedDataStore,
   type WithMockedMethods,
-} from './test-utils.ts';
+} from './__fixtures__/test-utils.ts';
 
 interface Fixture {
   context: {
