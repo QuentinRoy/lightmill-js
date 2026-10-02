@@ -1,5 +1,15 @@
 # @lightmill/log-api
 
+## 5.0.0-beta.2
+
+### Minor Changes
+
+- [#326](https://github.com/QuentinRoy/lightmill-js/pull/326) [`468a0f9`](https://github.com/QuentinRoy/lightmill-js/commit/468a0f9a01f23d7680753c4244cf9a23f9e61c8c) - `POST /logs` and `POST /operations` document the `413 REQUEST_BODY_TOO_LARGE` error returned when the request body is over 1 MB. `INVALID_REQUEST_BODY` errors may come without `source`, when the request body is not valid JSON.
+
+- [#323](https://github.com/QuentinRoy/lightmill-js/pull/323) [`7828de4`](https://github.com/QuentinRoy/lightmill-js/commit/7828de4b0102904b4936c99be3e64b6660007e6a) - `POST /logs` documents a `200` response, for a log the run already holds with the same number, type, and values.
+
+- [#324](https://github.com/QuentinRoy/lightmill-js/pull/324) [`f3d556d`](https://github.com/QuentinRoy/lightmill-js/commit/f3d556defdb58845ec79884446135cc6f577e596) - `POST /operations` documents adding many logs of one run in a single request, as a JSON:API Atomic Operations request (`atomic:operations` of `add` operations) sent with the `application/vnd.api+json;ext="https://jsonapi.org/ext/atomic"` media type.
+
 ## 5.0.0-beta.1
 
 ### Major Changes
