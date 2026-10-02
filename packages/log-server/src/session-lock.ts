@@ -1,5 +1,5 @@
 import type { Request } from 'express';
-import type { SessionData } from 'express-session';
+import type { Session, SessionData, Store } from 'express-session';
 import { promisify } from 'node:util';
 
 export interface LockedSession {
@@ -24,6 +24,16 @@ export type LockSession = <Response>(
   fn: (session: LockedSession) => Promise<Response>,
 ) => Promise<Response>;
 
+// What the lock uses of a request, so a test does not have to build a whole one.
+type LockableRequest = Pick<Request, 'sessionID'> & {
+  sessionStore: Pick<Store, 'get' | 'set'>;
+  session: {
+    cookie: Session['cookie'];
+    touch(): unknown;
+    destroy(callback: (error?: unknown) => void): unknown;
+  };
+};
+
 /** The session of a request that asked for its lock no longer exists. */
 export class SessionGoneError extends Error {}
 
@@ -41,7 +51,7 @@ const sessionLocks = new Map<string, Promise<void>>();
  * would let that holder save after the next one read.
  */
 export async function lockSession<Response>(
-  request: Request,
+  request: LockableRequest,
   fn: (session: LockedSession) => Promise<Response>,
 ): Promise<Response> {
   const { sessionID, sessionStore: store } = request;
