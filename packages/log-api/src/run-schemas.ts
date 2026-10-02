@@ -247,7 +247,6 @@ export const runRoutes = {
           content: {
             [mediaType]: {
               schema: z.union([
-                CannotCreateRunErrorResponse,
                 RunInvalidUpdateErrorResponse,
                 RunImmutableAttributeErrorResponse,
               ]),

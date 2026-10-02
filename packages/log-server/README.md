@@ -126,10 +126,10 @@ the browser deletes its cookie or if the session signing key changes.
 handles them one at a time for each session. It reads the session again once
 its turn comes. A store you pass as `sessionStore` must therefore return what
 it just saved when the same process reads it back: once `set` calls back, `get`
-returns that data. The memory store, the one from `getSessionStore()`, a single
-node Redis, and a primary database do. A store that reads from a lagging
-replica, or acknowledges a write before it can be read, does not. Nothing
-checks this.
+returns that data. The memory store, the one from `getSessionStore()`, and
+Redis on a single server do. A store that reads from a copy of the data that
+can lag behind, or reports a write as done before it can be read, does not.
+Nothing checks this.
 
 Two limits remain:
 
@@ -138,7 +138,7 @@ Two limits remain:
 - If the store fails to save the session after `POST /runs` created the run,
   the request answers `500` and the run belongs to no session. The participant
   can create another run, but the same run name answers `409 RUN_EXISTS` until
-  the host cancels the orphan with `PATCH /runs/{id}`.
+  the host cancels the run that has no session with `PATCH /runs/{id}`.
 
 ### `class SQLiteDataStore`
 

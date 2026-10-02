@@ -2,15 +2,18 @@
 import express from 'express';
 import session, { type SessionData } from 'express-session';
 import request from 'supertest';
-import { test as baseTest, describe } from 'vitest';
+import { test as baseTest, describe, onTestFinished, vi } from 'vitest';
 import { apiMediaType } from '../src/api.ts';
 import type { DataStore } from '../src/data-store.ts';
 import { SQLiteDataStore } from '../src/sqlite-data-store.ts';
 import {
+  createRunRequest,
   createServerContext,
   host,
   listen,
 } from './__fixtures__/test-utils.ts';
+
+const SESSION_MAX_AGE = 60 * 60 * 1000;
 
 type Operation = 'get' | 'set' | 'destroy';
 type Gate = () => Promise<void>;
@@ -24,6 +27,8 @@ class GatedSessionStore extends session.Store {
   #inner: session.Store;
   #gates: Record<Operation, Gate[]> = { get: [], set: [], destroy: [] };
   #getWaiters: Array<() => void> = [];
+  /** What the store was asked to save, in order. */
+  sets: Array<{ data: SessionData['data']; expires: number | undefined }> = [];
 
   constructor(inner: session.Store) {
     super();
@@ -56,6 +61,10 @@ class GatedSessionStore extends session.Store {
   }
 
   set(sid: string, data: SessionData, callback?: (error?: unknown) => void) {
+    this.sets.push({
+      data: data.data,
+      expires: data.cookie.expires?.getTime(),
+    });
     this.#through('set', callback, () => this.#inner.set(sid, data, callback));
   }
 
@@ -75,6 +84,10 @@ class GatedSessionStore extends session.Store {
     gate().then(run, onError);
   }
 }
+
+// supertest only sends a request once it is awaited or ended. This sends it
+// now, and gives the response back when it is there.
+const send = (test: request.Test) => test.then((response) => response);
 
 // A store call stopped by the test: `reached` settles when it arrives, and it
 // goes through once the test calls `release`.
@@ -134,6 +147,7 @@ describe.for(stores)(
         const { server } = await createServerContext({
           dataStore,
           sessionStore,
+          serverOptions: { sessionMaxAge: SESSION_MAX_AGE },
         });
         const app = await listen(express().use(server.middleware));
         const { experimentId } = await dataStore.withTransaction((tx) =>
@@ -153,26 +167,12 @@ describe.for(stores)(
               .expect(201);
             return api;
           },
-          createRun: (api) =>
-            api
-              .post('/runs')
-              .set('content-type', apiMediaType)
-              .send({
-                data: {
-                  type: 'runs',
-                  attributes: { status: 'idle', name: null },
-                  relationships: {
-                    experiment: {
-                      data: { type: 'experiments', id: experimentId },
-                    },
-                  },
-                },
-              }),
+          createRun: (api) => createRunRequest(api, experimentId),
         });
       },
     });
 
-    test('lets only one of two concurrent creations of a session through', async ({
+    test('lets only one of two concurrent run creations of a session through', async ({
       expect,
       context: { dataStore, sessionStore, newSession, createRun },
     }) => {
@@ -190,6 +190,51 @@ describe.for(stores)(
       expect(body.data.relationships.runs.data).toHaveLength(1);
     });
 
+    test('saves the session only for the request that changed it', async ({
+      expect,
+      context: { sessionStore, newSession, createRun },
+    }) => {
+      const api = await newSession();
+      const saved = sessionStore.sets.length;
+      const loaded = barrier(2);
+      sessionStore.gate('get', loaded, loaded);
+      await Promise.all([createRun(api), createRun(api)]);
+      // A request that saves the session it read after the lock was released
+      // could overwrite what the next one saved.
+      expect(sessionStore.sets.slice(saved)).toHaveLength(1);
+    });
+
+    test('does not bring back a session that was deleted', async ({
+      context: { sessionStore, newSession, createRun },
+    }) => {
+      const api = await newSession();
+      const loaded = barrier(3);
+      sessionStore.gate('get', loaded, loaded, loaded);
+      await Promise.all([
+        createRun(api),
+        createRun(api),
+        api.delete('/sessions/current'),
+      ]);
+      await api.get('/sessions/current').expect(404);
+    });
+
+    test('refreshes the expiry of the session it saves', async ({
+      expect,
+      context: { sessionStore, newSession, createRun },
+    }) => {
+      vi.useFakeTimers({
+        now: new Date('2025-01-01T00:00:00Z'),
+        toFake: ['Date'],
+      });
+      onTestFinished(() => void vi.useRealTimers());
+      const api = await newSession();
+      vi.setSystemTime(new Date('2025-01-01T00:10:00Z'));
+      await createRun(api).expect(201);
+      expect(sessionStore.sets.at(-1)?.expires).toBe(
+        Date.parse('2025-01-01T00:10:00Z') + SESSION_MAX_AGE,
+      );
+    });
+
     test('does not make different sessions wait for each other', async ({
       expect,
       context: { sessionStore, newSession, createRun },
@@ -197,7 +242,7 @@ describe.for(stores)(
       const [api, otherApi] = [await newSession(), await newSession()];
       const held = hold();
       sessionStore.gate('set', held.gate);
-      const first = createRun(api).then((response) => response);
+      const first = send(createRun(api));
       await held.reached;
       await createRun(otherApi).expect(201);
       held.release();
@@ -239,11 +284,12 @@ describe.for(stores)(
       const held = hold();
       sessionStore.gate('set', held.gate);
       const first = createRun(api);
+      // The client leaves after sending, so there is no response to wait for.
       first.end(() => {});
       await held.reached;
       first.abort();
       const secondLoaded = sessionStore.nextGetDone();
-      const second = createRun(api).then((response) => response);
+      const second = send(createRun(api));
       await secondLoaded;
       held.release();
       const response = await second;
@@ -263,6 +309,32 @@ describe.for(stores)(
       // The run it created is not in the session, so it blocks nothing.
       await createRun(api).expect(201);
       await expect(dataStore.getRuns()).resolves.toHaveLength(2);
+    });
+
+    test('releases a session when reading it fails', async ({
+      context: { sessionStore, newSession, createRun },
+    }) => {
+      const api = await newSession();
+      // The first read is the one every request does before its handler runs.
+      sessionStore.gate(
+        'get',
+        () => Promise.resolve(),
+        () => Promise.reject(new Error('connection lost')),
+      );
+      await createRun(api).expect(500);
+      await createRun(api).expect(201);
+    });
+
+    test('releases a session when destroying it fails', async ({
+      context: { sessionStore, newSession },
+    }) => {
+      const api = await newSession();
+      sessionStore.gate('destroy', () =>
+        Promise.reject(new Error('disk full')),
+      );
+      await api.delete('/sessions/current').expect(500);
+      // The session is still there, so it can be deleted again.
+      await api.delete('/sessions/current').expect(200);
     });
   },
 );

@@ -8,7 +8,6 @@ import type { HandlerResponseFromRoute, PathHandlers } from './router.ts';
 import { createRun, RunRejection, updateRun } from './run-lifecycle.ts';
 import { arrayify, firstStrict } from './utils.ts';
 
-// The statuses of a run that has not ended: idle, and the ongoing ones.
 const unendedStatuses = ['idle', 'running', 'interrupted'] as const;
 
 export const runHandlers = (): PathHandlers<'/runs'> => ({
@@ -41,8 +40,9 @@ export const runHandlers = (): PathHandlers<'/runs'> => ({
       const { status, name } = body.data.attributes;
       const { id: experimentId } = body.data.relationships.experiment.data;
       return lockSession(async ({ sessionData, save }) => {
-        // Runs never go back from ended, so a run that passes this check
-        // cannot start counting before the one created below.
+        // This is not in the data transaction, which stays store-only. It does
+        // not need to be: the lock keeps other creations out, and a run never
+        // goes back from ended, so the answer cannot go stale.
         const unendedRuns = await store.getRuns({
           runId: sessionData.runs,
           runStatus: unendedStatuses,

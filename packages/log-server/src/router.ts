@@ -3,7 +3,6 @@ import type { StandardSchemaV1 } from '@standard-schema/spec';
 import * as Express from 'express';
 import type { SessionData } from 'express-session';
 import Stream from 'node:stream';
-import { promisify } from 'node:util';
 import type { Simplify } from 'type-fest';
 import { z } from 'zod/v4';
 import {
@@ -18,6 +17,11 @@ import {
 } from './api.ts';
 import { DataStoreError } from './data-store-errors.ts';
 import type { DataStore, RunId } from './data-store.ts';
+import {
+  lockSession,
+  SessionGoneError,
+  type LockSession,
+} from './session-lock.ts';
 import {
   toJsonPointer,
   unsafeEntries,
@@ -263,68 +267,6 @@ export function getResponseMediaType(path: string) {
     )
     ? atomicMediaType
     : apiMediaType;
-}
-
-// The lock of each session that a request holds or waits for, as the end of its
-// queue. A session without any such request has no entry.
-const sessionLocks = new Map<string, Promise<void>>();
-
-// Thrown when the session a request holds the lock of no longer exists.
-class SessionGoneError extends Error {}
-
-/**
- * Runs `fn` once the requests that asked for the lock of the session before it
- * are done, and reads the session after that: express-session loads it before
- * any handler runs, so what the request carries may be out of date by then.
- * Nothing times out: letting go of the lock while its holder is still running
- * would let that holder save after its successor read.
- */
-async function lockSession<Response>(
-  request: Express.Request,
-  fn: (session: LockedSession) => Promise<Response>,
-): Promise<Response> {
-  const { sessionID } = request;
-  const previous = sessionLocks.get(sessionID);
-  const turn = (async () => {
-    await previous;
-    const sessionData = await reloadSession(request);
-    return fn({
-      sessionData,
-      save(sessionData) {
-        request.session.data = sessionData;
-        // express-session wraps `save` to know the session was saved, and
-        // skips its own save when the response ends.
-        return promisify(request.session.save.bind(request.session))();
-      },
-      destroy: () => promisify(request.session.destroy.bind(request.session))(),
-    });
-  })();
-  const end = turn.then(
-    () => {},
-    () => {},
-  );
-  sessionLocks.set(sessionID, end);
-  try {
-    return await turn;
-  } finally {
-    if (sessionLocks.get(sessionID) === end) sessionLocks.delete(sessionID);
-  }
-}
-
-async function reloadSession(request: Express.Request) {
-  try {
-    await promisify(request.session.reload.bind(request.session))();
-  } catch (error) {
-    // express-session fails the same way when the store has no such session
-    // and when it errors.
-    const store = request.sessionStore;
-    const stored = await promisify(store.get.bind(store))(request.sessionID);
-    if (stored?.data == null) throw new SessionGoneError();
-    throw error;
-  }
-  const { data } = request.session;
-  if (data == null) throw new SessionGoneError();
-  return data;
 }
 
 function getSessionRequiredResponse() {
@@ -608,26 +550,6 @@ interface HandlerOptions<
   host: string;
   lockSession: LockSession;
 }
-
-export interface LockedSession {
-  /** The session as the store holds it, read once the lock was taken. */
-  sessionData: SessionData['data'];
-  /** Saves the session before it resolves, so the next holder reads it. */
-  save(sessionData: SessionData['data']): Promise<void>;
-  destroy(): Promise<void>;
-}
-
-/**
- * Orders the requests that change a session, one session at a time: `fn` runs
- * when no other request holds the session's lock, and holds it until it
- * settles, even if its client is gone. A session that no longer exists
- * answers `403 SESSION_REQUIRED` without running `fn`. The data store
- * transactions `fn` opens stay store-only: the session lock is never taken
- * inside one.
- */
-export type LockSession = <Response>(
-  fn: (session: LockedSession) => Promise<Response>,
-) => Promise<Response>;
 
 type HandlerResponse<
   Body = unknown,

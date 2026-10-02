@@ -10,6 +10,7 @@ import { fromAsync } from '../src/utils.ts';
 import {
   addRunToSession,
   apiContentTypeRegExp,
+  createRunRequest,
   createServerContext,
   host,
   listen,
@@ -111,24 +112,6 @@ describeForAll(
 
     const unendedStatuses: RunStatus[] = ['idle', 'running', 'interrupted'];
     const endedStatuses: RunStatus[] = ['completed', 'canceled'];
-    const createRunRequest = (
-      api: request.Agent,
-      experimentId: ExperimentId,
-      status: 'idle' | 'running',
-    ) =>
-      api
-        .post('/runs')
-        .set('content-type', apiMediaType)
-        .send({
-          data: {
-            type: 'runs',
-            attributes: { status, name: null },
-            relationships: {
-              experiment: { data: { type: 'experiments', id: experimentId } },
-            },
-          },
-        });
-
     it.for(
       unendedStatuses.flatMap((existing) =>
         (['idle', 'running'] as const).map((created) => ({
@@ -1034,6 +1017,32 @@ describeForAll(
         .expect(200);
       await expect(
         dataStore.getRuns({ runId: idle.runId }),
+      ).resolves.toMatchObject([{ runStatus: 'running' }]);
+    });
+
+    it('accepts a request that changes nothing while another run is ongoing', async ({
+      expect,
+      context: { api, dataStore, experimentId, sessionStore },
+    }) => {
+      const [ongoing, other] = await dataStore.withTransaction(async (tx) => [
+        await tx.addRun({ experimentId, runStatus: 'running' }),
+        await tx.addRun({ experimentId, runStatus: 'running' }),
+      ]);
+      await addRunToSession({ api, runId: ongoing.runId, sessionStore });
+      await addRunToSession({ api, runId: other.runId, sessionStore });
+      await api
+        .patch(`/runs/${other.runId}`)
+        .set('content-type', apiMediaType)
+        .send({
+          data: {
+            id: other.runId,
+            type: 'runs',
+            attributes: { status: 'running' },
+          },
+        })
+        .expect(200);
+      await expect(
+        dataStore.getRuns({ runId: other.runId }),
       ).resolves.toMatchObject([{ runStatus: 'running' }]);
     });
 
