@@ -172,7 +172,7 @@ write goes through `withTransaction`:
   `getLogs`, `getLastLogs`, `getLogValueNames`.
 - `withTransaction(fn)`: runs `fn` with a `DataStoreTransaction` and resolves
   with what `fn` returns.
-- `close()`, and `[Symbol.asyncDispose]()`, which does the same.
+- `close()`.
 
 A `DataStoreTransaction` adds the writes `addExperiment`, `addRun`,
 `setRunStatus`, `cancelLogsAfter`, and `addLogs`. Run lifecycle rules, like
@@ -220,11 +220,13 @@ The documented `DataStoreError` codes are the same for every datastore, and a
 driver error is their `cause`. A failure with no documented code propagates
 unchanged.
 
-`DataStore` is an `AsyncDisposable`, so a script can write
-`await using store = await SQLiteDataStore.open(path)`. That syntax needs
-TypeScript 5.2 or later, and runs natively on Node 24 and later. On Node 22,
-compile with a target below `esnext`. Type declarations reference the
-`esnext.disposable` library, so type-only consumers need nothing more.
+`SQLiteDataStore` also has a `[Symbol.asyncDispose]()` method that calls
+`close()`, so a script can write
+`await using store = await SQLiteDataStore.open(path)`. The `DataStore`
+contract does not require it. That syntax needs TypeScript 5.2 or later, and
+runs natively on Node 24 and later. On Node 22, compile with a target below
+`esnext`. Type declarations reference the `esnext.disposable` library, so
+type-only consumers need nothing more.
 
 ## CLI
 

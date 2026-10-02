@@ -2356,13 +2356,6 @@ export function describeDataStoreContract(
       await closing;
       expect(closed).toBe(true);
     });
-
-    it('is what disposal does', async ({ expect, store }) => {
-      await store[Symbol.asyncDispose]();
-      await expect(store.getExperiments()).rejects.toMatchObject({
-        code: DataStoreError.STORE_CLOSED,
-      });
-    });
   });
 }
 

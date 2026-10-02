@@ -299,6 +299,14 @@ describe('mapBusyError', () => {
 });
 
 describe('SQLiteDataStore transactions', () => {
+  it('closes when disposed of', async () => {
+    const store = await openStore();
+    await store[Symbol.asyncDispose]();
+    await expect(store.getExperiments()).rejects.toMatchObject({
+      code: DataStoreError.STORE_CLOSED,
+    });
+  });
+
   // Makes the driver fail on one statement, as a full disk or a lock held by
   // another process would.
   function failStatement(statement: string, code: string) {

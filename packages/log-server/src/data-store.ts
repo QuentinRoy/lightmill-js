@@ -1,7 +1,3 @@
-// Declarations that extend AsyncDisposable need this library, and a consumer's
-// own `lib` may not include it. `preserve` keeps the line in the emitted
-// declarations.
-/// <reference lib="esnext.disposable" preserve="true" />
 import type { JsonObject, Merge, UnionToIntersection } from 'type-fest';
 import type { AllFilter, ExperimentFilter, RunFilter } from './data-filters.ts';
 import {
@@ -230,10 +226,9 @@ export interface DataStoreTransaction extends DataStoreReader {
 /**
  * Reads work anywhere, every write goes through `withTransaction`.
  *
- * The creator of a store owns it and closes it, or disposes of it with
- * `await using`.
+ * The creator of a store owns it and closes it.
  */
-export interface DataStore extends DataStoreReader, AsyncDisposable {
+export interface DataStore extends DataStoreReader {
   /**
    * Runs `fn` in a serializable transaction: the result is as if transactions
    * ran one at a time. It commits when `fn` resolves, and rolls back when it
@@ -259,7 +254,6 @@ export interface DataStore extends DataStoreReader, AsyncDisposable {
    * Closes the store and releases any resources. It rejects new operations
    * with `STORE_CLOSED` at once, waits for the ones in flight, and may be called
    * many times. Calling it inside a `withTransaction` callback deadlocks.
-   * `[Symbol.asyncDispose]` does the same.
    */
   close(): Promise<void>;
 }

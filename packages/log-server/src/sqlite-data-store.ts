@@ -1,3 +1,7 @@
+// The class has a `[Symbol.asyncDispose]` method, and a consumer's own `lib`
+// may not include the library that declares the symbol. `preserve` keeps this
+// line in the emitted declarations.
+/// <reference lib="esnext.disposable" preserve="true" />
 import SQLiteDB from 'better-sqlite3';
 import type { Store as ExpressSessionStore } from 'express-session';
 import {
@@ -52,7 +56,7 @@ const constructorKey = Symbol('SQLiteDataStore constructor key');
 /**
  * SQLite-backed implementation of the Lightmill `DataStore` interface.
  */
-export class SQLiteDataStore implements DataStore {
+export class SQLiteDataStore implements DataStore, AsyncDisposable {
   #db: Kysely<Database>;
   #queries: Queries;
   #selectQueryLimit: number;
@@ -300,6 +304,7 @@ export class SQLiteDataStore implements DataStore {
     return this.#closing;
   }
 
+  /** Does what `close()` does, so `await using` can close the store. */
   [Symbol.asyncDispose](): Promise<void> {
     return this.close();
   }

@@ -1,5 +1,5 @@
 ---
-"@lightmill/log-server": minor
+'@lightmill/log-server': minor
 ---
 
 Participants can now resume runs after restarting `log-server start`, as long
