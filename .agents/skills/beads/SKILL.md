@@ -1,80 +1,39 @@
 ---
 name: beads
-description: Use when working in a repository that uses bd or Beads for durable project task tracking, issue dependencies, blocker management, multi-session handoff, or shared work memory. Trigger when the user asks to find ready work, claim or close tasks, create follow-up work, inspect blockers, recover project context, or choose between local planning and persistent project tracking.
+description: Manage existing beads, coordinate decomposed work, or record durable handoffs under the repository tracker policy.
 ---
 
 # Beads
 
-Use Beads as the shared project task system. Local plans, scratch files, and personal memories are useful, but they are not the durable source of truth for project work.
+Read [`docs/agents/issue-tracker.md`](../../../docs/agents/issue-tracker.md) before creating beads or routing discovered work. That policy decides which tracker applies; this skill covers bead operations.
 
-## First Step
+## Work an existing bead
 
-Run:
-
-```bash
-bd prime
-```
-
-If that prints nothing, check whether the repository has an active Beads workspace:
-
-```bash
-bd where
-```
-
-## Preferred Route
-
-Use the `bd` CLI when shell access is available. It is the most compact and direct Beads interface.
-
-## Core CLI Workflow
-
-1. Find work:
-
-```bash
-bd ready
-bd list --status=open
-bd list --status=in_progress
-```
-
-2. Inspect before editing:
+1. Read the bead, its comments, and its ancestors. Done when you can identify its deliverable and completion criterion and, for a decomposed effort, its coordinator.
 
 ```bash
 bd show <id>
+bd comments <id>
 ```
 
-3. Claim work atomically:
+2. Claim before starting so concurrent workers see ownership.
 
 ```bash
 bd update <id> --claim
 ```
 
-4. Create durable follow-up work when implementation reveals new tasks:
+3. Do the assigned work and record its result. For completion or unfinished handoff, follow the tracker policy's corresponding sequence. Done when the bead has verified completion evidence or recoverable remaining work, and the required parent review is complete.
+
+## Create or connect beads
+
+Use the tracker policy's publishing rules to create beads only for work it assigns to them. For dependencies, the argument order is the blocked bead followed by its blocker:
 
 ```bash
-bd create "Short title" --description="Why this exists and what needs to be done" --type=task --priority=2
+bd dep add <blocked-id> <blocker-id>
 ```
 
-5. Close completed work:
+Done when every published bead has the fields required by the policy and every required blocking edge is recorded.
 
-```bash
-bd close <id> --reason="Completed"
-```
+## CLI use
 
-## What Belongs In Beads
-
-Use Beads for:
-
-- shared project tasks
-- blockers and dependencies
-- discovered follow-up work
-- work that must survive thread reset, compaction, or handoff
-- status that another person or agent should be able to resume
-
-Use agent-local planning tools only for the current turn's execution checklist. Do not treat them as shared project state.
-
-## Rules
-
-- Do not create markdown TODO files as the source of truth when Beads is available.
-- Do not use `bd edit`; it opens an interactive editor. Use `bd update` flags instead.
-- Prefer `--json` when parsing `bd` output programmatically.
-- If hooks are installed, `bd prime` may already be injected. Run it manually when context is missing.
-- Do not auto-close or mutate tasks unless the work is actually complete.
+Use `bd <command> --help` for flags and `--json` for structured output. Use `bd update` for edits; `bd edit` launches an interactive editor. If hooks have not supplied tracker context, run `bd prime` to load the repository override and persistent memories.

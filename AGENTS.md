@@ -2,9 +2,13 @@
 
 ## Agent skills
 
+### Agent guidance
+
+Use /writing-for-agents when editing agent directives. Preserve installed third-party skills; check `skills-lock.json` for installer provenance and put repository-specific adapters in `docs/agents/`.
+
 ### Issue tracker
 
-GitHub issues and PRs are for humans; beads (`bd`) are for agents. See [`docs/agents/issue-tracker.md`](docs/agents/issue-tracker.md). Create a bead before writing code.
+GitHub issues track human-facing work; beads (`bd`) hold shared execution state. Read [`docs/agents/issue-tracker.md`](docs/agents/issue-tracker.md) when choosing a tracker, decomposing work, publishing specs or tickets, handing off unfinished work, or completing tracked work.
 
 ### Domain docs
 
@@ -16,7 +20,7 @@ Use /prose when writing code comments, commit messages, pull requests, READMEs, 
 
 ### Changesets
 
-Use /changeset when writing a changeset.
+Use /changeset when deciding whether a change needs a changeset, or when adding, editing, or deleting one.
 
 ## Code
 
@@ -34,4 +38,4 @@ Data loss is the worst failure. Every path that can drop data a caller handed ov
 
 ## Finishing
 
-Before handing off, run `pnpm lint`, `pnpm typecheck`, and `pnpm test`. `pnpm typecheck` needs the packages built first (`pnpm build-all`). A pull request that implements an issue says `Fixes #N` in its body. Leave merging to the maintainer. Close your beads when the pull request opens ([why and when to reopen](docs/agents/issue-tracker.md#closing-beads)).
+Before handing off, run `pnpm lint`, `pnpm typecheck`, and `pnpm test`. `pnpm typecheck` needs the packages built first (`pnpm build-all`). A pull request that implements an issue says `Fixes #N` in its body. Leave merging to the maintainer. For work tracked in beads, follow the [completion rules](docs/agents/issue-tracker.md#closing-beads).
