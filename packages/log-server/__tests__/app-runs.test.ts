@@ -10,6 +10,7 @@ import { fromAsync } from '../src/utils.ts';
 import {
   addRunToSession,
   apiContentTypeRegExp,
+  createRunRequest,
   createServerContext,
   host,
   listen,
@@ -109,44 +110,60 @@ describeForAll(
       },
     );
 
-    it('refuses to create a run if participant already has one running', async ({
-      context: { api, experimentId },
+    const ongoingStatuses: RunStatus[] = ['idle', 'running', 'interrupted'];
+    const endedStatuses: RunStatus[] = ['completed', 'canceled'];
+    it.for(
+      ongoingStatuses.flatMap((existing) =>
+        (['idle', 'running'] as const).map((created) => ({
+          existing,
+          created,
+        })),
+      ),
+    )(
+      'refuses to create a $created run if the session has a run that is $existing',
+      async (
+        { existing, created },
+        { context: { api, dataStore, experimentId, sessionStore } },
+      ) => {
+        const { runId } = await dataStore.withTransaction((tx) =>
+          tx.addRun({ experimentId, runStatus: existing }),
+        );
+        await addRunToSession({ api, runId, sessionStore });
+        await createRunRequest(api, experimentId, created)
+          .expect(403, {
+            errors: [
+              {
+                status: 'Forbidden',
+                code: 'ONGOING_RUNS',
+                detail: 'Client already has ongoing runs, end them first',
+              },
+            ],
+          })
+          .expect('Content-Type', apiContentTypeRegExp);
+      },
+    );
+
+    it.for(endedStatuses)(
+      'creates a run if the only run of the session is %s',
+      async (
+        existing,
+        { context: { api, dataStore, experimentId, sessionStore } },
+      ) => {
+        const { runId } = await dataStore.withTransaction((tx) =>
+          tx.addRun({ experimentId, runStatus: existing }),
+        );
+        await addRunToSession({ api, runId, sessionStore });
+        await createRunRequest(api, experimentId, 'idle').expect(201);
+      },
+    );
+
+    it('ignores the runs that are not in the session', async ({
+      context: { api, dataStore, experimentId },
     }) => {
-      await api
-        .post('/runs')
-        .set('content-type', apiMediaType)
-        .send({
-          data: {
-            type: 'runs',
-            attributes: { status: 'running', name: null },
-            relationships: {
-              experiment: { data: { type: 'experiments', id: experimentId } },
-            },
-          },
-        })
-        .expect(201);
-      await api
-        .post('/runs')
-        .set('content-type', apiMediaType)
-        .send({
-          data: {
-            type: 'runs',
-            attributes: { status: 'idle', name: null },
-            relationships: {
-              experiment: { data: { type: 'experiments', id: experimentId } },
-            },
-          },
-        })
-        .expect(403, {
-          errors: [
-            {
-              status: 'Forbidden',
-              code: 'ONGOING_RUNS',
-              detail: 'Client already has ongoing runs, end them first',
-            },
-          ],
-        })
-        .expect('Content-Type', apiContentTypeRegExp);
+      await dataStore.withTransaction((tx) =>
+        tx.addRun({ experimentId, runStatus: 'running' }),
+      );
+      await createRunRequest(api, experimentId, 'idle').expect(201);
     });
 
     it.for(['completed', 'canceled', 'interrupted'] as const)(
@@ -974,6 +991,58 @@ describeForAll(
       await expect(
         fromAsync(dataStore.getLogs({ runId })),
       ).resolves.toHaveLength(3);
+    });
+
+    it('updates a run even if another run of the session is ongoing', async ({
+      expect,
+      context: { api, dataStore, experimentId, sessionStore },
+    }) => {
+      const [ongoing, idle] = await dataStore.withTransaction(async (tx) => [
+        await tx.addRun({ experimentId, runStatus: 'running' }),
+        await tx.addRun({ experimentId, runStatus: 'idle' }),
+      ]);
+      await addRunToSession({ api, runId: ongoing.runId, sessionStore });
+      await addRunToSession({ api, runId: idle.runId, sessionStore });
+      await api
+        .patch(`/runs/${idle.runId}`)
+        .set('content-type', apiMediaType)
+        .send({
+          data: {
+            id: idle.runId,
+            type: 'runs',
+            attributes: { status: 'running' },
+          },
+        })
+        .expect(200);
+      await expect(
+        dataStore.getRuns({ runId: idle.runId }),
+      ).resolves.toMatchObject([{ runStatus: 'running' }]);
+    });
+
+    it('accepts a request that changes nothing while another run is ongoing', async ({
+      expect,
+      context: { api, dataStore, experimentId, sessionStore },
+    }) => {
+      const [ongoing, other] = await dataStore.withTransaction(async (tx) => [
+        await tx.addRun({ experimentId, runStatus: 'running' }),
+        await tx.addRun({ experimentId, runStatus: 'running' }),
+      ]);
+      await addRunToSession({ api, runId: ongoing.runId, sessionStore });
+      await addRunToSession({ api, runId: other.runId, sessionStore });
+      await api
+        .patch(`/runs/${other.runId}`)
+        .set('content-type', apiMediaType)
+        .send({
+          data: {
+            id: other.runId,
+            type: 'runs',
+            attributes: { status: 'running' },
+          },
+        })
+        .expect(200);
+      await expect(
+        dataStore.getRuns({ runId: other.runId }),
+      ).resolves.toMatchObject([{ runStatus: 'running' }]);
     });
 
     it('lets only one of two concurrent conflicting updates through', async ({

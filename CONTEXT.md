@@ -39,8 +39,8 @@ A run that is completed or canceled.
 _Avoid_: closed run, finished run, terminal run
 
 **Ongoing run**:
-A run that has started and not ended: running or interrupted.
+A run that has not ended: idle, running, or interrupted.
 _Avoid_: active run, open run
 
 **Idle run**:
-A run that was created but not started. It accepts no logs and has not ended.
+A run that was created but not started. It accepts no logs. It is ongoing.

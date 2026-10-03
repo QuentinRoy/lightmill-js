@@ -3,7 +3,6 @@ import type { StandardSchemaV1 } from '@standard-schema/spec';
 import * as Express from 'express';
 import type { SessionData } from 'express-session';
 import Stream from 'node:stream';
-import { promisify } from 'node:util';
 import type { Simplify } from 'type-fest';
 import { z } from 'zod/v4';
 import {
@@ -18,6 +17,12 @@ import {
 } from './api.ts';
 import { DataStoreError } from './data-store-errors.ts';
 import type { DataStore, RunId } from './data-store.ts';
+import {
+  lockSession,
+  SessionGoneError,
+  whenFinished,
+  type LockSession,
+} from './session-lock.ts';
 import {
   toJsonPointer,
   unsafeEntries,
@@ -160,7 +165,11 @@ export function createRouter({
           dataStore,
           protocol: request.protocol,
           host: request.host,
+          lockSession: (fn) => lockSession(request, whenFinished(response), fn),
         }).catch((error: unknown) => {
+          if (error instanceof SessionGoneError) {
+            return getSessionRequiredResponse();
+          }
           // The store persisted nothing, and the same request may succeed.
           if (
             error instanceof DataStoreError &&
@@ -261,6 +270,14 @@ export function getResponseMediaType(path: string) {
     : apiMediaType;
 }
 
+function getSessionRequiredResponse() {
+  return getErrorResponse({
+    status: 'Forbidden',
+    code: 'SESSION_REQUIRED',
+    detail: 'A session is required. Post to /sessions to create one.',
+  });
+}
+
 function validateHandler({
   schemas,
   validateResponse,
@@ -274,11 +291,7 @@ function validateHandler({
 }): Handler {
   return async ({ sessionData, body, parameters, ...otherHandlerOptions }) => {
     if (isSessionRequired && sessionData == null) {
-      return getErrorResponse({
-        status: 'Forbidden',
-        code: 'SESSION_REQUIRED',
-        detail: 'A session is required. Post to /sessions to create one.',
-      });
+      return getSessionRequiredResponse();
     }
 
     const validatedPath = await schemas['parameters']['path'][
@@ -394,11 +407,7 @@ async function processResponse({
   response: Express.Response;
 }) {
   if ('sessionData' in result) {
-    if (result.sessionData == null) {
-      await promisify(request.session.destroy.bind(request.session))();
-    } else {
-      request.session.data = result.sessionData;
-    }
+    request.session.data = result.sessionData;
   }
   response
     .status(result.status ?? 200)
@@ -540,6 +549,7 @@ interface HandlerOptions<
   dataStore: DataStore;
   protocol: string;
   host: string;
+  lockSession: LockSession;
 }
 
 type HandlerResponse<
@@ -548,7 +558,7 @@ type HandlerResponse<
   Status extends number = number,
   Headers = Record<string, string>,
 > = Simplify<
-  { sessionData?: SessionData['data'] | null } & (Body extends null
+  { sessionData?: SessionData['data'] } & (Body extends null
     ? { body?: null }
     : { body: Body | Stream }) &
     (string extends ContentType
@@ -660,7 +670,7 @@ interface ServerErrorResponse<Status extends number, Body> {
   contentType: typeof apiMediaType;
   status: Status;
   body: Body;
-  sessionData?: SessionData['data'] | null;
+  sessionData?: SessionData['data'];
   headers?: Record<string, never>;
 }
 type ValidationResponse = ServerErrorResponse<

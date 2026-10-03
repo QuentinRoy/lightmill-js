@@ -120,6 +120,26 @@ stores sessions in its `--database` SQLite file. It gives its browser cookie a
 `SESSION_MAX_AGE_DAYS` to change that lifetime. Existing sessions are lost if
 the browser deletes its cookie or if the session signing key changes.
 
+### Session stores and concurrent requests
+
+`POST /runs` and `DELETE /sessions/current` change the session, so `LogServer`
+handles them one at a time for each session. It reads the session again once
+its turn comes. A store you pass as `sessionStore` must therefore return what
+it just saved when the same process reads it back: once `set` calls back, `get`
+returns that data. The memory store, the one from `getSessionStore()`, and
+Redis on a single server do. A store that reads from a copy of the data that
+can lag behind, or reports a write as done before it can be read, does not.
+Nothing checks this.
+
+Two limits remain:
+
+- Requests are ordered inside one server process. If several processes share a
+  session store, two simultaneous `POST /runs` of one session can both succeed.
+- If the store fails to save the session after `POST /runs` created the run,
+  the request answers `500` and the run belongs to no session. The participant
+  can create another run, but the same run name answers `409 RUN_EXISTS` until
+  the host cancels the run that has no session with `PATCH /runs/{id}`.
+
 ### `class SQLiteDataStore`
 
 SQLite implementation of the `DataStore` interface.

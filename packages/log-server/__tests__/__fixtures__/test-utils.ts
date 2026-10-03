@@ -15,6 +15,7 @@ import { LogServer } from '../../src/app.ts';
 import type {
   DataStore,
   DataStoreTransaction,
+  ExperimentId,
   RunId,
   RunStatus,
 } from '../../src/data-store.ts';
@@ -124,7 +125,11 @@ const baseServerOptions = {
   secureCookies: false,
 };
 
-type ServerOptions = { hostPassword?: string; hostUser?: string };
+type ServerOptions = {
+  hostPassword?: string;
+  hostUser?: string;
+  sessionMaxAge?: number;
+};
 async function createServerContextFromStores<
   ThisDataStore extends DataStore,
   ThisSessionStore extends SessionStore,
@@ -467,4 +472,23 @@ export async function addRunToSession({
       });
     });
   });
+}
+
+export function createRunRequest(
+  api: request.Agent,
+  experimentId: ExperimentId,
+  status: 'idle' | 'running' = 'idle',
+) {
+  return api
+    .post('/runs')
+    .set('content-type', apiMediaType)
+    .send({
+      data: {
+        type: 'runs',
+        attributes: { status, name: null },
+        relationships: {
+          experiment: { data: { type: 'experiments', id: experimentId } },
+        },
+      },
+    });
 }
