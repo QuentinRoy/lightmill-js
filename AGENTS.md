@@ -4,7 +4,7 @@
 
 ### Issue tracker
 
-GitHub issues and PRs are for humans; beads (`bd`) are for agents. See [`docs/agents/issue-tracker.md`](docs/agents/issue-tracker.md). Create a bead before writing code.
+GitHub issues track human-facing work; immediate work can go directly to a PR. Use beads (`bd`) to coordinate separately assignable parts and their dependencies. See [`docs/agents/issue-tracker.md`](docs/agents/issue-tracker.md) when decomposing work or choosing where to record it.
 
 ### Domain docs
 
@@ -34,4 +34,4 @@ Data loss is the worst failure. Every path that can drop data a caller handed ov
 
 ## Finishing
 
-Before handing off, run `pnpm lint`, `pnpm typecheck`, and `pnpm test`. `pnpm typecheck` needs the packages built first (`pnpm build-all`). A pull request that implements an issue says `Fixes #N` in its body. Leave merging to the maintainer. Close your beads when the pull request opens ([why and when to reopen](docs/agents/issue-tracker.md#closing-beads)).
+Before handing off, run `pnpm lint`, `pnpm typecheck`, and `pnpm test`. `pnpm typecheck` needs the packages built first (`pnpm build-all`). A pull request that implements an issue says `Fixes #N` in its body. Leave merging to the maintainer. For work tracked in beads, follow the [completion rules](docs/agents/issue-tracker.md#closing-beads).

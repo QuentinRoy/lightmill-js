@@ -1,44 +1,51 @@
 # Issue tracker: GitHub Issues and beads
 
-GitHub issues and PRs are for humans; beads are for agents. Humans follow and discuss work on GitHub Issues (QuentinRoy/lightmill-js): a bare `#<n>` is a GitHub issue (`gh issue view <n> --comments`). Agents track the ongoing work behind an issue in beads, driven by the `bd` CLI (`bd prime` is the command reference), so its sub-parts stay out of GitHub.
+GitHub issues and PRs are the human-facing record for QuentinRoy/lightmill-js. Beads coordinate separately assignable parts of an effort: ownership, dependencies, and completion. A bare `#<n>` is a GitHub issue (`gh issue view <n> --comments`). Use `bd <command> --help` for bead operations.
 
 ## GitHub issue or bead
 
-- Open a GitHub issue for work left for later: a bug report, something to remember to do, an effort spanning several PRs or sessions (a wayfinder map). The PR that completes it says `Fixes #<n>`.
-- Work done right away needs no issue: the PR carries the why.
+- Work one agent can finish directly needs neither an issue nor a bead. Use a local plan for steps such as editing, testing, and opening the PR; the PR carries the why.
+- Open or reuse a GitHub issue for deferred work, a human-facing spec, or an effort humans need to follow across several PRs or sessions. The PR that completes it says `Fixes #<n>`.
+- Use beads when work has separately assignable parts whose ownership, dependencies, or completion must be shared. Task size, duration, and the existence of a GitHub issue alone do not warrant a bead.
 - When fixing one issue takes several PRs, make them a GitHub stack with `gh stack` (`gh stack --help`). Each says `Part of #<n>`, and the top one says `Fixes #<n>`.
-- Each GitHub issue has one root bead, linked with `--external-ref gh-<n>`. Its children (sub-tasks, wayfinder tickets, research, prototypes) are beads only.
+- When decomposing a GitHub issue, create one root bead linked with `--external-ref gh-<n>`. Keep the overall problem and intended outcome in the GitHub issue; the root points to it, and child beads hold the separately assignable work.
+- Record discovered work for later in a GitHub issue. Add a child bead when it belongs to an effort already decomposed in beads.
 - PRs, commits, and changesets are for humans too: they name GitHub issues only, never bead ids.
 
 ## Closing beads
 
-Close a bead when its pull request opens. The maintainer merges outside agent sessions, so no agent learns of the merge; the bead tracks the agent's work, and `Fixes #<n>` tracks delivery on GitHub.
+- Close an implementation bead when its PR opens. The maintainer merges outside agent sessions, so the bead tracks completion of the implementation work; `Fixes #<n>` tracks delivery on GitHub.
+- Close a research or decision bead when its answer is recorded and any resulting artifacts are linked.
+- Close a parent bead when every required child is complete and the parent's own deliverable is recorded.
 
-Reopen it (`bd reopen <id>`) before any change the pull request later needs, and close it again when done.
+Reopen an affected bead (`bd reopen <id>`) when its deliverable needs more work, then close it under the same completion rule. Reopen its parent if that makes the parent incomplete.
 
 ## Gotchas
 
 - `bd` is `/opt/homebrew/bin/bd`, which non-login shells may not have on `PATH`.
 - Every worktree shares the one database in the main checkout's `.beads/`.
 - A ticket blocked by a dependency still shows `○ open` in `bd list`; `bd ready`, `bd blocked` and `bd graph <id>` show blocking.
-- `AGENTS.md` has no bd-generated section on purpose: the `bd prime` hooks in `.claude/settings.json` and `.codex/hooks.json` load the beads workflow. So `bd setup codex --check` warns, and `bd setup codex` / `bd setup claude` re-add a section to `AGENTS.md` / create `CLAUDE.md`; after running them, remove what they added and keep only the hook changes.
+- `.beads/PRIME.md` replaces the default `bd prime` workflow with a pointer to this policy. Persistent memories are still injected. Keep tracker policy here and CLI operations in /beads.
+- `AGENTS.md` has no bd-generated section on purpose: hooks in `.claude/settings.json` and `.codex/hooks.json` load the custom prime text. So `bd setup codex --check` warns, and `bd setup codex` / `bd setup claude` re-add a section to `AGENTS.md` / create `CLAUDE.md`; after running them, remove what they added and keep only the hook changes.
 - `bd comment <id> "..."` adds a comment; `bd comments <id>` lists them.
 
 ## When a skill says "publish to the issue tracker"
 
-`bd create "<title>" -t <task|bug|feature|epic> --body-file <file>`.
+For human-facing work or a spec, use `gh issue create --title "<title>" --body-file <file>`, or update the existing GitHub issue. Immediate work stays in its PR.
+
+For separately assignable parts of a decomposed effort, use `bd create "<title>" --parent <root-id> -t <task|bug|feature> --body-file <file>`.
 
 ## When a skill says "fetch the relevant ticket"
 
-`bd show <id>`, then `bd comments <id>`.
+For a GitHub issue, use `gh issue view <n> --comments`. For a bead, use `bd show <id>`, then `bd comments <id>`.
 
 ## Wayfinding operations
 
-Used by `/wayfinder`. The **map** is an epic with one **child** bead per ticket.
+Used by `/wayfinder`. The human-facing **map** is a GitHub issue; a linked root bead coordinates one **child** bead per decision ticket.
 
-- **Map**: an epic labelled `wayfinder:map`, the root bead of a GitHub issue (create one at charting, its body the Destination; when the map reaches its destination, post the result there), holding the Destination / Notes / Decisions-so-far / Not-yet-specified / Out-of-scope body. Edit it with `bd update <map-id> --body-file <file>`.
-- **Child ticket**: `bd create "<title>" --parent <map-id> -t task -l wayfinder:<type> --no-inherit-labels`, where `<type>` is `research`/`prototype`/`grilling`/`task`; `--no-inherit-labels` keeps `wayfinder:map` off the child. The body is the `## Question`.
+- **Map**: a GitHub issue labelled `wayfinder:map`, holding the Destination / Notes / Decisions-so-far / Not-yet-specified / Out-of-scope body. Edit it with `gh issue edit <n> --body-file <file>`. Create a root bead with `bd create "<title>" -t epic --external-ref gh-<n> --description="Decision tickets for <issue-url>"`; the root points to the map.
+- **Child ticket**: `bd create "<title>" --parent <root-id> -t task -l wayfinder:<type> --no-inherit-labels`, where `<type>` is `research`/`prototype`/`grilling`/`task`. The body is the `## Question`.
 - **Blocking**: `bd dep add <blocked-id> <blocker-id>`. A ticket is unblocked when every blocker is closed.
-- **Frontier**: the map's unassigned children (`bd children <map-id>`) that appear in `bd ready`; first by id wins.
+- **Frontier**: the root's unassigned children (`bd children <root-id>`) that appear in `bd ready`; first by id wins.
 - **Claim**: `bd update <id> --claim`, the session's first write.
-- **Resolve**: `bd comment <id> "<answer>"`, `bd close <id>`, then append a context pointer (gist + id) to the map's Decisions-so-far.
+- **Resolve**: `bd comment <id> "<answer>"`, `bd close <id>`, then append a named pointer to the answer in the GitHub map's Decisions-so-far. When the map reaches its destination, record the result there and close the root bead.

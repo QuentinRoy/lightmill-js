@@ -1,15 +1,15 @@
 ---
 name: beads
-description: Use when working in a repository that uses bd or Beads for durable project task tracking, issue dependencies, blocker management, multi-session handoff, or shared work memory. Trigger when the user asks to find ready work, claim or close tasks, create follow-up work, inspect blockers, recover project context, or choose between local planning and persistent project tracking.
+description: Coordinate separately assignable work in beads. Use when creating a decomposition with shared ownership or dependencies, or when finding, claiming, inspecting, resuming, or completing existing beads.
 ---
 
 # Beads
 
-Use Beads as the shared project task system. Local plans, scratch files, and personal memories are useful, but they are not the durable source of truth for project work.
+Read [`docs/agents/issue-tracker.md`](../../../docs/agents/issue-tracker.md) before creating beads or routing discovered work. That policy decides which tracker applies; this skill covers bead operations.
 
 ## First Step
 
-Run:
+For work that the policy assigns to beads, load its context if the hooks have not already done so:
 
 ```bash
 bd prime
@@ -47,33 +47,29 @@ bd show <id>
 bd update <id> --claim
 ```
 
-4. Create durable follow-up work when implementation reveals new tasks:
+4. Add separately assignable parts to the effort's root:
 
 ```bash
-bd create "Short title" --description="Why this exists and what needs to be done" --type=task --priority=2
+bd create "Short title" --parent <root-id> --description="Deliverable and completion criterion" --type=task --priority=2
 ```
 
-5. Close completed work:
+5. Close work when the tracker policy's completion criterion is met:
 
 ```bash
 bd close <id> --reason="Completed"
 ```
 
-## What Belongs In Beads
+## Shared state
 
-Use Beads for:
+Each child bead holds its deliverable, completion criterion, owner, dependencies, and result. Claim before starting so other workers can see ownership. Record blocking edges with:
 
-- shared project tasks
-- blockers and dependencies
-- discovered follow-up work
-- work that must survive thread reset, compaction, or handoff
-- status that another person or agent should be able to resume
-
-Use agent-local planning tools only for the current turn's execution checklist. Do not treat them as shared project state.
+```bash
+bd dep add <blocked-id> <blocker-id>
+```
 
 ## Rules
 
-- Do not create markdown TODO files as the source of truth when Beads is available.
+- Keep shared coordination state in the beads for that effort.
 - Do not use `bd edit`; it opens an interactive editor. Use `bd update` flags instead.
 - Prefer `--json` when parsing `bd` output programmatically.
 - If hooks are installed, `bd prime` may already be injected. Run it manually when context is missing.
