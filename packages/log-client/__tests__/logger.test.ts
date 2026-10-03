@@ -1,3 +1,4 @@
+import { mediaType } from '@lightmill/log-api/vocabulary';
 import { HttpResponse } from 'msw';
 import createClient from 'openapi-fetch';
 import { beforeEach, describe, expect, vi } from 'vitest';
@@ -218,7 +219,7 @@ describe('LogClient#addLog (after resume)', () => {
     const logger = new LightmillLogger({
       fetchClient: createClient({
         baseUrl: 'https://server.test/api',
-        headers: { contentType: 'application/vnd.api+json' },
+        headers: { contentType: mediaType },
       }),
       runId: 'test-run',
       lastLogNumber: 4,

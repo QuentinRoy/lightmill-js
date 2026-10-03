@@ -1,3 +1,4 @@
+import { mediaType } from '@lightmill/log-api/vocabulary';
 import SQLiteDB from 'better-sqlite3';
 import express from 'express';
 import session, { type SessionData } from 'express-session';
@@ -45,7 +46,7 @@ async function openServer(options: { sessionMaxAge?: number } = {}) {
 async function createSession(api: request.Agent) {
   const response = await api
     .post('/sessions')
-    .set('Content-Type', 'application/vnd.api+json')
+    .set('Content-Type', mediaType)
     .send({ data: { type: 'sessions', attributes: { role: 'participant' } } })
     .expect(201);
   const cookies = (response.get('Set-Cookie') ?? []).map(

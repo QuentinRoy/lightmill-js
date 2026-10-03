@@ -36,7 +36,7 @@ interface AnyLog extends Typed, OptionallyDated, JsonObjectAndDate {}
  */
 export type LoggerState =
   | DeliveryState
-  | Readonly<{ status: 'completed' | 'canceled' | 'interrupted' }>;
+  | Readonly<{ status: Exclude<RunStatus, 'running'> }>;
 
 /**
  * How long a request may take before it is aborted and retried: `base`

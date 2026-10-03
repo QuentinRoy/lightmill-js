@@ -12,7 +12,7 @@ import { sessionAuth } from './security.ts';
 import { mediaType, userRoles } from './vocabulary.ts';
 import { registry, type RouteConfig, z } from './zod-openapi.ts';
 
-export const UserRole = z.enum(userRoles);
+const UserRole = z.enum(userRoles);
 
 // Resource schema
 // -----------------------------------------------------------------------------

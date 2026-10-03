@@ -1,5 +1,9 @@
-import { atomicMediaType, mediaType } from '@lightmill/log-api/vocabulary';
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import {
+  atomicMediaType,
+  mediaType,
+  type RunStatus,
+} from '@lightmill/log-api/vocabulary';
 import {
   http,
   HttpResponse,
@@ -539,7 +543,7 @@ type Run = {
   runId: string;
   runName?: string;
   experimentId: string;
-  runStatus: 'idle' | 'completed' | 'canceled' | 'running' | 'interrupted';
+  runStatus: RunStatus;
   lastLogs: Array<{
     id: string;
     type: string;

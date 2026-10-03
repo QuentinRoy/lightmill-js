@@ -1,4 +1,8 @@
-import { atomicMediaType, mediaType } from '@lightmill/log-api/vocabulary';
+import {
+  atomicMediaType,
+  mediaType,
+  userRoles,
+} from '@lightmill/log-api/vocabulary';
 import type { Store as SessionStore } from 'express-session';
 import request from 'supertest';
 import { beforeEach, describe, expect } from 'vitest';
@@ -123,7 +127,7 @@ const nonRunningStatuses = [
 
 describe.each(storeTypes)('LogServer: post /logs (%s)', (storeType) => {
   const it = createTest(storeType);
-  it.for(['host', 'participant'] as const)(
+  it.for(userRoles)(
     'adds a log (%s user)',
     async (userType, { expect, participantApi, runId, dataStore }) => {
       const api = userType === 'host' ? participantApi : participantApi;
@@ -245,7 +249,7 @@ describe.each(storeTypes)('LogServer: post /logs (%s)', (storeType) => {
       .expect(201);
   });
 
-  it.for(['host', 'participant'] as const)(
+  it.for(userRoles)(
     'refuses to add logs to a run that does not exist (%s user)',
     async (userType, { expect, dataStore, participantApi, hostApi }) => {
       const api = userType === 'host' ? hostApi : participantApi;
@@ -357,7 +361,7 @@ describe.each(storeTypes)('LogServer: post /logs (%s)', (storeType) => {
     await expect(fromAsync(dataStore.getLogs({ runId }))).resolves.toEqual([]);
   });
 
-  it.for(['host', 'participant'] as const)(
+  it.for(userRoles)(
     'refuses to add logs if their number is already in used (%s user)',
     async (userType, { participantApi, hostApi, dataStore, runId }) => {
       const api = userType === 'host' ? hostApi : participantApi;

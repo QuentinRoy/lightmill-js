@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
 import type { routes } from '@lightmill/log-api';
-import { mediaType } from '@lightmill/log-api/vocabulary';
+import { mediaType, type UserRole } from '@lightmill/log-api/vocabulary';
 import express from 'express';
 import { MemoryStore, Store as SessionStore } from 'express-session';
 import { once } from 'node:events';
@@ -256,10 +256,8 @@ export async function createServerContext(
 
 export type App = Parameters<typeof request.agent>[0];
 
-type Role = 'host' | 'participant';
-
 type SessionFixtureContext<
-  R extends Role = Role,
+  R extends UserRole = UserRole,
   T extends StoreType = StoreType,
 > = {
   api: request.Agent;
@@ -267,16 +265,17 @@ type SessionFixtureContext<
   type: T;
   app: NonNullable<Parameters<typeof request.agent>[0]>;
 } & StoreContextMap[T];
-export type SessionFixture<R extends Role, T extends StoreType = StoreType> = {
-  session: SessionFixtureContext<R, T>;
-};
+export type SessionFixture<
+  R extends UserRole,
+  T extends StoreType = StoreType,
+> = { session: SessionFixtureContext<R, T> };
 type PatchedFixture<
   Fixture extends Record<PropertyKey, unknown>,
   Patch extends Record<PropertyKey, unknown>,
 > = { [K in keyof Fixture]: Fixture[K] & Patch };
 
 async function createSessionFixtureContext<
-  R extends 'host' | 'participant',
+  R extends UserRole,
   T extends StoreType,
 >({ type, role }: { type: T; role: R }) {
   let serverContext = await createServerContext({ type });
@@ -293,23 +292,23 @@ async function createSessionFixtureContext<
 }
 
 export type SetupFunction<
-  R extends Role,
+  R extends UserRole,
   T extends StoreType,
   ContextPatch extends Record<string, unknown> | void,
 > = (
   context: SessionFixtureContext<R, T>,
 ) => Promise<ContextPatch> | ContextPatch;
 export type SetupMap<
-  R extends Role,
+  R extends UserRole,
   ContextPatch extends Record<string, unknown> | void,
 > = { [K in StoreType]: SetupFunction<R, K, ContextPatch> };
 
-type CreateSessionTestBaseOptions<R extends Role, T extends StoreType> = {
+type CreateSessionTestBaseOptions<R extends UserRole, T extends StoreType> = {
   storeType: T;
   sessionType: R;
 };
 export function createSessionTest<
-  R extends Role,
+  R extends UserRole,
   T extends StoreType,
   Patch extends Record<string, unknown>,
 >(
@@ -317,16 +316,16 @@ export function createSessionTest<
     setup: SetupFunction<R, T, Patch> | SetupMap<R, Patch>;
   },
 ): TestAPI<PatchedFixture<SessionFixture<R, T>, Patch>>;
-export function createSessionTest<R extends Role, T extends StoreType>(
+export function createSessionTest<R extends UserRole, T extends StoreType>(
   options: CreateSessionTestBaseOptions<R, T> & {
     setup?: SetupFunction<R, T, void> | SetupMap<R, void>;
   },
 ): TestAPI<SessionFixture<R, T>>;
 export function createSessionTest(
-  options: CreateSessionTestBaseOptions<Role, StoreType> & {
+  options: CreateSessionTestBaseOptions<UserRole, StoreType> & {
     setup?:
-      | SetupFunction<Role, StoreType, Record<string, unknown> | void>
-      | SetupMap<Role, Record<string, unknown> | void>;
+      | SetupFunction<UserRole, StoreType, Record<string, unknown> | void>
+      | SetupMap<UserRole, Record<string, unknown> | void>;
   },
 ) {
   let setupFn = (context: SessionFixtureContext) => {
