@@ -434,7 +434,7 @@ describe.each(storeTypes)('LogServer: post /logs (%s)', (storeType) => {
     ['different', { other: true }],
   ] as const)(
     'refuses a log numbered below the sequence start with %s content',
-    async ([, values], { expect, participantApi, runId }) => {
+    async ([, values], { expect, participantApi, runId, dataStore }) => {
       for (const number of [1, 2, 3]) {
         await postLog(participantApi, runId, number).expect(201);
       }
@@ -445,6 +445,7 @@ describe.each(storeTypes)('LogServer: post /logs (%s)', (storeType) => {
           data: { id: runId, type: 'runs', attributes: { lastLogNumber: 2 } },
         })
         .expect(200);
+      const stored = await fromAsync(dataStore.getLogs({ runId }));
       const response = await postLog(participantApi, runId, 2, values)
         .expect(409)
         .expect('Content-Type', apiContentTypeRegExp);
@@ -457,9 +458,33 @@ describe.each(storeTypes)('LogServer: post /logs (%s)', (storeType) => {
           },
         ],
       });
+      await expect(fromAsync(dataStore.getLogs({ runId }))).resolves.toEqual(
+        stored,
+      );
+      // The sequence starts at 3.
       await postLog(participantApi, runId, 3, { other: 3 }).expect(201);
     },
   );
+
+  it('answers the stored id to a log resent after a resume', async ({
+    expect,
+    participantApi,
+    runId,
+  }) => {
+    for (const number of [1, 2]) {
+      await postLog(participantApi, runId, number).expect(201);
+    }
+    await participantApi
+      .patch(`/runs/${runId}`)
+      .set('Content-Type', apiMediaType)
+      .send({
+        data: { id: runId, type: 'runs', attributes: { lastLogNumber: 1 } },
+      })
+      .expect(200);
+    const first = await postLog(participantApi, runId, 2).expect(201);
+    const resent = await postLog(participantApi, runId, 2).expect(200);
+    expect(resent.body).toEqual(first.body);
+  });
 
   it('refuses a log below a sequence start set after the request was accepted', async ({
     expect,
@@ -600,7 +625,7 @@ describe.each(storeTypes)('LogServer: post /operations (%s)', (storeType) => {
     ['different', { other: true }],
   ] as const)(
     'stores nothing if one log is numbered below the sequence start with %s content',
-    async ([, values], { expect, participantApi, runId }) => {
+    async ([, values], { expect, participantApi, runId, dataStore }) => {
       await post(participantApi, [
         add(runId, 1),
         add(runId, 2),
@@ -613,6 +638,7 @@ describe.each(storeTypes)('LogServer: post /operations (%s)', (storeType) => {
           data: { id: runId, type: 'runs', attributes: { lastLogNumber: 1 } },
         })
         .expect(200);
+      const stored = await fromAsync(dataStore.getLogs({ runId }));
       const response = await post(participantApi, [
         add(runId, 2, { other: 2 }),
         add(runId, 1, values),
@@ -629,10 +655,29 @@ describe.each(storeTypes)('LogServer: post /operations (%s)', (storeType) => {
           },
         ],
       });
+      await expect(fromAsync(dataStore.getLogs({ runId }))).resolves.toEqual(
+        stored,
+      );
       // Number 2 was not stored by the failed batch, so it is still free.
       await post(participantApi, [add(runId, 2, { other: 'x' })]).expect(200);
     },
   );
+
+  it('answers 503 with Retry-After when the transaction conflicts', async ({
+    participantApi,
+    runId,
+    dataStore,
+  }) => {
+    dataStore.withTransaction.mockRejectedValueOnce(
+      new DataStoreError(
+        'The transaction conflicted with another one.',
+        DataStoreError.TRANSACTION_CONFLICT,
+      ),
+    );
+    await post(participantApi, [add(runId, 1)])
+      .expect('Retry-After', '1')
+      .expect(503);
+  });
 
   it('refuses a log below a sequence start set after the request was accepted', async ({
     expect,
