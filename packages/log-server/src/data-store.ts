@@ -94,7 +94,6 @@ export interface ExperimentRecord {
   experimentCreatedAt: Date;
 }
 
-/** A log to add to a run. */
 export interface NewLog {
   type: string;
   number: number;
