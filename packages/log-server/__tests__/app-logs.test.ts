@@ -3,7 +3,8 @@ import request from 'supertest';
 import { beforeEach, describe, expect } from 'vitest';
 import { apiMediaType, atomicMediaType } from '../src/api.ts';
 import { DataStoreError } from '../src/data-store-errors.ts';
-import type { ExperimentId, RunId } from '../src/data-store.ts';
+import type { ExperimentId, RunId, RunStatus } from '../src/data-store.ts';
+import { fromAsync } from '../src/utils.ts';
 import {
   apiContentTypeRegExp,
   atomicContentTypeRegExp,
@@ -94,6 +95,31 @@ function createTest(storeType: StoreType) {
     },
   });
 }
+
+/**
+ * Ends the run right before the next transaction starts: after the server
+ * looked at the request, and before it writes the logs.
+ */
+function completeRunBeforeNextTransaction(
+  dataStore: MockedDataStore,
+  runId: RunId,
+) {
+  const real = dataStore.withTransaction.getMockImplementation();
+  if (real == null) throw new Error('withTransaction is not mocked');
+  dataStore.withTransaction.mockImplementationOnce((async (
+    fn: Parameters<typeof real>[0],
+  ) => {
+    await real((tx) => tx.setRunStatus(runId, 'completed'));
+    return real(fn);
+  }) as typeof real);
+}
+
+const nonRunningStatuses = [
+  'idle',
+  'interrupted',
+  'completed',
+  'canceled',
+] as const satisfies RunStatus[];
 
 describe.each(storeTypes)('LogServer: post /logs (%s)', (storeType) => {
   const it = createTest(storeType);
@@ -248,6 +274,88 @@ describe.each(storeTypes)('LogServer: post /logs (%s)', (storeType) => {
       expect(dataStore.tx.addLogs).not.toHaveBeenCalled();
     },
   );
+
+  it.for(nonRunningStatuses)(
+    'refuses to add logs to a %s run',
+    async (status, { expect, participantApi, runId, dataStore }) => {
+      await dataStore.withTransaction((tx) => tx.setRunStatus(runId, status));
+      dataStore.tx.addLogs.mockClear();
+      await participantApi
+        .post('/logs')
+        .set('Content-Type', apiMediaType)
+        .send({
+          data: {
+            type: 'logs',
+            attributes: { number: 1, logType: 'test', values: {} },
+            relationships: { run: { data: { type: 'runs', id: runId } } },
+          },
+        })
+        .expect(403, {
+          errors: [
+            {
+              status: 'Forbidden',
+              code: 'INVALID_RUN_STATUS',
+              detail: `Cannot add logs to run '${runId}', run is not running. Ensure the run is running before adding logs.`,
+            },
+          ],
+        })
+        .expect('Content-Type', apiContentTypeRegExp);
+      expect(dataStore.tx.addLogs).not.toHaveBeenCalled();
+    },
+  );
+
+  it('reads the run and adds the log in one transaction', async ({
+    expect,
+    participantApi,
+    runId,
+    dataStore,
+  }) => {
+    dataStore.withTransaction.mockClear();
+    dataStore.getRuns.mockClear();
+    dataStore.tx.getRuns.mockClear();
+    dataStore.tx.addLogs.mockClear();
+    await participantApi
+      .post('/logs')
+      .set('Content-Type', apiMediaType)
+      .send({
+        data: {
+          type: 'logs',
+          attributes: { number: 1, logType: 'test', values: {} },
+          relationships: { run: { data: { type: 'runs', id: runId } } },
+        },
+      })
+      .expect(201);
+    expect(dataStore.withTransaction).toHaveBeenCalledTimes(1);
+    expect(dataStore.getRuns).not.toHaveBeenCalled();
+    expect(dataStore.tx.getRuns).toHaveBeenCalledWith({ runId });
+    expect(dataStore.tx.getRuns.mock.invocationCallOrder[0]).toBeLessThan(
+      dataStore.tx.addLogs.mock.invocationCallOrder[0]!,
+    );
+  });
+
+  it('stores nothing if the run ends after the request was accepted', async ({
+    expect,
+    participantApi,
+    runId,
+    dataStore,
+  }) => {
+    completeRunBeforeNextTransaction(dataStore, runId);
+    await participantApi
+      .post('/logs')
+      .set('Content-Type', apiMediaType)
+      .send({
+        data: {
+          type: 'logs',
+          attributes: { number: 1, logType: 'test', values: {} },
+          relationships: { run: { data: { type: 'runs', id: runId } } },
+        },
+      })
+      .expect(403)
+      .expect((response) => {
+        expect(response.body.errors[0].code).toBe('INVALID_RUN_STATUS');
+      });
+    await expect(fromAsync(dataStore.getLogs({ runId }))).resolves.toEqual([]);
+  });
 
   it.for(['host', 'participant'] as const)(
     'refuses to add logs if their number is already in used (%s user)',
@@ -487,6 +595,56 @@ describe.each(storeTypes)('LogServer: post /operations (%s)', (storeType) => {
       code: 'INVALID_RUN_STATUS',
     });
     expect(dataStore.tx.addLogs).not.toHaveBeenCalled();
+  });
+
+  it.for(nonRunningStatuses)(
+    'refuses logs for a %s run',
+    async (status, { expect, participantApi, runId, dataStore }) => {
+      await dataStore.withTransaction((tx) => tx.setRunStatus(runId, status));
+      dataStore.tx.addLogs.mockClear();
+      const response = await post(participantApi, [add(runId, 1)])
+        .expect(403)
+        .expect('Content-Type', atomicContentTypeRegExp);
+      expect(response.body.errors[0]).toMatchObject({
+        code: 'INVALID_RUN_STATUS',
+      });
+      expect(dataStore.tx.addLogs).not.toHaveBeenCalled();
+    },
+  );
+
+  it('reads the run and adds the logs in one transaction', async ({
+    expect,
+    participantApi,
+    runId,
+    dataStore,
+  }) => {
+    dataStore.withTransaction.mockClear();
+    dataStore.getRuns.mockClear();
+    dataStore.tx.getRuns.mockClear();
+    dataStore.tx.addLogs.mockClear();
+    await post(participantApi, [add(runId, 1), add(runId, 2)]).expect(200);
+    expect(dataStore.withTransaction).toHaveBeenCalledTimes(1);
+    expect(dataStore.getRuns).not.toHaveBeenCalled();
+    expect(dataStore.tx.getRuns).toHaveBeenCalledWith({ runId });
+    expect(dataStore.tx.getRuns.mock.invocationCallOrder[0]).toBeLessThan(
+      dataStore.tx.addLogs.mock.invocationCallOrder[0]!,
+    );
+  });
+
+  it('stores nothing if the run ends after the request was accepted', async ({
+    expect,
+    participantApi,
+    runId,
+    dataStore,
+  }) => {
+    completeRunBeforeNextTransaction(dataStore, runId);
+    const response = await post(participantApi, [add(runId, 1), add(runId, 2)])
+      .expect(403)
+      .expect('Content-Type', atomicContentTypeRegExp);
+    expect(response.body.errors[0]).toMatchObject({
+      code: 'INVALID_RUN_STATUS',
+    });
+    await expect(fromAsync(dataStore.getLogs({ runId }))).resolves.toEqual([]);
   });
 
   it('refuses to add a resource that is not a log', async ({

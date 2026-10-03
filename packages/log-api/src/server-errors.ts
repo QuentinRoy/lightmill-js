@@ -43,6 +43,14 @@ export const InternalServerErrorResponse = getErrorDocumentSchema(
   getErrorSchema({ code: 'INTERNAL_SERVER_ERROR', statusCode: 500 }),
 ).openapi('InternalServerErrorResponse');
 
+export const ServiceUnavailableErrorResponse = getErrorDocumentSchema(
+  getErrorSchema({ code: 'SERVICE_UNAVAILABLE', statusCode: 503 }),
+)
+  .describe(
+    'The server could not process the request right now, and nothing was saved. Try again: the Retry-After header says in how many seconds.',
+  )
+  .openapi('ServiceUnavailableErrorResponse');
+
 export const MethodNotAllowedErrorResponse = getErrorDocumentSchema(
   getErrorSchema({ code: 'METHOD_NOT_ALLOWED', statusCode: 405 }),
 ).openapi('MethodNotAllowedErrorResponse');
@@ -64,6 +72,7 @@ export const ServerErrorResponse = z
     NotFoundErrorResponse,
     RequestValidationErrorResponse,
     InternalServerErrorResponse,
+    ServiceUnavailableErrorResponse,
     MethodNotAllowedErrorResponse,
     UnsupportedMediaTypeErrorResponse,
     RequestBodyTooLargeErrorResponse,

@@ -11,10 +11,8 @@ import {
   addRunToSession,
   apiContentTypeRegExp,
   createServerContext,
-  generateCombinations,
   host,
   listen,
-  runStatus,
   storeTypes,
   type MockedDataStore,
   type WithMockedMethods,
@@ -151,6 +149,35 @@ describeForAll(
         .expect('Content-Type', apiContentTypeRegExp);
     });
 
+    it.for(['completed', 'canceled', 'interrupted'] as const)(
+      'refuses to create a run with the status %s',
+      async (status, { expect, context: { api, dataStore, experimentId } }) => {
+        await api
+          .post('/runs')
+          .set('content-type', apiMediaType)
+          .send({
+            data: {
+              type: 'runs',
+              attributes: { status, name: null },
+              relationships: {
+                experiment: { data: { type: 'experiments', id: experimentId } },
+              },
+            },
+          })
+          .expect(403, {
+            errors: [
+              {
+                status: 'Forbidden',
+                code: 'INVALID_RUN_STATUS',
+                detail: `Cannot create a run with status ${status}. A run is created idle or running.`,
+              },
+            ],
+          })
+          .expect('Content-Type', apiContentTypeRegExp);
+        await expect(dataStore.getRuns()).resolves.toEqual([]);
+      },
+    );
+
     it('returns an error if the experiment does not exist', async ({
       context: { api },
     }) => {
@@ -189,7 +216,7 @@ describeForAll(
         .send({
           data: {
             type: 'runs',
-            attributes: { status: 'completed', name: 'test-run' },
+            attributes: { status: 'idle', name: 'test-run' },
             relationships: {
               experiment: { data: { type: 'experiments', id: experimentId } },
             },
@@ -420,91 +447,54 @@ describeForAll(
       });
     }
 
-    const allowedTransitions = [
-      { originalStatus: 'idle', targetStatus: 'running' },
-      { originalStatus: 'idle', targetStatus: 'canceled' },
-      { originalStatus: 'running', targetStatus: 'canceled' },
-      { originalStatus: 'running', targetStatus: 'completed' },
-      { originalStatus: 'running', targetStatus: 'interrupted' },
-      { originalStatus: 'interrupted', targetStatus: 'running' },
-      { originalStatus: 'interrupted', targetStatus: 'canceled' },
-      { originalStatus: 'completed', targetStatus: 'canceled' },
-    ] as const satisfies Array<{
-      originalStatus: RunStatus;
-      targetStatus: RunStatus;
-    }>;
-
-    it.for(allowedTransitions)(
-      'changes the status of a run from $originalStatus to $targetStatus',
-      async (
-        { originalStatus, targetStatus },
-        { expect, context: { api, dataStore, experimentId, sessionStore } },
-      ) => {
-        const { runId } = await dataStore.withTransaction((tx) =>
-          tx.addRun({ experimentId, runStatus: originalStatus, runName: null }),
-        );
-        await addRunToSession({ api, runId, sessionStore });
-        await api
-          .patch(`/runs/${runId}`)
-          .set('content-type', apiMediaType)
-          .send({
-            data: {
-              id: runId,
-              type: 'runs',
-              attributes: { status: targetStatus },
-            },
-          })
-          .expect(200);
-        const [runRecord] = await dataStore.getRuns({ runId });
-        expect(runRecord!.runStatus).toBe(targetStatus);
-      },
-    );
-
-    const forbiddenTransitions: Array<{
-      originalStatus: RunStatus;
-      targetStatus: RunStatus;
-    }> = generateCombinations(runStatus)
-      .map(([originalStatus, targetStatus]) => ({
-        originalStatus,
-        targetStatus,
-      }))
-      .filter(
-        (t) =>
-          t.originalStatus !== t.targetStatus &&
-          allowedTransitions.every(
-            (t2) =>
-              t2.originalStatus !== t.originalStatus ||
-              t.targetStatus !== t2.targetStatus,
-          ),
+    // The transition table is tested in run-lifecycle.test.ts.
+    it('changes the status of a run', async ({
+      expect,
+      context: { api, dataStore, experimentId, sessionStore },
+    }) => {
+      const { runId } = await dataStore.withTransaction((tx) =>
+        tx.addRun({ experimentId, runStatus: 'idle', runName: null }),
       );
+      await addRunToSession({ api, runId, sessionStore });
+      await api
+        .patch(`/runs/${runId}`)
+        .set('content-type', apiMediaType)
+        .send({
+          data: { id: runId, type: 'runs', attributes: { status: 'running' } },
+        })
+        .expect(200);
+      const [runRecord] = await dataStore.getRuns({ runId });
+      expect(runRecord!.runStatus).toBe('running');
+    });
 
-    it.for(forbiddenTransitions)(
-      'refuses to change the status of a run from $originalStatus to $targetStatus',
-      async (
-        { originalStatus, targetStatus },
-        { expect, context: { api, dataStore, experimentId, sessionStore } },
-      ) => {
-        const { runId } = await dataStore.withTransaction((tx) =>
-          tx.addRun({ experimentId, runStatus: originalStatus }),
-        );
-        await addRunToSession({ api, runId, sessionStore });
-        let result = await api
-          .patch(`/runs/${runId}`)
-          .set('content-type', apiMediaType)
-          .send({
-            data: {
-              id: runId,
-              type: 'runs',
-              attributes: { status: targetStatus },
+    it('refuses an illegal status transition', async ({
+      expect,
+      context: { api, dataStore, experimentId, sessionStore },
+    }) => {
+      const { runId } = await dataStore.withTransaction((tx) =>
+        tx.addRun({ experimentId, runStatus: 'completed' }),
+      );
+      await addRunToSession({ api, runId, sessionStore });
+      await api
+        .patch(`/runs/${runId}`)
+        .set('content-type', apiMediaType)
+        .send({
+          data: { id: runId, type: 'runs', attributes: { status: 'running' } },
+        })
+        .expect(403, {
+          errors: [
+            {
+              status: 'Forbidden',
+              code: 'INVALID_STATUS_TRANSITION',
+              detail:
+                'Cannot change run status from completed to running. Allowed transitions are: completed -> canceled.',
             },
-          })
-          .expect(403)
-          .expect('Content-Type', apiContentTypeRegExp);
-        expect(result.body).toMatchSnapshot();
-        const [runRecord] = await dataStore.getRuns({ runId });
-        expect(runRecord!.runStatus).toBe(originalStatus);
-      },
-    );
+          ],
+        })
+        .expect('Content-Type', apiContentTypeRegExp);
+      const [runRecord] = await dataStore.getRuns({ runId });
+      expect(runRecord!.runStatus).toBe('completed');
+    });
 
     it('accepts but does nothing when nothing to change is requested', async ({
       expect,
@@ -529,34 +519,6 @@ describeForAll(
       const [r2] = await dataStore.getRuns({ runId: runRecord.runId });
       expect(r2).toEqual(runRecord);
     });
-
-    it.for([
-      'canceled',
-      'completed',
-      'interrupted',
-      'idle',
-      'running',
-    ] satisfies Array<RunStatus>)(
-      "accepts but does nothing when asked to change the status of a run to '%s' and it is already the case",
-      async (
-        status,
-        { expect, context: { api, dataStore, sessionStore, experimentId } },
-      ) => {
-        const runRecord = await dataStore.withTransaction((tx) =>
-          tx.addRun({ experimentId, runStatus: status }),
-        );
-        await addRunToSession({ api, runId: runRecord.runId, sessionStore });
-        await api
-          .patch(`/runs/${runRecord.runId}`)
-          .set('content-type', apiMediaType)
-          .send({
-            data: { id: runRecord.runId, type: 'runs', attributes: { status } },
-          })
-          .expect(200);
-        const [r1] = await dataStore.getRuns({ runId: runRecord.runId });
-        expect(r1).toEqual(runRecord);
-      },
-    );
 
     it('refuses to complete a run if there are missing logs', async ({
       expect,
@@ -754,6 +716,289 @@ describeForAll(
       await expect(
         fromAsync(dataStore.getLogs({ runId })),
       ).resolves.toMatchObject([{ number: 1, values: { v: 'v1' } }]);
+    });
+
+    it('refuses a resume point above the last log number', async ({
+      expect,
+      context: { api, dataStore, experimentId, sessionStore },
+    }) => {
+      const { runId } = await dataStore.withTransaction((tx) =>
+        tx.addRun({ experimentId, runStatus: 'running' }),
+      );
+      await dataStore.withTransaction((tx) =>
+        tx.addLogs(runId, [
+          { type: 'log-type', number: 1, values: {} },
+          { type: 'log-type', number: 2, values: {} },
+          { type: 'log-type', number: 3, values: {} },
+        ]),
+      );
+      await addRunToSession({ api, runId, sessionStore });
+      await api
+        .patch(`/runs/${runId}`)
+        .set('content-type', apiMediaType)
+        .send({
+          data: { id: runId, type: 'runs', attributes: { lastLogNumber: 10 } },
+        })
+        .expect(403, {
+          errors: [
+            {
+              status: 'Forbidden',
+              code: 'INVALID_LAST_LOG_NUMBER',
+              detail:
+                'Cannot set last log number to 10, run has only 3 logs. Ensure the last log number is less than or equal to the last log number of the run.',
+            },
+          ],
+        })
+        .expect('Content-Type', apiContentTypeRegExp);
+      await expect(dataStore.getRuns({ runId })).resolves.toMatchObject([
+        { runStatus: 'running', lastLogNumber: 3 },
+      ]);
+    });
+
+    // A resume leaves the run running, so it cannot also end it. Completing
+    // with the run's own last log number used to resume the run instead.
+    it.for([
+      { from: 'running', status: 'completed', lastLogNumber: 1 },
+      { from: 'running', status: 'completed', lastLogNumber: 2 },
+      { from: 'completed', status: 'canceled', lastLogNumber: 2 },
+    ] as const)(
+      'refuses the last log number $lastLogNumber with the status $status instead of resuming',
+      async (
+        { from, status, lastLogNumber },
+        { expect, context: { api, dataStore, experimentId, sessionStore } },
+      ) => {
+        const { runId } = await dataStore.withTransaction((tx) =>
+          tx.addRun({ experimentId, runStatus: 'running' }),
+        );
+        await dataStore.withTransaction((tx) =>
+          tx.addLogs(runId, [
+            { type: 'log-type', number: 1, values: {} },
+            { type: 'log-type', number: 2, values: {} },
+          ]),
+        );
+        await dataStore.withTransaction((tx) => tx.setRunStatus(runId, from));
+        await addRunToSession({ api, runId, sessionStore });
+        await api
+          .patch(`/runs/${runId}`)
+          .set('content-type', apiMediaType)
+          .send({
+            data: {
+              id: runId,
+              type: 'runs',
+              attributes: { status, lastLogNumber },
+            },
+          })
+          .expect(403)
+          .expect('Content-Type', apiContentTypeRegExp)
+          .expect((response) => {
+            expect(response.body.errors[0].code).toBe(
+              'INVALID_LAST_LOG_NUMBER',
+            );
+          });
+        await expect(dataStore.getRuns({ runId })).resolves.toMatchObject([
+          { runStatus: from, lastLogNumber: 2 },
+        ]);
+      },
+    );
+
+    it('accepts completing a completed run that has a missing log number', async ({
+      context: { api, dataStore, experimentId, sessionStore },
+    }) => {
+      const { runId } = await dataStore.withTransaction((tx) =>
+        tx.addRun({ experimentId, runStatus: 'running' }),
+      );
+      await dataStore.withTransaction(async (tx) => {
+        await tx.addLogs(runId, [
+          { type: 'log-type', number: 1, values: {} },
+          { type: 'log-type', number: 3, values: {} },
+        ]);
+        await tx.setRunStatus(runId, 'completed');
+      });
+      await addRunToSession({ api, runId, sessionStore });
+      await api
+        .patch(`/runs/${runId}`)
+        .set('content-type', apiMediaType)
+        .send({
+          data: {
+            id: runId,
+            type: 'runs',
+            attributes: { status: 'completed' },
+          },
+        })
+        .expect(200);
+    });
+
+    describe('name and experiment', () => {
+      const patch = (
+        api: request.Agent,
+        runId: string,
+        data: Record<string, unknown>,
+      ) =>
+        api
+          .patch(`/runs/${runId}`)
+          .set('content-type', apiMediaType)
+          .send({ data: { id: runId, type: 'runs', ...data } });
+
+      it('refuses to change the id', async ({
+        context: { api, dataStore, experimentId, sessionStore },
+      }) => {
+        const { runId } = await dataStore.withTransaction((tx) =>
+          tx.addRun({ experimentId, runName: 'name' }),
+        );
+        await addRunToSession({ api, runId, sessionStore });
+        await patch(api, runId, { id: 'other-id' })
+          .expect(403, {
+            errors: [
+              {
+                status: 'Forbidden',
+                code: 'INVALID_RUN_ID',
+                detail: `A run's id cannot be changed. Remove the 'id' attribute from the request body.`,
+              },
+            ],
+          })
+          .expect('Content-Type', apiContentTypeRegExp);
+      });
+
+      it.for([{ name: 'other-name' }, { name: null }])(
+        'refuses to change the name to $name',
+        async (
+          attributes,
+          { expect, context: { api, dataStore, experimentId, sessionStore } },
+        ) => {
+          const { runId } = await dataStore.withTransaction((tx) =>
+            tx.addRun({ experimentId, runName: 'name' }),
+          );
+          await addRunToSession({ api, runId, sessionStore });
+          await patch(api, runId, { attributes })
+            .expect(403, {
+              errors: [
+                {
+                  status: 'Forbidden',
+                  code: 'IMMUTABLE_RUN_ATTRIBUTE',
+                  detail: `A run's name cannot be changed. Remove the 'name' attribute from the request body.`,
+                  source: { pointer: '/data/attributes/name' },
+                },
+              ],
+            })
+            .expect('Content-Type', apiContentTypeRegExp);
+          await expect(dataStore.getRuns({ runId })).resolves.toMatchObject([
+            { runName: 'name' },
+          ]);
+        },
+      );
+
+      it('refuses to change the experiment', async ({
+        expect,
+        context: { api, dataStore, experimentId, sessionStore },
+      }) => {
+        const { experimentId: otherExperimentId } =
+          await dataStore.withTransaction((tx) =>
+            tx.addExperiment({ experimentName: 'other-experiment' }),
+          );
+        const { runId } = await dataStore.withTransaction((tx) =>
+          tx.addRun({ experimentId }),
+        );
+        await addRunToSession({ api, runId, sessionStore });
+        await patch(api, runId, {
+          relationships: {
+            experiment: {
+              data: { type: 'experiments', id: otherExperimentId },
+            },
+          },
+        })
+          .expect(403, {
+            errors: [
+              {
+                status: 'Forbidden',
+                code: 'IMMUTABLE_RUN_ATTRIBUTE',
+                detail: `A run's experiment cannot be changed. Remove the 'experiment' relationship from the request body.`,
+                source: { pointer: '/data/relationships/experiment' },
+              },
+            ],
+          })
+          .expect('Content-Type', apiContentTypeRegExp);
+        await expect(dataStore.getRuns({ runId })).resolves.toMatchObject([
+          { experimentId },
+        ]);
+      });
+
+      it('ignores the name and experiment when they do not change', async ({
+        context: { api, dataStore, experimentId, sessionStore },
+      }) => {
+        const { runId } = await dataStore.withTransaction((tx) =>
+          tx.addRun({ experimentId, runName: 'name' }),
+        );
+        await addRunToSession({ api, runId, sessionStore });
+        await patch(api, runId, {
+          attributes: { name: 'name', status: 'running' },
+          relationships: {
+            experiment: { data: { type: 'experiments', id: experimentId } },
+          },
+        }).expect(200);
+      });
+    });
+
+    it('rolls back the cancellation of logs when setting the status fails', async ({
+      expect,
+      context: { api, dataStore, experimentId, sessionStore },
+    }) => {
+      const { runId } = await dataStore.withTransaction((tx) =>
+        tx.addRun({ experimentId, runStatus: 'running' }),
+      );
+      await dataStore.withTransaction((tx) =>
+        tx.addLogs(runId, [
+          { type: 'log-type', number: 1, values: {} },
+          { type: 'log-type', number: 2, values: {} },
+          { type: 'log-type', number: 3, values: {} },
+        ]),
+      );
+      await dataStore.withTransaction((tx) =>
+        tx.setRunStatus(runId, 'interrupted'),
+      );
+      await addRunToSession({ api, runId, sessionStore });
+      dataStore.tx.setRunStatus.mockRejectedValueOnce(new Error('disk full'));
+      await api
+        .patch(`/runs/${runId}`)
+        .set('content-type', apiMediaType)
+        .send({
+          data: {
+            id: runId,
+            type: 'runs',
+            attributes: { status: 'running', lastLogNumber: 1 },
+          },
+        })
+        .expect(500);
+      await expect(dataStore.getRuns({ runId })).resolves.toMatchObject([
+        { runStatus: 'interrupted', lastLogNumber: 3 },
+      ]);
+      await expect(
+        fromAsync(dataStore.getLogs({ runId })),
+      ).resolves.toHaveLength(3);
+    });
+
+    it('lets only one of two concurrent conflicting updates through', async ({
+      expect,
+      context: { api, dataStore, experimentId, sessionStore },
+    }) => {
+      const { runId } = await dataStore.withTransaction((tx) =>
+        tx.addRun({ experimentId, runStatus: 'running' }),
+      );
+      await addRunToSession({ api, runId, sessionStore });
+      const update = (status: RunStatus) =>
+        api
+          .patch(`/runs/${runId}`)
+          .set('content-type', apiMediaType)
+          .send({ data: { id: runId, type: 'runs', attributes: { status } } });
+      // Neither of completed and interrupted can follow the other.
+      const [completed, interrupted] = await Promise.all([
+        update('completed'),
+        update('interrupted'),
+      ]);
+      expect([completed.status, interrupted.status].sort()).toEqual([200, 403]);
+      const winner = completed.status === 200 ? 'completed' : 'interrupted';
+      await expect(dataStore.getRuns({ runId })).resolves.toMatchObject([
+        { runStatus: winner },
+      ]);
     });
   },
 );

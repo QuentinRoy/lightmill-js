@@ -19,7 +19,7 @@ import path from 'node:path';
 import * as url from 'node:url';
 import { isDeepStrictEqual } from 'node:util';
 import { last, pick } from 'remeda';
-import type { JsonObject, JsonValue } from 'type-fest';
+import type { JsonValue } from 'type-fest';
 import {
   type AllFilter,
   createQueryFilterAll,
@@ -38,6 +38,7 @@ import {
   fromDbId,
   type Log,
   type LogId,
+  type NewLog,
   type RunId,
   type RunRecord,
   type RunStatus,
@@ -391,12 +392,9 @@ class Queries {
         if (!(e instanceof SQLiteDB.SqliteError)) {
           throw e;
         }
-        if (
-          e.code === 'SQLITE_CONSTRAINT_TRIGGER' &&
-          e.message.includes(
-            'another run with the same name for the same experiment exists and is not canceled',
-          )
-        ) {
+        if (e.code === 'SQLITE_CONSTRAINT_UNIQUE') {
+          // The only unique constraint on the run table is the one on the names
+          // of the runs that are not canceled.
           throw new DataStoreError(
             `A run named "${runName}" already exists for experiment ${experimentId}.`,
             DataStoreError.RUN_EXISTS,
@@ -524,22 +522,12 @@ class Queries {
       .catch((e) => {
         if (
           e instanceof SQLiteDB.SqliteError &&
-          e.code === 'SQLITE_CONSTRAINT_TRIGGER' &&
-          e.message === 'Completed runs can only be canceled'
+          e.code === 'SQLITE_CONSTRAINT_UNIQUE'
         ) {
+          // A canceled run coming back needs its name to still be free.
           throw new DataStoreError(
-            `Cannot change status of run ${runId} to ${status} because the run is completed and can only be canceled.`,
-            DataStoreError.RUN_HAS_ENDED,
-            { cause: e },
-          );
-        } else if (
-          e instanceof SQLiteDB.SqliteError &&
-          e.code === 'SQLITE_CONSTRAINT_TRIGGER' &&
-          e.message === 'Cannot update run status when the run is canceled'
-        ) {
-          throw new DataStoreError(
-            `Cannot update status of run ${runId} because the run is canceled.`,
-            DataStoreError.RUN_HAS_ENDED,
+            `Cannot change the status of run ${runId} to ${status}: another run of its experiment has its name.`,
+            DataStoreError.RUN_EXISTS,
             { cause: e },
           );
         }
@@ -549,7 +537,7 @@ class Queries {
 
   async addLogs(
     runId: RunId,
-    logs: Array<{ type: string; number: number; values: JsonObject }>,
+    logs: Array<NewLog>,
   ): Promise<Array<{ logId: LogId; created: boolean }>> {
     const dbRunId = toDbId(runId);
     if (logs.length === 0) return [];
@@ -936,7 +924,7 @@ async function migrate(db: Kysely<Database>) {
 async function findDuplicateIds(
   trx: Kysely<Database>,
   sequenceId: number,
-  logs: Array<{ type: string; number: number; values: JsonObject }>,
+  logs: Array<NewLog>,
   cause: unknown,
 ) {
   // The unique constraint can't tell a repeat inside the batch from a stored

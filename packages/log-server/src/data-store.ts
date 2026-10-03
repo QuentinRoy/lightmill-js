@@ -14,7 +14,7 @@ import {
   type RunStatus,
   type RunTable,
 } from './db-migrations/2026-09-28-gap-ranges.ts';
-import type { Database } from './db-migrations/2026-10-01-sessions.ts';
+import type { Database } from './db-migrations/2026-10-02-lifecycle-rules.ts';
 
 export {
   runStatuses,
@@ -92,6 +92,13 @@ export interface ExperimentRecord {
   experimentId: ExperimentId;
   experimentName: string;
   experimentCreatedAt: Date;
+}
+
+export interface NewLog {
+  type: string;
+  number: number;
+  // Always a JsonObject: it comes from a JSON request body.
+  values: JsonObject;
 }
 
 /**
@@ -187,10 +194,12 @@ export interface DataStoreTransaction extends DataStoreReader {
   }): Promise<RunRecord>;
 
   /**
-   * Sets the status of a run.
+   * Sets the status of a run, whatever it is now.
    * @param runId The run ID to update
    * @param status The new status
-   * @throws {DataStoreError} `RUN_NOT_FOUND` if the run doesn't exist
+   * @throws {DataStoreError} `RUN_NOT_FOUND` if the run doesn't exist,
+   * `RUN_EXISTS` if the status is not canceled and another run of the
+   * experiment that is not canceled has the same name
    */
   setRunStatus(runId: RunId, status: RunStatus): Promise<void>;
 
@@ -219,7 +228,7 @@ export interface DataStoreTransaction extends DataStoreReader {
    */
   addLogs(
     runId: RunId,
-    logs: Array<{ type: string; number: number; values: JsonObject }>,
+    logs: Array<NewLog>,
   ): Promise<Array<{ logId: LogId; created: boolean }>>;
 }
 

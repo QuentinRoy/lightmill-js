@@ -121,23 +121,17 @@ const RunGetCollectionResponse = getDataDocumentSchema({
 
 // Error Response schemas
 // -----------------------------------------------------------------------------
-const runOnGoingErrorHttpCode = 403 as const;
 const CannotCreateRunErrorResponse = getErrorDocumentSchema(
   getErrorSchema({
-    code: ['ONGOING_RUNS', 'EXPERIMENT_NOT_FOUND'],
-    statusCode: runOnGoingErrorHttpCode,
+    code: ['ONGOING_RUNS', 'EXPERIMENT_NOT_FOUND', 'INVALID_RUN_STATUS'],
+    statusCode: 403,
   }),
 ).openapi('CannotCreateRunErrorResponse');
-const runExistsErrorHttpCode = 409 as const;
 const RunExistsErrorResponse = getErrorDocumentSchema(
-  getErrorSchema({ code: 'RUN_EXISTS', statusCode: runExistsErrorHttpCode }),
+  getErrorSchema({ code: 'RUN_EXISTS', statusCode: 409 }),
 ).openapi('RunExistsErrorReponse');
-const runNotFoundErrorHttpCode = 404 as const;
 const RunNotFoundErrorResponse = getErrorDocumentSchema(
-  getErrorSchema({
-    code: 'RUN_NOT_FOUND',
-    statusCode: runNotFoundErrorHttpCode,
-  }),
+  getErrorSchema({ code: 'RUN_NOT_FOUND', statusCode: 404 }),
 ).openapi('RunNotFoundErrorResponse');
 const RunInvalidUpdateErrorResponse = getErrorDocumentSchema(
   getErrorSchema({
@@ -151,6 +145,15 @@ const RunInvalidUpdateErrorResponse = getErrorDocumentSchema(
     statusCode: 403,
   }),
 ).openapi('RunInvalidUpdateErrorResponse');
+const RunImmutableAttributeErrorResponse = getErrorDocumentSchema(
+  getErrorSchema({ code: 'IMMUTABLE_RUN_ATTRIBUTE', statusCode: 403 }).extend({
+    source: z.strictObject({
+      pointer: z
+        .string()
+        .describe('Pointer to the attribute of the request body that differs'),
+    }),
+  }),
+).openapi('RunImmutableAttributeErrorResponse');
 
 // Route configuration
 // -----------------------------------------------------------------------------
@@ -240,6 +243,7 @@ export const runRoutes = {
               schema: z.union([
                 CannotCreateRunErrorResponse,
                 RunInvalidUpdateErrorResponse,
+                RunImmutableAttributeErrorResponse,
               ]),
             },
           },

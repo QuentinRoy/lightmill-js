@@ -4,20 +4,9 @@ import {
   getRunResources,
 } from './api.ts';
 import { DataStoreError } from './data-store-errors.ts';
-import { type RunStatus } from './data-store.ts';
 import type { HandlerResponseFromRoute, PathHandlers } from './router.ts';
+import { createRun, RunRejection, updateRun } from './run-lifecycle.ts';
 import { arrayify, firstStrict } from './utils.ts';
-
-const allowedStatusTransitions = [
-  { from: 'interrupted', to: 'running' },
-  { from: 'interrupted', to: 'canceled' },
-  { from: 'running', to: 'interrupted' },
-  { from: 'running', to: 'canceled' },
-  { from: 'running', to: 'completed' },
-  { from: 'idle', to: 'running' },
-  { from: 'idle', to: 'canceled' },
-  { from: 'completed', to: 'canceled' },
-] as const satisfies Array<{ from: RunStatus; to: RunStatus }>;
 
 export const runHandlers = (): PathHandlers<'/runs'> => ({
   '/runs': {
@@ -61,11 +50,7 @@ export const runHandlers = (): PathHandlers<'/runs'> => ({
           });
         }
         const run = await store.withTransaction((tx) =>
-          tx.addRun({
-            runStatus: status,
-            experimentId: experimentId,
-            runName: name,
-          }),
+          createRun(tx, { status, experimentId, runName: name }),
         );
         return {
           sessionData: {
@@ -79,6 +64,13 @@ export const runHandlers = (): PathHandlers<'/runs'> => ({
           },
         };
       } catch (e) {
+        if (e instanceof RunRejection && e.code === 'INVALID_RUN_STATUS') {
+          return getErrorResponse({
+            status: 'Forbidden',
+            code: 'INVALID_RUN_STATUS',
+            detail: e.message,
+          });
+        }
         if (
           e instanceof DataStoreError &&
           e.code === DataStoreError.RUN_EXISTS
@@ -155,8 +147,8 @@ export const runHandlers = (): PathHandlers<'/runs'> => ({
       if (sessionData.role !== 'host' && !sessionData.runs.includes(runId)) {
         return unknownRunAnswer;
       }
-      let matchingRuns = await store.getRuns({ runId });
-      if (matchingRuns.length === 0) {
+      const [run] = await store.getRuns({ runId });
+      if (run === undefined) {
         return unknownRunAnswer;
       }
 
@@ -169,40 +161,35 @@ export const runHandlers = (): PathHandlers<'/runs'> => ({
         });
       }
 
-      const targetRun = firstStrict(matchingRuns);
-      const oldRunStatus = targetRun.runStatus;
-      const newRunStatus = body.data.attributes?.status;
-
-      const allowedNextStatus: RunStatus[] = allowedStatusTransitions
-        .filter((t) => t.from === oldRunStatus)
-        .map((t) => t.to);
-      if (
-        newRunStatus !== undefined &&
-        newRunStatus !== oldRunStatus &&
-        !allowedNextStatus.includes(newRunStatus)
-      ) {
-        let listFormat = new Intl.ListFormat('en', {
-          style: 'long',
-          type: 'disjunction',
-        });
-        let message =
-          allowedNextStatus.length > 0
-            ? `Cannot change run status from ${oldRunStatus} to ${newRunStatus}.` +
-              ` Allowed transitions are: ${listFormat.format(
-                allowedNextStatus.map((s) => `${oldRunStatus} -> ${s}`),
-              )}.`
-            : `Cannot change run status. Run status ${oldRunStatus} is terminal.`;
+      // A run's name and experiment never change, so they can be checked
+      // outside of the transaction updating the run.
+      const newName = body.data.attributes?.name;
+      if (newName !== undefined && newName !== run.runName) {
         return getErrorResponse({
           status: 'Forbidden',
-          code: 'INVALID_STATUS_TRANSITION',
-          detail: message,
+          code: 'IMMUTABLE_RUN_ATTRIBUTE',
+          detail: `A run's name cannot be changed. Remove the 'name' attribute from the request body.`,
+          source: { pointer: '/data/attributes/name' },
+        });
+      }
+      const newExperimentId = body.data.relationships?.experiment?.data.id;
+      if (
+        newExperimentId !== undefined &&
+        newExperimentId !== run.experimentId
+      ) {
+        return getErrorResponse({
+          status: 'Forbidden',
+          code: 'IMMUTABLE_RUN_ATTRIBUTE',
+          detail: `A run's experiment cannot be changed. Remove the 'experiment' relationship from the request body.`,
+          source: { pointer: '/data/relationships/experiment' },
         });
       }
 
+      const newRunStatus = body.data.attributes?.status;
       if (newRunStatus !== 'canceled') {
         let otherOngoingRuns = await store.getRuns({
           runStatus: ['running', 'interrupted'],
-          runId: (sessionData.runs ?? []).filter((r) => r !== targetRun.runId),
+          runId: (sessionData.runs ?? []).filter((r) => r !== runId),
         });
         if (otherOngoingRuns.length > 0) {
           return getErrorResponse({
@@ -213,60 +200,37 @@ export const runHandlers = (): PathHandlers<'/runs'> => ({
         }
       }
 
-      const futureRunStatus = newRunStatus ?? oldRunStatus;
-
-      const requestedLastLogNumber = body.data.attributes?.lastLogNumber;
-
-      if (futureRunStatus === 'completed') {
-        if (targetRun.firstMissingLogNumber != null) {
-          return getErrorResponse({
-            status: 'Forbidden',
-            code: 'MISSING_LOGS',
-            detail: `Cannot complete run: log number ${targetRun.firstMissingLogNumber} is missing. Add all logs before completing the run.`,
-          });
-        }
-      }
-
-      if (requestedLastLogNumber != null) {
-        const { lastLogNumber } = targetRun;
-        if (
-          futureRunStatus !== 'running' &&
-          requestedLastLogNumber !== lastLogNumber
-        ) {
-          return getErrorResponse({
-            status: 'Forbidden',
-            code: 'INVALID_LAST_LOG_NUMBER',
-            detail: `Updating last log number is only allowed when resuming a run.`,
-          });
-        }
-        if (lastLogNumber < requestedLastLogNumber) {
-          return getErrorResponse({
-            status: 'Forbidden',
-            code: 'INVALID_LAST_LOG_NUMBER',
-            detail:
-              `Cannot set last log number to ${requestedLastLogNumber}, run has only ${lastLogNumber} logs.` +
-              ` Ensure the last log number is less than or equal to the last log number of the run.`,
-          });
-        }
-        await store.withTransaction(async (tx) => {
-          await tx.cancelLogsAfter(targetRun.runId, {
-            after: requestedLastLogNumber,
-          });
-          await tx.setRunStatus(targetRun.runId, 'running');
-        });
-      } else if (futureRunStatus !== oldRunStatus) {
-        if (futureRunStatus === 'idle') {
-          throw new Error(
-            'Transitioning to an idle status is not supposed to be allowed',
-          );
-        }
+      try {
         await store.withTransaction((tx) =>
-          tx.setRunStatus(targetRun.runId, futureRunStatus),
+          updateRun(tx, runId, {
+            status: newRunStatus,
+            resumeAfter: body.data.attributes?.lastLogNumber,
+          }),
         );
+      } catch (e) {
+        if (!(e instanceof RunRejection)) throw e;
+        switch (e.code) {
+          case 'RUN_NOT_FOUND':
+            return unknownRunAnswer;
+          case 'INVALID_STATUS_TRANSITION':
+          case 'MISSING_LOGS':
+            return getErrorResponse({
+              status: 'Forbidden',
+              code: e.code,
+              detail: e.message,
+            });
+          case 'INVALID_RESUME_STATUS':
+          case 'INVALID_RESUME_POINT':
+            return getErrorResponse({
+              status: 'Forbidden',
+              code: 'INVALID_LAST_LOG_NUMBER',
+              detail: e.message,
+            });
+          default:
+            throw e;
+        }
       }
-      const { runs } = await getRunResources(store, {
-        filter: { runId: targetRun.runId },
-      });
+      const { runs } = await getRunResources(store, { filter: { runId } });
       return { status: 200, body: { data: firstStrict(runs) } };
     },
   },
