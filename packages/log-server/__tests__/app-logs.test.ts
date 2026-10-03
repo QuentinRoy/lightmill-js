@@ -114,25 +114,6 @@ function completeRunBeforeNextTransaction(
   }) as typeof real);
 }
 
-/**
- * Resumes the run after `after` right before the next transaction starts:
- * after the server looked at the request, and before it writes the logs.
- */
-function resumeRunBeforeNextTransaction(
-  dataStore: MockedDataStore,
-  runId: RunId,
-  after: number,
-) {
-  const real = dataStore.withTransaction.getMockImplementation();
-  if (real == null) throw new Error('withTransaction is not mocked');
-  dataStore.withTransaction.mockImplementationOnce((async (
-    fn: Parameters<typeof real>[0],
-  ) => {
-    await real((tx) => tx.cancelLogsAfter(runId, { after }));
-    return real(fn);
-  }) as typeof real);
-}
-
 const nonRunningStatuses = [
   'idle',
   'interrupted',
@@ -429,42 +410,49 @@ describe.each(storeTypes)('LogServer: post /logs (%s)', (storeType) => {
         },
       });
 
-  it.for([
-    ['the same', undefined],
-    ['different', { other: true }],
-  ] as const)(
-    'refuses a log numbered below the sequence start with %s content',
-    async ([, values], { expect, participantApi, runId, dataStore }) => {
-      for (const number of [1, 2, 3]) {
-        await postLog(participantApi, runId, number).expect(201);
-      }
-      await participantApi
-        .patch(`/runs/${runId}`)
-        .set('Content-Type', apiMediaType)
-        .send({
-          data: { id: runId, type: 'runs', attributes: { lastLogNumber: 2 } },
-        })
-        .expect(200);
-      const stored = await fromAsync(dataStore.getLogs({ runId }));
-      const response = await postLog(participantApi, runId, 2, values)
-        .expect(409)
-        .expect('Content-Type', apiContentTypeRegExp);
-      expect(response.body).toEqual({
-        errors: [
-          {
-            status: 'Conflict',
-            code: 'LOG_NUMBER_BEFORE_SEQUENCE_START',
-            detail: expect.any(String),
-          },
-        ],
-      });
-      await expect(fromAsync(dataStore.getLogs({ runId }))).resolves.toEqual(
-        stored,
-      );
-      // The sequence starts at 3.
-      await postLog(participantApi, runId, 3, { other: 3 }).expect(201);
-    },
-  );
+  const resumeAfter = (
+    api: request.Agent,
+    runId: RunId,
+    lastLogNumber: number,
+  ) =>
+    api
+      .patch(`/runs/${runId}`)
+      .set('Content-Type', apiMediaType)
+      .send({
+        data: { id: runId, type: 'runs', attributes: { lastLogNumber } },
+      })
+      .expect(200);
+
+  it('answers the stored id to a resent log that a resume kept', async ({
+    expect,
+    participantApi,
+    runId,
+  }) => {
+    const first = await postLog(participantApi, runId, 1).expect(201);
+    await postLog(participantApi, runId, 2).expect(201);
+    await resumeAfter(participantApi, runId, 1);
+    const resent = await postLog(participantApi, runId, 1).expect(200);
+    expect(resent.body).toEqual(first.body);
+  });
+
+  it('refuses a log that conflicts with one a resume kept', async ({
+    expect,
+    participantApi,
+    runId,
+    dataStore,
+  }) => {
+    await postLog(participantApi, runId, 1).expect(201);
+    await postLog(participantApi, runId, 2).expect(201);
+    await resumeAfter(participantApi, runId, 1);
+    const stored = await fromAsync(dataStore.getLogs({ runId }));
+    const response = await postLog(participantApi, runId, 1, { other: 1 })
+      .expect(409)
+      .expect('Content-Type', apiContentTypeRegExp);
+    expect(response.body.errors[0].code).toBe('LOG_NUMBER_EXISTS');
+    await expect(fromAsync(dataStore.getLogs({ runId }))).resolves.toEqual(
+      stored,
+    );
+  });
 
   it('answers the stored id to a log resent after a resume', async ({
     expect,
@@ -474,31 +462,10 @@ describe.each(storeTypes)('LogServer: post /logs (%s)', (storeType) => {
     for (const number of [1, 2]) {
       await postLog(participantApi, runId, number).expect(201);
     }
-    await participantApi
-      .patch(`/runs/${runId}`)
-      .set('Content-Type', apiMediaType)
-      .send({
-        data: { id: runId, type: 'runs', attributes: { lastLogNumber: 1 } },
-      })
-      .expect(200);
+    await resumeAfter(participantApi, runId, 1);
     const first = await postLog(participantApi, runId, 2).expect(201);
     const resent = await postLog(participantApi, runId, 2).expect(200);
     expect(resent.body).toEqual(first.body);
-  });
-
-  it('refuses a log below a sequence start set after the request was accepted', async ({
-    expect,
-    participantApi,
-    runId,
-    dataStore,
-  }) => {
-    await postLog(participantApi, runId, 1).expect(201);
-    await postLog(participantApi, runId, 2).expect(201);
-    resumeRunBeforeNextTransaction(dataStore, runId, 1);
-    const response = await postLog(participantApi, runId, 1).expect(409);
-    expect(response.body.errors[0].code).toBe(
-      'LOG_NUMBER_BEFORE_SEQUENCE_START',
-    );
   });
 });
 
@@ -620,48 +587,43 @@ describe.each(storeTypes)('LogServer: post /operations (%s)', (storeType) => {
     );
   });
 
-  it.for([
-    ['the same', undefined],
-    ['different', { other: true }],
-  ] as const)(
-    'stores nothing if one log is numbered below the sequence start with %s content',
-    async ([, values], { expect, participantApi, runId, dataStore }) => {
-      await post(participantApi, [
-        add(runId, 1),
-        add(runId, 2),
-        add(runId, 3),
-      ]).expect(200);
-      await participantApi
-        .patch(`/runs/${runId}`)
-        .set('Content-Type', apiMediaType)
-        .send({
-          data: { id: runId, type: 'runs', attributes: { lastLogNumber: 1 } },
-        })
-        .expect(200);
-      const stored = await fromAsync(dataStore.getLogs({ runId }));
-      const response = await post(participantApi, [
-        add(runId, 2, { other: 2 }),
-        add(runId, 1, values),
-      ])
-        .expect(409)
-        .expect('Content-Type', atomicContentTypeRegExp);
-      expect(response.body).toEqual({
-        errors: [
-          {
-            status: 'Conflict',
-            code: 'LOG_NUMBER_BEFORE_SEQUENCE_START',
-            detail: expect.any(String),
-            source: { pointer: '/atomic:operations/1/data/attributes/number' },
-          },
-        ],
-      });
-      await expect(fromAsync(dataStore.getLogs({ runId }))).resolves.toEqual(
-        stored,
-      );
-      // Number 2 was not stored by the failed batch, so it is still free.
-      await post(participantApi, [add(runId, 2, { other: 'x' })]).expect(200);
-    },
-  );
+  it('treats the logs a resume kept as stored', async ({
+    expect,
+    participantApi,
+    runId,
+    dataStore,
+  }) => {
+    const first = await post(participantApi, [
+      add(runId, 1),
+      add(runId, 2),
+    ]).expect(200);
+    await participantApi
+      .patch(`/runs/${runId}`)
+      .set('Content-Type', apiMediaType)
+      .send({
+        data: { id: runId, type: 'runs', attributes: { lastLogNumber: 1 } },
+      })
+      .expect(200);
+    const stored = await fromAsync(dataStore.getLogs({ runId }));
+    const conflict = await post(participantApi, [
+      add(runId, 2, { other: 2 }),
+      add(runId, 1, { other: 1 }),
+    ]).expect(409);
+    expect(conflict.body.errors[0]).toMatchObject({
+      code: 'LOG_NUMBER_EXISTS',
+      source: { pointer: '/atomic:operations/1/data/attributes/number' },
+    });
+    await expect(fromAsync(dataStore.getLogs({ runId }))).resolves.toEqual(
+      stored,
+    );
+    const resent = await post(participantApi, [
+      add(runId, 2, { other: 2 }),
+      add(runId, 1),
+    ]).expect(200);
+    expect(resent.body['atomic:results'][1]).toEqual(
+      first.body['atomic:results'][0],
+    );
+  });
 
   it('answers 503 with Retry-After when the transaction conflicts', async ({
     participantApi,
@@ -677,24 +639,6 @@ describe.each(storeTypes)('LogServer: post /operations (%s)', (storeType) => {
     await post(participantApi, [add(runId, 1)])
       .expect('Retry-After', '1')
       .expect(503);
-  });
-
-  it('refuses a log below a sequence start set after the request was accepted', async ({
-    expect,
-    participantApi,
-    runId,
-    dataStore,
-  }) => {
-    await post(participantApi, [add(runId, 1), add(runId, 2)]).expect(200);
-    resumeRunBeforeNextTransaction(dataStore, runId, 1);
-    const response = await post(participantApi, [
-      add(runId, 2),
-      add(runId, 1),
-    ]).expect(409);
-    expect(response.body.errors[0]).toMatchObject({
-      code: 'LOG_NUMBER_BEFORE_SEQUENCE_START',
-      source: { pointer: '/atomic:operations/1/data/attributes/number' },
-    });
   });
 
   it('refuses a number repeated within the batch', async ({

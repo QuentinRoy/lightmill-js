@@ -32,7 +32,7 @@ _Avoid_: rewind, restart
 A log whose number is at or above where a later resume of its run starts. The server keeps it, but it no longer counts toward the run.
 
 **Duplicate log**:
-A log sent with the number, type, and values of a log the server already holds in the run's current log sequence. Storing it again changes nothing. A log with the same number but different content is a conflict, not a duplicate.
+A log sent with the number, type, and values of a log the server holds in the run and that isn't canceled, including one kept by a resume. Storing it again changes nothing. A log with the same number but different content is a conflict, not a duplicate.
 
 **Ended run**:
 A run that is completed or canceled.

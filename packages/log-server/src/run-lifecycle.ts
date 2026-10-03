@@ -29,11 +29,6 @@ interface RejectionFacts {
   MISSING_LOGS: { firstMissingLogNumber: number };
   INVALID_RESUME_STATUS: { status: RunStatus };
   INVALID_RESUME_POINT: { requested: number; lastLogNumber: number };
-  LOG_NUMBER_BEFORE_SEQUENCE_START: {
-    index: number;
-    number: number;
-    sequenceStart: number;
-  };
 }
 type RejectionCode = keyof RejectionFacts;
 
@@ -52,12 +47,6 @@ export class RunRejection<
     this.name = 'RunRejection';
     this.code = code;
     this.facts = facts;
-  }
-
-  /** Whether the code is `code`, which narrows the facts to its own. */
-  is<C extends RejectionCode>(code: C): this is RunRejection<C> {
-    const own: RejectionCode = this.code;
-    return own === code;
   }
 }
 
@@ -183,11 +172,9 @@ export async function updateRun(
 }
 
 /**
- * Adds logs to a run if it is running and the logs belong to its current log
- * sequence. The run is read in the transaction that writes the logs, so a run
- * that ended or resumed in the meantime stores nothing.
- * @throws {RunRejection} `RUN_NOT_FOUND`, `INVALID_RUN_STATUS`,
- * `LOG_NUMBER_BEFORE_SEQUENCE_START` (for the first such log in `logs`)
+ * Adds logs to a run if it is running. The status is read in the transaction
+ * that writes the logs, so a run that ended in the meantime stores nothing.
+ * @throws {RunRejection} `RUN_NOT_FOUND`, `INVALID_RUN_STATUS`
  */
 export async function addLogsToRun(
   tx: DataStoreTransaction,
@@ -200,17 +187,6 @@ export async function addLogsToRun(
       'INVALID_RUN_STATUS',
       { status: run.runStatus },
       `Cannot add logs to run '${runId}', run is not running. Ensure the run is running before adding logs.`,
-    );
-  }
-  // A log below the start belongs to an earlier sequence, even when it is
-  // identical to a log kept from it: it is refused, not a duplicate.
-  const index = logs.findIndex((log) => log.number < run.sequenceStart);
-  const log = logs[index];
-  if (log !== undefined) {
-    throw new RunRejection(
-      'LOG_NUMBER_BEFORE_SEQUENCE_START',
-      { index, number: log.number, sequenceStart: run.sequenceStart },
-      `Cannot add log number ${log.number} to run '${runId}', the run resumed: its log numbers start at ${run.sequenceStart}.`,
     );
   }
   return tx.addLogs(runId, logs);

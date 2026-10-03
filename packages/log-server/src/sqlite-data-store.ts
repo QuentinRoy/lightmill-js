@@ -33,6 +33,7 @@ import {
   type Database,
   type DataStore,
   type DataStoreTransaction,
+  type DbRunId,
   type ExperimentId,
   type ExperimentRecord,
   fromDbId,
@@ -424,7 +425,6 @@ class Queries {
       runName: result.runName ?? null,
       firstMissingLogNumber: null,
       lastLogNumber: 0,
-      sequenceStart: 1,
     };
   }
 
@@ -494,7 +494,6 @@ class Queries {
         'run.runCreatedAt',
         'lastSequence.firstMissingLogNumber',
         'lastSequence.lastLogNumber',
-        'lastSequence.start as sequenceStart',
       ])
       .execute();
     return runs.map((run) => ({
@@ -575,18 +574,21 @@ class Queries {
     try {
       dbLogs = await insertLogs(logs);
     } catch (e) {
+      // A log a resume kept is in an earlier sequence: it hits the sequence
+      // start trigger instead of the unique constraint.
       if (
         !(
           e instanceof SQLiteDB.SqliteError &&
           (e.code === 'SQLITE_CONSTRAINT_PRIMARYKEY' ||
-            e.code === 'SQLITE_CONSTRAINT_UNIQUE')
+            e.code === 'SQLITE_CONSTRAINT_UNIQUE' ||
+            e.code === 'SQLITE_CONSTRAINT_TRIGGER')
         )
       ) {
         throw e;
       }
       // The failed statement was rolled back, the transaction is still
       // usable.
-      duplicateIds = await findDuplicateIds(this.#db, sequenceId, logs, e);
+      duplicateIds = await findDuplicateIds(this.#db, dbRunId, logs, e);
       dbLogs = await insertLogs(
         logs.filter((l) => !duplicateIds.has(l.number)),
       );
@@ -918,14 +920,15 @@ async function migrate(db: Kysely<Database>) {
 }
 
 /**
- * Called after inserting `logs` hit a unique violation. A log that is already
+ * Called after inserting `logs` failed on a log number the run already holds:
+ * one of its current sequence, or one a resume kept. A log that is already
  * stored with the same type and values (a resent one) is a duplicate, not a
  * conflict. Returns the ids of the duplicates by log number, and throws if any
  * log conflicts with a stored one.
  */
 async function findDuplicateIds(
   trx: Kysely<Database>,
-  sequenceId: number,
+  runId: DbRunId,
   logs: Array<NewLog>,
   cause: unknown,
 ) {
@@ -940,7 +943,9 @@ async function findDuplicateIds(
   }
   const storedLogs = await trx
     .selectFrom('log')
-    .where('sequenceId', '=', sequenceId)
+    .innerJoin('logSequence', 'logSequence.sequenceId', 'log.sequenceId')
+    .where('logSequence.runId', '=', runId)
+    .where('log.canceledBy', 'is', null)
     .where(
       'logNumber',
       'in',

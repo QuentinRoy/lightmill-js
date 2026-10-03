@@ -428,7 +428,6 @@ export function describeDataStoreContract(
           runStatus: 'running',
           firstMissingLogNumber: null,
           lastLogNumber: 0,
-          sequenceStart: 1,
           runCreatedAt: new Date('2023-01-01T00:00:00.000Z'),
           runId: runs[0],
         },
@@ -440,7 +439,6 @@ export function describeDataStoreContract(
           runStatus: 'idle',
           firstMissingLogNumber: null,
           lastLogNumber: 0,
-          sequenceStart: 1,
           runCreatedAt: new Date('2023-01-01T00:00:00.000Z'),
           runId: runs[1],
         },
@@ -452,7 +450,6 @@ export function describeDataStoreContract(
           runStatus: 'idle',
           firstMissingLogNumber: null,
           lastLogNumber: 0,
-          sequenceStart: 1,
           runCreatedAt: new Date('2023-01-01T00:00:00.000Z'),
           runId: runs[2],
         },
@@ -483,7 +480,6 @@ export function describeDataStoreContract(
           runStatus: 'running',
           firstMissingLogNumber: null,
           lastLogNumber: 0,
-          sequenceStart: 1,
         },
         {
           experimentId: experiment1,
@@ -493,7 +489,6 @@ export function describeDataStoreContract(
           runStatus: 'idle',
           firstMissingLogNumber: null,
           lastLogNumber: 0,
-          sequenceStart: 1,
         },
         {
           experimentId: experiment2,
@@ -503,7 +498,6 @@ export function describeDataStoreContract(
           runStatus: 'idle',
           firstMissingLogNumber: null,
           lastLogNumber: 0,
-          sequenceStart: 1,
         },
       ]);
     });
@@ -526,7 +520,6 @@ export function describeDataStoreContract(
           runStatus: 'idle',
           firstMissingLogNumber: null,
           lastLogNumber: 0,
-          sequenceStart: 1,
         },
       ]);
       await expect(
@@ -540,7 +533,6 @@ export function describeDataStoreContract(
           runStatus: 'running',
           firstMissingLogNumber: null,
           lastLogNumber: 0,
-          sequenceStart: 1,
         },
         {
           experimentId: experiment1,
@@ -550,7 +542,6 @@ export function describeDataStoreContract(
           runStatus: 'idle',
           firstMissingLogNumber: null,
           lastLogNumber: 0,
-          sequenceStart: 1,
         },
       ]);
       await expect(
@@ -564,7 +555,6 @@ export function describeDataStoreContract(
           runStatus: 'running',
           firstMissingLogNumber: null,
           lastLogNumber: 0,
-          sequenceStart: 1,
         },
         {
           experimentId: experiment1,
@@ -574,7 +564,6 @@ export function describeDataStoreContract(
           runStatus: 'idle',
           firstMissingLogNumber: null,
           lastLogNumber: 0,
-          sequenceStart: 1,
         },
         {
           experimentId: experiment2,
@@ -584,7 +573,6 @@ export function describeDataStoreContract(
           runStatus: 'idle',
           firstMissingLogNumber: null,
           lastLogNumber: 0,
-          sequenceStart: 1,
         },
       ]);
     });
@@ -605,7 +593,6 @@ export function describeDataStoreContract(
           runStatus: 'idle',
           firstMissingLogNumber: null,
           lastLogNumber: 0,
-          sequenceStart: 1,
         },
       ]);
       await expect(store.getRuns({ runName: 'run1' })).resolves.toEqual([
@@ -617,7 +604,6 @@ export function describeDataStoreContract(
           runStatus: 'running',
           firstMissingLogNumber: null,
           lastLogNumber: 0,
-          sequenceStart: 1,
         },
         {
           experimentId: experiment2,
@@ -627,7 +613,6 @@ export function describeDataStoreContract(
           runStatus: 'idle',
           firstMissingLogNumber: null,
           lastLogNumber: 0,
-          sequenceStart: 1,
         },
       ]);
       await expect(
@@ -641,7 +626,6 @@ export function describeDataStoreContract(
           runStatus: 'running',
           firstMissingLogNumber: null,
           lastLogNumber: 0,
-          sequenceStart: 1,
         },
         {
           experimentId: experiment1,
@@ -651,7 +635,6 @@ export function describeDataStoreContract(
           runStatus: 'idle',
           firstMissingLogNumber: null,
           lastLogNumber: 0,
-          sequenceStart: 1,
         },
         {
           experimentId: experiment2,
@@ -661,7 +644,6 @@ export function describeDataStoreContract(
           runStatus: 'idle',
           firstMissingLogNumber: null,
           lastLogNumber: 0,
-          sequenceStart: 1,
         },
       ]);
     });
@@ -682,7 +664,6 @@ export function describeDataStoreContract(
           runStatus: 'running',
           firstMissingLogNumber: null,
           lastLogNumber: 0,
-          sequenceStart: 1,
         },
       ]);
       await expect(store.getRuns({ runStatus: '-idle' })).resolves.toEqual([
@@ -694,7 +675,6 @@ export function describeDataStoreContract(
           runStatus: 'running',
           firstMissingLogNumber: null,
           lastLogNumber: 0,
-          sequenceStart: 1,
         },
       ]);
       await expect(
@@ -708,7 +688,6 @@ export function describeDataStoreContract(
           runStatus: 'idle',
           firstMissingLogNumber: null,
           lastLogNumber: 0,
-          sequenceStart: 1,
         },
         {
           experimentId: experiment2,
@@ -718,7 +697,6 @@ export function describeDataStoreContract(
           runStatus: 'idle',
           firstMissingLogNumber: null,
           lastLogNumber: 0,
-          sequenceStart: 1,
         },
       ]);
       await expect(
@@ -732,7 +710,6 @@ export function describeDataStoreContract(
           runStatus: 'running',
           firstMissingLogNumber: null,
           lastLogNumber: 0,
-          sequenceStart: 1,
         },
         {
           experimentId: experiment1,
@@ -742,7 +719,6 @@ export function describeDataStoreContract(
           runStatus: 'idle',
           firstMissingLogNumber: null,
           lastLogNumber: 0,
-          sequenceStart: 1,
         },
         {
           experimentId: experiment2,
@@ -752,7 +728,6 @@ export function describeDataStoreContract(
           runStatus: 'idle',
           firstMissingLogNumber: null,
           lastLogNumber: 0,
-          sequenceStart: 1,
         },
       ]);
     });
@@ -805,25 +780,6 @@ export function describeDataStoreContract(
     function logs(...numbers: number[]) {
       return numbers.map((number) => ({ type: 'log', number, values: {} }));
     }
-
-    it('reports where the current log sequence starts', async ({
-      expect,
-      store,
-      e1run1: run,
-    }) => {
-      const sequenceStart = async () =>
-        (await store.getRuns({ runId: run }))[0]?.sequenceStart;
-      await expect(sequenceStart()).resolves.toBe(1);
-      await store.withTransaction((tx) => tx.addLogs(run, logs(1, 2, 3)));
-      await store.withTransaction((tx) =>
-        tx.cancelLogsAfter(run, { after: 2 }),
-      );
-      await expect(sequenceStart()).resolves.toBe(3);
-      await store.withTransaction((tx) =>
-        tx.cancelLogsAfter(run, { after: 0 }),
-      );
-      await expect(sequenceStart()).resolves.toBe(1);
-    });
 
     it('reports the last log number of a run without missing logs', async ({
       expect,
@@ -1356,6 +1312,44 @@ export function describeDataStoreContract(
         ),
       ).rejects.toMatchObject({
         code: DataStoreError.LOG_NUMBER_EXISTS_IN_SEQUENCE,
+      });
+    });
+
+    it('compares a resent log with the logs a resume kept', async ({
+      expect,
+      store,
+      e1run1,
+    }) => {
+      const [kept] = await store.withTransaction((tx) =>
+        tx.addLogs(e1run1, [
+          { type: 'log', number: 1, values: { x: 1 } },
+          { type: 'log', number: 2, values: { x: 2 } },
+        ]),
+      );
+      await store.withTransaction((tx) =>
+        tx.cancelLogsAfter(e1run1, { after: 1 }),
+      );
+      await expect(
+        store.withTransaction((tx) =>
+          tx.addLogs(e1run1, [
+            { type: 'log', number: 2, values: { x: 'new' } },
+            { type: 'log', number: 1, values: { x: 1 } },
+          ]),
+        ),
+      ).resolves.toEqual([
+        { logId: expect.any(String), created: true },
+        { logId: kept?.logId, created: false },
+      ]);
+      await expect(
+        store.withTransaction((tx) =>
+          tx.addLogs(e1run1, [
+            { type: 'log', number: 3, values: {} },
+            { type: 'log', number: 1, values: { x: 'other' } },
+          ]),
+        ),
+      ).rejects.toMatchObject({
+        code: DataStoreError.LOG_NUMBER_EXISTS_IN_SEQUENCE,
+        logNumber: 1,
       });
     });
 

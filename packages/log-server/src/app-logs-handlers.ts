@@ -49,13 +49,6 @@ export function getLogIntakeErrorResponse<const Source extends object>(
         detail: `Cannot add logs to run '${runId}', log number ${rejection.number} already exists with a different type or values. Ensure log numbers are unique within the run.`,
         ...source(rejection.index),
       });
-    case 'LOG_NUMBER_BEFORE_SEQUENCE_START':
-      return getErrorResponse({
-        status: 'Conflict',
-        code: rejection.code,
-        detail: `Cannot add logs to run '${runId}', log number ${rejection.number} is below ${rejection.sequenceStart}, where the run's log numbers start since it last resumed. Ensure log numbers are at least ${rejection.sequenceStart}.`,
-        ...source(rejection.index),
-      });
   }
 }
 

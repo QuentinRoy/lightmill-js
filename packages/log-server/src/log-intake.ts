@@ -1,12 +1,6 @@
 import type { SessionData } from 'express-session';
 import { DataStoreError } from './data-store-errors.ts';
-import type {
-  DataStore,
-  LogId,
-  NewLog,
-  RunId,
-  RunStatus,
-} from './data-store.ts';
+import type { DataStore, LogId, NewLog, RunId } from './data-store.ts';
 import { addLogsToRun, RunRejection } from './run-lifecycle.ts';
 
 /**
@@ -15,15 +9,8 @@ import { addLogsToRun, RunRejection } from './run-lifecycle.ts';
  */
 export type LogIntakeRejection =
   | { code: 'RUN_NOT_FOUND'; runId: RunId }
-  | { code: 'INVALID_RUN_STATUS'; runId: RunId; status: RunStatus }
-  | { code: 'LOG_NUMBER_EXISTS'; runId: RunId; index: number; number: number }
-  | {
-      code: 'LOG_NUMBER_BEFORE_SEQUENCE_START';
-      runId: RunId;
-      index: number;
-      number: number;
-      sequenceStart: number;
-    };
+  | { code: 'INVALID_RUN_STATUS'; runId: RunId }
+  | { code: 'LOG_NUMBER_EXISTS'; runId: RunId; index: number; number: number };
 
 export type LogIntakeOutcome =
   | { results: Array<{ logId: LogId; created: boolean }> }
@@ -31,8 +18,8 @@ export type LogIntakeOutcome =
 
 /**
  * Adds logs to a run in one transaction, or answers why it cannot. The run is
- * read in the transaction adding the logs, so a run that ended or resumed
- * since the request arrived stores none. A refused request stores nothing.
+ * read in the transaction adding the logs, so a run that ended since the
+ * request arrived stores none. A refused request stores nothing.
  * Other errors, like a transaction conflict, are thrown.
  */
 export async function addLogsToAccessibleRun(
@@ -64,15 +51,11 @@ function toRejection(
   runId: RunId,
   logs: Array<NewLog>,
 ): LogIntakeRejection | undefined {
-  if (e instanceof RunRejection) {
-    if (e.is('RUN_NOT_FOUND')) return { code: e.code, runId };
-    if (e.is('INVALID_RUN_STATUS')) {
-      return { code: e.code, runId, status: e.facts.status };
-    }
-    if (e.is('LOG_NUMBER_BEFORE_SEQUENCE_START')) {
-      return { code: e.code, runId, ...e.facts };
-    }
-    return undefined;
+  if (
+    e instanceof RunRejection &&
+    (e.code === 'RUN_NOT_FOUND' || e.code === 'INVALID_RUN_STATUS')
+  ) {
+    return { code: e.code, runId };
   }
   if (
     e instanceof DataStoreError &&

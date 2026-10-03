@@ -72,16 +72,13 @@ export const operationRoutes = {
         },
         409: {
           description:
-            "A log number exists in the run with different type or values, or is below the start of the run's current log sequence",
+            'A log number exists in the run with different type or values',
           content: {
             [atomicMediaType]: {
               schema: getErrorDocumentSchema(
                 z.strictObject({
                   ...getErrorSchema({
-                    code: [
-                      'LOG_NUMBER_EXISTS',
-                      'LOG_NUMBER_BEFORE_SEQUENCE_START',
-                    ],
+                    code: 'LOG_NUMBER_EXISTS',
                     statusCode: 409,
                   }).shape,
                   source: operationPointer,

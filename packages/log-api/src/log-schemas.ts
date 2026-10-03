@@ -185,18 +185,11 @@ export const logRoutes = {
           },
         },
         409: {
-          description:
-            "The log number already exists with a different type or values, or is below the start of the run's current log sequence",
+          description: 'Log number already exists',
           content: {
             [mediaType]: {
               schema: getErrorDocumentSchema(
-                getErrorSchema({
-                  code: [
-                    'LOG_NUMBER_EXISTS',
-                    'LOG_NUMBER_BEFORE_SEQUENCE_START',
-                  ],
-                  statusCode: 409,
-                }),
+                getErrorSchema({ code: 'LOG_NUMBER_EXISTS', statusCode: 409 }),
               ),
             },
           },

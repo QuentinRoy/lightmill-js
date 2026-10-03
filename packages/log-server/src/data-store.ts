@@ -86,10 +86,6 @@ export interface RunRecord {
   // The highest log number in the run that isn't stranded, or 0 if there is
   // none.
   lastLogNumber: number;
-  // The first log number of the run's current log sequence: 1, or one above
-  // the log number of its last resume. The logs below it are kept from earlier
-  // sequences.
-  sequenceStart: number;
 }
 
 export interface ExperimentRecord {
@@ -224,7 +220,9 @@ export interface DataStoreTransaction extends DataStoreReader {
    * @param logs The logs to add
    * @returns The ID of each log, in the order they were given. `created` is
    * false for a duplicate log: one the run already holds with the same number,
-   * type, and values, which is not stored again.
+   * type, and values, which is not stored again. A log that `cancelLogsAfter`
+   * kept counts as held: an identical one is a duplicate, a different one a
+   * conflict.
    * @throws {DataStoreError} `RUN_NOT_FOUND` if the run doesn't exist, or
    * `LOG_NUMBER_EXISTS_IN_SEQUENCE` if a log number is already used with
    * different content (with the `logNumber` of the first conflicting log in
