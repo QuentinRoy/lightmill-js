@@ -1,6 +1,9 @@
-import type { JsonObject } from 'type-fest';
-import { atomicMediaType, getErrorResponse } from './api.ts';
-import { getLogIntakeErrorResponse } from './app-logs-handlers.ts';
+import {
+  atomicMediaType,
+  getErrorResponse,
+  getLogIntakeErrorResponse,
+  toNewLog,
+} from './api.ts';
 import { addLogsToAccessibleRun } from './log-intake.ts';
 import type { PathHandlers } from './router.ts';
 
@@ -55,13 +58,7 @@ export const operationHandlers = (): PathHandlers<'/operations'> => ({
         store,
         sessionData,
         runId,
-        operations.map(({ data }) => ({
-          number: data.attributes.number,
-          type: data.attributes.logType,
-          // values is necessarily a JsonObject since it's coming from the
-          // request body.
-          values: data.attributes.values as JsonObject,
-        })),
+        operations.map(({ data }) => toNewLog(data)),
       );
       if ('rejection' in outcome) {
         return inAtomic(

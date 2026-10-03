@@ -1,56 +1,22 @@
 import type { routes } from '@lightmill/log-api';
 import type { StandardSchemaV1 } from '@standard-schema/spec';
 import { Readable } from 'node:stream';
-import type { JsonObject } from 'type-fest';
 import { parseAcceptHeader } from './accept-headers.ts';
 import {
   apiMediaType,
   getAllowedAndFilteredRunIds,
   getErrorResponse,
+  getLogIntakeErrorResponse,
   getRunResources,
+  toNewLog,
   type ApiMediaType,
 } from './api.ts';
 import { csvExportStream } from './csv-export.ts';
 import type { AllFilter } from './data-filters.ts';
 import type { DataStore } from './data-store.ts';
-import {
-  addLogsToAccessibleRun,
-  type LogIntakeRejection,
-} from './log-intake.ts';
+import { addLogsToAccessibleRun } from './log-intake.ts';
 import type { HandlerResponseFromRoute, PathHandlers } from './router.ts';
 import { arrayify, firstStrict } from './utils.ts';
-
-/**
- * The error response to a log intake rejection. `source` gives the error
- * source of the offending log, for the rejections that name one.
- */
-export function getLogIntakeErrorResponse<const Source extends object>(
-  rejection: LogIntakeRejection,
-  source: (index: number) => Source,
-) {
-  const { runId } = rejection;
-  switch (rejection.code) {
-    case 'RUN_NOT_FOUND':
-      return getErrorResponse({
-        status: 'Forbidden',
-        code: rejection.code,
-        detail: `Run "${runId}" not found`,
-      });
-    case 'INVALID_RUN_STATUS':
-      return getErrorResponse({
-        status: 'Forbidden',
-        code: rejection.code,
-        detail: `Cannot add logs to run '${runId}', run is not running. Ensure the run is running before adding logs.`,
-      });
-    case 'LOG_NUMBER_EXISTS':
-      return getErrorResponse({
-        status: 'Conflict',
-        code: rejection.code,
-        detail: `Cannot add logs to run '${runId}', log number ${rejection.number} already exists with a different type or values. Ensure log numbers are unique within the run.`,
-        ...source(rejection.index),
-      });
-  }
-}
 
 export const logHandlers = (): PathHandlers<'/logs'> => ({
   '/logs': {
@@ -107,15 +73,7 @@ export const logHandlers = (): PathHandlers<'/logs'> => ({
         store,
         sessionData,
         body.data.relationships.run.data.id,
-        [
-          {
-            number: body.data.attributes.number,
-            type: body.data.attributes.logType,
-            // values is necessarily a JsonObject since it's coming from the
-            // request body.
-            values: body.data.attributes.values as JsonObject,
-          },
-        ],
+        [toNewLog(body.data)],
       );
       if ('rejection' in outcome) {
         return getLogIntakeErrorResponse(outcome.rejection, () => ({}));
