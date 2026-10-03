@@ -1,3 +1,4 @@
+import type { RunStatus as ApiRunStatus } from '@lightmill/log-api/vocabulary';
 import type { JsonValue } from 'type-fest';
 
 export interface Typed<Type extends string = string> {
@@ -45,4 +46,5 @@ type ReplaceDateWithStringDeep<T> = T extends Date
       ? { [K in keyof T]: ReplaceDateWithStringDeep<T[K]> }
       : T;
 
-export type RunStatus = 'running' | 'completed' | 'canceled' | 'interrupted';
+// A logger starts running, so it never holds the API's idle status.
+export type RunStatus = Exclude<ApiRunStatus, 'idle'>;

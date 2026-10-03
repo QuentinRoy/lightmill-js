@@ -4,12 +4,12 @@ import type {
   RequestValidationErrorResponse,
   UnsupportedMediaTypeErrorResponse,
 } from '@lightmill/log-api';
+import { mediaType, sessionCookieName } from '@lightmill/log-api/vocabulary';
 import type { StandardSchemaV1 } from '@standard-schema/spec';
 import express, { type NextFunction } from 'express';
 import session from 'express-session';
 import log from 'loglevel';
 import MemorySessionStoreModule from 'memorystore';
-import { apiMediaType } from './api.ts';
 import { experimentHandlers } from './app-experiments-handlers.ts';
 import { logHandlers } from './app-logs-handlers.ts';
 import { operationHandlers } from './app-operations-handlers.ts';
@@ -21,8 +21,6 @@ import {
   getResponseMediaType,
   validateHandlers,
 } from './router.ts';
-
-export const SESSION_COOKIE_NAME = 'lightmill-session-id';
 
 // Room for a batch of logs from log-client and its envelope, and for a single
 // large log. Not an option until someone needs one.
@@ -80,7 +78,7 @@ export function LogServer({
 
   app.use(
     express.json({
-      type: [apiMediaType, 'application/json'],
+      type: [mediaType, 'application/json'],
       limit: REQUEST_BODY_LIMIT,
     }),
   );
@@ -95,7 +93,7 @@ export function LogServer({
         httpOnly: true,
         ...(sessionMaxAge === undefined ? {} : { maxAge: sessionMaxAge }),
       },
-      name: SESSION_COOKIE_NAME,
+      name: sessionCookieName,
       resave: false,
       saveUninitialized: false,
     }),
@@ -137,7 +135,7 @@ export function LogServer({
       log.error(err);
       res
         .status(500)
-        .header('content-type', apiMediaType)
+        .header('content-type', mediaType)
         .json({
           errors: [
             {

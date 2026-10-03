@@ -1,9 +1,9 @@
 /* eslint-disable no-empty-pattern */
+import { mediaType } from '@lightmill/log-api/vocabulary';
 import express from 'express';
 import session, { type SessionData } from 'express-session';
 import request from 'supertest';
 import { test as baseTest, describe, onTestFinished, vi } from 'vitest';
-import { apiMediaType } from '../src/api.ts';
 import type { DataStore } from '../src/data-store.ts';
 import { SQLiteDataStore } from '../src/sqlite-data-store.ts';
 import {
@@ -176,7 +176,7 @@ describe.for(stores)(
             const api = request.agent(app).host(host);
             await api
               .post('/sessions')
-              .set('content-type', apiMediaType)
+              .set('content-type', mediaType)
               .send({
                 data: { type: 'sessions', attributes: { role: 'participant' } },
               })

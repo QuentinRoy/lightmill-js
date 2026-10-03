@@ -1,5 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import {
+  atomicMediaType,
+  mediaType,
+  type RunStatus,
+} from '@lightmill/log-api/vocabulary';
+import {
   http,
   HttpResponse,
   RequestHandler,
@@ -10,9 +15,7 @@ import { setupServer, SetupServerApi } from 'msw/node';
 import type { IsNever, RequiredKeysOf } from 'type-fest';
 import { test, vi, type Mock } from 'vitest';
 import { type paths } from '../src/generated/openapi.js';
-import { apiMediaType, atomicMediaType } from '../src/utils.js';
 
-export type ApiMediaType = typeof apiMediaType;
 const _httpMethods = [
   'get',
   'put',
@@ -540,7 +543,7 @@ type Run = {
   runId: string;
   runName?: string;
   experimentId: string;
-  runStatus: 'idle' | 'completed' | 'canceled' | 'running' | 'interrupted';
+  runStatus: RunStatus;
   lastLogs: Array<{
     id: string;
     type: string;
@@ -580,7 +583,7 @@ function parseUrlQuery(url: string) {
 function checkHeaders(path: string, request: StrictRequest<any>) {
   if (request.body == null) return;
   const expectedContentType =
-    path === '/operations' ? atomicMediaType : apiMediaType;
+    path === '/operations' ? atomicMediaType : mediaType;
   const actualContentType = request.headers.get('content-type');
   if (actualContentType !== expectedContentType) {
     throw new Error(

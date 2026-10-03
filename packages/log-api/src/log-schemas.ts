@@ -4,11 +4,11 @@ import {
   getErrorDocumentSchema,
   getErrorSchema,
   getResourceIdentifierSchema,
-  mediaType,
 } from './jsonapi.ts';
 import * as Run from './run-schemas.ts';
 import { RequestBodyTooLargeErrorResponse } from './server-errors.ts';
 import { StringOrArrayOfStrings } from './utils.ts';
+import { mediaType } from './vocabulary.ts';
 import { z, type RouteConfig } from './zod-openapi.ts';
 
 // Fix circular dependencies by using lazy evaluation, but since we are using

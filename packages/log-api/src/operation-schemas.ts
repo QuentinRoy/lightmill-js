@@ -1,13 +1,10 @@
-import {
-  atomicMediaType,
-  getErrorDocumentSchema,
-  getErrorSchema,
-} from './jsonapi.ts';
+import { getErrorDocumentSchema, getErrorSchema } from './jsonapi.ts';
 import { LogResource, LogResourceIdentifier } from './log-schemas.ts';
 import {
   RequestBodyTooLargeErrorResponse,
   RequestValidationErrorResponse,
 } from './server-errors.ts';
+import { atomicMediaType } from './vocabulary.ts';
 import { z, type RouteConfig } from './zod-openapi.ts';
 
 // JSON:API Atomic Operations extension, restricted to adding logs: this is how

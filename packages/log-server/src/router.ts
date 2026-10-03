@@ -1,4 +1,10 @@
 import * as LogApi from '@lightmill/log-api';
+import {
+  atomicMediaType,
+  mediaType,
+  type HttpStatusText,
+  type UserRole,
+} from '@lightmill/log-api/vocabulary';
 import type { StandardSchemaV1 } from '@standard-schema/spec';
 import * as Express from 'express';
 import type { SessionData } from 'express-session';
@@ -6,14 +12,10 @@ import Stream from 'node:stream';
 import type { Simplify } from 'type-fest';
 import { z } from 'zod/v4';
 import {
-  apiMediaType,
-  atomicMediaType,
   httpStatusCodeFromText,
   isContentType,
   parseCookies,
   type HttpStatusCodeFromText,
-  type HttpStatusText,
-  type UserRole,
 } from './api.ts';
 import { DataStoreError } from './data-store-errors.ts';
 import type { DataStore, RunId } from './data-store.ts';
@@ -193,7 +195,7 @@ export function createRouter({
           // carry it too.
           result:
             expectedMediaType === atomicMediaType &&
-            (result.contentType ?? apiMediaType) === apiMediaType
+            (result.contentType ?? mediaType) === mediaType
               ? { ...result, contentType: atomicMediaType }
               : result,
           request,
@@ -251,7 +253,7 @@ function getRequestMediaType(route: RouteWithBody) {
   return route.request.body != null &&
     atomicMediaType in route.request.body.content
     ? atomicMediaType
-    : apiMediaType;
+    : mediaType;
 }
 
 /**
@@ -267,7 +269,7 @@ export function getResponseMediaType(path: string) {
       (route) => getRequestMediaType(route) === atomicMediaType,
     )
     ? atomicMediaType
-    : apiMediaType;
+    : mediaType;
 }
 
 function getSessionRequiredResponse() {
@@ -376,7 +378,7 @@ function validateHandler({
     const responseSchema = schemas.responses.find(
       (r) =>
         r.status === response.status &&
-        r.contentType === (response.contentType ?? apiMediaType),
+        r.contentType === (response.contentType ?? mediaType),
     );
     if (responseSchema == null) {
       throw new Error(
@@ -411,7 +413,7 @@ async function processResponse({
   }
   response
     .status(result.status ?? 200)
-    .contentType(result.contentType ?? apiMediaType);
+    .contentType(result.contentType ?? mediaType);
   for (const [key, value] of Object.entries(result.headers ?? {})) {
     response.setHeader(key, String(value));
   }
@@ -434,7 +436,7 @@ function getErrorResponse<
     throw new Error('No errors provided');
   }
   return {
-    contentType: apiMediaType,
+    contentType: mediaType,
     status:
       statusCode ?? httpStatusCodeFromText<Error['status']>(firstError.status),
     body: { errors },
@@ -565,7 +567,7 @@ type HandlerResponse<
       ? { contentType?: string | undefined }
       : ConditionalOptionalProps<
           { contentType: ContentType },
-          typeof apiMediaType
+          typeof mediaType
         >) &
     (number extends Status
       ? { status?: number | undefined }
@@ -667,7 +669,7 @@ type ValidationError = StandardSchemaV1.InferOutput<
   typeof LogApi.RequestValidationErrorResponse
 >['errors'][number];
 interface ServerErrorResponse<Status extends number, Body> {
-  contentType: typeof apiMediaType;
+  contentType: typeof mediaType;
   status: Status;
   body: Body;
   sessionData?: SessionData['data'];

@@ -7,10 +7,10 @@ import {
   getErrorDocumentSchema,
   getErrorSchema,
   getResourceIdentifierSchema,
-  mediaType,
 } from './jsonapi.ts';
 import * as Log from './log-schemas.ts';
 import { StringOrArrayOfStrings } from './utils.ts';
+import { mediaType, runStatuses } from './vocabulary.ts';
 import { z, type RouteConfig } from './zod-openapi.ts';
 
 // Fix circular dependencies by using lazy evaluation, but since we are using
@@ -37,9 +37,7 @@ export const RunResourceIdentifier = getResourceIdentifierSchema(
   'runs',
 ).openapi('RunResourceIdentifier');
 const RunResourceIdentifierCreate = RunResourceIdentifier.omit({ id: true });
-const RunStatus = z
-  .enum(['idle', 'running', 'completed', 'interrupted', 'canceled'])
-  .openapi('RunStatus');
+const RunStatus = z.enum(runStatuses).openapi('RunStatus');
 const RunAttributes = z
   .strictObject({
     status: RunStatus.describe('Status of the run'),

@@ -1,3 +1,4 @@
+import { atomicMediaType, mediaType } from '@lightmill/log-api/vocabulary';
 import type { Client as FetchClient } from 'openapi-fetch';
 import type { JsonValue } from 'type-fest';
 import {
@@ -11,12 +12,7 @@ import type { components, paths } from './generated/openapi.js';
 import { sendWithRetries } from './send-with-retries.ts';
 import { Subject, subscribeSafely } from './subject.ts';
 import type { LogValuesSerializer, RunStatus } from './types.js';
-import {
-  apiMediaType,
-  atomicMediaType,
-  RequestError,
-  toError,
-} from './utils.js';
+import { RequestError, toError } from './utils.js';
 
 interface Typed<Type extends string = string> {
   type: Type;
@@ -40,7 +36,7 @@ interface AnyLog extends Typed, OptionallyDated, JsonObjectAndDate {}
  */
 export type LoggerState =
   | DeliveryState
-  | Readonly<{ status: 'completed' | 'canceled' | 'interrupted' }>;
+  | Readonly<{ status: Exclude<RunStatus, 'running'> }>;
 
 /**
  * How long a request may take before it is aborted and retried: `base`
@@ -288,7 +284,7 @@ export class LightmillLogger<
         const response = await this.#fetchClient.GET('/runs/{id}', {
           credentials: 'include',
           params: { path: { id: this.#runId } },
-          headers: { 'content-type': apiMediaType },
+          headers: { 'content-type': mediaType },
           signal,
         });
         if (response.error != null) {
@@ -356,7 +352,7 @@ export class LightmillLogger<
           const response = await this.#fetchClient.PATCH('/runs/{id}', {
             credentials: 'include',
             params: { path: { id: this.#runId } },
-            headers: { 'content-type': apiMediaType },
+            headers: { 'content-type': mediaType },
             body: {
               data: {
                 type: 'runs',

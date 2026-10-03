@@ -3,9 +3,9 @@ import {
   getErrorDocumentSchema,
   getErrorSchema,
   getResourceIdentifierSchema,
-  mediaType,
 } from './jsonapi.ts';
 import { ForbiddenErrorResponse, StringOrArrayOfStrings } from './utils.ts';
+import { mediaType } from './vocabulary.ts';
 import { z, type RouteConfig } from './zod-openapi.ts';
 
 // Resource schema

@@ -1,3 +1,10 @@
+import {
+  httpStatuses,
+  mediaType,
+  type HttpStatusCode,
+  type HttpStatusMap,
+  type HttpStatusText,
+} from '@lightmill/log-api/vocabulary';
 import type { SessionData } from 'express-session';
 import { groupBy, intersection, map, pipe, uniqueBy } from 'remeda';
 import type { ConditionalKeys, JsonObject } from 'type-fest';
@@ -17,7 +24,7 @@ export function getErrorResponse<
     throw new Error('No errors provided');
   }
   return {
-    contentType: apiMediaType,
+    contentType: mediaType,
     status:
       statusCode ?? httpStatusCodeFromText<Error['status']>(firstError.status),
     body: { errors },
@@ -150,11 +157,6 @@ export function getAllowedAndFilteredRunIds(
   return intersection(sessionData.runs, arrayify(queryFilter, true));
 }
 
-export const apiMediaType = 'application/vnd.api+json' as const;
-export type ApiMediaType = typeof apiMediaType;
-export const atomicMediaType =
-  `${apiMediaType};ext="https://jsonapi.org/ext/atomic"` as const;
-
 /**
  * Whether a Content-Type header is the same JSON:API media type as `expected`:
  * same type, same extensions. JSON:API only allows the `ext` and `profile`
@@ -208,23 +210,6 @@ export function parseCookies(cookieHeader: string | undefined) {
   );
 }
 
-export const httpStatuses = {
-  200: 'OK',
-  201: 'Created',
-  202: 'Accepted',
-  204: 'No Content',
-  400: 'Bad Request',
-  401: 'Unauthorized',
-  403: 'Forbidden',
-  404: 'Not Found',
-  405: 'Method Not Allowed',
-  406: 'Not Acceptable',
-  409: 'Conflict',
-  413: 'Payload Too Large',
-  415: 'Unsupported Media Type',
-  500: 'Internal Server Error',
-  503: 'Service Unavailable',
-} as const;
 export const reverseHttpStatuses = Object.fromEntries(
   Object.entries(httpStatuses).map(([code, text]) => [text, Number(code)]),
 ) as ReverseHttpStatusMap;
@@ -241,7 +226,6 @@ export function httpStatusTextFromCode<Code extends HttpStatusCode>(
   return httpStatuses[status];
 }
 
-export type HttpStatusMap = typeof httpStatuses;
 export type ReverseHttpStatusMap = {
   [Text in HttpStatusText]: ConditionalKeys<HttpStatusMap, Text>;
 };
@@ -249,10 +233,6 @@ export type HttpStatusCodeFromText<Text extends HttpStatusText> =
   ReverseHttpStatusMap[Text];
 export type HttpStatusTextFromCode<Code extends HttpStatusCode> =
   HttpStatusMap[Code];
-export type HttpStatusCode = keyof HttpStatusMap;
-export type HttpStatusText = HttpStatusMap[HttpStatusCode];
-
-export type UserRole = 'host' | 'participant';
 
 export const httpMethods = ['get', 'post', 'put', 'patch', 'delete'] as const;
 export type HttpMethod = (typeof httpMethods)[number];

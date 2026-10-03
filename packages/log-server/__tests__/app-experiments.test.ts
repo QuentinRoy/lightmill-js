@@ -1,5 +1,5 @@
+import { mediaType } from '@lightmill/log-api/vocabulary';
 import { afterEach, describe, vi } from 'vitest';
-import { apiMediaType } from '../src/api.ts';
 import {
   apiContentTypeRegExp,
   createSessionTest,
@@ -30,7 +30,7 @@ describe.for(hostTests)(
     it('creates an experiment', async ({ session: { api } }) => {
       await api
         .post('/experiments')
-        .set('Content-Type', apiMediaType)
+        .set('Content-Type', mediaType)
         .send({
           data: { type: 'experiments', attributes: { name: 'exp-name' } },
         })
@@ -49,7 +49,7 @@ describe.for(hostTests)(
 
       const answer = await api
         .post('/experiments')
-        .set('Content-Type', apiMediaType)
+        .set('Content-Type', mediaType)
         .send({
           data: { type: 'experiments', attributes: { name: 'exp-name' } },
         })
@@ -79,7 +79,7 @@ describe.for(participantTests)(
     }) => {
       const answer = await api
         .post('/experiments')
-        .set('Content-Type', apiMediaType)
+        .set('Content-Type', mediaType)
         .send({
           data: { type: 'experiments', attributes: { name: 'exp-name' } },
         })
