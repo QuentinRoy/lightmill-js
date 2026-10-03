@@ -6,4 +6,4 @@ Some requests the server used to accept now fail. `POST /runs` only creates `idl
 
 The server, not the database, now enforces these rules, in the same transaction as the writes they guard, so a custom `DataStore` does not have to implement them. Update clients that create completed runs, send a `lastLogNumber` without resuming, or send a different `name` or `experiment` in a `PATCH`.
 
-Upgrading applies a database migration that removes the triggers enforcing the lifecycle and makes run names unique among runs that are not canceled: back up the database, then run `log-server migrate`. It cannot be undone, restore the backup to go back. It stops, and lists the runs, if two runs of an experiment that are not canceled share a name: fix them by hand, then migrate again.
+Upgrading applies a database migration that removes the triggers enforcing the lifecycle and makes run names unique among runs that are not canceled: back up the database, then run `log-server migrate`. It cannot be undone. To go back, restore the backup. It stops, and lists the runs, if two runs of an experiment that are not canceled share a name: fix them by hand, then migrate again.
