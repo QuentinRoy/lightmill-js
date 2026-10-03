@@ -1,6 +1,6 @@
 ---
 name: beads
-description: Coordinate separately assignable work in beads. Use when creating a decomposition with shared ownership or dependencies, or when finding, claiming, inspecting, resuming, or completing existing beads.
+description: Manage shared execution state in beads. Use when decomposing work with shared ownership or dependencies, recording a durable handoff of unfinished work, or finding, claiming, inspecting, resuming, or completing existing beads.
 ---
 
 # Beads
@@ -47,11 +47,13 @@ bd show <id>
 bd update <id> --claim
 ```
 
-4. Add separately assignable parts to the effort's root:
+4. Record work the tracker policy assigns to beads:
 
 ```bash
-bd create "Short title" --parent <root-id> --description="Deliverable and completion criterion" --type=task --priority=2
+bd create "Short title" --description="Deliverable and completion criterion" --type=task --priority=2
 ```
+
+For part of a decomposed effort, add `--parent <root-id>`. For a durable handoff, use the description fields specified in the tracker policy; update an existing bead when one already covers the work.
 
 5. Close work when the tracker policy's completion criterion is met:
 
@@ -61,7 +63,7 @@ bd close <id> --reason="Completed"
 
 ## Shared state
 
-Each child bead holds its deliverable, completion criterion, owner, dependencies, and result. Claim before starting so other workers can see ownership. Record blocking edges with:
+Each bead holds its deliverable, completion criterion, owner, dependencies, and result. Claim before starting so other workers can see ownership. Record blocking edges with:
 
 ```bash
 bd dep add <blocked-id> <blocker-id>

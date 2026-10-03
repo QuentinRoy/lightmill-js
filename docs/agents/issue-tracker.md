@@ -1,12 +1,13 @@
 # Issue tracker: GitHub Issues and beads
 
-GitHub issues and PRs are the human-facing record for QuentinRoy/lightmill-js. Beads coordinate separately assignable parts of an effort: ownership, dependencies, and completion. A bare `#<n>` is a GitHub issue (`gh issue view <n> --comments`). Use `bd <command> --help` for bead operations.
+GitHub issues and PRs are the human-facing record for QuentinRoy/lightmill-js. Beads hold shared execution state: ownership, dependencies, completion, and durable handoffs. A bare `#<n>` is a GitHub issue (`gh issue view <n> --comments`). Use `bd <command> --help` for bead operations.
 
 ## GitHub issue or bead
 
-- Work one agent can finish directly needs neither an issue nor a bead. Use a local plan for steps such as editing, testing, and opening the PR; the PR carries the why.
+- Finish self-contained work directly; the PR records what changed and why. Routine steps such as editing, testing, and opening the PR need neither an issue nor a bead.
 - Open or reuse a GitHub issue for deferred work, a human-facing spec, or an effort humans need to follow across several PRs or sessions. The PR that completes it says `Fixes #<n>`.
-- Use beads when work has separately assignable parts whose ownership, dependencies, or completion must be shared. Task size, duration, and the existence of a GitHub issue alone do not warrant a bead.
+- Use beads when work has separately assignable parts whose ownership, dependencies, or completion must be shared, or when unfinished work needs a durable handoff to another agent. Task size, duration, and the existence of a GitHub issue alone do not warrant a bead.
+- For a durable handoff, record the deliverable, current state, remaining work, and relevant references in a bead. Link an existing GitHub issue with `--external-ref gh-<n>` when applicable.
 - When fixing one issue takes several PRs, make them a GitHub stack with `gh stack` (`gh stack --help`). Each says `Part of #<n>`, and the top one says `Fixes #<n>`.
 - When decomposing a GitHub issue, create one root bead linked with `--external-ref gh-<n>`. Keep the overall problem and intended outcome in the GitHub issue; the root points to it, and child beads hold the separately assignable work.
 - Record discovered work for later in a GitHub issue. Add a child bead when it belongs to an effort already decomposed in beads.
@@ -34,6 +35,8 @@ Reopen an affected bead (`bd reopen <id>`) when its deliverable needs more work,
 For human-facing work or a spec, use `gh issue create --title "<title>" --body-file <file>`, or update the existing GitHub issue. Immediate work stays in its PR.
 
 For separately assignable parts of a decomposed effort, use `bd create "<title>" --parent <root-id> -t <task|bug|feature> --body-file <file>`.
+
+For a durable handoff of unfinished work, update its existing bead or create one with `bd create "<title>" -t task --body-file <file>`.
 
 ## When a skill says "fetch the relevant ticket"
 

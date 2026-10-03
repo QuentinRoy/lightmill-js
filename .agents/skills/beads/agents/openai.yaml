@@ -1,4 +1,4 @@
 interface:
   display_name: "Beads"
-  short_description: "Coordinate separately assignable work with bd"
-  default_prompt: "Use $beads to coordinate a decomposed effort or manage existing beads under the repository tracker policy."
+  short_description: "Manage shared execution state with bd"
+  default_prompt: "Use $beads to coordinate a decomposed effort, record a durable handoff, or manage existing beads under the repository tracker policy."

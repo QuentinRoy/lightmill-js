@@ -4,7 +4,7 @@
 
 ### Issue tracker
 
-GitHub issues track human-facing work; immediate work can go directly to a PR. Use beads (`bd`) to coordinate separately assignable parts and their dependencies. See [`docs/agents/issue-tracker.md`](docs/agents/issue-tracker.md) when decomposing work or choosing where to record it.
+GitHub issues track human-facing work; immediate work can go directly to a PR. Use beads (`bd`) for shared execution state and durable handoffs. See [`docs/agents/issue-tracker.md`](docs/agents/issue-tracker.md) when decomposing work, handing off unfinished work, or choosing where to record it.
 
 ### Domain docs
 
