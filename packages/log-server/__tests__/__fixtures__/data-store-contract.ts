@@ -2356,6 +2356,27 @@ export function describeDataStoreContract(
       await closing;
       expect(closed).toBe(true);
     });
+
+    it('waits for a read admitted before it', async ({ expect, store }) => {
+      let release!: () => void;
+      const gate = new Promise<void>((resolve) => (release = resolve));
+      let entered!: () => void;
+      const inside = new Promise<void>((resolve) => (entered = resolve));
+      const transaction = store.withTransaction(async (tx) => {
+        await tx.addExperiment({ experimentName: 'in-flight' });
+        entered();
+        await gate;
+      });
+      await inside;
+      const read = store.getExperiments();
+      const closing = store.close();
+      release();
+      await transaction;
+      await expect(read).resolves.toEqual([
+        expect.objectContaining({ experimentName: 'in-flight' }),
+      ]);
+      await closing;
+    });
   });
 }
 

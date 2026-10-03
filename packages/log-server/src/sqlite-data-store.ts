@@ -58,11 +58,8 @@ const constructorKey = Symbol('SQLiteDataStore constructor key');
  */
 export class SQLiteDataStore implements DataStore, AsyncDisposable {
   #db: Kysely<Database>;
-  #queries: Queries;
   #selectQueryLimit: number;
   #sessionStore: SessionStore | undefined;
-  // Root reads and transactions that were admitted and have not settled.
-  #inFlight = new Set<Promise<void>>();
   #closing: Promise<void> | undefined;
   // Set when a rollback failed: the connection may still be in a transaction,
   // so nothing can be trusted until the store is closed.
@@ -86,7 +83,6 @@ export class SQLiteDataStore implements DataStore, AsyncDisposable {
     }
     this.#db = db;
     this.#selectQueryLimit = selectQueryLimit;
-    this.#queries = new Queries(db, selectQueryLimit);
   }
 
   /**
@@ -166,26 +162,26 @@ export class SQLiteDataStore implements DataStore, AsyncDisposable {
   }
 
   getExperiments(filter?: ExperimentFilter) {
-    return this.#operate(() => this.#queries.getExperiments(filter));
+    return this.#read((queries) => queries.getExperiments(filter));
   }
 
   getRuns(filter?: RunFilter & Pick<ExperimentFilter, 'experimentName'>) {
-    return this.#operate(() => this.#queries.getRuns(filter));
+    return this.#read((queries) => queries.getRuns(filter));
   }
 
   getLastLogs(filter?: AllFilter) {
-    return this.#operate(() => this.#queries.getLastLogs(filter));
+    return this.#read((queries) => queries.getLastLogs(filter));
   }
 
   getLogValueNames(filter?: AllFilter) {
-    return this.#operate(() => this.#queries.getLogValueNames(filter));
+    return this.#read((queries) => queries.getLogValueNames(filter));
   }
 
   // Each page is an operation of its own, so a long export holds neither the
   // connection nor a lock between pulls.
   getLogs(filter: AllFilter = {}): AsyncGenerator<Log> {
     return streamLogs(
-      (after) => this.#operate(() => this.#queries.getLogsPage(filter, after)),
+      (after) => this.#read((queries) => queries.getLogsPage(filter, after)),
       () => this.#assertAvailable(),
     );
   }
@@ -201,49 +197,44 @@ export class SQLiteDataStore implements DataStore, AsyncDisposable {
    * that hangs blocks every other read and write, session writes included.
    */
   withTransaction<T>(fn: (tx: DataStoreTransaction) => Promise<T>): Promise<T> {
-    return this.#operate(() =>
-      this.#db.connection().execute(async (connection) => {
-        // The rollback of the transaction ahead of this one may have failed
-        // while this one waited for the connection.
-        if (this.#poison != null) throw this.#poison;
-        try {
-          await sql`BEGIN IMMEDIATE`.execute(connection);
-        } catch (error) {
-          throw mapBusyError(error);
-        }
-        const scope = createTransactionScope(
-          new Queries(connection, this.#selectQueryLimit),
-        );
-        let value: T;
-        try {
-          value = await fn(scope.store);
-          // A pending call can't be canceled, and the connection can't be
-          // released under it.
-          if (await scope.end()) {
-            throw new TypeError(
-              'A transaction call was still pending when the callback finished. Await every call made on the transaction.',
-            );
-          }
-        } catch (error) {
-          await scope.end();
-          await this.#rollback(connection, error);
-          throw error;
-        }
-        try {
-          await sql`COMMIT`.execute(connection);
-        } catch (commitError) {
-          await this.#rollback(connection, commitError);
-          const mapped = mapBusyError(commitError);
-          if (mapped !== commitError) throw mapped;
-          throw new DataStoreError(
-            'Committing the transaction failed.',
-            DataStoreError.TRANSACTION_COMMIT_FAILED,
-            { cause: commitError },
+    return this.#operate(async (connection) => {
+      try {
+        await sql`BEGIN IMMEDIATE`.execute(connection);
+      } catch (error) {
+        throw mapBusyError(error);
+      }
+      const scope = createTransactionScope(
+        new Queries(connection, this.#selectQueryLimit),
+      );
+      let value: T;
+      try {
+        value = await fn(scope.store);
+        // A pending call can't be canceled, and the connection can't be
+        // released under it.
+        if (await scope.end()) {
+          throw new TypeError(
+            'A transaction call was still pending when the callback finished. Await every call made on the transaction.',
           );
         }
-        return value;
-      }),
-    );
+      } catch (error) {
+        await scope.end();
+        await this.#rollback(connection, error);
+        throw error;
+      }
+      try {
+        await sql`COMMIT`.execute(connection);
+      } catch (commitError) {
+        await this.#rollback(connection, commitError);
+        const mapped = mapBusyError(commitError);
+        if (mapped !== commitError) throw mapped;
+        throw new DataStoreError(
+          'Committing the transaction failed.',
+          DataStoreError.TRANSACTION_COMMIT_FAILED,
+          { cause: commitError },
+        );
+      }
+      return value;
+    });
   }
 
   async #rollback(
@@ -274,21 +265,29 @@ export class SQLiteDataStore implements DataStore, AsyncDisposable {
     if (this.#poison != null) throw this.#poison;
   }
 
-  #operate<T>(run: () => Promise<T>): Promise<T> {
-    const promise = (async () => {
-      this.#assertAvailable();
-      try {
-        const result = await run();
-        // A read queued behind a transaction whose rollback failed ran on a
-        // connection that may still be inside it.
+  // An operation holds the connection from start to end, so it is one turn in
+  // Kysely's connection queue. It joins the queue as soon as it is admitted,
+  // which is what lets close() wait for it by joining the queue behind it.
+  async #operate<T>(
+    run: (connection: Kysely<Database>) => Promise<T>,
+  ): Promise<T> {
+    this.#assertAvailable();
+    try {
+      return await this.#db.connection().execute(async (connection) => {
+        // The rollback of a transaction ahead of this one may have failed while
+        // this one waited, leaving the connection inside that transaction.
         if (this.#poison != null) throw this.#poison;
-        return result;
-      } catch (error) {
-        throw mapBusyError(error);
-      }
-    })();
-    track(this.#inFlight, promise);
-    return promise;
+        return run(connection);
+      });
+    } catch (error) {
+      throw mapBusyError(error);
+    }
+  }
+
+  #read<T>(read: (queries: Queries) => Promise<T>): Promise<T> {
+    return this.#operate((connection) =>
+      read(new Queries(connection, this.#selectQueryLimit)),
+    );
   }
 
   /**
@@ -297,8 +296,9 @@ export class SQLiteDataStore implements DataStore, AsyncDisposable {
    */
   close(): Promise<void> {
     this.#closing ??= (async () => {
-      await Promise.all(this.#inFlight);
-      // Kysely's destroy() does not wait for its connection queue.
+      // Kysely's destroy() does not wait for its connection queue, so wait for
+      // a turn behind every admitted operation first.
+      await this.#db.connection().execute(async () => {});
       await this.#db.destroy();
     })();
     return this.#closing;
@@ -762,7 +762,8 @@ class Queries {
   }
 }
 
-// Tracks `promise` in `set` until it settles, without rejecting itself.
+// end() waits on `set`. The copy kept there settles without rejecting, so a
+// failed call rejects only for its caller and end() still waits for it.
 function track(set: Set<Promise<void>>, promise: Promise<unknown>) {
   const tracked: Promise<void> = promise.then(done, done);
   function done() {
