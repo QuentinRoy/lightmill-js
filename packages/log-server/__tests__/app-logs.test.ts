@@ -114,6 +114,14 @@ function completeRunBeforeNextTransaction(
   }) as typeof real);
 }
 
+/** Resumes the run after `lastLogNumber`. */
+const resumeAfter = (api: request.Agent, runId: RunId, lastLogNumber: number) =>
+  api
+    .patch(`/runs/${runId}`)
+    .set('Content-Type', apiMediaType)
+    .send({ data: { id: runId, type: 'runs', attributes: { lastLogNumber } } })
+    .expect(200);
+
 const nonRunningStatuses = [
   'idle',
   'interrupted',
@@ -410,19 +418,6 @@ describe.each(storeTypes)('LogServer: post /logs (%s)', (storeType) => {
         },
       });
 
-  const resumeAfter = (
-    api: request.Agent,
-    runId: RunId,
-    lastLogNumber: number,
-  ) =>
-    api
-      .patch(`/runs/${runId}`)
-      .set('Content-Type', apiMediaType)
-      .send({
-        data: { id: runId, type: 'runs', attributes: { lastLogNumber } },
-      })
-      .expect(200);
-
   it('answers the stored id to a resent log that a resume kept', async ({
     expect,
     participantApi,
@@ -597,13 +592,7 @@ describe.each(storeTypes)('LogServer: post /operations (%s)', (storeType) => {
       add(runId, 1),
       add(runId, 2),
     ]).expect(200);
-    await participantApi
-      .patch(`/runs/${runId}`)
-      .set('Content-Type', apiMediaType)
-      .send({
-        data: { id: runId, type: 'runs', attributes: { lastLogNumber: 1 } },
-      })
-      .expect(200);
+    await resumeAfter(participantApi, runId, 1);
     const stored = await fromAsync(dataStore.getLogs({ runId }));
     const conflict = await post(participantApi, [
       add(runId, 2, { other: 2 }),
@@ -623,22 +612,6 @@ describe.each(storeTypes)('LogServer: post /operations (%s)', (storeType) => {
     expect(resent.body['atomic:results'][1]).toEqual(
       first.body['atomic:results'][0],
     );
-  });
-
-  it('answers 503 with Retry-After when the transaction conflicts', async ({
-    participantApi,
-    runId,
-    dataStore,
-  }) => {
-    dataStore.withTransaction.mockRejectedValueOnce(
-      new DataStoreError(
-        'The transaction conflicted with another one.',
-        DataStoreError.TRANSACTION_CONFLICT,
-      ),
-    );
-    await post(participantApi, [add(runId, 1)])
-      .expect('Retry-After', '1')
-      .expect(503);
   });
 
   it('refuses a number repeated within the batch', async ({

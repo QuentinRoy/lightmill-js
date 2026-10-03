@@ -581,7 +581,8 @@ class Queries {
           e instanceof SQLiteDB.SqliteError &&
           (e.code === 'SQLITE_CONSTRAINT_PRIMARYKEY' ||
             e.code === 'SQLITE_CONSTRAINT_UNIQUE' ||
-            e.code === 'SQLITE_CONSTRAINT_TRIGGER')
+            (e.code === 'SQLITE_CONSTRAINT_TRIGGER' &&
+              e.message === belowSequenceStartMessage))
         )
       ) {
         throw e;
@@ -593,7 +594,8 @@ class Queries {
         logs.filter((l) => !duplicateIds.has(l.number)),
       );
     }
-    // We are working on a single run and log sequence, so all lognumbers should be unique.
+    // The run's logs that aren't canceled have unique numbers, whatever their
+    // sequence.
     const logMap = new Map(duplicateIds);
     for (const log of dbLogs) logMap.set(log.logNumber, log.logId);
     // Map input logs to logs ids. We cannot rely on the order of
@@ -918,6 +920,10 @@ async function migrate(db: Kysely<Database>) {
     );
   }
 }
+
+// Raised by the prevent_small_number_log_insert trigger.
+const belowSequenceStartMessage =
+  'Cannot insert log with log_number smaller than its sequence start';
 
 /**
  * Called after inserting `logs` failed on a log number the run already holds:
