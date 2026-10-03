@@ -1,3 +1,4 @@
+import { atomicMediaType, mediaType } from '@lightmill/log-api/vocabulary';
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import {
   http,
@@ -10,9 +11,7 @@ import { setupServer, SetupServerApi } from 'msw/node';
 import type { IsNever, RequiredKeysOf } from 'type-fest';
 import { test, vi, type Mock } from 'vitest';
 import { type paths } from '../src/generated/openapi.js';
-import { apiMediaType, atomicMediaType } from '../src/utils.js';
 
-export type ApiMediaType = typeof apiMediaType;
 const _httpMethods = [
   'get',
   'put',
@@ -580,7 +579,7 @@ function parseUrlQuery(url: string) {
 function checkHeaders(path: string, request: StrictRequest<any>) {
   if (request.body == null) return;
   const expectedContentType =
-    path === '/operations' ? atomicMediaType : apiMediaType;
+    path === '/operations' ? atomicMediaType : mediaType;
   const actualContentType = request.headers.get('content-type');
   if (actualContentType !== expectedContentType) {
     throw new Error(

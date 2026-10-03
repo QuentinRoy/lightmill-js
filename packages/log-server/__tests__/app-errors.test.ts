@@ -1,10 +1,10 @@
 /* eslint-disable no-empty-pattern */
 
+import { atomicMediaType, mediaType } from '@lightmill/log-api/vocabulary';
 import express from 'express';
 import { MemoryStore } from 'express-session';
 import request from 'supertest';
 import { afterEach, describe, test, vi } from 'vitest';
-import { apiMediaType, atomicMediaType } from '../src/api.ts';
 import { DataStoreError } from '../src/data-store-errors.ts';
 import {
   apiContentTypeRegExp,
@@ -28,7 +28,7 @@ type Fixture = { api: request.Agent };
 // media type: the trailing slash checks the lookup does not depend on its
 // exact spelling.
 const bodyErrorRoutes = [
-  ['/logs', apiMediaType, apiContentTypeRegExp],
+  ['/logs', mediaType, apiContentTypeRegExp],
   ['/operations', atomicMediaType, atomicContentTypeRegExp],
   ['/operations/', atomicMediaType, atomicContentTypeRegExp],
 ] as const;
@@ -97,10 +97,10 @@ describe.for(storeTypes)('LogServer Errors (%s server)', (storeType) => {
 
   it.for(bodyErrorRoutes)(
     'returns a 413 error if the body of a request to %s is over 1 MB',
-    async ([path, mediaType, contentTypeRegExp], { api, expect }) => {
+    async ([path, contentType, contentTypeRegExp], { api, expect }) => {
       const response = await api
         .post(path)
-        .set('Content-Type', mediaType)
+        .set('Content-Type', contentType)
         // The JSON around the padding puts the body over 1 MB.
         .send(JSON.stringify({ padding: 'x'.repeat(1024 * 1024) }))
         .expect('Content-Type', contentTypeRegExp)
@@ -119,10 +119,10 @@ describe.for(storeTypes)('LogServer Errors (%s server)', (storeType) => {
 
   it.for(bodyErrorRoutes)(
     'returns a 400 error if the body of a request to %s is not valid JSON',
-    async ([path, mediaType, contentTypeRegExp], { api, expect }) => {
+    async ([path, contentType, contentTypeRegExp], { api, expect }) => {
       const response = await api
         .post(path)
-        .set('Content-Type', mediaType)
+        .set('Content-Type', contentType)
         .send('{"data": ')
         .expect('Content-Type', contentTypeRegExp)
         .expect(400);
@@ -144,7 +144,7 @@ describe.for(storeTypes)('LogServer Errors (%s server)', (storeType) => {
   }) => {
     const response = await api
       .post('/logs')
-      .set('Content-Type', apiMediaType)
+      .set('Content-Type', mediaType)
       .set('Content-Encoding', 'not-an-encoding')
       .send('{}')
       .expect('Content-Type', apiContentTypeRegExp)
@@ -166,7 +166,7 @@ describe.for(storeTypes)('LogServer Errors (%s server)', (storeType) => {
   }) => {
     let response1 = await api
       .put('/sessions/current')
-      .set('Content-Type', apiMediaType)
+      .set('Content-Type', mediaType)
       .send({})
       .expect('Content-Type', apiContentTypeRegExp)
       .expect(405)
@@ -200,7 +200,7 @@ describe.for(storeTypes)('LogServer Errors (%s server)', (storeType) => {
     `);
     let response3 = await api
       .put('/experiments/exp-id')
-      .set('Content-Type', apiMediaType)
+      .set('Content-Type', mediaType)
       .send({})
       .expect('Content-Type', apiContentTypeRegExp)
       .expect(405)
@@ -221,7 +221,7 @@ describe.for(storeTypes)('LogServer Errors (%s server)', (storeType) => {
   it('returns 400 error if a request body is invalid', async ({ api }) => {
     await api
       .post('/sessions')
-      .set('Content-Type', apiMediaType)
+      .set('Content-Type', mediaType)
       .send({})
       .expect('Content-Type', apiContentTypeRegExp)
       .expect(400, {
@@ -237,12 +237,12 @@ describe.for(storeTypes)('LogServer Errors (%s server)', (storeType) => {
     // Create a session.
     await api
       .post('/sessions')
-      .set('Content-Type', apiMediaType)
+      .set('Content-Type', mediaType)
       .send({ data: { type: 'sessions', attributes: { role: 'participant' } } })
       .expect(201);
     await api
       .post('/logs')
-      .set('Content-Type', apiMediaType)
+      .set('Content-Type', mediaType)
       .send({ data: 'invalid' })
       .expect('Content-Type', apiContentTypeRegExp)
       .expect(400, {
@@ -257,7 +257,7 @@ describe.for(storeTypes)('LogServer Errors (%s server)', (storeType) => {
       });
     await api
       .post('/runs')
-      .set('Content-Type', apiMediaType)
+      .set('Content-Type', mediaType)
       .send({
         data: {
           type: 'runs',
@@ -289,7 +289,7 @@ describe.for(storeTypes)('LogServer Errors (%s server)', (storeType) => {
   }) => {
     await api
       .post('/sessions')
-      .set('Content-Type', apiMediaType)
+      .set('Content-Type', mediaType)
       .send([])
       .expect('Content-Type', apiContentTypeRegExp)
       .expect(400, {
@@ -387,7 +387,7 @@ describe.for(storeTypes)('LogServer: busy store (%s server)', (storeType) => {
       const api = request.agent(await listen(express().use(server.middleware)));
       await api
         .post('/sessions')
-        .set('Content-Type', apiMediaType)
+        .set('Content-Type', mediaType)
         .send({ data: { type: 'sessions', attributes: { role: 'host' } } })
         .expect(201);
       await use(api);
@@ -416,7 +416,7 @@ describe.for(storeTypes)('LogServer: busy store (%s server)', (storeType) => {
     dataStore.withTransaction.mockRejectedValueOnce(conflict());
     await api
       .post('/runs')
-      .set('Content-Type', apiMediaType)
+      .set('Content-Type', mediaType)
       .send({
         data: {
           type: 'runs',

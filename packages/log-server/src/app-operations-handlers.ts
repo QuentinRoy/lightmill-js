@@ -1,5 +1,6 @@
+import { atomicMediaType } from '@lightmill/log-api/vocabulary';
 import type { JsonObject } from 'type-fest';
-import { atomicMediaType, getErrorResponse } from './api.ts';
+import { getErrorResponse } from './api.ts';
 import { addLogsToAccessibleRun } from './app-logs-handlers.ts';
 import { DataStoreError } from './data-store-errors.ts';
 import type { PathHandlers } from './router.ts';

@@ -5,14 +5,14 @@ import {
   getErrorDocumentSchema,
   getErrorSchema,
   getResourceIdentifierSchema,
-  mediaType,
 } from './jsonapi.ts';
 import { LogResource } from './log-schemas.ts';
 import { RunResource, RunResourceIdentifier } from './run-schemas.ts';
 import { sessionAuth } from './security.ts';
+import { mediaType, userRoles } from './vocabulary.ts';
 import { registry, type RouteConfig, z } from './zod-openapi.ts';
 
-export const UserRole = z.enum(['host', 'participant']);
+export const UserRole = z.enum(userRoles);
 
 // Resource schema
 // -----------------------------------------------------------------------------

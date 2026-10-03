@@ -1,3 +1,9 @@
+import {
+  httpStatuses,
+  type HttpStatusCode,
+  type HttpStatusMap,
+  type HttpStatusText,
+} from './vocabulary.ts';
 import { z } from './zod-openapi.ts';
 
 export function getResourceIdentifierSchema<T extends string>(type: T) {
@@ -30,25 +36,6 @@ export function getDataDocumentSchema(schemas: {
     included: z.array(schemas.includes).optional(),
   });
 }
-
-export const httpStatuses = {
-  200: 'OK',
-  201: 'Created',
-  204: 'No Content',
-  400: 'Bad Request',
-  401: 'Unauthorized',
-  403: 'Forbidden',
-  404: 'Not Found',
-  405: 'Method Not Allowed',
-  409: 'Conflict',
-  413: 'Payload Too Large',
-  415: 'Unsupported Media Type',
-  500: 'Internal Server Error',
-  503: 'Service Unavailable',
-} as const;
-export type HttpStatusMap = typeof httpStatuses;
-export type HttpStatusCode = keyof HttpStatusMap;
-export type HttpStatusText = HttpStatusMap[HttpStatusCode];
 
 type ValueOrArrayValue<T> = T extends Array<infer U> ? U : T;
 
@@ -108,10 +95,6 @@ export function getErrorDocumentSchema<
 >(errorSchema: ErrorSchema) {
   return z.strictObject({ errors: z.array(errorSchema).nonempty() });
 }
-
-export const mediaType = 'application/vnd.api+json' as const;
-export const atomicMediaType =
-  `${mediaType};ext="https://jsonapi.org/ext/atomic"` as const;
 
 export const EmptyDataDocument = getDataDocumentSchema({
   data: z.null(),

@@ -1,10 +1,10 @@
 /* eslint-disable no-empty-pattern */
 
+import { mediaType } from '@lightmill/log-api/vocabulary';
 import express, { type Application } from 'express';
 import { Store as SessionStore } from 'express-session';
 import request from 'supertest';
 import { describe, expect, test as vitestTest } from 'vitest';
-import { apiMediaType } from '../src/api.ts';
 import { LogServer } from '../src/app.ts';
 import type { DataStore } from '../src/data-store.ts';
 import {
@@ -63,7 +63,7 @@ vitestTest('same-origin sessions set a usable cookie on HTTP', async () => {
   let api = request.agent(await listen(app));
   let response = await api
     .post('/sessions')
-    .set('content-type', apiMediaType)
+    .set('content-type', mediaType)
     .send({ data: { type: 'sessions', attributes: { role: 'participant' } } })
     .expect(201);
 
@@ -80,7 +80,7 @@ vitestTest('default sessions require HTTPS for a cookie', async () => {
   );
   let response = await request(await listen(app))
     .post('/sessions')
-    .set('content-type', apiMediaType)
+    .set('content-type', mediaType)
     .send({ data: { type: 'sessions', attributes: { role: 'participant' } } })
     .expect(201);
 
@@ -122,7 +122,7 @@ vitestTest(
 
     await request(await listen(app))
       .post('/sessions')
-      .set('content-type', apiMediaType)
+      .set('content-type', mediaType)
       .send({ data: { type: 'sessions', attributes: { role: 'participant' } } })
       .expect(201)
       .expect('Content-Type', apiContentTypeRegExp);
@@ -135,7 +135,7 @@ describe.for(suite)(
     it('can set up a participant session', async ({ api }) => {
       await api
         .post('/sessions')
-        .set('content-type', apiMediaType)
+        .set('content-type', mediaType)
         .send({
           data: { type: 'sessions', attributes: { role: 'participant' } },
         })
@@ -153,7 +153,7 @@ describe.for(suite)(
     it('refuses to create a session for an unknown role', async ({ api }) => {
       await api
         .post('/sessions')
-        .set('content-type', apiMediaType)
+        .set('content-type', mediaType)
         .send({
           data: {
             type: 'sessions',
@@ -176,7 +176,7 @@ describe.for(suite)(
       let api = request.agent(await listen(app));
       await api
         .post('/sessions')
-        .set('content-type', apiMediaType)
+        .set('content-type', mediaType)
         .send({ data: { type: 'sessions', attributes: { role: 'host' } } })
         .expect(201, {
           data: {
@@ -195,7 +195,7 @@ describe.for(suite)(
       await api
         .post('/sessions')
         .auth('host user', 'host password', { type: 'basic' })
-        .set('content-type', apiMediaType)
+        .set('content-type', mediaType)
         .send({ data: { type: 'sessions', attributes: { role: 'host' } } })
         .expect('Set-Cookie', /lightmill-session-id=.+;\s*Path=\/;\s*HttpOnly/)
         .expect(201, {
@@ -215,7 +215,7 @@ describe.for(suite)(
       await api
         .post('/sessions')
         .auth('host user', 'not the host password', { type: 'basic' })
-        .set('content-type', apiMediaType)
+        .set('content-type', mediaType)
         .send({ data: { type: 'sessions', attributes: { role: 'host' } } })
         .expect(403, {
           errors: [
@@ -235,7 +235,7 @@ describe.for(suite)(
     }) => {
       await api
         .post('/sessions')
-        .set('content-type', apiMediaType)
+        .set('content-type', mediaType)
         .send({ data: { type: 'sessions', attributes: { role: 'host' } } })
         .expect(403, {
           errors: [
@@ -256,14 +256,14 @@ describe.for(suite)(
     }) => {
       await api
         .post('/sessions')
-        .set('content-type', apiMediaType)
+        .set('content-type', mediaType)
         .send({
           data: { type: 'sessions', attributes: { role: 'participant' } },
         })
         .expect(201);
       await api
         .post('/sessions')
-        .set('content-type', apiMediaType)
+        .set('content-type', mediaType)
         .send({
           data: { type: 'sessions', attributes: { role: 'participant' } },
         })
@@ -306,7 +306,7 @@ describe.for(suite)(
     }) => {
       await api
         .post('/sessions')
-        .set('content-type', apiMediaType)
+        .set('content-type', mediaType)
         .send({
           data: { type: 'sessions', attributes: { role: 'participant' } },
         })
@@ -328,7 +328,7 @@ describe.for(suite)(
     it('returns a participant session', async ({ api }) => {
       await api
         .post('/sessions')
-        .set('content-type', apiMediaType)
+        .set('content-type', mediaType)
         .send({
           data: { type: 'sessions', attributes: { role: 'participant' } },
         })
@@ -350,7 +350,7 @@ describe.for(suite)(
       await api
         .post('/sessions')
         .auth('host user', 'host password')
-        .set('content-type', apiMediaType)
+        .set('content-type', mediaType)
         .send({ data: { type: 'sessions', attributes: { role: 'host' } } })
         .expect(201);
       await api
@@ -374,7 +374,7 @@ describe.for(suite)(
     it('clears the current session', async ({ api }) => {
       await api
         .post('/sessions')
-        .set('content-type', apiMediaType)
+        .set('content-type', mediaType)
         .send({
           data: { type: 'sessions', attributes: { role: 'participant' } },
         })
@@ -389,7 +389,7 @@ describe.for(suite)(
     }) => {
       await api
         .post('/sessions')
-        .set('content-type', apiMediaType)
+        .set('content-type', mediaType)
         .send({
           data: { type: 'sessions', attributes: { role: 'participant' } },
         })
@@ -399,7 +399,7 @@ describe.for(suite)(
       await api
         .post('/sessions')
         .auth('host user', 'host password')
-        .set('content-type', apiMediaType)
+        .set('content-type', mediaType)
         .send({ data: { type: 'sessions', attributes: { role: 'host' } } })
         .expect(201);
       await api
@@ -417,7 +417,7 @@ describe.for(suite)(
       await api.get('/sessions/current').expect(404);
       await api
         .post('/sessions')
-        .set('content-type', apiMediaType)
+        .set('content-type', mediaType)
         .send({
           data: { type: 'sessions', attributes: { role: 'participant' } },
         })

@@ -17,6 +17,12 @@
         "default": "./dist/index.js"
       }
     },
+    "./vocabulary": {
+      "import": {
+        "types": "./dist/vocabulary.d.ts",
+        "default": "./dist/vocabulary.js"
+      }
+    },
     "./openapi.yaml": "./dist/openapi.yaml"
   },
   "files": [

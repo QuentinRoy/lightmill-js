@@ -1,15 +1,14 @@
 import type { routes } from '@lightmill/log-api';
+import { mediaType } from '@lightmill/log-api/vocabulary';
 import type { StandardSchemaV1 } from '@standard-schema/spec';
 import type { SessionData } from 'express-session';
 import { Readable } from 'node:stream';
 import type { JsonObject } from 'type-fest';
 import { parseAcceptHeader } from './accept-headers.ts';
 import {
-  apiMediaType,
   getAllowedAndFilteredRunIds,
   getErrorResponse,
   getRunResources,
-  type ApiMediaType,
 } from './api.ts';
 import { csvExportStream } from './csv-export.ts';
 import type { AllFilter } from './data-filters.ts';
@@ -91,7 +90,7 @@ export const logHandlers = (): PathHandlers<'/logs'> => ({
             code: 'NOT_SUPPORTED_QUERY_PARAMETER',
             detail:
               `Include query parameter is not supported with CSV log format.` +
-              ` Remove the 'include' query parameter, or set 'accept' header to '${apiMediaType}' to get logs in JSON format.`,
+              ` Remove the 'include' query parameter, or set 'accept' header to '${mediaType}' to get logs in JSON format.`,
             source: { parameter: 'include' },
           });
         }
@@ -109,7 +108,7 @@ export const logHandlers = (): PathHandlers<'/logs'> => ({
           experiment: includeQuery.includes('run.experiment'),
           lastLogs: includeQuery.includes('run.lastLogs'),
         }),
-        contentType: apiMediaType,
+        contentType: mediaType,
       };
     },
 
@@ -215,13 +214,13 @@ function jsonResponseStream(
 }
 
 type RunResource = StandardSchemaV1.InferOutput<
-  (typeof routes)['/runs/{id}']['get']['responses'][200]['content'][ApiMediaType]['schema']
+  (typeof routes)['/runs/{id}']['get']['responses'][200]['content'][typeof mediaType]['schema']
 >['data'];
 type ExperimentResource = StandardSchemaV1.InferOutput<
-  (typeof routes)['/experiments/{id}']['get']['responses'][200]['content'][ApiMediaType]['schema']
+  (typeof routes)['/experiments/{id}']['get']['responses'][200]['content'][typeof mediaType]['schema']
 >['data'];
 type LogResource = StandardSchemaV1.InferOutput<
-  (typeof routes)['/logs/{id}']['get']['responses'][200]['content'][ApiMediaType]['schema']
+  (typeof routes)['/logs/{id}']['get']['responses'][200]['content'][typeof mediaType]['schema']
 >['data'];
 
 async function* jsonResponseChunkGenerator(

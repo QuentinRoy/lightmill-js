@@ -2,6 +2,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
 import type { routes } from '@lightmill/log-api';
+import { mediaType } from '@lightmill/log-api/vocabulary';
 import express from 'express';
 import { MemoryStore, Store as SessionStore } from 'express-session';
 import { once } from 'node:events';
@@ -10,7 +11,7 @@ import { last } from 'remeda';
 import request from 'supertest';
 import type { Simplify, ValueOf } from 'type-fest';
 import { onTestFinished, test, vi, type Mock, type TestAPI } from 'vitest';
-import { apiMediaType, type HttpMethod } from '../../src/api.ts';
+import { type HttpMethod } from '../../src/api.ts';
 import { LogServer } from '../../src/app.ts';
 import type {
   DataStore,
@@ -113,7 +114,7 @@ type ForgottenStatus = Exclude<RunStatus, ProvidedStatus>;
 assertTypeExtends<ForgottenStatus, never>();
 
 export const apiContentTypeRegExp = new RegExp(
-  `^${apiMediaType.replaceAll(/(\.|\/|\+)/g, '\\$1')}(;\\s*charset=[^\\s]+)?$`,
+  `^${mediaType.replaceAll(/(\.|\/|\+)/g, '\\$1')}(;\\s*charset=[^\\s]+)?$`,
 );
 
 export const atomicContentTypeRegExp =
@@ -284,7 +285,7 @@ async function createSessionFixtureContext<
   // This request only matters to get the cookie. After that we'll mock the session anyway.
   const response = await api
     .post('/sessions')
-    .set('Content-Type', apiMediaType)
+    .set('Content-Type', mediaType)
     .send({ data: { type: 'sessions', attributes: { role } } })
     .expect(201);
   vi.clearAllMocks();
@@ -481,7 +482,7 @@ export function createRunRequest(
 ) {
   return api
     .post('/runs')
-    .set('content-type', apiMediaType)
+    .set('content-type', mediaType)
     .send({
       data: {
         type: 'runs',
