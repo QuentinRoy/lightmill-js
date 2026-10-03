@@ -219,7 +219,7 @@ describe('LogClient#addLog (after resume)', () => {
     const logger = new LightmillLogger({
       fetchClient: createClient({
         baseUrl: 'https://server.test/api',
-        headers: { contentType: mediaType },
+        headers: { 'content-type': mediaType },
       }),
       runId: 'test-run',
       lastLogNumber: 4,
