@@ -708,7 +708,7 @@ class Queries {
   }
 
   async getLogsPage(filter: AllFilter, after: Log | null): Promise<Log[]> {
-    const result = await this.#db
+    let query = this.#db
       .selectFrom('runLogView as l')
       .$call(createQueryFilterAll(filter, 'l'))
       .select((eb) => [
@@ -727,25 +727,24 @@ class Queries {
       .orderBy('experimentName')
       .orderBy('runName')
       .orderBy('logNumber')
-      .limit(this.#selectQueryLimit)
-      .$if(after != null, (qb) =>
-        qb.where((eb) => {
-          if (after === null) throw new Error('after is null');
-          return eb.or([
-            eb('experimentName', '>', after.experimentName),
-            eb.and([
-              eb('experimentName', '=', after.experimentName),
-              eb('runName', '>', after.runName),
-            ]),
-            eb.and([
-              eb('experimentName', '=', after.experimentName),
-              eb('runName', '=', after.runName),
-              eb('logNumber', '>', after.number),
-            ]),
-          ]);
-        }),
-      )
-      .execute();
+      .limit(this.#selectQueryLimit);
+    if (after != null) {
+      query = query.where((eb) =>
+        eb.or([
+          eb('experimentName', '>', after.experimentName),
+          eb.and([
+            eb('experimentName', '=', after.experimentName),
+            eb('runName', '>', after.runName),
+          ]),
+          eb.and([
+            eb('experimentName', '=', after.experimentName),
+            eb('runName', '=', after.runName),
+            eb('logNumber', '>', after.number),
+          ]),
+        ]),
+      );
+    }
+    const result = await query.execute();
     return result.map((logResult) => ({
       ...pick(logResult, [
         'experimentName',
