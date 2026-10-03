@@ -39,7 +39,7 @@ Summary.
 Follow /prose, and match the packages' `CHANGELOG.md`:
 
 - For fixes to released behavior, lead with "Fix" and name the bug users encountered (for example, "Fix `flush()` dropping queued events after a failed upload").
-- For new capabilities or breaking changes, lead with what the user can now do or must change, naming public API in backticks.
+- For other changes, lead with what the user can now do or must change, naming public API in backticks.
 - For `major` only, add why, and how to migrate or keep the old behaviour.
 - Describe only what users observe; internals belong in the PR.
 - Write each paragraph on one line.

@@ -2,9 +2,13 @@
 
 ## Agent skills
 
+### Agent guidance
+
+Use /writing-for-agents when editing agent directives. Preserve installed third-party skills; check `skills-lock.json` for installer provenance and put repository-specific adapters in `docs/agents/`.
+
 ### Issue tracker
 
-GitHub issues track human-facing work; immediate work can go directly to a PR. Use beads (`bd`) for shared execution state and durable handoffs. See [`docs/agents/issue-tracker.md`](docs/agents/issue-tracker.md) when decomposing work, handing off unfinished work, or choosing where to record it.
+GitHub issues track human-facing work; beads (`bd`) hold shared execution state. Read [`docs/agents/issue-tracker.md`](docs/agents/issue-tracker.md) when choosing a tracker, decomposing work, publishing specs or tickets, handing off unfinished work, or completing tracked work.
 
 ### Domain docs
 
@@ -16,7 +20,7 @@ Use /prose when writing code comments, commit messages, pull requests, READMEs, 
 
 ### Changesets
 
-Use /changeset when writing a changeset.
+Use /changeset when deciding whether a change needs a changeset, or when adding, editing, or deleting one.
 
 ## Code
 

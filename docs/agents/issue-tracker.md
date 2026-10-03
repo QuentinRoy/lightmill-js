@@ -7,22 +7,30 @@ GitHub issues and PRs are the human-facing record for QuentinRoy/lightmill-js. B
 - Finish self-contained work directly; the PR records what changed and why. Routine steps such as editing, testing, and opening the PR need neither an issue nor a bead.
 - Open or reuse a GitHub issue for deferred work, a human-facing spec, or an effort humans need to follow across several PRs or sessions. The PR that completes it says `Fixes #<n>`.
 - Use beads when work has separately assignable parts whose ownership, dependencies, or completion must be shared, or when unfinished work needs a durable handoff to another agent. Task size, duration, and the existence of a GitHub issue alone do not warrant a bead.
-- For a durable handoff, record the deliverable, current state, remaining work, and relevant references in a bead. Link an existing GitHub issue with `--external-ref gh-<n>` when applicable.
+- Each bead states a deliverable and a checkable completion criterion. For a durable handoff, also record the current state, remaining work, and relevant references. Reuse an existing bead when it already covers the work.
 - When fixing one issue takes several PRs, make them a GitHub stack with `gh stack` (`gh stack --help`). Each says `Part of #<n>`, and the top one says `Fixes #<n>`.
-- When decomposing a GitHub issue, create one root bead linked with `--external-ref gh-<n>`. Keep the overall problem and intended outcome in the GitHub issue; the root points to it, and child beads hold the separately assignable work.
+- For a decomposed effort, create or reuse a root epic and record its coordinating agent and overall completion criterion. Put the separately assignable work in child beads. Link an existing GitHub issue with `--external-ref gh-<n>`; keep its problem and intended outcome there, with a pointer from the root.
 - Record discovered work for later in a GitHub issue. Add a child bead when it belongs to an effort already decomposed in beads.
 - PRs, commits, and changesets are for humans too: they name GitHub issues only, never bead ids.
 
 ## Closing beads
 
-- Close an implementation bead when its completion criteria are verified and its PR opens. The maintainer merges outside agent sessions, so the bead tracks completion of the implementation work; `Fixes #<n>` tracks delivery on GitHub.
-- Close a research or decision bead when its answer is recorded and any resulting artifacts are linked.
-- The coordinating agent owns epic closure. Agents working individual subtasks close their assigned beads.
-- After closing a child, review its parent for completion. The coordinator verifies the parent's stated outcome against recorded evidence, including relevant PRs, verification results, and research answers. Close it when every required child is complete and its own deliverable is recorded; recheck child status immediately before closing. Apply the same review to its ancestors.
-- When completion is uncertain, ask the user, explaining what is uncertain. Keep the bead open pending their answer.
-- Before handing off tracked work, verify that each open ancestor identifies unfinished work or a completion question awaiting the user's answer.
+The coordinating agent recorded on the root owns epic closure. Subtask workers close their assigned beads and include parent readiness in their completion report.
 
-Reopen an affected bead (`bd reopen <id>`) when its deliverable needs more work, then close it under the same completion rule. Reopen its parent if that makes the parent incomplete.
+1. Verify the bead's recorded completion criterion using the evidence requirements below, and record the supporting result.
+2. Record newly discovered remaining scope and create any required children before reviewing parent completion. For a wayfinder map, this includes its `Not yet specified` section.
+3. When completion is uncertain, ask the user, explaining what is uncertain. Keep the bead open pending their answer. When completion is verified, close the assigned bead with the evidence in its reason or a linked result.
+4. Review the parent and its ancestors. The coordinator closes each epic only when every required child is closed, its recorded outcome is verified, and its result is recorded. Recheck child status immediately before closing; child counts alone establish only eligibility for review. Close verified epics by id.
+5. Before the coordinator reports completion or hands off tracked work, the root and every affected ancestor must be either closed with verified evidence, open with identified unfinished work, or open with a completion question awaiting the user's answer.
+
+Reopen an affected bead (`bd reopen <id>`) when its deliverable needs more work, and reopen every closed ancestor whose outcome becomes incomplete. Close them again under the same sequence.
+
+| Deliverable                          | Completion evidence                                                                                                                       |
+| ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| Implementation                       | Verified acceptance criteria and an open PR.                                                                                              |
+| Child on a shared integration branch | Verified criteria and a commit available to the coordinator. Its implementation epic still requires completed integration and an open PR. |
+| Research or decision                 | Recorded answer and links to resulting artifacts.                                                                                         |
+| Other task                           | Evidence of its stated deliverable.                                                                                                       |
 
 ## Gotchas
 
@@ -35,7 +43,7 @@ Reopen an affected bead (`bd reopen <id>`) when its deliverable needs more work,
 
 ## When a skill says "publish to the issue tracker"
 
-For human-facing work or a spec, use `gh issue create --title "<title>" --body-file <file>`, or update the existing GitHub issue. Immediate work stays in its PR.
+For human-facing work or a spec, use `gh issue create --title "<title>" --body-file <file>`, or update the existing GitHub issue. Immediate implementation work stays in its PR.
 
 For separately assignable parts of a decomposed effort, use `bd create "<title>" --parent <root-id> -t <task|bug|feature> --body-file <file>`.
 
@@ -45,13 +53,22 @@ For a durable handoff of unfinished work, update its existing bead or create one
 
 For a GitHub issue, use `gh issue view <n> --comments`. For a bead, use `bd show <id>`, then `bd comments <id>`.
 
+## Installed skill adapters
+
+This policy is the tracker configuration for the installed engineering skills. Use its routing and completion rules when their generic templates describe a tracker operation. Apply triage labels only when `docs/agents/triage-labels.md` defines them; this policy is sufficient setup when that optional file is absent.
+
+- **/to-spec**: publish the human-facing spec under the publishing rules above.
+- **/to-tickets**: publish the approved decomposition as child beads under its root epic, with native blocking edges. Publishing leaves the source GitHub issue intact and open; root bead metadata follows the decomposition rules. Delivered work follows the closure sequence above.
+- **/handoff**: record unfinished execution state in the bead specified by this policy. The skill's temporary handoff document points to that bead and other existing artifacts. A context-only handoff may use the temporary document alone.
+- **/wayfinder**: use the operations below. Reconcile remaining scope before reviewing epic completion, even when the generic skill closes a ticket earlier in its sequence.
+
 ## Wayfinding operations
 
 Used by `/wayfinder`. The human-facing **map** is a GitHub issue; a linked root bead coordinates one **child** bead per decision ticket.
 
-- **Map**: a GitHub issue labelled `wayfinder:map`, holding the Destination / Notes / Decisions-so-far / Not-yet-specified / Out-of-scope body. Edit it with `gh issue edit <n> --body-file <file>`. Create a root bead with `bd create "<title>" -t epic --external-ref gh-<n> --description="Decision tickets for <issue-url>"`; the root points to the map.
+- **Map**: a GitHub issue labelled `wayfinder:map`, holding the `Destination`, `Notes`, `Decisions so far`, `Not yet specified`, and `Out of scope` sections. Edit it with `gh issue edit <n> --body-file <file>`. Create or reuse its linked root epic under the decomposition rules above; its completion criterion is the map's Destination, including resolution of all in-scope fog.
 - **Child ticket**: `bd create "<title>" --parent <root-id> -t task -l wayfinder:<type> --no-inherit-labels`, where `<type>` is `research`/`prototype`/`grilling`/`task`. The body is the `## Question`.
 - **Blocking**: `bd dep add <blocked-id> <blocker-id>`. A ticket is unblocked when every blocker is closed.
 - **Frontier**: the root's unassigned children (`bd children <root-id>`) that appear in `bd ready`; first by id wins.
 - **Claim**: `bd update <id> --claim`, the session's first write.
-- **Resolve**: `bd comment <id> "<answer>"`, `bd close <id>`, then append a named pointer to the answer in the GitHub map's Decisions-so-far. When the map reaches its destination, record the result there and close the root bead.
+- **Resolve**: record the answer with `bd comment <id> "<answer>"`, update the GitHub map's named pointers and remaining scope, and create any newly surfaced children. Then close the ticket under the completion rules above. Review the root only after the map reflects the result and remaining scope.
