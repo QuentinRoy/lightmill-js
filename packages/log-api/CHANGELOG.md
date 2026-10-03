@@ -1,5 +1,15 @@
 # @lightmill/log-api
 
+## 5.0.0-beta.4
+
+### Minor Changes
+
+- [#386](https://github.com/QuentinRoy/lightmill-js/pull/386) [`6abfe1b`](https://github.com/QuentinRoy/lightmill-js/commit/6abfe1b27e852b8af7b284816140c5b6ab77082b) - `@lightmill/log-api/vocabulary` exports the terms of the API without loading zod or the OpenAPI document: `mediaType`, `atomicMediaType`, `sessionCookieName`, `runStatuses` and `RunStatus`, `userRoles` and `UserRole`, and `httpStatuses` with `HttpStatusMap`, `HttpStatusCode` and `HttpStatusText`.
+
+### Patch Changes
+
+- [#383](https://github.com/QuentinRoy/lightmill-js/pull/383) [`1968561`](https://github.com/QuentinRoy/lightmill-js/commit/1968561109828d73952f465409053ab00cdaf3f9) - Fix `PATCH /runs/{id}` documenting a `403 INVALID_ROLE` error that the server never sends.
+
 ## 5.0.0-beta.3
 
 ### Minor Changes

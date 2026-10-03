@@ -1,5 +1,12 @@
 # @lightmill/log-server
 
+## 5.0.0-beta.4
+
+### Patch Changes
+
+- Updated dependencies [[`1968561`](https://github.com/QuentinRoy/lightmill-js/commit/1968561109828d73952f465409053ab00cdaf3f9), [`6abfe1b`](https://github.com/QuentinRoy/lightmill-js/commit/6abfe1b27e852b8af7b284816140c5b6ab77082b)]:
+  - @lightmill/log-api@5.0.0-beta.4
+
 ## 5.0.0-beta.3
 
 ### Major Changes
