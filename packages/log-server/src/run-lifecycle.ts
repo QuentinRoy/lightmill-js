@@ -15,6 +15,13 @@ const nextStatuses = {
   canceled: [],
 } as const satisfies Record<RunStatus, readonly RunStatus[]>;
 
+/** The statuses of an ongoing run: one that has not ended. */
+export const ongoingRunStatuses = [
+  'idle',
+  'running',
+  'interrupted',
+] as const satisfies readonly RunStatus[];
+
 interface RejectionFacts {
   RUN_NOT_FOUND: { runId: RunId };
   INVALID_STATUS_TRANSITION: { from: RunStatus; to: RunStatus };

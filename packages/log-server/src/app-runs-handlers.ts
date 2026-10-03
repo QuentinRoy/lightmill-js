@@ -5,10 +5,13 @@ import {
 } from './api.ts';
 import { DataStoreError } from './data-store-errors.ts';
 import type { HandlerResponseFromRoute, PathHandlers } from './router.ts';
-import { createRun, RunRejection, updateRun } from './run-lifecycle.ts';
+import {
+  createRun,
+  ongoingRunStatuses,
+  RunRejection,
+  updateRun,
+} from './run-lifecycle.ts';
 import { arrayify, firstStrict } from './utils.ts';
-
-const ongoingStatuses = ['idle', 'running', 'interrupted'] as const;
 
 export const runHandlers = (): PathHandlers<'/runs'> => ({
   '/runs': {
@@ -45,7 +48,7 @@ export const runHandlers = (): PathHandlers<'/runs'> => ({
         // goes back from ended, so the answer cannot go stale.
         const ongoingRuns = await store.getRuns({
           runId: sessionData.runs,
-          runStatus: ongoingStatuses,
+          runStatus: ongoingRunStatuses,
         });
         if (ongoingRuns.length > 0) {
           return getErrorResponse({
