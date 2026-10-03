@@ -1,5 +1,11 @@
 # @lightmill/log-api
 
+## 5.0.0-beta.3
+
+### Minor Changes
+
+- [#374](https://github.com/QuentinRoy/lightmill-js/pull/374) [`8c93c4d`](https://github.com/QuentinRoy/lightmill-js/commit/8c93c4d00b90160c911f19b7e7ac388f53d6af33) - `POST /runs` documents `INVALID_RUN_STATUS` among its `403` errors, for a run created with a status other than `idle` or `running`. `PATCH /runs/{id}` documents `403 IMMUTABLE_RUN_ATTRIBUTE`, for a `name` or an `experiment` relationship that differs from the run's, with a `source.pointer` to the offending attribute. It no longer documents `403 ONGOING_RUNS`: an update is not refused because the session has another ongoing run. Every route may answer `503 SERVICE_UNAVAILABLE` when the server could not process the request and saved nothing: the `Retry-After` header says when to try again.
+
 ## 5.0.0-beta.2
 
 ### Minor Changes
