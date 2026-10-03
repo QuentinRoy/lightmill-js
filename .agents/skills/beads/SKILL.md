@@ -55,10 +55,10 @@ bd create "Short title" --description="Deliverable and completion criterion" --t
 
 For part of a decomposed effort, add `--parent <root-id>`. For a durable handoff, use the description fields specified in the tracker policy; update an existing bead when one already covers the work.
 
-5. Close work when the tracker policy's completion criterion is met:
+5. Close verified work, then review its parent and ancestors under the tracker policy's completion rules:
 
 ```bash
-bd close <id> --reason="Completed"
+bd close <id> --reason="<verified outcome and supporting PR or result>"
 ```
 
 ## Shared state

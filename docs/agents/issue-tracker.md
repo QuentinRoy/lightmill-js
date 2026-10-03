@@ -15,9 +15,12 @@ GitHub issues and PRs are the human-facing record for QuentinRoy/lightmill-js. B
 
 ## Closing beads
 
-- Close an implementation bead when its PR opens. The maintainer merges outside agent sessions, so the bead tracks completion of the implementation work; `Fixes #<n>` tracks delivery on GitHub.
+- Close an implementation bead when its completion criteria are verified and its PR opens. The maintainer merges outside agent sessions, so the bead tracks completion of the implementation work; `Fixes #<n>` tracks delivery on GitHub.
 - Close a research or decision bead when its answer is recorded and any resulting artifacts are linked.
-- Close a parent bead when every required child is complete and the parent's own deliverable is recorded.
+- The coordinating agent owns epic closure. Agents working individual subtasks close their assigned beads.
+- After closing a child, review its parent for completion. The coordinator verifies the parent's stated outcome against recorded evidence, including relevant PRs, verification results, and research answers. Close it when every required child is complete and its own deliverable is recorded; recheck child status immediately before closing. Apply the same review to its ancestors.
+- When completion is uncertain, ask the user, explaining what is uncertain. Keep the bead open pending their answer.
+- Before handing off tracked work, verify that each open ancestor identifies unfinished work or a completion question awaiting the user's answer.
 
 Reopen an affected bead (`bd reopen <id>`) when its deliverable needs more work, then close it under the same completion rule. Reopen its parent if that makes the parent incomplete.
 
