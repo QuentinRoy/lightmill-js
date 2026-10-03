@@ -151,7 +151,7 @@ async function exportLogs({
   experimentName,
   output = undefined,
 }: ExportLogsParameter) {
-  let filter = { type: logType, experimentName };
+  let filter = { logType, experimentName };
   let store = await openExistingStore(database);
   let stream = csvExportStream(store, filter);
   if (output === undefined) {
