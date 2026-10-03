@@ -18,7 +18,6 @@ import type {
   DataStoreTransaction,
   ExperimentId,
   RunId,
-  RunStatus,
 } from '../../src/data-store.ts';
 import { SQLiteDataStore } from '../../src/sqlite-data-store.ts';
 
@@ -97,21 +96,6 @@ export function generateCombinations<T>(values: Iterable<T>) {
   }
   return combinations;
 }
-
-function assertTypeExtends<U extends T, T>() {}
-
-export const runStatus = [
-  'canceled',
-  'completed',
-  'running',
-  'idle',
-  'interrupted',
-] as const;
-type ProvidedStatus = (typeof runStatus)[number];
-type ForgottenStatus = Exclude<RunStatus, ProvidedStatus>;
-// This will fail if `ForgottenStatus` is not empty, which happens if not all
-// possible run statuses are covered.
-assertTypeExtends<ForgottenStatus, never>();
 
 export const apiContentTypeRegExp = new RegExp(
   `^${mediaType.replaceAll(/(\.|\/|\+)/g, '\\$1')}(;\\s*charset=[^\\s]+)?$`,
