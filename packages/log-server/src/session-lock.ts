@@ -1,5 +1,6 @@
 import type { Request } from 'express';
-import type { Session, SessionData, Store } from 'express-session';
+import type { SessionData } from 'express-session';
+import { finished } from 'node:stream';
 import { promisify } from 'node:util';
 
 export interface LockedSession {
@@ -12,9 +13,10 @@ export interface LockedSession {
 
 /**
  * Orders the requests that change a session, one session at a time: `fn` runs
- * when no other request holds the session's lock, and holds it until it
- * settles, even if its client is gone. A session that no longer exists makes
- * it throw `SessionGoneError` without running `fn`.
+ * when no other request holds the session's lock, and the lock is held until
+ * `fn` settles and the response has finished, even if its client is gone. A
+ * session that no longer exists makes it throw `SessionGoneError` without
+ * running `fn`.
  *
  * Do not call `save` or `destroy` from inside a data store transaction: the
  * SQLite session store shares the data connection, so it would wait for a
@@ -25,14 +27,7 @@ export type LockSession = <Response>(
 ) => Promise<Response>;
 
 // What the lock uses of a request, so a test does not have to build a whole one.
-type LockableRequest = Pick<Request, 'sessionID'> & {
-  sessionStore: Pick<Store, 'get' | 'set'>;
-  session: {
-    cookie: Session['cookie'];
-    touch(): unknown;
-    destroy(callback: (error?: unknown) => void): unknown;
-  };
-};
+type LockableRequest = Pick<Request, 'sessionID' | 'session'>;
 
 /** The session of a request that asked for its lock no longer exists. */
 export class SessionGoneError extends Error {}
@@ -43,48 +38,75 @@ export class SessionGoneError extends Error {}
 const sessionLocks = new Map<string, Promise<void>>();
 
 /**
- * Runs `fn` with the lock of the request's session. The session is read once
- * the lock is held: express-session loaded it before any handler ran, so what
- * the request carries may be out of date by then.
+ * Runs `fn` with the lock of the request's session, through express-session's
+ * own `reload`, `save`, and `destroy`.
  *
- * Nothing times out: letting go of the lock while its holder is still running
- * would let that holder save after the next one read.
+ * The lock is released once `responseFinished` settles too: express-session
+ * touches or saves the session when the response ends, and that write must
+ * land before the next holder reads. Nothing times out: letting go of the lock
+ * while its holder is still running would let that holder save after the next
+ * one read.
  */
-export async function lockSession<Response>(
+export function lockSession<Response>(
   request: LockableRequest,
+  responseFinished: Promise<unknown>,
   fn: (session: LockedSession) => Promise<Response>,
 ): Promise<Response> {
-  const { sessionID, sessionStore: store } = request;
+  const { sessionID } = request;
   const previous = sessionLocks.get(sessionID);
   const turn = (async () => {
     await previous;
-    const stored = await promisify(store.get.bind(store))(sessionID);
-    if (stored?.data == null) throw new SessionGoneError();
+    const { session, sessionData } = await reload(request);
+    let saved = sessionData;
     return fn({
-      sessionData: stored.data,
-      save(sessionData) {
-        // The request's own session object is left alone on purpose:
-        // express-session saves it when the response ends, after the lock is
-        // released, if it looks modified. Touching it moves the expiry, as
-        // express-session does before it saves.
-        request.session.touch();
-        return promisify(store.set.bind(store))(sessionID, {
-          ...stored,
-          cookie: request.session.cookie,
-          data: sessionData,
-        });
+      sessionData,
+      async save(newSessionData) {
+        session.data = newSessionData;
+        // Moves the expiry, as express-session does before it saves.
+        session.touch();
+        try {
+          await promisify(session.save.bind(session))();
+          saved = newSessionData;
+        } catch (error) {
+          // express-session writes the session again when the response ends,
+          // and must not write what this request failed to save.
+          session.data = saved;
+          throw error;
+        }
       },
-      destroy: () => promisify(request.session.destroy.bind(request.session))(),
+      destroy: () => promisify(session.destroy.bind(session))(),
     });
   })();
-  const tail = turn.then(
-    () => {},
-    () => {},
-  );
+  const tail = Promise.allSettled([turn, responseFinished]).then(() => {});
   sessionLocks.set(sessionID, tail);
-  try {
-    return await turn;
-  } finally {
+  void tail.then(() => {
     if (sessionLocks.get(sessionID) === tail) sessionLocks.delete(sessionID);
+  });
+  return turn;
+}
+
+/** Resolves once `response` has finished, or its connection closed. */
+export function whenFinished(response: Parameters<typeof finished>[0]) {
+  return new Promise<void>((resolve) => {
+    finished(response, () => resolve());
+  });
+}
+
+// express-session loaded the session before any handler ran, so what the
+// request carries may be out of date by the time the lock is held.
+async function reload(request: LockableRequest) {
+  try {
+    await promisify(request.session.reload.bind(request.session))();
+  } catch (error) {
+    // Session#reload passes store errors through, and reports a session the
+    // store does not have with this error.
+    if (error instanceof Error && error.message === 'failed to load session') {
+      throw new SessionGoneError();
+    }
+    throw error;
   }
+  // reload replaced the request's session object.
+  const { session } = request;
+  if (session.data == null) throw new SessionGoneError();
+  return { session, sessionData: session.data };
 }

@@ -85,6 +85,16 @@ class GatedSessionStore extends session.Store {
   }
 }
 
+/**
+ * A store whose `touch` saves the whole session it is given, which is the
+ * session as the request holds it when its response ends.
+ */
+class WholeSessionTouchStore extends GatedSessionStore {
+  touch(sid: string, data: SessionData, callback?: (error?: unknown) => void) {
+    this.set(sid, data, callback);
+  }
+}
+
 // supertest only sends a request once it is awaited or ended. This sends it
 // now, and gives the response back when it is there.
 const send = (test: request.Test) => test.then((response) => response);
@@ -133,17 +143,23 @@ const stores = [
     name: 'get/set/destroy-only session store',
     innerSessionStore: () => new session.MemoryStore(),
   },
+  {
+    name: 'session store whose touch saves the whole session',
+    innerSessionStore: () => new session.MemoryStore(),
+    touchSavesWholeSession: true,
+  },
 ];
 
 describe.for(stores)(
   'LogServer: session ordering ($name)',
-  ({ innerSessionStore }) => {
+  ({ innerSessionStore, touchSavesWholeSession = false }) => {
     const test = baseTest.extend<Fixture>({
       context: async ({}, use) => {
         const dataStore = await SQLiteDataStore.open(':memory:');
-        const sessionStore = new GatedSessionStore(
-          innerSessionStore(dataStore),
-        );
+        const SessionStore = touchSavesWholeSession
+          ? WholeSessionTouchStore
+          : GatedSessionStore;
+        const sessionStore = new SessionStore(innerSessionStore(dataStore));
         const { server } = await createServerContext({
           dataStore,
           sessionStore,
@@ -190,18 +206,20 @@ describe.for(stores)(
       expect(body.data.relationships.runs.data).toHaveLength(1);
     });
 
-    test('saves the session only for the request that changed it', async ({
+    test('keeps the run a request saved once the next request ends', async ({
       expect,
       context: { sessionStore, newSession, createRun },
     }) => {
       const api = await newSession();
-      const saved = sessionStore.sets.length;
       const loaded = barrier(2);
       sessionStore.gate('get', loaded, loaded);
+      // express-session saves or touches the session when each response ends.
+      // Done after the lock was released, that write could put back a session
+      // without the run.
       await Promise.all([createRun(api), createRun(api)]);
-      // A request that saves the session it read after the lock was released
-      // could overwrite what the next one saved.
-      expect(sessionStore.sets.slice(saved)).toHaveLength(1);
+      await createRun(api).expect(403);
+      const { body } = await api.get('/sessions/current').expect(200);
+      expect(body.data.relationships.runs.data).toHaveLength(1);
     });
 
     test('does not bring back a session that was deleted', async ({

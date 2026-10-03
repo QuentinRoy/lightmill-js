@@ -1,3 +1,4 @@
+import type { Request } from 'express';
 import session, { type SessionData } from 'express-session';
 import { setImmediate as macrotask } from 'node:timers/promises';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
@@ -60,27 +61,27 @@ function setup(sessions: Record<string, Data> = { a: data([]), b: data([]) }) {
   }
   const lock = <Response>(
     sessionID: string,
-    fn: Parameters<typeof lockSession<Response>>[1],
+    fn: Parameters<typeof lockSession<Response>>[2],
+    // By default, the response finishes as soon as fn settles.
+    responseFinished?: Promise<unknown>,
   ) => {
-    const cookie = newCookie();
-    return lockSession(
-      {
-        sessionID,
-        sessionStore: store,
-        session: {
-          cookie,
-          touch() {
-            cookie.maxAge = cookie.originalMaxAge ?? undefined;
-            return this;
-          },
-          destroy(callback) {
-            store.destroy(sessionID, callback);
-            return this;
-          },
-        },
-      },
+    // Sessions only use the sessionID and sessionStore of their request.
+    const request = { sessionID, sessionStore: store } as unknown as Request;
+    // What express-session loaded when the request came in, which the lock
+    // must not trust.
+    store.createSession(request, {
+      cookie: newCookie(),
+      data: data(['stale']),
+    });
+    const response = later();
+    const result = lockSession(
+      request,
+      responseFinished ?? response.promise,
       fn,
     );
+    const finish = () => response.resolve();
+    void result.then(finish, finish);
+    return result;
   };
   return { store, lock };
 }
@@ -184,6 +185,20 @@ describe('lockSession', () => {
     held.resolve();
     await second;
     expect(events).toEqual(['first ends', 'second starts']);
+  });
+
+  test('keeps the lock until the response has finished', async () => {
+    const { lock } = setup();
+    const response = later();
+    const events: string[] = [];
+    const first = lock('a', async () => 'first', response.promise);
+    const second = lock('a', async () => void events.push('second starts'));
+    await first;
+    await macrotask();
+    expect(events).toEqual([]);
+    response.resolve();
+    await second;
+    expect(events).toEqual(['second starts']);
   });
 
   test('does not run a request whose session is gone', async () => {

@@ -20,6 +20,7 @@ import type { DataStore, RunId } from './data-store.ts';
 import {
   lockSession,
   SessionGoneError,
+  whenFinished,
   type LockSession,
 } from './session-lock.ts';
 import {
@@ -164,7 +165,7 @@ export function createRouter({
           dataStore,
           protocol: request.protocol,
           host: request.host,
-          lockSession: (fn) => lockSession(request, fn),
+          lockSession: (fn) => lockSession(request, whenFinished(response), fn),
         }).catch((error: unknown) => {
           if (error instanceof SessionGoneError) {
             return getSessionRequiredResponse();
