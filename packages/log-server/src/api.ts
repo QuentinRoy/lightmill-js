@@ -1,7 +1,8 @@
 import type { SessionData } from 'express-session';
 import { groupBy, intersection, map, pipe, uniqueBy } from 'remeda';
-import type { ConditionalKeys } from 'type-fest';
-import type { DataStore } from './data-store.ts';
+import type { ConditionalKeys, JsonObject } from 'type-fest';
+import type { DataStore, NewLog } from './data-store.ts';
+import type { LogIntakeRejection } from './log-intake.ts';
 import { arrayify } from './utils.ts';
 
 export function getErrorResponse<
@@ -20,6 +21,57 @@ export function getErrorResponse<
     status:
       statusCode ?? httpStatusCodeFromText<Error['status']>(firstError.status),
     body: { errors },
+  };
+}
+
+/**
+ * The error response to a log intake rejection. `source` gives the error
+ * source of the offending log, for the rejections that name one.
+ */
+export function getLogIntakeErrorResponse<const Source extends object>(
+  rejection: LogIntakeRejection,
+  source: (index: number) => Source,
+) {
+  const { runId } = rejection;
+  switch (rejection.code) {
+    case 'RUN_NOT_FOUND':
+      return getErrorResponse({
+        status: 'Forbidden',
+        code: rejection.code,
+        detail: `Run "${runId}" not found`,
+      });
+    case 'INVALID_RUN_STATUS':
+      return getErrorResponse({
+        status: 'Forbidden',
+        code: rejection.code,
+        detail: `Cannot add logs to run '${runId}', run is not running. Ensure the run is running before adding logs.`,
+      });
+    case 'LOG_NUMBER_EXISTS':
+      return getErrorResponse({
+        status: 'Conflict',
+        code: rejection.code,
+        detail: `Cannot add logs to run '${runId}', log number ${rejection.number} already exists with a different type or values. Ensure log numbers are unique within the run.`,
+        ...source(rejection.index),
+      });
+  }
+}
+
+/** The log a log resource of a request body describes. */
+export function toNewLog({
+  attributes,
+}: {
+  attributes: {
+    number: number;
+    logType: string;
+    values: Record<string, unknown>;
+  };
+}): NewLog {
+  return {
+    number: attributes.number,
+    type: attributes.logType,
+    // values is necessarily a JsonObject since it's coming from the request
+    // body.
+    values: attributes.values as JsonObject,
   };
 }
 

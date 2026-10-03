@@ -1,7 +1,10 @@
-import type { JsonObject } from 'type-fest';
-import { atomicMediaType, getErrorResponse } from './api.ts';
-import { addLogsToAccessibleRun } from './app-logs-handlers.ts';
-import { DataStoreError } from './data-store-errors.ts';
+import {
+  atomicMediaType,
+  getErrorResponse,
+  getLogIntakeErrorResponse,
+  toNewLog,
+} from './api.ts';
+import { addLogsToAccessibleRun } from './log-intake.ts';
 import type { PathHandlers } from './router.ts';
 
 // The route's response types require the extension's media type on every
@@ -51,54 +54,27 @@ export const operationHandlers = (): PathHandlers<'/operations'> => ({
         seenNumbers.add(data.attributes.number);
       }
 
-      try {
-        const outcome = await addLogsToAccessibleRun(
-          store,
-          sessionData,
-          runId,
-          operations.map(({ data }) => ({
-            number: data.attributes.number,
-            type: data.attributes.logType,
-            // values is necessarily a JsonObject since it's coming from the
-            // request body.
-            values: data.attributes.values as JsonObject,
+      const outcome = await addLogsToAccessibleRun(
+        store,
+        sessionData,
+        runId,
+        operations.map(({ data }) => toNewLog(data)),
+      );
+      if ('rejection' in outcome) {
+        return inAtomic(
+          getLogIntakeErrorResponse(outcome.rejection, (index) => ({
+            source: { pointer: pointerTo(index, 'attributes/number') },
           })),
         );
-        if ('error' in outcome) return inAtomic(outcome.error);
-        const { results } = outcome;
-        return {
-          contentType: atomicMediaType,
-          body: {
-            'atomic:results': results.map(({ logId }) => ({
-              data: { id: logId, type: 'logs' as const },
-            })),
-          },
-        };
-      } catch (e) {
-        if (
-          e instanceof DataStoreError &&
-          e.code === 'LOG_NUMBER_EXISTS_IN_SEQUENCE'
-        ) {
-          const index = operations.findIndex(
-            ({ data }) => data.attributes.number === e.logNumber,
-          );
-          if (index < 0) {
-            throw new TypeError(
-              `DataStore reported a conflict on log number ${e.logNumber}, which is not in the request`,
-              { cause: e },
-            );
-          }
-          return inAtomic(
-            getErrorResponse({
-              status: 'Conflict',
-              code: 'LOG_NUMBER_EXISTS',
-              detail: `Cannot add logs to run '${runId}', log number ${e.logNumber} already exists with a different type or values. Ensure log numbers are unique within the run.`,
-              source: { pointer: pointerTo(index, 'attributes/number') },
-            }),
-          );
-        }
-        throw e;
       }
+      return {
+        contentType: atomicMediaType,
+        body: {
+          'atomic:results': outcome.results.map(({ logId }) => ({
+            data: { id: logId, type: 'logs' as const },
+          })),
+        },
+      };
     },
   },
 });
