@@ -118,6 +118,14 @@ function completeRunBeforeNextTransaction(
   }) as typeof real);
 }
 
+/** Resumes the run after `lastLogNumber`. */
+const resumeAfter = (api: request.Agent, runId: RunId, lastLogNumber: number) =>
+  api
+    .patch(`/runs/${runId}`)
+    .set('Content-Type', mediaType)
+    .send({ data: { id: runId, type: 'runs', attributes: { lastLogNumber } } })
+    .expect(200);
+
 const nonRunningStatuses = [
   'idle',
   'interrupted',
@@ -388,14 +396,76 @@ describe.each(storeTypes)('LogServer: post /logs (%s)', (storeType) => {
               status: 'Conflict',
               code: 'LOG_NUMBER_EXISTS',
               detail:
-                `Cannot add log to run '1', log number 2 already exists with a different type or values.` +
-                ` Ensure the log number is unique within the run.`,
+                `Cannot add logs to run '1', log number 2 already exists with a different type or values.` +
+                ` Ensure log numbers are unique within the run.`,
             },
           ],
         })
         .expect('Content-Type', apiContentTypeRegExp);
     },
   );
+
+  const postLog = (
+    api: request.Agent,
+    runId: RunId,
+    number: number,
+    values: object = { n: number },
+  ) =>
+    api
+      .post('/logs')
+      .set('Content-Type', mediaType)
+      .send({
+        data: {
+          type: 'logs',
+          attributes: { number, logType: 'test', values },
+          relationships: { run: { data: { type: 'runs', id: runId } } },
+        },
+      });
+
+  it('answers the stored id to a resent log that a resume kept', async ({
+    expect,
+    participantApi,
+    runId,
+  }) => {
+    const first = await postLog(participantApi, runId, 1).expect(201);
+    await postLog(participantApi, runId, 2).expect(201);
+    await resumeAfter(participantApi, runId, 1);
+    const resent = await postLog(participantApi, runId, 1).expect(200);
+    expect(resent.body).toEqual(first.body);
+  });
+
+  it('refuses a log that conflicts with one a resume kept', async ({
+    expect,
+    participantApi,
+    runId,
+    dataStore,
+  }) => {
+    await postLog(participantApi, runId, 1).expect(201);
+    await postLog(participantApi, runId, 2).expect(201);
+    await resumeAfter(participantApi, runId, 1);
+    const stored = await fromAsync(dataStore.getLogs({ runId }));
+    const response = await postLog(participantApi, runId, 1, { other: 1 })
+      .expect(409)
+      .expect('Content-Type', apiContentTypeRegExp);
+    expect(response.body.errors[0].code).toBe('LOG_NUMBER_EXISTS');
+    await expect(fromAsync(dataStore.getLogs({ runId }))).resolves.toEqual(
+      stored,
+    );
+  });
+
+  it('answers the stored id to a log resent after a resume', async ({
+    expect,
+    participantApi,
+    runId,
+  }) => {
+    for (const number of [1, 2]) {
+      await postLog(participantApi, runId, number).expect(201);
+    }
+    await resumeAfter(participantApi, runId, 1);
+    const first = await postLog(participantApi, runId, 2).expect(201);
+    const resent = await postLog(participantApi, runId, 2).expect(200);
+    expect(resent.body).toEqual(first.body);
+  });
 });
 
 describe.each(storeTypes)('LogServer: post /operations (%s)', (storeType) => {
@@ -513,6 +583,38 @@ describe.each(storeTypes)('LogServer: post /operations (%s)', (storeType) => {
     ]).expect(409);
     expect(response.body.errors[0].source.pointer).toBe(
       '/atomic:operations/1/data/attributes/number',
+    );
+  });
+
+  it('treats the logs a resume kept as stored', async ({
+    expect,
+    participantApi,
+    runId,
+    dataStore,
+  }) => {
+    const first = await post(participantApi, [
+      add(runId, 1),
+      add(runId, 2),
+    ]).expect(200);
+    await resumeAfter(participantApi, runId, 1);
+    const stored = await fromAsync(dataStore.getLogs({ runId }));
+    const conflict = await post(participantApi, [
+      add(runId, 2, { other: 2 }),
+      add(runId, 1, { other: 1 }),
+    ]).expect(409);
+    expect(conflict.body.errors[0]).toMatchObject({
+      code: 'LOG_NUMBER_EXISTS',
+      source: { pointer: '/atomic:operations/1/data/attributes/number' },
+    });
+    await expect(fromAsync(dataStore.getLogs({ runId }))).resolves.toEqual(
+      stored,
+    );
+    const resent = await post(participantApi, [
+      add(runId, 2, { other: 2 }),
+      add(runId, 1),
+    ]).expect(200);
+    expect(resent.body['atomic:results'][1]).toEqual(
+      first.body['atomic:results'][0],
     );
   });
 

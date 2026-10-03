@@ -1,66 +1,21 @@
 import type { routes } from '@lightmill/log-api';
 import { mediaType } from '@lightmill/log-api/vocabulary';
 import type { StandardSchemaV1 } from '@standard-schema/spec';
-import type { SessionData } from 'express-session';
 import { Readable } from 'node:stream';
-import type { JsonObject } from 'type-fest';
 import { parseAcceptHeader } from './accept-headers.ts';
 import {
   getAllowedAndFilteredRunIds,
   getErrorResponse,
+  getLogIntakeErrorResponse,
   getRunResources,
+  toNewLog,
 } from './api.ts';
 import { csvExportStream } from './csv-export.ts';
 import type { AllFilter } from './data-filters.ts';
-import { DataStoreError } from './data-store-errors.ts';
-import type { DataStore, NewLog, RunId } from './data-store.ts';
+import type { DataStore } from './data-store.ts';
+import { addLogsToAccessibleRun } from './log-intake.ts';
 import type { HandlerResponseFromRoute, PathHandlers } from './router.ts';
-import { addLogsToRun, RunRejection } from './run-lifecycle.ts';
 import { arrayify, firstStrict } from './utils.ts';
-
-/**
- * Adds logs to a run in one transaction, or answers why it cannot: the session
- * has no access to the run, it does not exist, or it is not running. The status
- * is read in the transaction adding the logs, so a run that ended since the
- * request arrived stores none.
- */
-export async function addLogsToAccessibleRun(
-  store: DataStore,
-  sessionData: SessionData['data'],
-  runId: RunId,
-  logs: Array<NewLog>,
-) {
-  const runNotFound = (detail: string) => ({
-    error: getErrorResponse({
-      status: 'Forbidden',
-      code: 'RUN_NOT_FOUND',
-      detail,
-    }),
-  });
-  if (sessionData.role !== 'host' && !sessionData.runs.includes(runId)) {
-    return runNotFound(`Run "${runId}" not found`);
-  }
-  try {
-    return {
-      results: await store.withTransaction((tx) =>
-        addLogsToRun(tx, runId, logs),
-      ),
-    };
-  } catch (e) {
-    if (!(e instanceof RunRejection)) throw e;
-    if (e.code === 'RUN_NOT_FOUND') return runNotFound(e.message);
-    if (e.code === 'INVALID_RUN_STATUS') {
-      return {
-        error: getErrorResponse({
-          status: 'Forbidden',
-          code: 'INVALID_RUN_STATUS',
-          detail: e.message,
-        }),
-      };
-    }
-    throw e;
-  }
-}
 
 export const logHandlers = (): PathHandlers<'/logs'> => ({
   '/logs': {
@@ -113,40 +68,24 @@ export const logHandlers = (): PathHandlers<'/logs'> => ({
     },
 
     async post({ dataStore: store, body, sessionData, protocol, host }) {
-      let runId = body.data.relationships.run.data.id;
-      try {
-        let outcome = await addLogsToAccessibleRun(store, sessionData, runId, [
-          {
-            number: body.data.attributes.number,
-            type: body.data.attributes.logType,
-            // values is necessarily a JsonObject since it's coming from the
-            // request body.
-            values: body.data.attributes.values as JsonObject,
-          },
-        ]);
-        if ('error' in outcome) return outcome.error;
-        let { logId: insertedLogId, created } = firstStrict(outcome.results);
-        return {
-          // Nothing was created for a duplicate log (a resend).
-          status: created ? 201 : 200,
-          headers: {
-            location: `${protocol + '://' + host}/logs/${insertedLogId}`,
-          },
-          body: { data: { id: insertedLogId, type: 'logs' } },
-        };
-      } catch (e) {
-        if (
-          e instanceof DataStoreError &&
-          e.code === 'LOG_NUMBER_EXISTS_IN_SEQUENCE'
-        ) {
-          return getErrorResponse({
-            status: 'Conflict',
-            code: 'LOG_NUMBER_EXISTS',
-            detail: `Cannot add log to run '${runId}', log number ${body.data.attributes.number} already exists with a different type or values. Ensure the log number is unique within the run.`,
-          });
-        }
-        throw e;
+      let outcome = await addLogsToAccessibleRun(
+        store,
+        sessionData,
+        body.data.relationships.run.data.id,
+        [toNewLog(body.data)],
+      );
+      if ('rejection' in outcome) {
+        return getLogIntakeErrorResponse(outcome.rejection, () => ({}));
       }
+      let { logId: insertedLogId, created } = firstStrict(outcome.results);
+      return {
+        // Nothing was created for a duplicate log (a resend).
+        status: created ? 201 : 200,
+        headers: {
+          location: `${protocol + '://' + host}/logs/${insertedLogId}`,
+        },
+        body: { data: { id: insertedLogId, type: 'logs' } },
+      };
     },
   },
 

@@ -220,7 +220,9 @@ export interface DataStoreTransaction extends DataStoreReader {
    * @param logs The logs to add
    * @returns The ID of each log, in the order they were given. `created` is
    * false for a duplicate log: one the run already holds with the same number,
-   * type, and values, which is not stored again.
+   * type, and values, which is not stored again. A log that `cancelLogsAfter`
+   * kept counts as held: an identical one is a duplicate, a different one a
+   * conflict.
    * @throws {DataStoreError} `RUN_NOT_FOUND` if the run doesn't exist, or
    * `LOG_NUMBER_EXISTS_IN_SEQUENCE` if a log number is already used with
    * different content (with the `logNumber` of the first conflicting log in
