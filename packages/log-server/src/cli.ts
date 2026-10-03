@@ -202,7 +202,9 @@ async function addExperiment({ database, name }: AddExperimentParameter) {
   let store = await SQLiteDataStore.open(database);
   try {
     try {
-      await store.addExperiment({ experimentName: name });
+      await store.withTransaction((tx) =>
+        tx.addExperiment({ experimentName: name }),
+      );
     } catch (error) {
       if (
         error instanceof DataStoreError &&

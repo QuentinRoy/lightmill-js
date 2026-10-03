@@ -522,7 +522,7 @@ exports[`SQLiteStore#getLogs (selectQueryLimit: 2) > ignores missing logs 1`] = 
 ]
 `;
 
-exports[`SQLiteStore#getLogs (selectQueryLimit: 2) > returns logs added after resuming 1`] = `
+exports[`SQLiteStore#getLogs (selectQueryLimit: 2) > returns logs added after canceling logs 1`] = `
 [
   {
     "experimentId": "2",
@@ -557,7 +557,7 @@ exports[`SQLiteStore#getLogs (selectQueryLimit: 2) > returns logs added after re
 ]
 `;
 
-exports[`SQLiteStore#getLogs (selectQueryLimit: 2) > returns logs overwriting other logs after resuming 1`] = `
+exports[`SQLiteStore#getLogs (selectQueryLimit: 2) > returns logs overwriting canceled logs 1`] = `
 [
   {
     "experimentId": "1",
@@ -1219,7 +1219,7 @@ exports[`SQLiteStore#getLogs (selectQueryLimit: 10000) > ignores missing logs 1`
 ]
 `;
 
-exports[`SQLiteStore#getLogs (selectQueryLimit: 10000) > returns logs added after resuming 1`] = `
+exports[`SQLiteStore#getLogs (selectQueryLimit: 10000) > returns logs added after canceling logs 1`] = `
 [
   {
     "experimentId": "2",
@@ -1254,7 +1254,7 @@ exports[`SQLiteStore#getLogs (selectQueryLimit: 10000) > returns logs added afte
 ]
 `;
 
-exports[`SQLiteStore#getLogs (selectQueryLimit: 10000) > returns logs overwriting other logs after resuming 1`] = `
+exports[`SQLiteStore#getLogs (selectQueryLimit: 10000) > returns logs overwriting canceled logs 1`] = `
 [
   {
     "experimentId": "1",

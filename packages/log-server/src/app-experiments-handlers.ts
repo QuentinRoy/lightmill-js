@@ -15,7 +15,9 @@ export const experimentHandlers = (): PathHandlers<'/experiments'> => ({
       }
       const experimentName = body.data.attributes.name;
       try {
-        const { experimentId } = await store.addExperiment({ experimentName });
+        const { experimentId } = await store.withTransaction((tx) =>
+          tx.addExperiment({ experimentName }),
+        );
         return {
           status: 201,
           body: { data: { id: experimentId.toString(), type: 'experiments' } },

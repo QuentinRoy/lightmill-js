@@ -94,15 +94,10 @@ export interface ExperimentRecord {
   experimentCreatedAt: Date;
 }
 
-export interface DataStore {
-  /**
-   * Adds a new experiment to the store
-   * @param params The experiment parameters
-   * @returns The newly created experiment record
-   * @throws {StoreError} If an experiment with the same name already exists
-   */
-  addExperiment(params: { experimentName: string }): Promise<ExperimentRecord>;
-
+/**
+ * What can be read anywhere: on the store itself, or inside a transaction.
+ */
+interface DataStoreReader {
   /**
    * Gets experiments matching the provided filter
    * @param filter Optional filter to apply
@@ -113,26 +108,6 @@ export interface DataStore {
   ): Promise<ExperimentRecord[]>;
 
   /**
-   * Adds a new run associated with an experiment
-   * @param params Run creation parameters
-   * @returns The newly created run record. Status is set to 'idle' by default.
-   * @throws {StoreError} If a run with the same name already exists for the experiment
-   */
-  addRun(params: {
-    runName?: string | null | undefined;
-    experimentId: ExperimentId;
-    runStatus?: RunStatus;
-  }): Promise<RunRecord>;
-
-  /**
-   * Resumes a run from a specific log number
-   * @param runId The run ID to resume
-   * @param params Resume parameters
-   * @throws {StoreError} If the run doesn't exist or if resumption would leave log numbers missing
-   */
-  resumeRun(runId: RunId, params: { after: number }): Promise<void>;
-
-  /**
    * Gets runs matching the provided filter
    * @param filter Optional filter to apply
    * @returns Array of matching run records
@@ -140,30 +115,6 @@ export interface DataStore {
   getRuns(
     filter?: Merge<RunFilter, Pick<ExperimentFilter, 'experimentName'>>,
   ): Promise<RunRecord[]>;
-
-  /**
-   * Updates the status of a run
-   * @param runId The run ID to update
-   * @param status The new status
-   * @throws {StoreError} If the run doesn't exist or if the status transition is invalid
-   */
-  setRunStatus(runId: RunId, status: RunStatus): Promise<void>;
-
-  /**
-   * Adds logs to a run
-   * @param runId The run ID to add logs to
-   * @param logs The logs to add
-   * @returns The ID of each log, in the order they were given. `created` is
-   * false for a duplicate log: one the run already holds with the same number,
-   * type, and values, which is not stored again.
-   * @throws {StoreError} If the run doesn't exist, or if a log number is
-   * already used with different content (LOG_NUMBER_EXISTS_IN_SEQUENCE, with
-   * the `logNumber` of the first conflicting log in `logs`)
-   */
-  addLogs(
-    runId: RunId,
-    logs: Array<{ type: string; number: number; values: JsonObject }>,
-  ): Promise<Array<{ logId: LogId; created: boolean }>>;
 
   /**
    * Gets all unique log value property names that match the filter
@@ -190,14 +141,119 @@ export interface DataStore {
   >;
 
   /**
-   * Gets all logs matching the filter
+   * Gets all logs matching the filter. On the store, this streams without
+   * holding any lock between pulls. In a transaction, a pull after the
+   * transaction ended rejects with `TRANSACTION_ENDED`.
    * @param filter Optional filter to apply
    * @returns AsyncGenerator yielding log entries
    */
   getLogs(filter?: AllFilter | undefined): AsyncGenerator<Log>;
+}
+
+/**
+ * The store as seen inside `DataStore#withTransaction`: reads and writes.
+ * Run lifecycle rules (which status can follow which, when logs are accepted)
+ * are not part of this contract, and an implementation does not need to
+ * enforce them. It only needs to reject what its backend states natively and
+ * atomically, like a foreign key or a duplicate name. The transaction ends
+ * when the callback finishes: every call afterwards rejects with
+ * `TRANSACTION_ENDED`.
+ *
+ * After a rejected call, the callback must throw: the transaction is rolled
+ * back, and nothing is promised about a transaction that kept going.
+ */
+export interface DataStoreTransaction extends DataStoreReader {
+  /**
+   * Adds a new experiment to the store
+   * @param params The experiment parameters
+   * @returns The newly created experiment record
+   * @throws {DataStoreError} `EXPERIMENT_EXISTS` if an experiment with the same
+   * name already exists
+   */
+  addExperiment(params: { experimentName: string }): Promise<ExperimentRecord>;
 
   /**
-   * Closes the store and releases any resources
+   * Adds a new run associated with an experiment
+   * @param params Run creation parameters
+   * @returns The newly created run record. Status is set to 'idle' by default.
+   * @throws {DataStoreError} `RUN_EXISTS` if a run with the same name already
+   * exists for the experiment, `EXPERIMENT_NOT_FOUND` if the experiment does
+   * not exist
+   */
+  addRun(params: {
+    runName?: string | null | undefined;
+    experimentId: ExperimentId;
+    runStatus?: RunStatus;
+  }): Promise<RunRecord>;
+
+  /**
+   * Sets the status of a run.
+   * @param runId The run ID to update
+   * @param status The new status
+   * @throws {DataStoreError} `RUN_NOT_FOUND` if the run doesn't exist
+   */
+  setRunStatus(runId: RunId, status: RunStatus): Promise<void>;
+
+  /**
+   * Cancels the logs of a run numbered above `after`, which starts a new log
+   * sequence: the logs stay stored, but stop counting. It does not change the
+   * run's status. `after` must be at or below the run's last log number: what
+   * an implementation does with a higher one is not part of the contract.
+   * @param runId The run ID to cancel logs of
+   * @param params.after The highest log number to keep
+   * @throws {DataStoreError} `RUN_NOT_FOUND` if the run doesn't exist
+   */
+  cancelLogsAfter(runId: RunId, params: { after: number }): Promise<void>;
+
+  /**
+   * Adds logs to a run
+   * @param runId The run ID to add logs to
+   * @param logs The logs to add
+   * @returns The ID of each log, in the order they were given. `created` is
+   * false for a duplicate log: one the run already holds with the same number,
+   * type, and values, which is not stored again.
+   * @throws {DataStoreError} `RUN_NOT_FOUND` if the run doesn't exist, or
+   * `LOG_NUMBER_EXISTS_IN_SEQUENCE` if a log number is already used with
+   * different content (with the `logNumber` of the first conflicting log in
+   * `logs`)
+   */
+  addLogs(
+    runId: RunId,
+    logs: Array<{ type: string; number: number; values: JsonObject }>,
+  ): Promise<Array<{ logId: LogId; created: boolean }>>;
+}
+
+/**
+ * Reads work anywhere, every write goes through `withTransaction`.
+ *
+ * The creator of a store owns it and closes it.
+ */
+export interface DataStore extends DataStoreReader {
+  /**
+   * Runs `fn` in a serializable transaction: the result is as if transactions
+   * ran one at a time. It commits when `fn` resolves, and rolls back when it
+   * throws: never call commit or rollback.
+   *
+   * `fn` must only make calls on its transaction, and await each of them. It
+   * may run again after a `TRANSACTION_CONFLICT`, and the store holds a lock
+   * while it runs. Transactions cannot be nested.
+   *
+   * @returns What `fn` returned.
+   * @throws The error of `fn`, unchanged, if the transaction rolled back.
+   * @throws {DataStoreError} `TRANSACTION_CONFLICT` if the transaction could
+   * not be serialized or waited too long for a lock (nothing is persisted, and
+   * trying again may succeed), `TRANSACTION_COMMIT_FAILED` if committing failed
+   * otherwise, `TRANSACTION_ROLLBACK_FAILED` if rolling back failed (the
+   * persisted state is unknown), `STORE_CLOSED` if the store was closed.
+   * @throws {TypeError} If a transaction call was still pending when `fn`
+   * finished (the transaction is rolled back).
+   */
+  withTransaction<T>(fn: (tx: DataStoreTransaction) => Promise<T>): Promise<T>;
+
+  /**
+   * Closes the store and releases any resources. It rejects new operations
+   * with `STORE_CLOSED` at once, waits for the ones in flight, and may be called
+   * many times. Calling it inside a `withTransaction` callback deadlocks.
    */
   close(): Promise<void>;
 }

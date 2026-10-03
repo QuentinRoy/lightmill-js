@@ -1,3 +1,7 @@
+// The class has a `[Symbol.asyncDispose]` method, and a consumer's own `lib`
+// may not include the library that declares the symbol. `preserve` keeps this
+// line in the emitted declarations.
+/// <reference lib="esnext.disposable" preserve="true" />
 import SQLiteDB from 'better-sqlite3';
 import type { Store as ExpressSessionStore } from 'express-session';
 import {
@@ -8,7 +12,6 @@ import {
   Migrator,
   sql,
   SqliteDialect,
-  type Transaction,
 } from 'kysely';
 import loglevel, { type LogLevelDesc } from 'loglevel';
 import fs from 'node:fs/promises';
@@ -29,6 +32,7 @@ import { DataStoreError } from './data-store-errors.ts';
 import {
   type Database,
   type DataStore,
+  type DataStoreTransaction,
   type ExperimentId,
   type ExperimentRecord,
   fromDbId,
@@ -52,10 +56,14 @@ const constructorKey = Symbol('SQLiteDataStore constructor key');
 /**
  * SQLite-backed implementation of the Lightmill `DataStore` interface.
  */
-export class SQLiteDataStore implements DataStore {
+export class SQLiteDataStore implements DataStore, AsyncDisposable {
   #db: Kysely<Database>;
   #selectQueryLimit: number;
   #sessionStore: SessionStore | undefined;
+  #closing: Promise<void> | undefined;
+  // Set when a rollback failed: the connection may still be in a transaction,
+  // so nothing can be trusted until the store is closed.
+  #poison: DataStoreError | undefined;
 
   // `private` only exists in TypeScript, but it is safe here: a JavaScript
   // caller hits the key check below and gets a TypeError.
@@ -153,6 +161,168 @@ export class SQLiteDataStore implements DataStore {
     return this.#sessionStore;
   }
 
+  getExperiments(filter?: ExperimentFilter) {
+    return this.#read((queries) => queries.getExperiments(filter));
+  }
+
+  getRuns(filter?: RunFilter & Pick<ExperimentFilter, 'experimentName'>) {
+    return this.#read((queries) => queries.getRuns(filter));
+  }
+
+  getLastLogs(filter?: AllFilter) {
+    return this.#read((queries) => queries.getLastLogs(filter));
+  }
+
+  getLogValueNames(filter?: AllFilter) {
+    return this.#read((queries) => queries.getLogValueNames(filter));
+  }
+
+  // Each page is an operation of its own, so a long export holds neither the
+  // connection nor a lock between pulls.
+  getLogs(filter: AllFilter = {}): AsyncGenerator<Log> {
+    return streamLogs(
+      (after) => this.#read((queries) => queries.getLogsPage(filter, after)),
+      () => this.#assertAvailable(),
+    );
+  }
+
+  /**
+   * Transactions start with BEGIN IMMEDIATE, so the write lock is taken (and
+   * SQLite's busy wait applies) up front: a deferred transaction that reads
+   * and then writes fails at once when another process, like the CLI, holds
+   * the lock. Kysely's own transactions begin deferred and mask a failed begin.
+   *
+   * The callback must only make calls on the transaction: the connection is
+   * held until it settles, and Kysely's connection queue has no timeout, so one
+   * that hangs blocks every other read and write, session writes included.
+   */
+  withTransaction<T>(fn: (tx: DataStoreTransaction) => Promise<T>): Promise<T> {
+    return this.#operate(async (connection) => {
+      try {
+        await sql`BEGIN IMMEDIATE`.execute(connection);
+      } catch (error) {
+        throw mapBusyError(error);
+      }
+      const scope = createTransactionScope(
+        new Queries(connection, this.#selectQueryLimit),
+      );
+      let value: T;
+      try {
+        value = await fn(scope.store);
+        // A pending call can't be canceled, and the connection can't be
+        // released under it.
+        if (await scope.end()) {
+          throw new TypeError(
+            'A transaction call was still pending when the callback finished. Await every call made on the transaction.',
+          );
+        }
+      } catch (error) {
+        await scope.end();
+        await this.#rollback(connection, error);
+        throw error;
+      }
+      try {
+        await sql`COMMIT`.execute(connection);
+      } catch (commitError) {
+        await this.#rollback(connection, commitError);
+        const mapped = mapBusyError(commitError);
+        if (mapped !== commitError) throw mapped;
+        throw new DataStoreError(
+          'Committing the transaction failed.',
+          DataStoreError.TRANSACTION_COMMIT_FAILED,
+          { cause: commitError },
+        );
+      }
+      return value;
+    });
+  }
+
+  async #rollback(
+    connection: Kysely<Database>,
+    originalError: unknown,
+  ): Promise<void> {
+    try {
+      await sql`ROLLBACK`.execute(connection);
+    } catch (rollbackError) {
+      // A failing ROLLBACK means an I/O failure: probing or retrying would not
+      // tell what was persisted.
+      this.#poison = new DataStoreError(
+        'Rolling back the transaction failed. What was persisted is unknown.',
+        DataStoreError.TRANSACTION_ROLLBACK_FAILED,
+        { cause: rollbackError, originalError },
+      );
+      throw this.#poison;
+    }
+  }
+
+  #assertAvailable() {
+    if (this.#closing != null) {
+      throw new DataStoreError(
+        'The store is closed.',
+        DataStoreError.STORE_CLOSED,
+      );
+    }
+    if (this.#poison != null) throw this.#poison;
+  }
+
+  // An operation holds the connection from start to end, so it is one turn in
+  // Kysely's connection queue. It joins the queue as soon as it is admitted,
+  // which is what lets close() wait for it by joining the queue behind it.
+  async #operate<T>(
+    run: (connection: Kysely<Database>) => Promise<T>,
+  ): Promise<T> {
+    this.#assertAvailable();
+    try {
+      return await this.#db.connection().execute(async (connection) => {
+        // The rollback of a transaction ahead of this one may have failed while
+        // this one waited, leaving the connection inside that transaction.
+        if (this.#poison != null) throw this.#poison;
+        return run(connection);
+      });
+    } catch (error) {
+      throw mapBusyError(error);
+    }
+  }
+
+  #read<T>(read: (queries: Queries) => Promise<T>): Promise<T> {
+    return this.#operate((connection) =>
+      read(new Queries(connection, this.#selectQueryLimit)),
+    );
+  }
+
+  /**
+   * Rejects new operations at once, waits for the admitted ones, then closes
+   * the connection. Later calls return the first call's promise.
+   */
+  close(): Promise<void> {
+    this.#closing ??= (async () => {
+      // Kysely's destroy() does not wait for its connection queue, so wait for
+      // a turn behind every admitted operation first.
+      await this.#db.connection().execute(async () => {});
+      await this.#db.destroy();
+    })();
+    return this.#closing;
+  }
+
+  /** Does what `close()` does, so `await using` can close the store. */
+  [Symbol.asyncDispose](): Promise<void> {
+    return this.close();
+  }
+}
+
+/**
+ * The queries behind both the store and its transactions. They know nothing
+ * about transactions: whoever holds the Kysely instance decides.
+ */
+class Queries {
+  #db: Kysely<Database>;
+  #selectQueryLimit: number;
+
+  constructor(db: Kysely<Database>, selectQueryLimit: number) {
+    this.#db = db;
+    this.#selectQueryLimit = selectQueryLimit;
+  }
+
   async addExperiment({
     experimentName,
   }: {
@@ -207,101 +377,83 @@ export class SQLiteDataStore implements DataStore {
     experimentId: ExperimentId;
     runStatus?: RunStatus | undefined;
   }): Promise<RunRecord> {
-    // Transactions in this class must not await real I/O: one then stays open
-    // across event loop turns, holding the file's write lock against other
-    // processes.
-    return this.#db.transaction().execute(async (trx) => {
-      let result = await trx
-        .insertInto('run')
-        .values({
-          runName: runName ?? undefined,
-          experimentId: toDbId(experimentId),
-          runStatus,
-          runCreatedAt: new Date().toISOString(),
-        })
-        .returningAll()
-        .executeTakeFirstOrThrow()
-        .catch((e) => {
-          if (!(e instanceof SQLiteDB.SqliteError)) {
-            throw e;
-          }
-          if (
-            e.code === 'SQLITE_CONSTRAINT_TRIGGER' &&
-            e.message.includes(
-              'another run with the same name for the same experiment exists and is not canceled',
-            )
-          ) {
-            throw new DataStoreError(
-              `A run named "${runName}" already exists for experiment ${experimentId}.`,
-              DataStoreError.RUN_EXISTS,
-              { cause: e },
-            );
-          }
-          if (e.code === 'SQLITE_CONSTRAINT_FOREIGNKEY') {
-            // Only the experimentId is a foreign key, so we can assume
-            // that the experiment does not exist.
-            throw new DataStoreError(
-              `Experiment "${experimentId}" does not exist.`,
-              DataStoreError.EXPERIMENT_NOT_FOUND,
-              { cause: e },
-            );
-          }
+    let result = await this.#db
+      .insertInto('run')
+      .values({
+        runName: runName ?? undefined,
+        experimentId: toDbId(experimentId),
+        runStatus,
+        runCreatedAt: new Date().toISOString(),
+      })
+      .returningAll()
+      .executeTakeFirstOrThrow()
+      .catch((e) => {
+        if (!(e instanceof SQLiteDB.SqliteError)) {
           throw e;
-        });
-      await trx
-        .insertInto('logSequence')
-        .values({ runId: result.runId, sequenceNumber: 1, start: 1 })
-        .execute();
-      return {
-        ...result,
-        experimentId: fromDbId(result.experimentId),
-        runId: fromDbId(result.runId),
-        runCreatedAt: new Date(result.runCreatedAt),
-        runName: result.runName ?? null,
-        firstMissingLogNumber: null,
-        lastLogNumber: 0,
-      };
-    });
+        }
+        if (
+          e.code === 'SQLITE_CONSTRAINT_TRIGGER' &&
+          e.message.includes(
+            'another run with the same name for the same experiment exists and is not canceled',
+          )
+        ) {
+          throw new DataStoreError(
+            `A run named "${runName}" already exists for experiment ${experimentId}.`,
+            DataStoreError.RUN_EXISTS,
+            { cause: e },
+          );
+        }
+        if (e.code === 'SQLITE_CONSTRAINT_FOREIGNKEY') {
+          // Only the experimentId is a foreign key, so we can assume
+          // that the experiment does not exist.
+          throw new DataStoreError(
+            `Experiment "${experimentId}" does not exist.`,
+            DataStoreError.EXPERIMENT_NOT_FOUND,
+            { cause: e },
+          );
+        }
+        throw e;
+      });
+    await this.#db
+      .insertInto('logSequence')
+      .values({ runId: result.runId, sequenceNumber: 1, start: 1 })
+      .execute();
+    return {
+      ...result,
+      experimentId: fromDbId(result.experimentId),
+      runId: fromDbId(result.runId),
+      runCreatedAt: new Date(result.runCreatedAt),
+      runName: result.runName ?? null,
+      firstMissingLogNumber: null,
+      lastLogNumber: 0,
+    };
   }
 
-  async resumeRun(
+  async cancelLogsAfter(
     runId: RunId,
-    { after: resumeAfter }: { after: number },
+    { after }: { after: number },
   ): Promise<void> {
     const dbRunId = toDbId(runId);
-    return this.#db.transaction().execute(async (trx) => {
-      await trx
-        .updateTable('run')
-        .set({ runStatus: 'running' })
-        .where('runId', '=', dbRunId)
-        .executeTakeFirstOrThrow(() => {
-          return new DataStoreError(
+    const lastSequence = await this.#db
+      .selectFrom('lastLogSequenceView')
+      .where('runId', '=', dbRunId)
+      .select('sequenceNumber')
+      .executeTakeFirstOrThrow(
+        () =>
+          new DataStoreError(
             `No run found for id ${runId}`,
-            'RUN_NOT_FOUND',
-          );
-        });
-      const lastSequence = await trx
-        .selectFrom('lastLogSequenceView')
-        .where('runId', '=', dbRunId)
-        .select(['sequenceNumber', 'lastLogNumber'])
-        .executeTakeFirstOrThrow(
-          () => new Error(`Could not find a sequence for run ${runId}.`),
-        );
-      if (resumeAfter > lastSequence.lastLogNumber) {
-        throw new DataStoreError(
-          `Cannot resume run ${runId} after log number ${resumeAfter} because it would leave log number ${lastSequence.lastLogNumber + 1} missing.`,
-          DataStoreError.INVALID_LOG_NUMBER,
-        );
-      }
-      await trx
-        .insertInto('logSequence')
-        .values({
-          runId: dbRunId,
-          sequenceNumber: lastSequence.sequenceNumber + 1,
-          start: resumeAfter + 1,
-        })
-        .execute();
-    });
+            DataStoreError.RUN_NOT_FOUND,
+          ),
+      );
+    // An `after` above the run's last log number is refused by a trigger.
+    await this.#db
+      .insertInto('logSequence')
+      .values({
+        runId: dbRunId,
+        sequenceNumber: lastSequence.sequenceNumber + 1,
+        start: after + 1,
+      })
+      .execute();
   }
 
   async getRuns(
@@ -401,90 +553,88 @@ export class SQLiteDataStore implements DataStore {
   ): Promise<Array<{ logId: LogId; created: boolean }>> {
     const dbRunId = toDbId(runId);
     if (logs.length === 0) return [];
-    return this.#db.transaction().execute(async (trx) => {
-      let { sequenceId } = await trx
-        .selectFrom('lastLogSequenceView')
-        .where('runId', '=', dbRunId)
-        .select('sequenceId')
-        .executeTakeFirstOrThrow(
-          () =>
-            new DataStoreError(
-              `No run found for id ${runId}`,
-              DataStoreError.RUN_NOT_FOUND,
-            ),
-        );
-      const insertLogs = async (batch: typeof logs) =>
-        batch.length === 0
-          ? []
-          : trx
-              .insertInto('log')
-              .values(
-                batch.map((log) => ({
-                  sequenceId,
-                  logNumber: log.number,
-                  logType: log.type,
-                  logValues: json(log.values),
-                })),
-              )
-              .returning(['logId', 'logNumber'])
-              .execute();
-      // Ids of the logs that were already stored (duplicates).
-      let duplicateIds = new Map<number, number>();
-      let dbLogs: Array<{ logId: number; logNumber: number }>;
-      try {
-        dbLogs = await insertLogs(logs);
-      } catch (e) {
-        if (
-          !(
-            e instanceof SQLiteDB.SqliteError &&
-            (e.code === 'SQLITE_CONSTRAINT_PRIMARYKEY' ||
-              e.code === 'SQLITE_CONSTRAINT_UNIQUE')
-          )
-        ) {
-          throw e;
-        }
-        // The failed statement was rolled back, the transaction is still
-        // usable.
-        duplicateIds = await findDuplicateIds(trx, sequenceId, logs, e);
-        dbLogs = await insertLogs(
-          logs.filter((l) => !duplicateIds.has(l.number)),
+    let { sequenceId } = await this.#db
+      .selectFrom('lastLogSequenceView')
+      .where('runId', '=', dbRunId)
+      .select('sequenceId')
+      .executeTakeFirstOrThrow(
+        () =>
+          new DataStoreError(
+            `No run found for id ${runId}`,
+            DataStoreError.RUN_NOT_FOUND,
+          ),
+      );
+    const insertLogs = async (batch: typeof logs) =>
+      batch.length === 0
+        ? []
+        : this.#db
+            .insertInto('log')
+            .values(
+              batch.map((log) => ({
+                sequenceId,
+                logNumber: log.number,
+                logType: log.type,
+                logValues: json(log.values),
+              })),
+            )
+            .returning(['logId', 'logNumber'])
+            .execute();
+    // Ids of the logs that were already stored (duplicates).
+    let duplicateIds = new Map<number, number>();
+    let dbLogs: Array<{ logId: number; logNumber: number }>;
+    try {
+      dbLogs = await insertLogs(logs);
+    } catch (e) {
+      if (
+        !(
+          e instanceof SQLiteDB.SqliteError &&
+          (e.code === 'SQLITE_CONSTRAINT_PRIMARYKEY' ||
+            e.code === 'SQLITE_CONSTRAINT_UNIQUE')
+        )
+      ) {
+        throw e;
+      }
+      // The failed statement was rolled back, the transaction is still
+      // usable.
+      duplicateIds = await findDuplicateIds(this.#db, sequenceId, logs, e);
+      dbLogs = await insertLogs(
+        logs.filter((l) => !duplicateIds.has(l.number)),
+      );
+    }
+    // We are working on a single run and log sequence, so all lognumbers should be unique.
+    const logMap = new Map(duplicateIds);
+    for (const log of dbLogs) logMap.set(log.logNumber, log.logId);
+    // Map input logs to logs ids. We cannot rely on the order of
+    // dbLogs because it is not guaranteed to be the same as the order of
+    // the logs we inserted.
+    const result = logs.map((log, index) => {
+      const logId = logMap.get(log.number);
+      if (logId == null) {
+        throw new Error(
+          `Log with number ${log.number} at index ${index} wasn't inserted`,
         );
       }
-      // We are working on a single run and log sequence, so all lognumbers should be unique.
-      const logMap = new Map(duplicateIds);
-      for (const log of dbLogs) logMap.set(log.logNumber, log.logId);
-      // Map input logs to logs ids. We cannot rely on the order of
-      // dbLogs because it is not guaranteed to be the same as the order of
-      // the logs we inserted.
-      const result = logs.map((log, index) => {
-        const logId = logMap.get(log.number);
-        if (logId == null) {
-          throw new Error(
-            `Log with number ${log.number} at index ${index} wasn't inserted`,
-          );
-        }
-        return {
-          logId,
-          values: log.values,
-          created: !duplicateIds.has(log.number),
-        };
-      });
-      // Stored duplicates already have their property names.
-      const logValues = result.flatMap(({ logId, values, created }) => {
-        if (!created) return [];
-        return Object.keys(values).map((logPropertyName) => ({
-          logId,
-          logPropertyName,
-        }));
-      });
-      if (logValues.length > 0) {
-        await trx.insertInto('logPropertyName').values(logValues).execute();
-      }
-      return result.map(({ logId, created }) => ({
-        logId: fromDbId(logId),
-        created,
+      return {
+        logId,
+        values: log.values,
+        created: !duplicateIds.has(log.number),
+      };
+    });
+    // Stored duplicates already have their property names.
+    const logValues = result.flatMap(({ logId, values, created }) => {
+      if (!created) return [];
+      return Object.keys(values).map((logPropertyName) => ({
+        logId,
+        logPropertyName,
       }));
     });
+    if (logValues.length > 0) {
+      await this.#db.insertInto('logPropertyName').values(logValues).execute();
+    }
+    return result.map(({ logId, created }) => ({
+      logId: fromDbId(logId),
+      created,
+    }));
   }
 
   async getLogValueNames(filter: AllFilter = {}): Promise<string[]> {
@@ -557,76 +707,168 @@ export class SQLiteDataStore implements DataStore {
     });
   }
 
-  async *getLogs(filter: AllFilter = {}): AsyncGenerator<Log> {
-    let lastRow: {
-      number: number;
-      logId: number;
-      experimentName: string;
-      runName: string;
-    } | null = null;
-    let isFirst = true;
-    while (isFirst || lastRow != null) {
-      let result = await this.#db
-        .selectFrom('runLogView as l')
-        .$call(createQueryFilterAll(filter, 'l'))
-        .select((eb) => [
-          'l.experimentId as experimentId',
-          'l.experimentName as experimentName',
-          'l.runId as runId',
-          'l.runName as runName',
-          'l.runStatus as runStatus',
-          'l.logId as logId',
-          'l.logType as type',
-          'l.logNumber as number',
-          // logValues is a jsonb blob: `->` '$' makes SQLite return it as JSON text,
-          // which Kysely can't infer, so the type is asserted for parseJsonObject.
-          eb.ref('l.logValues', '->').key('$').$castTo<string>().as('values'),
-        ])
-        .orderBy('experimentName')
-        .orderBy('runName')
-        .orderBy('logNumber')
-        .limit(this.#selectQueryLimit)
-        .$if(!isFirst, (qb) =>
-          qb.where((eb) => {
-            if (lastRow === null) throw new Error('lastRow is null');
-            return eb.or([
-              eb('experimentName', '>', lastRow.experimentName),
-              eb.and([
-                eb('experimentName', '=', lastRow.experimentName),
-                eb('runName', '>', lastRow.runName),
-              ]),
-              eb.and([
-                eb('experimentName', '=', lastRow.experimentName),
-                eb('runName', '=', lastRow.runName),
-                eb('logNumber', '>', lastRow.number),
-              ]),
-            ]);
-          }),
-        )
-        .execute();
-      isFirst = false;
-      lastRow = last(result) ?? null;
-      for (const logResult of result) {
-        yield {
-          ...pick(logResult, [
-            'experimentName',
-            'runName',
-            'runStatus',
-            'number',
-            'type',
+  async getLogsPage(filter: AllFilter, after: Log | null): Promise<Log[]> {
+    let query = this.#db
+      .selectFrom('runLogView as l')
+      .$call(createQueryFilterAll(filter, 'l'))
+      .select((eb) => [
+        'l.experimentId as experimentId',
+        'l.experimentName as experimentName',
+        'l.runId as runId',
+        'l.runName as runName',
+        'l.runStatus as runStatus',
+        'l.logId as logId',
+        'l.logType as type',
+        'l.logNumber as number',
+        // logValues is a jsonb blob: `->` '$' makes SQLite return it as JSON text,
+        // which Kysely can't infer, so the type is asserted for parseJsonObject.
+        eb.ref('l.logValues', '->').key('$').$castTo<string>().as('values'),
+      ])
+      .orderBy('experimentName')
+      .orderBy('runName')
+      .orderBy('logNumber')
+      .limit(this.#selectQueryLimit);
+    if (after != null) {
+      query = query.where((eb) =>
+        eb.or([
+          eb('experimentName', '>', after.experimentName),
+          eb.and([
+            eb('experimentName', '=', after.experimentName),
+            eb('runName', '>', after.runName),
           ]),
-          values: parseJsonObject(logResult.values),
-          experimentId: fromDbId(logResult.experimentId),
-          runId: fromDbId(logResult.runId),
-          logId: fromDbId(logResult.logId),
-        };
-      }
+          eb.and([
+            eb('experimentName', '=', after.experimentName),
+            eb('runName', '=', after.runName),
+            eb('logNumber', '>', after.number),
+          ]),
+        ]),
+      );
     }
+    const result = await query.execute();
+    return result.map((logResult) => ({
+      ...pick(logResult, [
+        'experimentName',
+        'runName',
+        'runStatus',
+        'number',
+        'type',
+      ]),
+      values: parseJsonObject(logResult.values),
+      experimentId: fromDbId(logResult.experimentId),
+      runId: fromDbId(logResult.runId),
+      logId: fromDbId(logResult.logId),
+    }));
   }
+}
 
-  async close() {
-    await this.#db.destroy();
+// end() waits on `set`. The copy kept there settles without rejecting, so a
+// failed call rejects only for its caller and end() still waits for it.
+function track(set: Set<Promise<void>>, promise: Promise<unknown>) {
+  const tracked: Promise<void> = promise.then(done, done);
+  function done() {
+    set.delete(tracked);
   }
+  set.add(tracked);
+}
+
+/**
+ * SQLITE_BUSY and SQLITE_LOCKED (and their extended codes) mean another
+ * connection is in the way: the transaction can be tried again.
+ */
+export function mapBusyError(error: unknown): unknown {
+  if (
+    error instanceof SQLiteDB.SqliteError &&
+    /^SQLITE_(BUSY|LOCKED)(_|$)/.test(error.code)
+  ) {
+    return new DataStoreError(
+      'The transaction conflicted with another one, and nothing was persisted. Try again.',
+      DataStoreError.TRANSACTION_CONFLICT,
+      { cause: error },
+    );
+  }
+  return error;
+}
+
+/**
+ * `assertAvailable` runs when a pull resumes after a log: a page holds several
+ * logs, and the pulls it serves must stop with the store or the transaction
+ * too.
+ */
+async function* streamLogs(
+  fetchPage: (after: Log | null) => Promise<Log[]>,
+  assertAvailable: () => void,
+): AsyncGenerator<Log> {
+  let after: Log | null = null;
+  do {
+    const page: Log[] = await fetchPage(after);
+    for (const log of page) {
+      yield log;
+      assertAvailable();
+    }
+    after = last(page) ?? null;
+  } while (after != null);
+}
+
+/**
+ * The store as the transaction callback sees it. `end()` closes it: calls
+ * (and generator pulls) made afterwards reject, and the ones still pending are
+ * waited for.
+ */
+function createTransactionScope(queries: Queries) {
+  let ended = false;
+  const pending = new Set<Promise<void>>();
+  const assertActive = () => {
+    if (ended) {
+      throw new DataStoreError(
+        'The transaction has ended: its store cannot be used after the callback finished.',
+        DataStoreError.TRANSACTION_ENDED,
+      );
+    }
+  };
+  const call = <T>(run: () => Promise<T>): Promise<T> => {
+    const promise = (async () => {
+      assertActive();
+      try {
+        return await run();
+      } catch (error) {
+        throw mapBusyError(error);
+      }
+    })();
+    track(pending, promise);
+    return promise;
+  };
+  const store: DataStoreTransaction = {
+    addExperiment: (params) => call(() => queries.addExperiment(params)),
+    addRun: (params) => call(() => queries.addRun(params)),
+    setRunStatus: (runId, status) =>
+      call(() => queries.setRunStatus(runId, status)),
+    cancelLogsAfter: (runId, params) =>
+      call(() => queries.cancelLogsAfter(runId, params)),
+    addLogs: (runId, logs) => call(() => queries.addLogs(runId, logs)),
+    getExperiments: (filter) => call(() => queries.getExperiments(filter)),
+    getRuns: (filter) => call(() => queries.getRuns(filter)),
+    getLastLogs: (filter) => call(() => queries.getLastLogs(filter)),
+    getLogValueNames: (filter) => call(() => queries.getLogValueNames(filter)),
+    getLogs: (filter = {}) =>
+      streamLogs(
+        (after) => call(() => queries.getLogsPage(filter, after)),
+        assertActive,
+      ),
+  };
+  return {
+    // The type has no withTransaction. This answers JavaScript callers.
+    store: Object.assign(store, {
+      withTransaction() {
+        throw new TypeError('Transactions cannot be nested.');
+      },
+    }),
+    async end() {
+      ended = true;
+      const hadPendingCalls = pending.size > 0;
+      await Promise.all(pending);
+      return hadPendingCalls;
+    },
+  };
 }
 
 function createKysely(
@@ -692,7 +934,7 @@ async function migrate(db: Kysely<Database>) {
  * log conflicts with a stored one.
  */
 async function findDuplicateIds(
-  trx: Transaction<Database>,
+  trx: Kysely<Database>,
   sequenceId: number,
   logs: Array<{ type: string; number: number; values: JsonObject }>,
   cause: unknown,

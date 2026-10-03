@@ -11,7 +11,7 @@ import {
   createServerContext,
   listen,
   storeTypes,
-} from './test-utils.ts';
+} from './__fixtures__/test-utils.ts';
 
 let allRoutes = createAllRoute();
 afterEach(() => {

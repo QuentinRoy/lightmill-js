@@ -10,10 +10,15 @@ import { last } from 'remeda';
 import request from 'supertest';
 import type { Simplify, ValueOf } from 'type-fest';
 import { onTestFinished, test, vi, type Mock, type TestAPI } from 'vitest';
-import { apiMediaType, type HttpMethod } from '../src/api.ts';
-import { LogServer } from '../src/app.ts';
-import type { DataStore, RunId, RunStatus } from '../src/data-store.ts';
-import { SQLiteDataStore } from '../src/sqlite-data-store.ts';
+import { apiMediaType, type HttpMethod } from '../../src/api.ts';
+import { LogServer } from '../../src/app.ts';
+import type {
+  DataStore,
+  DataStoreTransaction,
+  RunId,
+  RunStatus,
+} from '../../src/data-store.ts';
+import { SQLiteDataStore } from '../../src/sqlite-data-store.ts';
 
 // supertest would listen on `::` and connect to 127.0.0.1, where another process
 // may hold the same port (e.g. Steam on macOS). Binding 127.0.0.1 avoids that.
@@ -151,15 +156,15 @@ async function createServerContextFromStores<
 export const storeTypes = ['sqlite'] as const;
 export type StoreType = (typeof storeTypes)[number];
 export interface ServerContext {
-  dataStore: WithMockedMethods<DataStore>;
+  dataStore: MockedDataStore;
   sessionStore: WithMockedMethods<SessionStore>;
 }
 export const dataStoreCreators = {
   async sqlite() {
     const dataStore = await SQLiteDataStore.open(':memory:');
-    return mockMethods<DataStore>(dataStore);
+    return mockDataStore(dataStore);
   },
-} satisfies Record<StoreType, () => Promise<WithMockedMethods<DataStore>>>;
+} satisfies Record<StoreType, () => Promise<MockedDataStore>>;
 export const sessionStoreCreators = {
   async sqlite() {
     return mockMethods<SessionStore>(new MemoryStore());
@@ -340,8 +345,10 @@ export function createSessionTest(
 }
 
 export type WithMockedMethods<T extends object> = {
+  // The intersection keeps the original signature, so a generic method (like
+  // withTransaction) stays generic.
   [K in keyof T]: T[K] extends (...args: never[]) => unknown
-    ? Mock<T[K]>
+    ? T[K] & Mock<T[K]>
     : T[K];
 };
 export function mockMethods<T extends object>(obj: T): WithMockedMethods<T> {
@@ -362,6 +369,58 @@ export function mockMethods<T extends object>(obj: T): WithMockedMethods<T> {
       return value;
     },
   }) as WithMockedMethods<T>;
+}
+
+/**
+ * A store whose methods are spies. `tx` holds the spies of the transaction
+ * methods: they are shared by every transaction, and call the real one.
+ */
+export type MockedDataStore = WithMockedMethods<DataStore> & {
+  tx: WithMockedMethods<DataStoreTransaction>;
+};
+export function mockDataStore(store: DataStore): MockedDataStore {
+  let current: DataStoreTransaction | undefined;
+  const txSpies = new Map<PropertyKey, Mock>();
+  // Resolved at call time: a spy keeps working across transactions.
+  const getTxSpy = (prop: PropertyKey) => {
+    let spy = txSpies.get(prop);
+    if (spy == null) {
+      spy = vi.fn((...args: unknown[]) => {
+        if (current == null) throw new Error('No transaction is active');
+        // The method name is only known at call time, and the spy stands in
+        // for every method of the transaction.
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        return (current as any)[prop](...args);
+      });
+      txSpies.set(prop, spy);
+    }
+    return spy;
+  };
+  const tx = new Proxy({}, { get: (_, prop) => getTxSpy(prop) });
+  // The proxy adds `tx` and swaps `withTransaction`, which the mapped type of
+  // WithMockedMethods cannot express.
+  return mockMethods(
+    new Proxy(store, {
+      get(target, prop) {
+        if (prop === 'tx') return tx;
+        if (prop === 'withTransaction') {
+          return (fn: (tx: DataStoreTransaction) => Promise<unknown>) =>
+            target.withTransaction(async (realTx) => {
+              const previous = current;
+              current = realTx;
+              try {
+                // The proxy only hands out spies for transaction methods.
+                return await fn(tx as DataStoreTransaction);
+              } finally {
+                current = previous;
+              }
+            });
+        }
+        const value = Reflect.get(target, prop);
+        return typeof value === 'function' ? value.bind(target) : value;
+      },
+    }),
+  ) as MockedDataStore;
 }
 
 export async function addRunToSession({

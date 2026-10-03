@@ -7,6 +7,11 @@ const dataStoreErrorCodeList = [
   'RUN_NOT_FOUND',
   'LOG_NOT_FOUND',
   'RUN_HAS_ENDED',
+  'TRANSACTION_CONFLICT',
+  'TRANSACTION_ENDED',
+  'TRANSACTION_COMMIT_FAILED',
+  'TRANSACTION_ROLLBACK_FAILED',
+  'STORE_CLOSED',
   'MIGRATION_FAILED',
   'SCHEMA_OUTDATED',
 ] as const;
@@ -15,6 +20,11 @@ type DataStoreErrorCode = (typeof dataStoreErrorCodeList)[number];
 export class DataStoreError extends ErrorWithCodes(dataStoreErrorCodeList) {
   /** The number of the conflicting log, set for LOG_NUMBER_EXISTS_IN_SEQUENCE. */
   logNumber: number | undefined;
+  /**
+   * The error that made the transaction roll back, set for
+   * TRANSACTION_ROLLBACK_FAILED (`cause` is the rollback error).
+   */
+  originalError: unknown;
   constructor(
     message: string,
     code: 'LOG_NUMBER_EXISTS_IN_SEQUENCE',
@@ -22,13 +32,21 @@ export class DataStoreError extends ErrorWithCodes(dataStoreErrorCodeList) {
   );
   constructor(
     message: string,
-    code: Exclude<DataStoreErrorCode, 'LOG_NUMBER_EXISTS_IN_SEQUENCE'>,
+    code: 'TRANSACTION_ROLLBACK_FAILED',
+    options: ErrorOptions & { originalError: unknown },
+  );
+  constructor(
+    message: string,
+    code: Exclude<
+      DataStoreErrorCode,
+      'LOG_NUMBER_EXISTS_IN_SEQUENCE' | 'TRANSACTION_ROLLBACK_FAILED'
+    >,
     options?: ErrorOptions,
   );
   constructor(
     message: string,
     code: DataStoreErrorCode,
-    options?: ErrorOptions & { logNumber?: number },
+    options?: ErrorOptions & { logNumber?: number; originalError?: unknown },
   ) {
     super(message, code, options);
     this.name = 'StoreError';
@@ -40,7 +58,14 @@ export class DataStoreError extends ErrorWithCodes(dataStoreErrorCodeList) {
     ) {
       throw new TypeError(`${code} requires the conflicting logNumber`);
     }
+    if (
+      code === 'TRANSACTION_ROLLBACK_FAILED' &&
+      (options == null || !('originalError' in options))
+    ) {
+      throw new TypeError(`${code} requires the originalError`);
+    }
     this.logNumber = options?.logNumber;
+    this.originalError = options?.originalError;
   }
 }
 
