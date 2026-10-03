@@ -19,6 +19,7 @@ function runRecord(overrides: Partial<RunRecord> = {}): RunRecord {
     runCreatedAt: new Date(0),
     firstMissingLogNumber: null,
     lastLogNumber: 0,
+    sequenceStart: 1,
     ...overrides,
   };
 }

@@ -1,0 +1,92 @@
+import type { SessionData } from 'express-session';
+import { DataStoreError } from './data-store-errors.ts';
+import type {
+  DataStore,
+  LogId,
+  NewLog,
+  RunId,
+  RunStatus,
+} from './data-store.ts';
+import { addLogsToRun, RunRejection } from './run-lifecycle.ts';
+
+/**
+ * Why logs were refused. `index` is the position of the offending log in the
+ * logs that were given.
+ */
+export type LogIntakeRejection =
+  | { code: 'RUN_NOT_FOUND'; runId: RunId }
+  | { code: 'INVALID_RUN_STATUS'; runId: RunId; status: RunStatus }
+  | { code: 'LOG_NUMBER_EXISTS'; runId: RunId; index: number; number: number }
+  | {
+      code: 'LOG_NUMBER_BEFORE_SEQUENCE_START';
+      runId: RunId;
+      index: number;
+      number: number;
+      sequenceStart: number;
+    };
+
+export type LogIntakeOutcome =
+  | { results: Array<{ logId: LogId; created: boolean }> }
+  | { rejection: LogIntakeRejection };
+
+/**
+ * Adds logs to a run in one transaction, or answers why it cannot. The run is
+ * read in the transaction adding the logs, so a run that ended or resumed
+ * since the request arrived stores none. A refused request stores nothing.
+ * Other errors, like a transaction conflict, are thrown.
+ */
+export async function addLogsToAccessibleRun(
+  store: DataStore,
+  sessionData: SessionData['data'],
+  runId: RunId,
+  logs: Array<NewLog>,
+): Promise<LogIntakeOutcome> {
+  // Checked before reading the store, so a run the session cannot access looks
+  // the same as one that does not exist.
+  if (sessionData.role !== 'host' && !sessionData.runs.includes(runId)) {
+    return { rejection: { code: 'RUN_NOT_FOUND', runId } };
+  }
+  try {
+    return {
+      results: await store.withTransaction((tx) =>
+        addLogsToRun(tx, runId, logs),
+      ),
+    };
+  } catch (e) {
+    const rejection = toRejection(e, runId, logs);
+    if (rejection === undefined) throw e;
+    return { rejection };
+  }
+}
+
+function toRejection(
+  e: unknown,
+  runId: RunId,
+  logs: Array<NewLog>,
+): LogIntakeRejection | undefined {
+  if (e instanceof RunRejection) {
+    if (e.is('RUN_NOT_FOUND')) return { code: e.code, runId };
+    if (e.is('INVALID_RUN_STATUS')) {
+      return { code: e.code, runId, status: e.facts.status };
+    }
+    if (e.is('LOG_NUMBER_BEFORE_SEQUENCE_START')) {
+      return { code: e.code, runId, ...e.facts };
+    }
+    return undefined;
+  }
+  if (
+    e instanceof DataStoreError &&
+    e.code === 'LOG_NUMBER_EXISTS_IN_SEQUENCE'
+  ) {
+    const index = logs.findIndex((log) => log.number === e.logNumber);
+    const log = logs[index];
+    if (log === undefined) {
+      throw new TypeError(
+        `DataStore reported a conflict on log number ${e.logNumber}, which is not in the logs`,
+        { cause: e },
+      );
+    }
+    return { code: 'LOG_NUMBER_EXISTS', runId, index, number: log.number };
+  }
+  return undefined;
+}

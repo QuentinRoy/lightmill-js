@@ -86,6 +86,10 @@ export interface RunRecord {
   // The highest log number in the run that isn't stranded, or 0 if there is
   // none.
   lastLogNumber: number;
+  // The first log number of the run's current log sequence: 1, or one above
+  // the log number of its last resume. The logs below it are kept from earlier
+  // sequences.
+  sequenceStart: number;
 }
 
 export interface ExperimentRecord {

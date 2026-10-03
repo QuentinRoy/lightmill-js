@@ -424,6 +424,7 @@ class Queries {
       runName: result.runName ?? null,
       firstMissingLogNumber: null,
       lastLogNumber: 0,
+      sequenceStart: 1,
     };
   }
 
@@ -493,6 +494,7 @@ class Queries {
         'run.runCreatedAt',
         'lastSequence.firstMissingLogNumber',
         'lastSequence.lastLogNumber',
+        'lastSequence.start as sequenceStart',
       ])
       .execute();
     return runs.map((run) => ({
