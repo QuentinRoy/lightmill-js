@@ -26,7 +26,7 @@
   "devDependencies": {
     "@types/throttle-debounce": "^5.0.2",
     "@vitest/ui": "catalog:",
-    "cross-env": "^7.0.3",
+    "cross-env": "^10.1.0",
     "msw": "^2.7.3",
     "onchange": "^7.1.0",
     "openapi-typescript": "^7.13.0",
