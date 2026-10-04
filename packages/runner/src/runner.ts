@@ -1,4 +1,4 @@
-import type { SuperIterator } from './types.js';
+import type { MaybeAsyncIterator, SuperIterator } from './types.js';
 
 export type TimelineRunnerParams<Task> = {
   timeline: SuperIterator<Task>;
@@ -25,7 +25,7 @@ export class TimelineRunner<Task> {
   onError?: (error: unknown) => void;
   onTimelineCompleted?: () => void;
 
-  #iterator: Iterator<Task> | AsyncIterator<Task>;
+  #iterator: MaybeAsyncIterator<Task>;
   #status:
     | 'running'
     | 'canceled'

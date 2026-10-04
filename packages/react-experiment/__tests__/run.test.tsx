@@ -352,6 +352,32 @@ describe('run', () => {
     spy.mockRestore();
   });
 
+  it('throws if no task of an async timeline matches resumeAfterTask', async () => {
+    const spy = vi.spyOn(console, 'error');
+    spy.mockImplementation(() => {});
+    render(
+      <ErrorBoundary>
+        <Run
+          resumeAfterTask={(task: Task) => task.type === 'B' && task.b === 0}
+          elements={{
+            tasks: {
+              A: <Task type="A" dataProp="a" />,
+              B: <Task type="B" dataProp="b" />,
+            },
+          }}
+          timeline={asyncTaskGen(5, [
+            { type: 'A', a: 'hello' },
+            { type: 'B', b: 42 },
+          ])}
+        />
+      </ErrorBoundary>,
+    );
+    expect(await screen.findByTestId('error')).toHaveTextContent(
+      'No task matched resumeAfterTask',
+    );
+    spy.mockRestore();
+  });
+
   it('throws an error if the same task is completed multiple times', async () => {
     const wrapper = vi.fn(
       (f: () => void, { shouldFail }: { shouldFail: boolean }) => {

@@ -6,3 +6,4 @@ export {
   TimelineRunner as Runner,
   type TimelineRunnerParams as TimelineRunnerParams,
 } from './runner.js';
+export type { MaybeAsyncIterator, SuperIterator } from './types.js';

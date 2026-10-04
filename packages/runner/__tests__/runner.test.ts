@@ -98,6 +98,40 @@ describe('TimelineRunner', () => {
     ]);
   });
 
+  it('runs an iterator that turns async partway through', async () => {
+    let i = 0;
+    const onTaskStarted = vi.fn((task: Task) => {
+      logCall('onTaskStarted', task);
+      runner.completeTask();
+    });
+    const onTimelineCompleted = vi.fn(() => logCall('onTimelineCompleted'));
+    const logCall = vi.fn();
+    const runner = new TimelineRunner<Task>({
+      timeline: {
+        next() {
+          const result: IteratorResult<Task> =
+            i < timeline.length
+              ? { done: false, value: timeline[i] }
+              : { done: true, value: undefined };
+          return i++ === 0 ? result : Promise.resolve(result);
+        },
+      },
+      onTaskStarted,
+      onTimelineCompleted,
+    });
+    runner.start();
+    expect(logCall.mock.calls).toEqual([
+      ['onTaskStarted', { type: 'typeA', dA: 1 }],
+    ]);
+    await wait();
+    expect(logCall.mock.calls).toEqual([
+      ['onTaskStarted', { type: 'typeA', dA: 1 }],
+      ['onTaskStarted', { type: 'typeB', dB: 2 }],
+      ['onTaskStarted', { type: 'typeA', dA: 3 }],
+      ['onTimelineCompleted'],
+    ]);
+  });
+
   it('maintains its status property', async () => {
     let taskDeffers = timeline.map((task) => deffer(task));
     async function* taskGen() {

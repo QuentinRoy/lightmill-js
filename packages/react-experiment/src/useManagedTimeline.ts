@@ -1,4 +1,7 @@
-import { Runner as TimelineRunner } from '@lightmill/runner';
+import {
+  type MaybeAsyncIterator,
+  Runner as TimelineRunner,
+} from '@lightmill/runner';
 import * as React from 'react';
 
 export type TimelineStatus = 'running' | 'completed' | 'loading' | 'idle';
@@ -34,18 +37,14 @@ type Options<Task extends { type: string }> = {
   resumeAfterTask?: (task: Task) => boolean;
 };
 
-type MaybeAsyncIterator<Task> = {
-  next(): IteratorResult<Task> | Promise<IteratorResult<Task>>;
-};
-
-// Skips every task up to and including the first one matching isLastDone.
+// Skips every task up to and including the first one matching resumeAfterTask.
 // It stays synchronous for as long as the timeline is, so resuming a
 // synchronous timeline never shows the loading state. Skipping in a loop
 // rather than completing each task from the runner's onTaskStarted also
 // avoids a recursion that overflows the stack on long timelines.
 function skipThrough<Task>(
   timeline: AnyIteratorOrIterable<Task>,
-  isLastDone: (task: Task) => boolean,
+  resumeAfterTask: (task: Task) => boolean,
 ): MaybeAsyncIterator<Task> {
   const iterator: MaybeAsyncIterator<Task> =
     Symbol.iterator in timeline
@@ -53,13 +52,13 @@ function skipThrough<Task>(
       : Symbol.asyncIterator in timeline
         ? timeline[Symbol.asyncIterator]()
         : timeline;
-  let found = false;
+  let skipped = false;
   const skip = (
     result: IteratorResult<Task>,
   ): IteratorResult<Task> | Promise<IteratorResult<Task>> => {
     while (!result.done) {
-      if (isLastDone(result.value)) {
-        found = true;
+      if (resumeAfterTask(result.value)) {
+        skipped = true;
         return iterator.next();
       }
       const next = iterator.next();
@@ -70,7 +69,7 @@ function skipThrough<Task>(
   };
   return {
     next() {
-      if (found) return iterator.next();
+      if (skipped) return iterator.next();
       const first = iterator.next();
       return 'then' in first ? first.then(skip) : skip(first);
     },
@@ -94,11 +93,7 @@ export default function useManagedTimeline<Task extends { type: string }>(
       timeline:
         resumeAfterTask == null
           ? options.timeline
-          : // The runner checks each next() result for a promise, so an
-            // iterator that is sync until it reaches an async task is fine.
-            (skipThrough(options.timeline, resumeAfterTask) as
-              | Iterator<Task>
-              | AsyncIterator<Task>),
+          : skipThrough(options.timeline, resumeAfterTask),
       onTimelineStarted() {
         setState({ status: 'loading' });
         optionsRef.current.onTimelineStarted?.();
