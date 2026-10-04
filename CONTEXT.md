@@ -44,3 +44,11 @@ _Avoid_: active run, open run
 
 **Idle run**:
 A run that was created but not started. It accepts no logs. It is ongoing.
+
+**Counterbalancing**:
+Varying the order of conditions across runs so order and carryover effects cancel out. Latin squares, balanced latin squares, permutations, and random orders are counterbalancing strategies.
+_Avoid_: balancing, distribution
+
+**Condition order**:
+The sequence of conditions one run goes through, as produced by counterbalancing.
+_Avoid_: row, sequence

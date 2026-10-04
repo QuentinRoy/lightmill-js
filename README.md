@@ -6,7 +6,7 @@ experiments.
 It is organized as small focused packages that can be used independently or as
 a full stack:
 
-1. Design generation and iteration.
+1. Design generation.
 2. Timeline execution.
 3. React rendering helpers.
 4. Logging API contract, client, and server.
@@ -16,6 +16,7 @@ a full stack:
 | Package                         | Description                                                 | README                                                                         |
 | ------------------------------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------ |
 | `@lightmill/convert-touchstone` | Convert TouchStone XML to an experiment design.             | [packages/convert-touchstone/README.md](packages/convert-touchstone/README.md) |
+| `@lightmill/counterbalancing`   | Generate condition orders to counterbalance runs.           | [packages/counterbalancing/README.md](packages/counterbalancing/README.md)     |
 | `@lightmill/runner`             | Execute timeline iterators with lifecycle callbacks.        | [packages/runner/README.md](packages/runner/README.md)                         |
 | `@lightmill/react-experiment`   | React `Run` component and hooks for task execution/logging. | [packages/react-experiment/README.md](packages/react-experiment/README.md)     |
 | `@lightmill/log-api`            | Shared API contract and OpenAPI artifacts for logging.      | [packages/log-api/README.md](packages/log-api/README.md)                       |
@@ -53,7 +54,7 @@ pnpm -r run test
 
 Common integration flow:
 
-1. Convert a design with `@lightmill/convert-touchstone`, or define its timelines directly.
+1. Convert a design with `@lightmill/convert-touchstone`, or define its timelines directly, using `@lightmill/counterbalancing` to order conditions.
 2. Execute tasks with `@lightmill/runner` or `@lightmill/react-experiment`.
 3. Persist logs through `@lightmill/log-client` + `@lightmill/log-server`.
 4. Use `@lightmill/log-api` as source of truth for API schemas and types.

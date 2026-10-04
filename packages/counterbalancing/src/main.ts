@@ -1,0 +1,98 @@
+/**
+ * Creates a latin square of condition orders: each condition appears once in
+ * every order and once at every position across orders.
+ *
+ * With an even number of conditions, the square is also balanced: each
+ * condition precedes every other condition equally often, which
+ * counterbalances first-order carryover effects.
+ *
+ * @param conditions The conditions to order.
+ * @param options How to build the square.
+ * @param options.balanced Whether to also balance the square with an odd
+ * number of conditions, which doubles the number of orders. Defaults to
+ * `false`.
+ * @returns One order per condition, or two when balancing an odd number (above
+ * 1) of conditions.
+ */
+export function latinSquare<T>(
+  conditions: readonly T[],
+  { balanced = false }: { balanced?: boolean } = {},
+): T[][] {
+  checkConditions(conditions);
+  const n = conditions.length;
+  // Williams' first order, 0, 1, n-1, 2, n-2, …: its successive differences
+  // are distinct mod n, so with n even, its n shifts put each condition right
+  // before every other condition exactly once.
+  const firstOrder = Array.from({ length: n }, (_, i) => {
+    if (i < 2) return i;
+    if (i % 2 === 0) return n - i / 2;
+    return Math.floor(i / 2) + 1;
+  });
+  const orders = conditions.map((_, shift) =>
+    firstOrder.map((i) => conditions[(i + shift) % n]),
+  );
+  // With an even number of conditions, the square is already balanced, and a
+  // single order trivially is.
+  if (!balanced || n % 2 === 0 || n === 1) return orders;
+  // With an odd number, adding the reversed orders balances it.
+  return [...orders, ...orders.map((order) => order.toReversed())];
+}
+
+/**
+ * Lists every order of the conditions. Complete counterbalancing needs one run
+ * per order, i.e., n! runs for n conditions.
+ *
+ * @param conditions The conditions to order.
+ * @returns Every order of the conditions.
+ */
+export function permutations<T>(conditions: readonly T[]): T[][] {
+  checkConditions(conditions);
+  return allOrders(conditions);
+}
+
+function allOrders<T>(conditions: readonly T[]): T[][] {
+  if (conditions.length <= 1) return [[...conditions]];
+  return conditions.flatMap((first, i) =>
+    allOrders(conditions.toSpliced(i, 1)).map((rest) => [first, ...rest]),
+  );
+}
+
+/**
+ * Shuffles the conditions independently for each order.
+ *
+ * @param conditions The conditions to order.
+ * @param options How many orders to create, and how.
+ * @param options.count The number of orders to create.
+ * @param options.random Returns a number in [0, 1). Pass a seeded generator to
+ * reproduce the orders. Defaults to `Math.random`.
+ * @returns `count` orders.
+ */
+export function randomOrders<T>(
+  conditions: readonly T[],
+  { count, random = Math.random }: { count: number; random?: () => number },
+): T[][] {
+  checkConditions(conditions);
+  if (!Number.isInteger(count) || count < 0) {
+    throw new RangeError(`count must be a non-negative integer, got ${count}`);
+  }
+  return Array.from({ length: count }, () => {
+    const order = [...conditions];
+    // Fisher–Yates shuffle.
+    for (let i = order.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(random() * (i + 1));
+      [order[i], order[j]] = [order[j], order[i]];
+    }
+    return order;
+  });
+}
+
+function checkConditions(conditions: readonly unknown[]) {
+  if (conditions.length === 0) {
+    throw new TypeError('conditions must not be empty');
+  }
+  // A condition listed twice is most likely a mistake, and would produce orders
+  // that look counterbalanced but are not.
+  if (new Set(conditions).size !== conditions.length) {
+    throw new TypeError('conditions must not contain duplicates');
+  }
+}

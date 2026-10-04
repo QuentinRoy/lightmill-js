@@ -9,6 +9,10 @@
 		"path": "../packages/convert-touchstone"
 	},
 	{
+		"name": "packages/counterbalancing",
+		"path": "../packages/counterbalancing"
+	},
+	{
 		"name": "packages/react-experiment",
 		"path": "../packages/react-experiment"
 	},
