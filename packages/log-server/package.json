@@ -65,7 +65,7 @@
     "express-session": "^1.19.0",
     "kysely": "^0.28.2",
     "loglevel": "^1.9.2",
-    "memorystore": "^1.6.7",
+    "memorystore": "^1.6.8",
     "remeda": "^2.21.8",
     "yargs": "17.7.2",
     "zod": "^3.25.7"
