@@ -1,7 +1,11 @@
+import {
+  atomicMediaType,
+  mediaType,
+  userRoles,
+} from '@lightmill/log-api/vocabulary';
 import type { Store as SessionStore } from 'express-session';
 import request from 'supertest';
 import { beforeEach, describe, expect } from 'vitest';
-import { apiMediaType, atomicMediaType } from '../src/api.ts';
 import { DataStoreError } from '../src/data-store-errors.ts';
 import type { ExperimentId, RunId, RunStatus } from '../src/data-store.ts';
 import { fromAsync } from '../src/utils.ts';
@@ -32,7 +36,7 @@ function createTest(storeType: StoreType) {
     experimentId: async ({ hostApi }, use) => {
       const response = await hostApi
         .post('/experiments')
-        .set('Content-Type', apiMediaType)
+        .set('Content-Type', mediaType)
         .send({
           data: {
             type: 'experiments',
@@ -47,7 +51,7 @@ function createTest(storeType: StoreType) {
     runId: async ({ experimentId, participantApi }, use) => {
       const response = await participantApi
         .post('/runs')
-        .set('Content-Type', apiMediaType)
+        .set('Content-Type', mediaType)
         .send({
           data: {
             type: 'runs',
@@ -75,7 +79,7 @@ function createTest(storeType: StoreType) {
       const api = request.agent(app).host('lightmill-test.com');
       await api
         .post('/sessions')
-        .set('Content-Type', apiMediaType)
+        .set('Content-Type', mediaType)
         .send({
           data: { type: 'sessions', attributes: { role: 'participant' } },
         })
@@ -88,7 +92,7 @@ function createTest(storeType: StoreType) {
       const api = request.agent(app).host('lightmill-test.com');
       await api
         .post('/sessions')
-        .set('Content-Type', apiMediaType)
+        .set('Content-Type', mediaType)
         .send({ data: { type: 'sessions', attributes: { role: 'host' } } })
         .expect(201);
       use(api);
@@ -118,7 +122,7 @@ function completeRunBeforeNextTransaction(
 const resumeAfter = (api: request.Agent, runId: RunId, lastLogNumber: number) =>
   api
     .patch(`/runs/${runId}`)
-    .set('Content-Type', apiMediaType)
+    .set('Content-Type', mediaType)
     .send({ data: { id: runId, type: 'runs', attributes: { lastLogNumber } } })
     .expect(200);
 
@@ -131,13 +135,13 @@ const nonRunningStatuses = [
 
 describe.each(storeTypes)('LogServer: post /logs (%s)', (storeType) => {
   const it = createTest(storeType);
-  it.for(['host', 'participant'] as const)(
+  it.for(userRoles)(
     'adds a log (%s user)',
     async (userType, { expect, participantApi, runId, dataStore }) => {
       const api = userType === 'host' ? participantApi : participantApi;
       const response = await api
         .post('/logs')
-        .set('Content-Type', apiMediaType)
+        .set('Content-Type', mediaType)
         .send({
           data: {
             type: 'logs',
@@ -168,7 +172,7 @@ describe.each(storeTypes)('LogServer: post /logs (%s)', (storeType) => {
     const post = (values: object) =>
       participantApi
         .post('/logs')
-        .set('Content-Type', apiMediaType)
+        .set('Content-Type', mediaType)
         .send({
           data: {
             type: 'logs',
@@ -193,7 +197,7 @@ describe.each(storeTypes)('LogServer: post /logs (%s)', (storeType) => {
   }) => {
     const response = await hostApi
       .post('/runs')
-      .set('Content-Type', apiMediaType)
+      .set('Content-Type', mediaType)
       .send({
         data: {
           type: 'runs',
@@ -207,7 +211,7 @@ describe.each(storeTypes)('LogServer: post /logs (%s)', (storeType) => {
     expect(response.body.data.id).toBeDefined();
     await participantApi
       .post('/logs')
-      .set('Content-Type', apiMediaType)
+      .set('Content-Type', mediaType)
       .send({
         data: {
           type: 'logs',
@@ -242,7 +246,7 @@ describe.each(storeTypes)('LogServer: post /logs (%s)', (storeType) => {
     );
     await hostApi
       .post('/logs')
-      .set('Content-Type', apiMediaType)
+      .set('Content-Type', mediaType)
       .send({
         data: {
           type: 'logs',
@@ -253,13 +257,13 @@ describe.each(storeTypes)('LogServer: post /logs (%s)', (storeType) => {
       .expect(201);
   });
 
-  it.for(['host', 'participant'] as const)(
+  it.for(userRoles)(
     'refuses to add logs to a run that does not exist (%s user)',
     async (userType, { expect, dataStore, participantApi, hostApi }) => {
       const api = userType === 'host' ? hostApi : participantApi;
       await api
         .post('/logs')
-        .set('Content-Type', apiMediaType)
+        .set('Content-Type', mediaType)
         .send({
           data: {
             type: 'logs',
@@ -290,7 +294,7 @@ describe.each(storeTypes)('LogServer: post /logs (%s)', (storeType) => {
       dataStore.tx.addLogs.mockClear();
       await participantApi
         .post('/logs')
-        .set('Content-Type', apiMediaType)
+        .set('Content-Type', mediaType)
         .send({
           data: {
             type: 'logs',
@@ -324,7 +328,7 @@ describe.each(storeTypes)('LogServer: post /logs (%s)', (storeType) => {
     dataStore.tx.addLogs.mockClear();
     await participantApi
       .post('/logs')
-      .set('Content-Type', apiMediaType)
+      .set('Content-Type', mediaType)
       .send({
         data: {
           type: 'logs',
@@ -350,7 +354,7 @@ describe.each(storeTypes)('LogServer: post /logs (%s)', (storeType) => {
     completeRunBeforeNextTransaction(dataStore, runId);
     await participantApi
       .post('/logs')
-      .set('Content-Type', apiMediaType)
+      .set('Content-Type', mediaType)
       .send({
         data: {
           type: 'logs',
@@ -365,7 +369,7 @@ describe.each(storeTypes)('LogServer: post /logs (%s)', (storeType) => {
     await expect(fromAsync(dataStore.getLogs({ runId }))).resolves.toEqual([]);
   });
 
-  it.for(['host', 'participant'] as const)(
+  it.for(userRoles)(
     'refuses to add logs if their number is already in used (%s user)',
     async (userType, { participantApi, hostApi, dataStore, runId }) => {
       const api = userType === 'host' ? hostApi : participantApi;
@@ -378,7 +382,7 @@ describe.each(storeTypes)('LogServer: post /logs (%s)', (storeType) => {
       });
       await api
         .post('/logs')
-        .set('Content-Type', apiMediaType)
+        .set('Content-Type', mediaType)
         .send({
           data: {
             type: 'logs',
@@ -409,7 +413,7 @@ describe.each(storeTypes)('LogServer: post /logs (%s)', (storeType) => {
   ) =>
     api
       .post('/logs')
-      .set('Content-Type', apiMediaType)
+      .set('Content-Type', mediaType)
       .send({
         data: {
           type: 'logs',
@@ -503,7 +507,7 @@ describe.each(storeTypes)('LogServer: post /operations (%s)', (storeType) => {
     const [second, first] = response.body['atomic:results'];
     const logs = await participantApi
       .get('/logs')
-      .set('Accept', apiMediaType)
+      .set('Accept', mediaType)
       .expect(200);
     const numberOf = (id: string) =>
       logs.body.data.find((l: { id: string }) => l.id === id).attributes.number;
@@ -684,7 +688,7 @@ describe.each(storeTypes)('LogServer: post /operations (%s)', (storeType) => {
   }) => {
     await participantApi
       .patch(`/runs/${runId}`)
-      .set('Content-Type', apiMediaType)
+      .set('Content-Type', mediaType)
       .send({
         data: { id: runId, type: 'runs', attributes: { status: 'completed' } },
       })
@@ -819,7 +823,7 @@ describe.each(storeTypes)('LogServer: post /operations (%s)', (storeType) => {
   it('refuses an unknown extension', async ({ participantApi, runId }) => {
     await participantApi
       .post('/operations')
-      .set('Content-Type', `${apiMediaType};ext="https://example.com/ext"`)
+      .set('Content-Type', `${mediaType};ext="https://example.com/ext"`)
       .send({ 'atomic:operations': [add(runId, 1)] })
       .expect(415);
   });
@@ -831,7 +835,7 @@ describe.each(storeTypes)('LogServer: post /operations (%s)', (storeType) => {
     const body = { 'atomic:operations': [add(runId, 1)] };
     await participantApi
       .post('/operations')
-      .set('Content-Type', apiMediaType)
+      .set('Content-Type', mediaType)
       .send(body)
       .expect(415);
     await participantApi
@@ -880,7 +884,7 @@ describe.each(storeTypes)('LogServer: get /logs (%s)', (storeType) => {
   }) => {
     let result = await hostApi
       .get('/logs')
-      .set('Accept', apiMediaType)
+      .set('Accept', mediaType)
       .expect(200)
       .expect('Content-Type', apiContentTypeRegExp);
     expect(result.body).toMatchSnapshot();
@@ -900,7 +904,7 @@ describe.each(storeTypes)('LogServer: get /logs (%s)', (storeType) => {
   it('respects the q weighting factor', async ({ expect, hostApi }) => {
     let result = await hostApi
       .get('/logs')
-      .set('Accept', `text/csv;q=0.1,${apiMediaType};q=0.9`)
+      .set('Accept', `text/csv;q=0.1,${mediaType};q=0.9`)
       .expect(200)
       .expect('Content-Type', apiContentTypeRegExp);
     expect(result.text).toMatchSnapshot();
@@ -926,7 +930,7 @@ describe.each(storeTypes)('LogServer: get /logs (%s)', (storeType) => {
     participantApi,
   }) => {
     let result = await participantApi
-      .set('Accept', apiMediaType)
+      .set('Accept', mediaType)
       .get('/logs')
       .expect(200)
       .expect('Content-Type', apiContentTypeRegExp);
@@ -1023,7 +1027,7 @@ describe.each(storeTypes)('LogServer: get /logs (%s)', (storeType) => {
       const response = await hostApi
         .get('/logs')
         .query({ 'filter[logType]': 'test-type' })
-        .set('Accept', format === 'json' ? apiMediaType : 'text/csv')
+        .set('Accept', format === 'json' ? mediaType : 'text/csv')
         .expect(200);
       expect(
         format === 'json' ? response.body : response.text,
@@ -1037,7 +1041,7 @@ describe.each(storeTypes)('LogServer: get /logs (%s)', (storeType) => {
       const response = await hostApi
         .get('/logs')
         .query({ 'filter[experiment.id]': testExperimentId })
-        .set('Accept', format === 'json' ? apiMediaType : 'text/csv')
+        .set('Accept', format === 'json' ? mediaType : 'text/csv')
         .expect(200);
 
       expect(
@@ -1051,7 +1055,7 @@ describe.each(storeTypes)('LogServer: get /logs (%s)', (storeType) => {
     async (format, { expect, hostApi, context: { testExperimentName } }) => {
       const response = await hostApi
         .get('/logs')
-        .set('Accept', format === 'json' ? apiMediaType : 'text/csv')
+        .set('Accept', format === 'json' ? mediaType : 'text/csv')
         .query({ 'filter[experiment.name]': testExperimentName })
         .expect(200);
 
@@ -1066,7 +1070,7 @@ describe.each(storeTypes)('LogServer: get /logs (%s)', (storeType) => {
     async (format, { expect, hostApi, context: { testRunId } }) => {
       const response = await hostApi
         .get('/logs')
-        .set('Accept', format === 'json' ? apiMediaType : 'text/csv')
+        .set('Accept', format === 'json' ? mediaType : 'text/csv')
         .query({ 'filter[run.id]': testRunId })
         .expect(200);
 
@@ -1081,7 +1085,7 @@ describe.each(storeTypes)('LogServer: get /logs (%s)', (storeType) => {
     async (format, { expect, hostApi, context: { testRunName } }) => {
       const response = await hostApi
         .get('/logs')
-        .set('Accept', format === 'json' ? apiMediaType : 'text/csv')
+        .set('Accept', format === 'json' ? mediaType : 'text/csv')
         .query({ 'filter[run.name]': testRunName })
         .expect(200);
 
@@ -1099,7 +1103,7 @@ describe.each(storeTypes)('LogServer: get /logs (%s)', (storeType) => {
     ) => {
       const response = await hostApi
         .get('/logs')
-        .set('Accept', format === 'json' ? apiMediaType : 'text/csv')
+        .set('Accept', format === 'json' ? mediaType : 'text/csv')
         .query({
           'filter[logType]': 'test-type',
           'filter[experiment.name]': testExperimentName,

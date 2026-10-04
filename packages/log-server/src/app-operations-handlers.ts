@@ -1,5 +1,5 @@
+import { atomicMediaType } from '@lightmill/log-api/vocabulary';
 import {
-  atomicMediaType,
   getErrorResponse,
   getLogIntakeErrorResponse,
   toNewLog,

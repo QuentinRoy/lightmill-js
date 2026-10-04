@@ -1,10 +1,10 @@
 /* eslint-disable no-empty-pattern */
+import { mediaType } from '@lightmill/log-api/vocabulary';
 import express from 'express';
 import type { Store as SessionStore } from 'express-session';
 import { prop, sortBy } from 'remeda';
 import request from 'supertest';
 import { test as baseTest, beforeEach, describe, vi } from 'vitest';
-import { apiMediaType } from '../src/api.ts';
 import type { DataStore, ExperimentId, RunStatus } from '../src/data-store.ts';
 import { fromAsync } from '../src/utils.ts';
 import {
@@ -43,7 +43,7 @@ const suite = storeTypes
         const api = request.agent(await listen(app)).host(host);
         await api
           .post('/sessions')
-          .set('content-type', apiMediaType)
+          .set('content-type', mediaType)
           .send({
             data: { type: 'sessions', attributes: { role: sessionType } },
           })
@@ -74,7 +74,7 @@ describeForAll(
       ) => {
         const response = await api
           .post('/runs')
-          .set('content-type', apiMediaType)
+          .set('content-type', mediaType)
           .send({
             data: {
               type: 'runs',
@@ -171,7 +171,7 @@ describeForAll(
       async (status, { expect, context: { api, dataStore, experimentId } }) => {
         await api
           .post('/runs')
-          .set('content-type', apiMediaType)
+          .set('content-type', mediaType)
           .send({
             data: {
               type: 'runs',
@@ -200,7 +200,7 @@ describeForAll(
     }) => {
       await api
         .post('/runs')
-        .set('content-type', apiMediaType)
+        .set('content-type', mediaType)
         .send({
           data: {
             type: 'runs',
@@ -239,7 +239,7 @@ describeForAll(
             },
           },
         })
-        .set('content-type', apiMediaType)
+        .set('content-type', mediaType)
         .expect(409, {
           errors: [
             {
@@ -405,7 +405,7 @@ describeForAll(
     }) => {
       await api
         .patch('/runs/does-not-exist')
-        .set('content-type', apiMediaType)
+        .set('content-type', mediaType)
         .send({
           data: {
             id: 'does-not-exist',
@@ -429,7 +429,7 @@ describeForAll(
         );
         await api
           .patch(`/runs/${runId}`)
-          .set('content-type', apiMediaType)
+          .set('content-type', mediaType)
           .send({
             data: {
               id: runId,
@@ -452,7 +452,7 @@ describeForAll(
         );
         await api
           .patch(`/runs/${runId}`)
-          .set('content-type', apiMediaType)
+          .set('content-type', mediaType)
           .send({
             data: {
               id: runId,
@@ -475,7 +475,7 @@ describeForAll(
       await addRunToSession({ api, runId, sessionStore });
       await api
         .patch(`/runs/${runId}`)
-        .set('content-type', apiMediaType)
+        .set('content-type', mediaType)
         .send({
           data: { id: runId, type: 'runs', attributes: { status: 'running' } },
         })
@@ -494,7 +494,7 @@ describeForAll(
       await addRunToSession({ api, runId, sessionStore });
       await api
         .patch(`/runs/${runId}`)
-        .set('content-type', apiMediaType)
+        .set('content-type', mediaType)
         .send({
           data: { id: runId, type: 'runs', attributes: { status: 'running' } },
         })
@@ -523,14 +523,14 @@ describeForAll(
       await addRunToSession({ api, runId: runRecord.runId, sessionStore });
       await api
         .patch(`/runs/${runRecord.runId}`)
-        .set('content-type', apiMediaType)
+        .set('content-type', mediaType)
         .send({ data: { id: runRecord.runId, type: 'runs' } })
         .expect(200);
       const [r1] = await dataStore.getRuns({ runId: runRecord.runId });
       expect(r1).toEqual(runRecord);
       await api
         .patch(`/runs/${runRecord.runId}`)
-        .set('content-type', apiMediaType)
+        .set('content-type', mediaType)
         .send({ data: { id: runRecord.runId, type: 'runs', attributes: {} } })
         .expect(200);
       const [r2] = await dataStore.getRuns({ runId: runRecord.runId });
@@ -554,7 +554,7 @@ describeForAll(
       await addRunToSession({ api, runId: runRecord.runId, sessionStore });
       let answer = await api
         .patch(`/runs/${runRecord.runId}`)
-        .set('content-type', apiMediaType)
+        .set('content-type', mediaType)
         .send({
           data: {
             id: runRecord.runId,
@@ -594,7 +594,7 @@ describeForAll(
       });
       await api
         .patch(`/runs/${runId}`)
-        .set('content-type', apiMediaType)
+        .set('content-type', mediaType)
         .send({
           data: {
             id: runId,
@@ -634,7 +634,7 @@ describeForAll(
       await addRunToSession({ api, runId: runId, sessionStore });
       await api
         .patch(`/runs/${runId}`)
-        .set('content-type', apiMediaType)
+        .set('content-type', mediaType)
         .send({
           data: { id: runId, type: 'runs', attributes: { lastLogNumber: 2 } },
         })
@@ -670,7 +670,7 @@ describeForAll(
         await addRunToSession({ api, runId, sessionStore });
         await api
           .patch(`/runs/${runId}`)
-          .set('content-type', apiMediaType)
+          .set('content-type', mediaType)
           .send({
             data: { id: runId, type: 'runs', attributes: { lastLogNumber: 1 } },
           })
@@ -718,7 +718,7 @@ describeForAll(
       await addRunToSession({ api, runId, sessionStore });
       await api
         .patch(`/runs/${runId}`)
-        .set('content-type', apiMediaType)
+        .set('content-type', mediaType)
         .send({
           data: {
             id: runId,
@@ -752,7 +752,7 @@ describeForAll(
       await addRunToSession({ api, runId, sessionStore });
       await api
         .patch(`/runs/${runId}`)
-        .set('content-type', apiMediaType)
+        .set('content-type', mediaType)
         .send({
           data: { id: runId, type: 'runs', attributes: { lastLogNumber: 10 } },
         })
@@ -797,7 +797,7 @@ describeForAll(
         await addRunToSession({ api, runId, sessionStore });
         await api
           .patch(`/runs/${runId}`)
-          .set('content-type', apiMediaType)
+          .set('content-type', mediaType)
           .send({
             data: {
               id: runId,
@@ -834,7 +834,7 @@ describeForAll(
       await addRunToSession({ api, runId, sessionStore });
       await api
         .patch(`/runs/${runId}`)
-        .set('content-type', apiMediaType)
+        .set('content-type', mediaType)
         .send({
           data: {
             id: runId,
@@ -853,7 +853,7 @@ describeForAll(
       ) =>
         api
           .patch(`/runs/${runId}`)
-          .set('content-type', apiMediaType)
+          .set('content-type', mediaType)
           .send({ data: { id: runId, type: 'runs', ...data } });
 
       it('refuses to change the id', async ({
@@ -976,7 +976,7 @@ describeForAll(
       dataStore.tx.setRunStatus.mockRejectedValueOnce(new Error('disk full'));
       await api
         .patch(`/runs/${runId}`)
-        .set('content-type', apiMediaType)
+        .set('content-type', mediaType)
         .send({
           data: {
             id: runId,
@@ -1005,7 +1005,7 @@ describeForAll(
       await addRunToSession({ api, runId: idle.runId, sessionStore });
       await api
         .patch(`/runs/${idle.runId}`)
-        .set('content-type', apiMediaType)
+        .set('content-type', mediaType)
         .send({
           data: {
             id: idle.runId,
@@ -1031,7 +1031,7 @@ describeForAll(
       await addRunToSession({ api, runId: other.runId, sessionStore });
       await api
         .patch(`/runs/${other.runId}`)
-        .set('content-type', apiMediaType)
+        .set('content-type', mediaType)
         .send({
           data: {
             id: other.runId,
@@ -1056,7 +1056,7 @@ describeForAll(
       const update = (status: RunStatus) =>
         api
           .patch(`/runs/${runId}`)
-          .set('content-type', apiMediaType)
+          .set('content-type', mediaType)
           .send({ data: { id: runId, type: 'runs', attributes: { status } } });
       // Neither of completed and interrupted can follow the other.
       const [completed, interrupted] = await Promise.all([

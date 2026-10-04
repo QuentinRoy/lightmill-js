@@ -1,4 +1,5 @@
-import { getErrorResponse, getRunResources, type UserRole } from './api.ts';
+import { type UserRole } from '@lightmill/log-api/vocabulary';
+import { getErrorResponse, getRunResources } from './api.ts';
 import { type DataStore, type RunId } from './data-store.ts';
 import type { PathHandlers } from './router.ts';
 import { arrayify, checkBasicAuth } from './utils.ts';
