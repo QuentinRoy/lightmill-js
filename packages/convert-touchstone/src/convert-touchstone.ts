@@ -55,23 +55,23 @@ type DefinedMapperOptions<T> = {
  *
  * @example
  * // Map each run to a task to insert before the trials of the run.
- * const preRuns = (run, experiment) => ({
+ * const preRun = (run, experiment) => ({
  *   ...run,
  *   type: 'pre-run'
  * });
  * // Mappers can also be strings...
- * const postRuns = 'post-run';  // This is the same as above.
+ * const postRun = 'post-run';  // This is the same as above.
  * // ...arrays of string (if several tasks need to be inserted)...
- * const preBlocks = [
+ * const preBlock = [
  *   'pre-block-1',
  *   'pre-block-2',
  * ];
  * // ...or functions that returns Task or array of Tasks.
- * const postBlocks = (block, run, experiment) => [
+ * const postBlock = (block, run, experiment) => [
  *   { type: 'post-block-1', runId: run.id, id: getId(block, run, experiment) },
  *   { ...block , type: 'post-block-2', id: getId(block, run, experiment) }
  * ];
- * convertTouchStone(data, { preBlocks, postBlocks, postRuns, preRuns })
+ * convertTouchstone(data, { preBlock, postBlock, postRun, preRun })
  *   .then(doSomething);
  */
 export default function convertTouchstone<T extends MinimalTask>(
