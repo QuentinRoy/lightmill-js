@@ -27,12 +27,8 @@ export class TimelineRunner<Task> {
 
   #iterator: MaybeAsyncIterator<Task>;
   #status:
-    | 'running'
-    | 'canceled'
-    | 'completed'
-    | 'idle'
-    | 'loading'
-    | 'crashed' = 'idle';
+    'running' | 'canceled' | 'completed' | 'idle' | 'loading' | 'crashed' =
+    'idle';
   #currentTask: Task | null = null;
   #taskStartedCall: 'none' | 'active' | 'completed' = 'none';
 

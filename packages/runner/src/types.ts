@@ -5,6 +5,4 @@ export type MaybeAsyncIterator<I> = {
 };
 
 export type SuperIterator<I> =
-  | MaybeAsyncIterator<I>
-  | Iterable<I>
-  | AsyncIterable<I>;
+  MaybeAsyncIterator<I> | Iterable<I> | AsyncIterable<I>;

@@ -220,8 +220,7 @@ export async function createServerContext<
 ): Promise<ServerFromStores<ThisDataStore, ThisSessionStore, 'custom'>>;
 export async function createServerContext(
   options: (
-    | { dataStore: DataStore; sessionStore: SessionStore }
-    | { type: StoreType }
+    { dataStore: DataStore; sessionStore: SessionStore } | { type: StoreType }
   ) &
     CreateServerBaseOptions,
 ) {

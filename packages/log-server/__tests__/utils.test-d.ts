@@ -171,8 +171,7 @@ describe('EntryAsObject', () => {
   it('handles optional properties', () => {
     type WithOptional = { id: number; name?: string };
     type Expected =
-      | { key: 'id'; value: number }
-      | { key: 'name'; value: string | undefined };
+      { key: 'id'; value: number } | { key: 'name'; value: string | undefined };
     type Actual = EntryAsObject<WithOptional>;
     expectTypeOf<Actual>().toEqualTypeOf<Expected>();
   });

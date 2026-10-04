@@ -4,8 +4,7 @@ export type Experiment = { author: string; description: string; id: string };
 export type WithId = { id: string };
 export type Run<T extends MinimalTask> = { id: string; timeline: Array<T> };
 export type Trial = (
-  | { practice: false; number: number; blockNumber: number }
-  | { practice: true }
+  { practice: false; number: number; blockNumber: number } | { practice: true }
 ) &
   FactorValues;
 export type Block = ({ practice: false; number: number } | { practice: true }) &
@@ -33,9 +32,7 @@ type Mapper<FArgs extends MapperArgs, T> =
   | Array<string | T>
   | ((...args: FArgs) => string | T | Array<string | T>);
 type DefinedMapper<FArgs extends MapperArgs, T> =
-  | ((...args: FArgs) => T | Array<T>)
-  | T
-  | Array<T>;
+  ((...args: FArgs) => T | Array<T>) | T | Array<T>;
 type MapperOptions<T> = {
   preBlock?: Mapper<[Block, WithId, Experiment], T>;
   postBlock?: Mapper<[Block, WithId, Experiment], T>;
