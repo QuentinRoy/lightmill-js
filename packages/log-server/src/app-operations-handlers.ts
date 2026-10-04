@@ -68,6 +68,7 @@ export const operationHandlers = (): PathHandlers<'/operations'> => ({
         );
       }
       return {
+        status: 200,
         contentType: atomicMediaType,
         body: {
           'atomic:results': outcome.results.map(({ logId }) => ({
