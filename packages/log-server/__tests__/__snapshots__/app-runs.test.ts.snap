@@ -1,6 +1,6 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`LogServer: get /runs ('host' / 'sqlite') > returns a 200 with all runs 1`] = `
+exports[`LogServer: get /runs (host / sqlite) > returns a 200 with all runs 1`] = `
 {
   "data": [
     {
@@ -59,7 +59,7 @@ exports[`LogServer: get /runs ('host' / 'sqlite') > returns a 200 with all runs 
 }
 `;
 
-exports[`LogServer: get /runs ('host' / 'sqlite') > returns a 200 with all runs with requested related experiment 1`] = `
+exports[`LogServer: get /runs (host / sqlite) > returns a 200 with all runs with requested related experiment 1`] = `
 {
   "data": [
     {
@@ -155,7 +155,7 @@ exports[`LogServer: get /runs ('host' / 'sqlite') > returns a 200 with all runs 
 }
 `;
 
-exports[`LogServer: get /runs ('host' / 'sqlite') > returns a 200 with all runs with requested related lastLogs 1`] = `
+exports[`LogServer: get /runs (host / sqlite) > returns a 200 with all runs with requested related lastLogs 1`] = `
 {
   "data": [
     {
@@ -275,7 +275,7 @@ exports[`LogServer: get /runs ('host' / 'sqlite') > returns a 200 with all runs 
 }
 `;
 
-exports[`LogServer: get /runs ('host' / 'sqlite') > returns a 200 with all runs with requested related lastLogs and experiment 1`] = `
+exports[`LogServer: get /runs (host / sqlite) > returns a 200 with all runs with requested related lastLogs and experiment 1`] = `
 {
   "data": [
     {
@@ -409,7 +409,7 @@ exports[`LogServer: get /runs ('host' / 'sqlite') > returns a 200 with all runs 
 }
 `;
 
-exports[`LogServer: get /runs ('participant' / 'sqlite') > returns a 200 with participant-owned runs 1`] = `
+exports[`LogServer: get /runs (participant / sqlite) > returns a 200 with participant-owned runs 1`] = `
 {
   "data": [
     {
@@ -442,7 +442,7 @@ exports[`LogServer: get /runs ('participant' / 'sqlite') > returns a 200 with pa
 }
 `;
 
-exports[`LogServer: get /runs ('participant' / 'sqlite') > returns a 200 with participant-owned runs with requested related experiment 1`] = `
+exports[`LogServer: get /runs (participant / sqlite) > returns a 200 with participant-owned runs with requested related experiment 1`] = `
 {
   "data": [
     {
@@ -484,7 +484,7 @@ exports[`LogServer: get /runs ('participant' / 'sqlite') > returns a 200 with pa
 }
 `;
 
-exports[`LogServer: get /runs ('participant' / 'sqlite') > returns a 200 with participant-owned runs with requested related lastLogs 1`] = `
+exports[`LogServer: get /runs (participant / sqlite) > returns a 200 with participant-owned runs with requested related lastLogs 1`] = `
 {
   "data": [
     {
@@ -538,7 +538,7 @@ exports[`LogServer: get /runs ('participant' / 'sqlite') > returns a 200 with pa
 }
 `;
 
-exports[`LogServer: get /runs ('participant' / 'sqlite') > returns a 200 with participant-owned runs with requested related lastLogs and experiment 1`] = `
+exports[`LogServer: get /runs (participant / sqlite) > returns a 200 with participant-owned runs with requested related lastLogs and experiment 1`] = `
 {
   "data": [
     {
@@ -599,7 +599,7 @@ exports[`LogServer: get /runs ('participant' / 'sqlite') > returns a 200 with pa
 }
 `;
 
-exports[`LogServer: patch /runs/:run ('host' / 'sqlite') > refuses to complete a run if there are missing logs 1`] = `
+exports[`LogServer: patch /runs/:run (host / sqlite) > refuses to complete a run if there are missing logs 1`] = `
 {
   "errors": [
     {
@@ -611,7 +611,7 @@ exports[`LogServer: patch /runs/:run ('host' / 'sqlite') > refuses to complete a
 }
 `;
 
-exports[`LogServer: patch /runs/:run ('participant' / 'sqlite') > refuses to complete a run if there are missing logs 1`] = `
+exports[`LogServer: patch /runs/:run (participant / sqlite) > refuses to complete a run if there are missing logs 1`] = `
 {
   "errors": [
     {
