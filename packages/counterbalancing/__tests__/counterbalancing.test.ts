@@ -55,6 +55,10 @@ describe('balancedLatinSquare', () => {
       ['C', 'B', 'D', 'A', 'E'],
     ]);
   });
+
+  it('returns a single order for a single condition', () => {
+    expect(balancedLatinSquare(['A'])).toEqual([['A']]);
+  });
 });
 
 describe('permutations', () => {
@@ -116,6 +120,14 @@ describe('randomOrders', () => {
   it('returns no orders when count is 0', () => {
     expect(randomOrders(['A', 'B'], { count: 0 })).toEqual([]);
   });
+
+  it('rejects empty conditions', () => {
+    expect(() => randomOrders([], { count: 1 })).toThrow(TypeError);
+  });
+
+  it.each([-1, 1.5, NaN])('rejects a count of %s', (count) => {
+    expect(() => randomOrders(['A', 'B'], { count })).toThrow(RangeError);
+  });
 });
 
 describe.each([
@@ -129,15 +141,5 @@ describe.each([
 
   it('rejects duplicate conditions', () => {
     expect(() => strategy(['A', 'B', 'A'])).toThrow(TypeError);
-  });
-});
-
-describe('randomOrders', () => {
-  it('rejects empty conditions', () => {
-    expect(() => randomOrders([], { count: 1 })).toThrow(TypeError);
-  });
-
-  it.each([-1, 1.5, NaN])('rejects a count of %s', (count) => {
-    expect(() => randomOrders(['A', 'B'], { count })).toThrow(RangeError);
   });
 });

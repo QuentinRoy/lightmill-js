@@ -31,12 +31,12 @@ const order = orders[runIndex % orders.length];
 
 ## API Reference
 
-| Function                                       | Orders returned                                                                                                                                   |
-| ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `latinSquare(conditions)`                      | n. Each condition appears once at every position. Balanced when n is even.                                                                        |
-| `balancedLatinSquare(conditions)`              | n, or 2n when n is odd. Each condition also precedes every other one equally often, which counterbalances first-order carryover effects.          |
-| `permutations(conditions)`                     | n!, every order.                                                                                                                                  |
-| `randomOrders(conditions, { count, random? })` | `count` independent shuffles. `random` returns a number in [0, 1) and defaults to `Math.random`; pass a seeded generator to reproduce the orders. |
+| Function                                       | Orders returned                                                                                                                                      |
+| ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `latinSquare(conditions)`                      | n. Each condition appears once at every position. Balanced when n is even.                                                                           |
+| `balancedLatinSquare(conditions)`              | n, or 2n when n is odd and above 1. Each condition also precedes every other one equally often, which counterbalances first-order carryover effects. |
+| `permutations(conditions)`                     | n!, every order.                                                                                                                                     |
+| `randomOrders(conditions, { count, random? })` | `count` independent shuffles. `random` returns a number in [0, 1) and defaults to `Math.random`; pass a seeded generator to reproduce the orders.    |
 
 `n` is the number of conditions. Every function throws a `TypeError` when
 `conditions` is empty. All but `randomOrders` also throw a `TypeError` when

@@ -11,13 +11,16 @@
 export function latinSquare<T>(conditions: readonly T[]): T[][] {
   checkConditions(conditions);
   const n = conditions.length;
-  const firstRow = Array.from({ length: n }, (_, i) => {
+  // Williams' first order, 0, 1, n-1, 2, n-2, …: its successive differences
+  // are distinct mod n, so with n even, its n shifts put each condition right
+  // before every other condition exactly once.
+  const firstOrder = Array.from({ length: n }, (_, i) => {
     if (i < 2) return i;
     if (i % 2 === 0) return n - i / 2;
     return Math.floor(i / 2) + 1;
   });
   return conditions.map((_, shift) =>
-    firstRow.map((i) => conditions[(i + shift) % n]),
+    firstOrder.map((i) => conditions[(i + shift) % n]),
   );
 }
 
@@ -27,11 +30,13 @@ export function latinSquare<T>(conditions: readonly T[]): T[][] {
  * counterbalances first-order carryover effects.
  *
  * @param conditions The conditions to order.
- * @returns One order per condition, or two with an odd number of conditions.
+ * @returns One order per condition, or two with an odd number (above 1) of
+ * conditions.
  */
 export function balancedLatinSquare<T>(conditions: readonly T[]): T[][] {
   const orders = latinSquare(conditions);
-  if (conditions.length % 2 === 0) return orders;
+  // A single order is trivially balanced.
+  if (conditions.length % 2 === 0 || conditions.length === 1) return orders;
   // With an odd number of conditions, the square alone is not balanced.
   // Adding its reversed orders balances it.
   return [...orders, ...orders.map((order) => order.toReversed())];
