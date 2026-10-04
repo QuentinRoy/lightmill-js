@@ -118,7 +118,7 @@ function useHoldsRunningTask(
 type UseRunParameter<Task extends { type: string }, Log> = {
   onCompleted?: () => void;
   onLog?: Logger<Log>;
-  resumeAfter?: { type: Task['type']; number: number };
+  resumeAfterTask?: (task: Task) => boolean;
 } & (
   | { timeline: AnyIteratorOrIterable<Task>; loading?: boolean }
   | { timeline?: AnyIteratorOrIterable<Task> | null; loading: true }
@@ -130,7 +130,7 @@ type RunState<Task, Log> = Exclude<TimelineState<Task>, { status: 'error' }> & {
 function useRun<T extends { type: string }, L>({
   onCompleted,
   timeline,
-  resumeAfter,
+  resumeAfterTask,
   loading = false,
   onLog,
 }: UseRunParameter<T, L>): RunState<T, L> {
@@ -148,7 +148,7 @@ function useRun<T extends { type: string }, L>({
 
   const timelineState = useManagedTimeline({
     timeline: timeline,
-    resumeAfter,
+    resumeAfterTask,
     onTimelineCompleted: onCompleted,
   });
 

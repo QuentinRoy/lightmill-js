@@ -1,4 +1,7 @@
-import { Runner as TimelineRunner } from '@lightmill/runner';
+import {
+  type MaybeAsyncIterator,
+  Runner as TimelineRunner,
+} from '@lightmill/runner';
 import * as React from 'react';
 
 export type TimelineStatus = 'running' | 'completed' | 'loading' | 'idle';
@@ -31,8 +34,47 @@ type Options<Task extends { type: string }> = {
   onTaskCompleted?: (task: Task) => void;
   onTaskLoadingError?: (error: unknown) => void;
   timeline?: AnyIteratorOrIterable<Task> | null;
-  resumeAfter?: { type: Task['type']; number: number };
+  resumeAfterTask?: (task: Task) => boolean;
 };
+
+// Skips every task up to and including the first one matching resumeAfterTask.
+// It stays synchronous for as long as the timeline is, so resuming a
+// synchronous timeline never shows the loading state. Skipping in a loop
+// rather than completing each task from the runner's onTaskStarted also
+// avoids a recursion that overflows the stack on long timelines.
+function skipThrough<Task>(
+  timeline: AnyIteratorOrIterable<Task>,
+  resumeAfterTask: (task: Task) => boolean,
+): MaybeAsyncIterator<Task> {
+  const iterator: MaybeAsyncIterator<Task> =
+    Symbol.iterator in timeline
+      ? timeline[Symbol.iterator]()
+      : Symbol.asyncIterator in timeline
+        ? timeline[Symbol.asyncIterator]()
+        : timeline;
+  let skipped = false;
+  const skip = (
+    result: IteratorResult<Task>,
+  ): IteratorResult<Task> | Promise<IteratorResult<Task>> => {
+    while (!result.done) {
+      if (resumeAfterTask(result.value)) {
+        skipped = true;
+        return iterator.next();
+      }
+      const next = iterator.next();
+      if ('then' in next) return next.then(skip);
+      result = next;
+    }
+    throw new Error('No task matched resumeAfterTask');
+  };
+  return {
+    next() {
+      if (skipped) return iterator.next();
+      const first = iterator.next();
+      return 'then' in first ? first.then(skip) : skip(first);
+    },
+  };
+}
 
 export default function useManagedTimeline<Task extends { type: string }>(
   options: Options<Task>,
@@ -46,19 +88,17 @@ export default function useManagedTimeline<Task extends { type: string }>(
 
   React.useEffect(() => {
     if (options.timeline == null) return;
-    let resumeTaskFound = optionsRef.current.resumeAfter == null;
-    let resumeTaskTypeCount = 0;
+    const { resumeAfterTask } = optionsRef.current;
     const runner = new TimelineRunner<Task>({
-      timeline: options.timeline,
+      timeline:
+        resumeAfterTask == null
+          ? options.timeline
+          : skipThrough(options.timeline, resumeAfterTask),
       onTimelineStarted() {
         setState({ status: 'loading' });
         optionsRef.current.onTimelineStarted?.();
       },
       onTaskStarted(task) {
-        if (!resumeTaskFound) {
-          runner.completeTask();
-          return;
-        }
         let hasBeenCompleted = false;
         setState({
           status: 'running',
@@ -73,26 +113,10 @@ export default function useManagedTimeline<Task extends { type: string }>(
         optionsRef.current.onTaskStarted?.(task);
       },
       onTaskCompleted(task) {
-        if (resumeTaskFound) {
-          setState({ status: 'loading' });
-          optionsRef.current.onTaskCompleted?.(task);
-          return;
-        }
-        if (task.type === optionsRef.current.resumeAfter?.type) {
-          resumeTaskTypeCount++;
-        }
-        if (resumeTaskTypeCount === optionsRef.current.resumeAfter?.number) {
-          resumeTaskFound = true;
-        }
+        setState({ status: 'loading' });
+        optionsRef.current.onTaskCompleted?.(task);
       },
       onTimelineCompleted() {
-        if (!resumeTaskFound) {
-          setState({
-            status: 'error',
-            error: new Error('Could not find task to resume after'),
-          });
-          return;
-        }
         setState({ status: 'completed' });
         optionsRef.current.onTimelineCompleted?.();
       },

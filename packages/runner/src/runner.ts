@@ -1,4 +1,4 @@
-import type { SuperIterator } from './types.js';
+import type { MaybeAsyncIterator, SuperIterator } from './types.js';
 
 export type TimelineRunnerParams<Task> = {
   timeline: SuperIterator<Task>;
@@ -25,7 +25,7 @@ export class TimelineRunner<Task> {
   onError?: (error: unknown) => void;
   onTimelineCompleted?: () => void;
 
-  #iterator: Iterator<Task> | AsyncIterator<Task>;
+  #iterator: MaybeAsyncIterator<Task>;
   #status:
     | 'running'
     | 'canceled'
@@ -119,7 +119,13 @@ export class TimelineRunner<Task> {
   }
 
   #toNext() {
-    const next = this.#iterator.next();
+    let next: ReturnType<MaybeAsyncIterator<Task>['next']>;
+    try {
+      next = this.#iterator.next();
+    } catch (error) {
+      this.#handleNextTaskError(error);
+      return;
+    }
     if ('then' in next) {
       this.#status = 'loading';
       this.onLoading?.();

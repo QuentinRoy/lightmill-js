@@ -97,11 +97,11 @@ describe('run', () => {
     expect(screen.getByTestId('end')).toBeInTheDocument();
   });
 
-  it('starts with a later tasks if resumeAfter is provided', async () => {
+  it('starts after the task matched by resumeAfterTask', async () => {
     const user = userEvent.setup();
     render(
       <Run
-        resumeAfter={{ type: 'B', number: 2 }}
+        resumeAfterTask={(task: Task) => task.type === 'B' && task.b === 21}
         elements={{
           tasks: {
             A: <Task type="A" dataProp="a" />,
@@ -126,6 +126,56 @@ describe('run', () => {
     expect(screen.getByTestId('data')).toHaveTextContent('world');
     await user.click(screen.getByRole('button'));
     expect(screen.getByTestId('end')).toBeInTheDocument();
+  });
+
+  it('starts after the first task if resumeAfterTask matches it', async () => {
+    render(
+      <Run
+        resumeAfterTask={(task: Task) => task.type === 'B'}
+        elements={{
+          tasks: {
+            A: <Task type="A" dataProp="a" />,
+            B: <Task type="B" dataProp="b" />,
+          },
+        }}
+        timeline={[
+          { type: 'B', b: 42 },
+          { type: 'A', a: 'hello' },
+        ]}
+      />,
+    );
+
+    expect(screen.getByRole('heading')).toHaveTextContent('Type A');
+    expect(screen.getByTestId('data')).toHaveTextContent('hello');
+  });
+
+  it('resumes an async timeline after the task matched by resumeAfterTask', async () => {
+    const user = userEvent.setup();
+    render(
+      <Run
+        resumeAfterTask={(task: Task) => task.type === 'B' && task.b === 21}
+        elements={{
+          tasks: {
+            A: <Task type="A" dataProp="a" />,
+            B: <Task type="B" dataProp="b" />,
+          },
+          loading: <div data-testid="loading" />,
+          completed: <div data-testid="end" />,
+        }}
+        timeline={asyncTaskGen(5, [
+          { type: 'A', a: 'hello' },
+          { type: 'B', b: 42 },
+          { type: 'B', b: 21 },
+          { type: 'B', b: 12 },
+        ])}
+      />,
+    );
+
+    expect(screen.getByTestId('loading')).toBeInTheDocument();
+    expect(await screen.findByRole('heading')).toHaveTextContent('Type B');
+    expect(screen.getByTestId('data')).toHaveTextContent('12');
+    await user.click(screen.getByRole('button'));
+    expect(await screen.findByTestId('end')).toBeInTheDocument();
   });
 
   it('renders nothing when the experiment is done if no completed element is provided', async () => {
@@ -278,13 +328,13 @@ describe('run', () => {
     spy.mockRestore();
   });
 
-  it('throws an error if the run should resume after an non existing task', async () => {
+  it('throws if no task matches resumeAfterTask', async () => {
     const spy = vi.spyOn(console, 'error');
     spy.mockImplementation(() => {});
     expect(() => {
       render(
         <Run
-          resumeAfter={{ type: 'B', number: 4 }}
+          resumeAfterTask={(task: Task) => task.type === 'B' && task.b === 0}
           elements={{
             tasks: {
               A: <Task type="A" dataProp="a" />,
@@ -301,7 +351,33 @@ describe('run', () => {
           ]}
         />,
       );
-    }).toThrow('Could not find task to resume after');
+    }).toThrow('No task matched resumeAfterTask');
+    spy.mockRestore();
+  });
+
+  it('throws if no task of an async timeline matches resumeAfterTask', async () => {
+    const spy = vi.spyOn(console, 'error');
+    spy.mockImplementation(() => {});
+    render(
+      <ErrorBoundary>
+        <Run
+          resumeAfterTask={(task: Task) => task.type === 'B' && task.b === 0}
+          elements={{
+            tasks: {
+              A: <Task type="A" dataProp="a" />,
+              B: <Task type="B" dataProp="b" />,
+            },
+          }}
+          timeline={asyncTaskGen(5, [
+            { type: 'A', a: 'hello' },
+            { type: 'B', b: 42 },
+          ])}
+        />
+      </ErrorBoundary>,
+    );
+    expect(await screen.findByTestId('error')).toHaveTextContent(
+      'No task matched resumeAfterTask',
+    );
     spy.mockRestore();
   });
 
