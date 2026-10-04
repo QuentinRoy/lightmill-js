@@ -2,13 +2,23 @@
  * Creates a latin square of condition orders: each condition appears once in
  * every order and once at every position across orders.
  *
- * With an even number of conditions, the square is also balanced: each
- * condition precedes every other condition exactly once.
+ * By default, the square is also balanced: each condition precedes every other
+ * condition equally often, which counterbalances first-order carryover
+ * effects. With an odd number of conditions, this doubles the number of
+ * orders.
  *
  * @param conditions The conditions to order.
- * @returns One order per condition.
+ * @param options How to build the square.
+ * @param options.balanced Whether to balance the square. Defaults to `true`.
+ * Without balancing, an odd number of conditions gets one order per condition,
+ * so a complete rotation needs half as many runs.
+ * @returns One order per condition, or two when balancing an odd number (above
+ * 1) of conditions.
  */
-export function latinSquare<T>(conditions: readonly T[]): T[][] {
+export function latinSquare<T>(
+  conditions: readonly T[],
+  { balanced = true }: { balanced?: boolean } = {},
+): T[][] {
   checkConditions(conditions);
   const n = conditions.length;
   // Williams' first order, 0, 1, n-1, 2, n-2, …: its successive differences
@@ -19,26 +29,13 @@ export function latinSquare<T>(conditions: readonly T[]): T[][] {
     if (i % 2 === 0) return n - i / 2;
     return Math.floor(i / 2) + 1;
   });
-  return conditions.map((_, shift) =>
+  const orders = conditions.map((_, shift) =>
     firstOrder.map((i) => conditions[(i + shift) % n]),
   );
-}
-
-/**
- * Creates a balanced latin square of condition orders: a latin square where
- * each condition precedes every other condition equally often, which
- * counterbalances first-order carryover effects.
- *
- * @param conditions The conditions to order.
- * @returns One order per condition, or two with an odd number (above 1) of
- * conditions.
- */
-export function balancedLatinSquare<T>(conditions: readonly T[]): T[][] {
-  const orders = latinSquare(conditions);
-  // A single order is trivially balanced.
-  if (conditions.length % 2 === 0 || conditions.length === 1) return orders;
-  // With an odd number of conditions, the square alone is not balanced.
-  // Adding its reversed orders balances it.
+  // With an even number of conditions, the square is already balanced, and a
+  // single order trivially is.
+  if (!balanced || n % 2 === 0 || n === 1) return orders;
+  // With an odd number, adding the reversed orders balances it.
   return [...orders, ...orders.map((order) => order.toReversed())];
 }
 

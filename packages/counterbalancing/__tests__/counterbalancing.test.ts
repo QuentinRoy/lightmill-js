@@ -1,13 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import {
-  balancedLatinSquare,
-  latinSquare,
-  permutations,
-  randomOrders,
-} from '../src/main.js';
+import { latinSquare, permutations, randomOrders } from '../src/main.js';
 
 describe('latinSquare', () => {
-  it('returns a balanced latin square for an even number of conditions', () => {
+  it('returns one order per condition for an even number of conditions', () => {
     expect(latinSquare(['A', 'B', 'C', 'D'])).toEqual([
       ['A', 'B', 'D', 'C'],
       ['B', 'C', 'A', 'D'],
@@ -16,33 +11,8 @@ describe('latinSquare', () => {
     ]);
   });
 
-  it('returns one order per condition for an odd number of conditions', () => {
-    expect(latinSquare(['A', 'B', 'C', 'D', 'E'])).toEqual([
-      ['A', 'B', 'E', 'C', 'D'],
-      ['B', 'C', 'A', 'D', 'E'],
-      ['C', 'D', 'B', 'E', 'A'],
-      ['D', 'E', 'C', 'A', 'B'],
-      ['E', 'A', 'D', 'B', 'C'],
-    ]);
-  });
-
-  it('returns a single order for a single condition', () => {
-    expect(latinSquare(['A'])).toEqual([['A']]);
-  });
-});
-
-describe('balancedLatinSquare', () => {
-  it('returns one order per condition for an even number of conditions', () => {
-    expect(balancedLatinSquare(['A', 'B', 'C', 'D'])).toEqual([
-      ['A', 'B', 'D', 'C'],
-      ['B', 'C', 'A', 'D'],
-      ['C', 'D', 'B', 'A'],
-      ['D', 'A', 'C', 'B'],
-    ]);
-  });
-
   it('returns two orders per condition for an odd number of conditions', () => {
-    expect(balancedLatinSquare(['A', 'B', 'C', 'D', 'E'])).toEqual([
+    expect(latinSquare(['A', 'B', 'C', 'D', 'E'])).toEqual([
       ['A', 'B', 'E', 'C', 'D'],
       ['B', 'C', 'A', 'D', 'E'],
       ['C', 'D', 'B', 'E', 'A'],
@@ -56,8 +26,20 @@ describe('balancedLatinSquare', () => {
     ]);
   });
 
+  it('returns one order per condition when not balanced', () => {
+    expect(latinSquare(['A', 'B', 'C', 'D', 'E'], { balanced: false })).toEqual(
+      [
+        ['A', 'B', 'E', 'C', 'D'],
+        ['B', 'C', 'A', 'D', 'E'],
+        ['C', 'D', 'B', 'E', 'A'],
+        ['D', 'E', 'C', 'A', 'B'],
+        ['E', 'A', 'D', 'B', 'C'],
+      ],
+    );
+  });
+
   it('returns a single order for a single condition', () => {
-    expect(balancedLatinSquare(['A'])).toEqual([['A']]);
+    expect(latinSquare(['A'])).toEqual([['A']]);
   });
 });
 
@@ -132,7 +114,6 @@ describe('randomOrders', () => {
 
 describe.each([
   ['latinSquare', latinSquare],
-  ['balancedLatinSquare', balancedLatinSquare],
   ['permutations', permutations],
 ])('%s', (_, strategy) => {
   it('rejects empty conditions', () => {
