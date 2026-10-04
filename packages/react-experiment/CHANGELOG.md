@@ -1,5 +1,23 @@
 # @lightmill/react-experiment
 
+## 4.0.0-beta.2
+
+### Major Changes
+
+- [#391](https://github.com/QuentinRoy/lightmill-js/pull/391) [`3d7ba85`](https://github.com/QuentinRoy/lightmill-js/commit/3d7ba85388cc0e56df5c19528f6dbf3d71549214) - Replace the `resumeAfter` prop of `Run` with `resumeAfterTask`, a function that receives each task and returns `true` for the last completed one. `Run` skips every task up to and including the first match, and throws if no task matches. `resumeAfter: { type, number }` counted tasks of one type, which `@lightmill/log-client` no longer provides: `getResumableRuns` returns a run-wide log number. `resumeAfter` also mishandled `number: 0`, skipping the first task or throwing. To migrate, store something that identifies the task in its logs and match on it: `resumeAfter={{ type: 'trial', number: n }}` becomes `resumeAfterTask={(task) => task.type === 'trial' && task.trialNumber === n}`. Omit the prop when no task was completed.
+
+### Minor Changes
+
+- [#389](https://github.com/QuentinRoy/lightmill-js/pull/389) [`1cd9c96`](https://github.com/QuentinRoy/lightmill-js/commit/1cd9c965a4f8e33daaf298479497b204cb83a9f9) - When `onLog` rejects, `Run` now throws a `LogDeliveryError` with the log it could not deliver in its new `log` property, so an error boundary can recover it. It used to throw a plain `Error` that lost the log.
+
+### Patch Changes
+
+- [#389](https://github.com/QuentinRoy/lightmill-js/pull/389) [`1cd9c96`](https://github.com/QuentinRoy/lightmill-js/commit/1cd9c965a4f8e33daaf298479497b204cb83a9f9) - Fix `Run` ignoring changes to `onLog`: logs went to the `onLog` it first rendered with, so a `Run` first rendered with `loading` and no `onLog` threw as soon as a task logged, even once it had one. Logs now go to the current `onLog`.
+
+- [#389](https://github.com/QuentinRoy/lightmill-js/pull/389) [`1cd9c96`](https://github.com/QuentinRoy/lightmill-js/commit/1cd9c965a4f8e33daaf298479497b204cb83a9f9) - Fix `useLogger` reporting "Is this component rendered in a `<Run />`?" when a task or `elements.completed` calls it in a `Run` without `onLog`. It now reports that `onLog` is missing.
+- Updated dependencies [[`3d7ba85`](https://github.com/QuentinRoy/lightmill-js/commit/3d7ba85388cc0e56df5c19528f6dbf3d71549214), [`64958f8`](https://github.com/QuentinRoy/lightmill-js/commit/64958f862fd5d38bc48670e690fbdd76b50ebf8f), [`3d7ba85`](https://github.com/QuentinRoy/lightmill-js/commit/3d7ba85388cc0e56df5c19528f6dbf3d71549214)]:
+  - @lightmill/runner@3.1.0-beta.0
+
 ## 4.0.0-beta.1
 
 ### Major Changes

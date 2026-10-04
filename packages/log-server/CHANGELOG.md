@@ -1,5 +1,21 @@
 # @lightmill/log-server
 
+## 5.0.0-beta.4
+
+### Major Changes
+
+- [#396](https://github.com/QuentinRoy/lightmill-js/pull/396) [`bbcb236`](https://github.com/QuentinRoy/lightmill-js/commit/bbcb236a538f3b185bde94da31c95fcd78b49d1e) - `PATCH /runs/{id}` refuses a `lastLogNumber` sent with a status other than `running` as an invalid request body: `400 INVALID_REQUEST_BODY`, with a `source.pointer` to `/data/attributes/lastLogNumber`. It used to answer `403 INVALID_LAST_LOG_NUMBER`. The schema now describes `lastLogNumber`: it resumes the run, so it requires the status `running`, or no status on a running run. A `lastLogNumber` without a status on a run that is not running still answers `403 INVALID_LAST_LOG_NUMBER`. Update clients that handle `403 INVALID_LAST_LOG_NUMBER` for the first case.
+
+- [#395](https://github.com/QuentinRoy/lightmill-js/pull/395) [`5cf9dc3`](https://github.com/QuentinRoy/lightmill-js/commit/5cf9dc364e0420f584dfb5d0daae3264b4ae7827) - `LogServer` no longer takes a `mode` option. It only turned off response validation when set to `test` (the default came from `NODE_ENV`), which let tests pass on responses that failed in production. Responses are now validated in every mode. Remove `mode` from your `LogServer` options.
+
+- [#396](https://github.com/QuentinRoy/lightmill-js/pull/396) [`bbcb236`](https://github.com/QuentinRoy/lightmill-js/commit/bbcb236a538f3b185bde94da31c95fcd78b49d1e) - Only the session that created a run can add logs to it or change it, so two clients can no longer write to the same run. A host session used to write to any run: `POST /logs`, `POST /operations` and `PATCH /runs/{id}` now answer `403 RUN_NOT_OWNED` when it writes to a run another session created. A host can still read every run, and cancel any run with `PATCH /runs/{id}`. Write to a run from the session that created it.
+
+### Patch Changes
+
+- [#395](https://github.com/QuentinRoy/lightmill-js/pull/395) [`5cf9dc3`](https://github.com/QuentinRoy/lightmill-js/commit/5cf9dc364e0420f584dfb5d0daae3264b4ae7827) - Fix `POST /operations` answering `500` after storing the logs it accepted. It now answers `200` with their ids.
+- Updated dependencies [[`bbcb236`](https://github.com/QuentinRoy/lightmill-js/commit/bbcb236a538f3b185bde94da31c95fcd78b49d1e), [`1968561`](https://github.com/QuentinRoy/lightmill-js/commit/1968561109828d73952f465409053ab00cdaf3f9), [`bbcb236`](https://github.com/QuentinRoy/lightmill-js/commit/bbcb236a538f3b185bde94da31c95fcd78b49d1e), [`6abfe1b`](https://github.com/QuentinRoy/lightmill-js/commit/6abfe1b27e852b8af7b284816140c5b6ab77082b)]:
+  - @lightmill/log-api@5.0.0-beta.4
+
 ## 5.0.0-beta.3
 
 ### Major Changes

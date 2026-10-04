@@ -1,5 +1,11 @@
 # Change Log
 
+## 4.0.0-beta.1
+
+### Patch Changes
+
+- [#394](https://github.com/QuentinRoy/lightmill-js/pull/394) [`044b880`](https://github.com/QuentinRoy/lightmill-js/commit/044b8807b887d2cddc774364726209e535a722e9) - Fix the `DesignConfig` type importing `@lightmill/static-design`, which is not a dependency of `@lightmill/convert-touchstone`, so `convertTouchstone`'s result lost its type unless `@lightmill/static-design` was installed. `DesignConfig` now declares its `runs` itself.
+
 ## 4.0.0-beta.0
 
 ### Major Changes
