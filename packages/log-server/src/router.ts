@@ -9,7 +9,7 @@ import * as Express from 'express';
 import type { SessionData } from 'express-session';
 import Stream from 'node:stream';
 import type { Simplify } from 'type-fest';
-import { z } from 'zod/v4';
+import { z } from 'zod';
 import {
   getErrorResponse,
   isContentType,
