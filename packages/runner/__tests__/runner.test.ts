@@ -221,4 +221,76 @@ describe('TimelineRunner', () => {
     await wait();
     expect(onTimelineCompleted.mock.calls).toEqual([[]]);
   });
+
+  it('completes many sync tasks from onTaskStarted without overflowing the stack', () => {
+    let onTaskCompleted = vi.fn();
+    let onTimelineCompleted = vi.fn();
+    let runner = new TimelineRunner<number>({
+      timeline: Array.from({ length: 10_000 }, (_, i) => i),
+      onTaskStarted() {
+        runner.completeTask();
+      },
+      onTaskCompleted,
+      onTimelineCompleted,
+    });
+    runner.start();
+    expect(onTaskCompleted).toHaveBeenCalledTimes(10_000);
+    expect(onTimelineCompleted).toHaveBeenCalledTimes(1);
+    expect(runner.status).toBe('completed');
+  });
+
+  it('starts the next task after onTaskStarted returns when it completes its task', () => {
+    let calls: string[] = [];
+    let runner = new TimelineRunner<number>({
+      timeline: [1, 2],
+      onTaskStarted(task) {
+        calls.push(`start ${task}`);
+        runner.completeTask();
+        calls.push(`after complete ${task}`);
+      },
+      onTaskCompleted(task) {
+        calls.push(`completed ${task}`);
+      },
+    });
+    runner.start();
+    expect(calls).toEqual([
+      'start 1',
+      'completed 1',
+      'after complete 1',
+      'start 2',
+      'completed 2',
+      'after complete 2',
+    ]);
+  });
+
+  it('crashes when onTaskStarted throws', () => {
+    let error = new Error('oops');
+    let onTaskCompleted = vi.fn();
+    let runner = new TimelineRunner<number>({
+      timeline: [1, 2],
+      onTaskStarted() {
+        runner.completeTask();
+        throw error;
+      },
+      onTaskCompleted,
+    });
+    expect(() => runner.start()).toThrow(error);
+    expect(runner.status).toBe('crashed');
+    expect(() => runner.completeTask()).toThrow('No task is currently running');
+    expect(onTaskCompleted.mock.calls).toEqual([[1]]);
+  });
+
+  it('throws when onTaskStarted completes its task twice', () => {
+    let onTaskCompleted = vi.fn();
+    let runner = new TimelineRunner<number>({
+      timeline: [1, 2],
+      onTaskStarted() {
+        runner.completeTask();
+        runner.completeTask();
+      },
+      onTaskCompleted,
+    });
+    expect(() => runner.start()).toThrow('Task already completed');
+    expect(onTaskCompleted.mock.calls).toEqual([[1]]);
+  });
 });
