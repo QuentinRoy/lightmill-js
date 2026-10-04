@@ -44,8 +44,8 @@
     "openapi-typescript": "^7.13.0"
   },
   "dependencies": {
-    "@asteasolutions/zod-to-openapi": "8.0.0-beta.4",
+    "@asteasolutions/zod-to-openapi": "^9.1.0",
     "type-fest": "^4.41.0",
-    "zod": "^3.25.73"
+    "zod": "^4.6.5"
   }
 }
