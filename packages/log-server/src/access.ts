@@ -12,7 +12,7 @@ type Session = SessionData['data'];
 export function visibleRunIds(
   session: Session,
   requested: RunId | RunId[] | undefined,
-): RunId[] | undefined {
+): readonly RunId[] | undefined {
   if (session.role === 'host') {
     return requested === undefined ? undefined : arrayify(requested);
   }
