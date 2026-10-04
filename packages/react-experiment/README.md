@@ -105,7 +105,7 @@ Props:
 - `loading`: set it to `true` while the app is not ready to move on (the timeline may then be unset). `Run` keeps rendering the running task, then `elements.loading` instead of what comes next. If `loading` goes back to `false` before the task ends, the task is not restarted.
 - `onLog`: optional async log handler.
 - `onCompleted`: optional callback after completion.
-- `resumeAfter`: optional `{ type, number }` marker to skip completed tasks.
+- `resumeAfterTask`: optional function that returns `true` for the last completed task. `Run` starts after the first task it matches, and throws if none does.
 
 ### `LogDeliveryError`
 
