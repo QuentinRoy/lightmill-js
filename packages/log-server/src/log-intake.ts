@@ -36,6 +36,8 @@ export async function addLogsToWritableRun(
     return { rejection: { code: 'RUN_NOT_FOUND', runId } };
   }
   if (!canWriteRun(sessionData, runId)) {
+    // Outside of a transaction, since it only reads: runs are never deleted
+    // and never change session, so the answer cannot go stale.
     const [run] = await store.getRuns({ runId });
     const code = run === undefined ? 'RUN_NOT_FOUND' : 'RUN_NOT_OWNED';
     return { rejection: { code, runId } };
