@@ -21,8 +21,9 @@ import type {
 } from '../../src/data-store.ts';
 import { SQLiteDataStore } from '../../src/sqlite-data-store.ts';
 
-// supertest would listen on `::` and connect to 127.0.0.1, where another process
-// may hold the same port (e.g. Steam on macOS). Binding 127.0.0.1 avoids that.
+// Before 7.3.1, supertest listened on `::` and connected to 127.0.0.1, where
+// another process may hold the same port (e.g. Steam on macOS). Binding
+// 127.0.0.1 ourselves avoids that and keeps the address fixed.
 export async function listen(app: RequestListener): Promise<Server> {
   const server = createServer(app).listen(0, '127.0.0.1');
   onTestFinished(() => {
