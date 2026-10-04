@@ -119,7 +119,13 @@ export class TimelineRunner<Task> {
   }
 
   #toNext() {
-    const next = this.#iterator.next();
+    let next: ReturnType<MaybeAsyncIterator<Task>['next']>;
+    try {
+      next = this.#iterator.next();
+    } catch (error) {
+      this.#handleNextTaskError(error);
+      return;
+    }
     if ('then' in next) {
       this.#status = 'loading';
       this.onLoading?.();

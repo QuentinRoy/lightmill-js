@@ -98,6 +98,34 @@ describe('TimelineRunner', () => {
     ]);
   });
 
+  it('reports an error thrown by a sync timeline through onError', () => {
+    const error = new Error('timeline failed');
+    const onError = vi.fn();
+    const runner = new TimelineRunner<Task>({
+      timeline: {
+        next() {
+          throw error;
+        },
+      },
+      onError,
+    });
+    runner.start();
+    expect(onError.mock.calls).toEqual([[error]]);
+    expect(runner.status).toBe('crashed');
+  });
+
+  it('throws an error thrown by a sync timeline if there is no onError', () => {
+    const runner = new TimelineRunner<Task>({
+      timeline: {
+        next() {
+          throw new Error('timeline failed');
+        },
+      },
+    });
+    expect(() => runner.start()).toThrow('timeline failed');
+    expect(runner.status).toBe('crashed');
+  });
+
   it('runs an iterator that turns async partway through', async () => {
     let i = 0;
     const onTaskStarted = vi.fn((task: Task) => {
