@@ -1,5 +1,10 @@
-import { canAccessRun, visibleRunIds } from './access.ts';
-import { getErrorResponse, getRunResources } from './api.ts';
+import {
+  canAccessRun,
+  canCancelRun,
+  canWriteRun,
+  visibleRunIds,
+} from './access.ts';
+import { getErrorResponse, getRunResources, runNotOwnedDetail } from './api.ts';
 import { DataStoreError } from './data-store-errors.ts';
 import type { HandlerResponseFromRoute, PathHandlers } from './router.ts';
 import {
@@ -145,12 +150,25 @@ export const runHandlers = (): PathHandlers<'/runs'> => ({
         code: 'RUN_NOT_FOUND',
         detail: `Run "${runId}" not found`,
       });
-      if (sessionData.role !== 'host' && !sessionData.runs.includes(runId)) {
+      if (!canAccessRun(sessionData, runId)) {
         return unknownRunAnswer;
       }
       const [run] = await store.getRuns({ runId });
       if (run === undefined) {
         return unknownRunAnswer;
+      }
+      const isCancel =
+        body.data.attributes?.status === 'canceled' &&
+        body.data.attributes.lastLogNumber === undefined;
+      const mayChange = isCancel
+        ? canCancelRun(sessionData, runId)
+        : canWriteRun(sessionData, runId);
+      if (!mayChange) {
+        return getErrorResponse({
+          status: 'Forbidden',
+          code: 'RUN_NOT_OWNED',
+          detail: runNotOwnedDetail(runId),
+        });
       }
 
       // Run not found errors must be handled before this.

@@ -138,6 +138,7 @@ const RunInvalidUpdateErrorResponse = getErrorDocumentSchema(
       'INVALID_LAST_LOG_NUMBER',
       'MISSING_LOGS',
       'INVALID_RUN_ID',
+      'RUN_NOT_OWNED',
     ],
     statusCode: 403,
   }),

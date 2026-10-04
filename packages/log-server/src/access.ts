@@ -29,3 +29,11 @@ export function canAccessRun(session: Session, runId: RunId) {
 export function canWriteRun(session: Session, runId: RunId) {
   return session.runs.includes(runId);
 }
+
+/**
+ * Hosts may also cancel a run they did not create, to free the name of a run
+ * left without a session.
+ */
+export function canCancelRun(session: Session, runId: RunId) {
+  return canAccessRun(session, runId);
+}

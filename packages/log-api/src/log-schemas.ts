@@ -177,7 +177,11 @@ export const logRoutes = {
             [mediaType]: {
               schema: getErrorDocumentSchema(
                 getErrorSchema({
-                  code: ['RUN_NOT_FOUND', 'INVALID_RUN_STATUS'],
+                  code: [
+                    'RUN_NOT_FOUND',
+                    'RUN_NOT_OWNED',
+                    'INVALID_RUN_STATUS',
+                  ],
                   statusCode: 403,
                 }),
               ),

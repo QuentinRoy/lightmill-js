@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { canAccessRun, canWriteRun, visibleRunIds } from '../src/access.ts';
+import {
+  canAccessRun,
+  canCancelRun,
+  canWriteRun,
+  visibleRunIds,
+} from '../src/access.ts';
 
 const host = { role: 'host' as const, runs: ['h1'] };
 const participant = { role: 'participant' as const, runs: ['p1', 'p2'] };
@@ -55,15 +60,33 @@ describe('visibleRunIds', () => {
 });
 
 describe.for([
-  { session: host, runId: 'h1', access: true, write: true },
-  { session: host, runId: 'p1', access: true, write: false },
-  { session: participant, runId: 'p1', access: true, write: true },
-  { session: participant, runId: 'h1', access: false, write: false },
-])('$session.role and run $runId', ({ session, runId, access, write }) => {
-  it(`canAccessRun is ${access}`, () => {
-    expect(canAccessRun(session, runId)).toBe(access);
-  });
-  it(`canWriteRun is ${write}`, () => {
-    expect(canWriteRun(session, runId)).toBe(write);
-  });
-});
+  { session: host, runId: 'h1', access: true, write: true, cancel: true },
+  { session: host, runId: 'p1', access: true, write: false, cancel: true },
+  {
+    session: participant,
+    runId: 'p1',
+    access: true,
+    write: true,
+    cancel: true,
+  },
+  {
+    session: participant,
+    runId: 'h1',
+    access: false,
+    write: false,
+    cancel: false,
+  },
+])(
+  '$session.role and run $runId',
+  ({ session, runId, access, write, cancel }) => {
+    it(`canAccessRun is ${access}`, () => {
+      expect(canAccessRun(session, runId)).toBe(access);
+    });
+    it(`canWriteRun is ${write}`, () => {
+      expect(canWriteRun(session, runId)).toBe(write);
+    });
+    it(`canCancelRun is ${cancel}`, () => {
+      expect(canCancelRun(session, runId)).toBe(cancel);
+    });
+  },
+);

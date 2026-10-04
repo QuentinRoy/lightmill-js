@@ -45,6 +45,12 @@ export function getLogIntakeErrorResponse<const Source extends object>(
         code: rejection.code,
         detail: `Run "${runId}" not found`,
       });
+    case 'RUN_NOT_OWNED':
+      return getErrorResponse({
+        status: 'Forbidden',
+        code: rejection.code,
+        detail: runNotOwnedDetail(runId),
+      });
     case 'INVALID_RUN_STATUS':
       return getErrorResponse({
         status: 'Forbidden',
@@ -60,6 +66,9 @@ export function getLogIntakeErrorResponse<const Source extends object>(
       });
   }
 }
+
+export const runNotOwnedDetail = (runId: string) =>
+  `Run "${runId}" belongs to another session. Only the session that created a run can write to it.`;
 
 /** The log a log resource of a request body describes. */
 export function toNewLog({
