@@ -41,7 +41,7 @@
     "@types/express-session": "^1.19.0",
     "@types/node": "catalog:",
     "@types/supertest": "^7.2.1",
-    "@types/yargs": "^17.0.33",
+    "@types/yargs": "^17.0.35",
     "@vitest/ui": "catalog:",
     "cross-env": "^7.0.3",
     "onchange": "^7.1.0",
@@ -67,7 +67,7 @@
     "loglevel": "^1.9.2",
     "memorystore": "^1.6.8",
     "remeda": "^2.50.0",
-    "yargs": "17.7.2",
+    "yargs": "18.2.0",
     "zod": "^3.25.7"
   },
   "engines": {
