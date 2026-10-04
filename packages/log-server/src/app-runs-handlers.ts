@@ -4,7 +4,11 @@ import {
   canWriteRun,
   visibleRunIds,
 } from './access.ts';
-import { getErrorResponse, getRunResources, runNotOwnedDetail } from './api.ts';
+import {
+  getErrorResponse,
+  getRunNotOwnedResponse,
+  getRunResources,
+} from './api.ts';
 import { DataStoreError } from './data-store-errors.ts';
 import type { HandlerResponseFromRoute, PathHandlers } from './router.ts';
 import {
@@ -163,13 +167,7 @@ export const runHandlers = (): PathHandlers<'/runs'> => ({
       const mayChange = isCancel
         ? canCancelRun(sessionData, runId)
         : canWriteRun(sessionData, runId);
-      if (!mayChange) {
-        return getErrorResponse({
-          status: 'Forbidden',
-          code: 'RUN_NOT_OWNED',
-          detail: runNotOwnedDetail(runId),
-        });
-      }
+      if (!mayChange) return getRunNotOwnedResponse(runId);
 
       // Run not found errors must be handled before this.
       if (body.data.id !== runId) {

@@ -7,7 +7,7 @@ type Session = SessionData['data'];
 
 /**
  * Narrows a run filter to the runs the session may see. Undefined means every
- * run, so a host's filter passes through. An empty result must match no run.
+ * run, so a host's filter passes through.
  */
 export function visibleRunIds(
   session: Session,
@@ -20,7 +20,6 @@ export function visibleRunIds(
   return intersection(session.runs, arrayify(requested));
 }
 
-/** Hosts see every run, participants only their own. */
 export function canAccessRun(session: Session, runId: RunId) {
   return session.role === 'host' || canWriteRun(session, runId);
 }

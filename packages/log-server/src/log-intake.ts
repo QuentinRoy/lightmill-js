@@ -24,7 +24,7 @@ export type LogIntakeOutcome =
  * request arrived stores none. A refused request stores nothing.
  * Other errors, like a transaction conflict, are thrown.
  */
-export async function addLogsToAccessibleRun(
+export async function addLogsToWritableRun(
   store: DataStore,
   sessionData: SessionData['data'],
   runId: RunId,

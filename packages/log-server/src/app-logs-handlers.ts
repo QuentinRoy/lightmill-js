@@ -13,7 +13,7 @@ import {
 import { csvExportStream } from './csv-export.ts';
 import type { AllFilter } from './data-filters.ts';
 import type { DataStore } from './data-store.ts';
-import { addLogsToAccessibleRun } from './log-intake.ts';
+import { addLogsToWritableRun } from './log-intake.ts';
 import type { HandlerResponseFromRoute, PathHandlers } from './router.ts';
 import { arrayify, firstStrict } from './utils.ts';
 
@@ -65,7 +65,7 @@ export const logHandlers = (): PathHandlers<'/logs'> => ({
     },
 
     async post({ dataStore: store, body, sessionData, protocol, host }) {
-      let outcome = await addLogsToAccessibleRun(
+      let outcome = await addLogsToWritableRun(
         store,
         sessionData,
         body.data.relationships.run.data.id,
