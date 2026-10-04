@@ -45,7 +45,7 @@
     "@vitest/ui": "catalog:",
     "cross-env": "^7.0.3",
     "onchange": "^7.1.0",
-    "string-dedent": "^3.0.1",
+    "string-dedent": "^3.0.2",
     "supertest": "^7.1.1",
     "type-fest": "^4.41.0",
     "typescript": "catalog:",

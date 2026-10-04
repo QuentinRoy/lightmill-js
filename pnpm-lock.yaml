@@ -436,8 +436,8 @@ importers:
         specifier: ^7.1.0
         version: 7.1.0
       string-dedent:
-        specifier: ^3.0.1
-        version: 3.0.1
+        specifier: ^3.0.2
+        version: 3.0.2
       supertest:
         specifier: ^7.1.1
         version: 7.1.1(supports-color@10.0.0)
@@ -3163,8 +3163,8 @@ packages:
   strict-event-emitter@0.5.1:
     resolution: {integrity: sha512-vMgjE/GGEPEFnhFub6pa4FmJBRBVOLpIII2hvCZ8Kzb7K0hlHo7mQv6xYrBvCL2LtAIBwFUK8wvuJgTVSQ5MFQ==}
 
-  string-dedent@3.0.1:
-    resolution: {integrity: sha512-A2zCXSgpPrpFi1lDJlDwIPYakBWeDtQZ8ZBKssB8M/WbtNEKTzsl1yCDRmHx55jSB27xZDQ6NOtRYekESWx6fw==}
+  string-dedent@3.0.2:
+    resolution: {integrity: sha512-M4q+HpHCtGXlbyzYDOcOo7V185dlq6YXvGUPcWZqL4vttCX9gFYoWIOxcPd7v5CAYcTJsGLs3ZJCAH2TXONF/g==}
     engines: {node: '>=0.12.0'}
 
   string-width@4.2.3:
@@ -6410,7 +6410,7 @@ snapshots:
 
   strict-event-emitter@0.5.1: {}
 
-  string-dedent@3.0.1: {}
+  string-dedent@3.0.2: {}
 
   string-width@4.2.3:
     dependencies:
