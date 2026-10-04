@@ -1,4 +1,4 @@
-import * as sax from 'sax';
+import sax from 'sax';
 
 export type Experiment = { author: string; description: string; id: string };
 export type WithId = { id: string };
