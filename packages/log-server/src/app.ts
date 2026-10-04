@@ -32,7 +32,6 @@ type CreateLogServerOptions = {
   dataStore: DataStore;
   hostUser?: string | undefined;
   hostPassword?: string | undefined;
-  mode?: 'development' | 'production' | 'test' | (string & {}) | undefined;
   sessionKeys: string[];
   sessionStore?: session.Store;
   sessionMaxAge?: number | undefined;
@@ -50,7 +49,6 @@ export function LogServer({
   hostUser = 'host',
   allowCrossOrigin = true,
   secureCookies = allowCrossOrigin,
-  mode = process.env.NODE_ENV ?? 'production',
   sessionStore = new MemorySessionStore({ checkPeriod: 1000 * 60 * 60 * 24 }),
   sessionMaxAge,
   trustProxy = true,
@@ -100,7 +98,7 @@ export function LogServer({
   );
 
   const handlers = validateHandlers({
-    validateResponse: mode !== 'test',
+    validateResponse: true,
     handlers: {
       ...sessionHandlers({ hostPassword, hostUser }),
       ...experimentHandlers(),

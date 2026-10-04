@@ -137,8 +137,8 @@ describe.each(storeTypes)('LogServer: post /logs (%s)', (storeType) => {
   const it = createTest(storeType);
   it.for(userRoles)(
     'adds a log (%s user)',
-    async (userType, { expect, participantApi, runId, dataStore }) => {
-      const api = userType === 'host' ? participantApi : participantApi;
+    async (userType, { expect, participantApi, hostApi, runId, dataStore }) => {
+      const api = userType === 'host' ? hostApi : participantApi;
       const response = await api
         .post('/logs')
         .set('Content-Type', mediaType)
@@ -1131,7 +1131,6 @@ describe.for(storeTypes)('LogServer: get /logs/{id} (%s)', (storeType) => {
         { type: 'log-type', values: { value: 'v' }, number: 1 },
       ]),
     );
-    dataStore.getLogs.mockImplementation(async function* () {});
     await participantApi
       .get(`/logs/${logRecord!.logId}`)
       .expect(404, {

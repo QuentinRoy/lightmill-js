@@ -90,7 +90,6 @@ Common optional options:
 - `secureCookies`
 - `sessionStore`
 - `sessionMaxAge` (cookie lifetime in milliseconds)
-- `mode`
 - `trustProxy`
 
 By default, `LogServer` uses cross-origin cookies, which require HTTPS.

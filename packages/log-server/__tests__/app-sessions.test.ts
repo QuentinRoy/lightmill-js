@@ -87,48 +87,6 @@ vitestTest('default sessions require HTTPS for a cookie', async () => {
   expect(response.headers['set-cookie']).toBeUndefined();
 });
 
-vitestTest(
-  'returns 404 without a session when response validation is enabled',
-  async () => {
-    let dataStore = await dataStoreCreators[storeTypes[0]]();
-    let app = express().use(
-      LogServer({ dataStore, sessionKeys: ['secret'], mode: 'production' })
-        .middleware,
-    );
-
-    await request(await listen(app))
-      .get('/sessions/current')
-      .expect(404, {
-        errors: [
-          {
-            status: 'Not Found',
-            code: 'SESSION_NOT_FOUND',
-            detail: 'Session "current" not found.',
-          },
-        ],
-      })
-      .expect('Content-Type', apiContentTypeRegExp);
-  },
-);
-
-vitestTest(
-  'creates a session when response validation is enabled',
-  async () => {
-    let dataStore = await dataStoreCreators[storeTypes[0]]();
-    let app = express().use(
-      LogServer({ dataStore, sessionKeys: ['secret'], mode: 'production' })
-        .middleware,
-    );
-
-    await request(await listen(app))
-      .post('/sessions')
-      .set('content-type', mediaType)
-      .send({ data: { type: 'sessions', attributes: { role: 'participant' } } })
-      .expect(201)
-      .expect('Content-Type', apiContentTypeRegExp);
-  },
-);
-
 describe.for(suite)(
   'LogServer: post /sessions ($storeType)',
   ({ test: it }) => {
