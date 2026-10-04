@@ -90,19 +90,8 @@ describe('randomOrders', () => {
     ).not.toEqual(orders);
   });
 
-  it('keeps duplicate conditions', () => {
-    const orders = randomOrders(['S', 'S', 'L', 'L'], { count: 3 });
-    for (const order of orders) {
-      expect(order.toSorted()).toEqual(['L', 'L', 'S', 'S']);
-    }
-  });
-
   it('returns no orders when count is 0', () => {
     expect(randomOrders(['A', 'B'], { count: 0 })).toEqual([]);
-  });
-
-  it('rejects empty conditions', () => {
-    expect(() => randomOrders([], { count: 1 })).toThrow(TypeError);
   });
 
   it.each([-1, 1.5, NaN])('rejects a count of %s', (count) => {
@@ -113,6 +102,10 @@ describe('randomOrders', () => {
 describe.each([
   ['latinSquare', latinSquare],
   ['permutations', permutations],
+  [
+    'randomOrders',
+    (conditions: string[]) => randomOrders(conditions, { count: 1 }),
+  ],
 ])('%s', (_, strategy) => {
   it('rejects empty conditions', () => {
     expect(() => strategy([])).toThrow(TypeError);

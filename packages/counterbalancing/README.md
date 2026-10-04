@@ -40,7 +40,6 @@ const order = orders[runIndex % orders.length];
 | `randomOrders(conditions, { count, random? })` | `count` independent shuffles. `random` returns a number in [0, 1) and defaults to `Math.random`; pass a seeded generator to reproduce the orders.                                                                                                                                  |
 
 `n` is the number of conditions. Every function throws a `TypeError` when
-`conditions` is empty. All but `randomOrders` also throw a `TypeError` when
-`conditions` contains duplicates, since the orders would not be counterbalanced;
-`randomOrders` accepts them, e.g., to shuffle repeated trials. `randomOrders`
-throws a `RangeError` when `count` is not a non-negative integer.
+`conditions` is empty or contains duplicates, since the orders would not be
+counterbalanced. `randomOrders` throws a `RangeError` when `count` is not a
+non-negative integer.

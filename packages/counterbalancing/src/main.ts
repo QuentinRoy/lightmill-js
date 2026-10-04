@@ -58,9 +58,7 @@ function allOrders<T>(conditions: readonly T[]): T[][] {
 }
 
 /**
- * Shuffles the conditions independently for each order. Unlike the other
- * strategies, duplicate conditions are allowed, e.g., to shuffle repeated
- * trials.
+ * Shuffles the conditions independently for each order.
  *
  * @param conditions The conditions to order.
  * @param options How many orders to create, and how.
@@ -73,7 +71,7 @@ export function randomOrders<T>(
   conditions: readonly T[],
   { count, random = Math.random }: { count: number; random?: () => number },
 ): T[][] {
-  checkConditions(conditions, { allowDuplicates: true });
+  checkConditions(conditions);
   if (!Number.isInteger(count) || count < 0) {
     throw new RangeError(`count must be a non-negative integer, got ${count}`);
   }
@@ -88,15 +86,13 @@ export function randomOrders<T>(
   });
 }
 
-function checkConditions(
-  conditions: readonly unknown[],
-  { allowDuplicates = false } = {},
-) {
+function checkConditions(conditions: readonly unknown[]) {
   if (conditions.length === 0) {
     throw new TypeError('conditions must not be empty');
   }
-  // Duplicates would produce orders that look counterbalanced but are not.
-  if (!allowDuplicates && new Set(conditions).size !== conditions.length) {
+  // A condition listed twice is most likely a mistake, and would produce orders
+  // that look counterbalanced but are not.
+  if (new Set(conditions).size !== conditions.length) {
     throw new TypeError('conditions must not contain duplicates');
   }
 }
