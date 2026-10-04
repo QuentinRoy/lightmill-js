@@ -18,7 +18,9 @@ import { LogServer, SQLiteDataStore } from './index.ts';
 // Constants and setup
 // -------------------
 
-dotenv.config();
+// Since version 17, dotenv prints a line about the variables it loaded unless
+// told to be quiet.
+dotenv.config({ quiet: true });
 
 const __dirname = url.fileURLToPath(new URL('.', import.meta.url));
 
