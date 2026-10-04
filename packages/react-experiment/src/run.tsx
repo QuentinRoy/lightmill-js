@@ -29,6 +29,7 @@ export function Run<const T extends RegisteredTask>({
   ...useRunParameter
 }: RunProps<T, RegisteredLog>): React.JSX.Element | null {
   const { onLog, loading, ...state } = useRun(useRunParameter);
+  const logger = onLog ?? noLoggerSymbol;
   const interrupted = paused || loading;
   const holdsRunningTask = useHoldsRunningTask(
     interrupted,
@@ -43,7 +44,7 @@ export function Run<const T extends RegisteredTask>({
   if (interrupted && !holdsRunningTask) {
     // paused wins over loading: it needs the participant's attention.
     return (
-      <loggerContext.Provider value={onLog ?? noLoggerSymbol}>
+      <loggerContext.Provider value={logger}>
         {paused ? elements.paused : elements.loading}
       </loggerContext.Provider>
     );
@@ -56,7 +57,7 @@ export function Run<const T extends RegisteredTask>({
         throw new Error(`No task registered for type ${state.task.type}`);
       }
       return (
-        <loggerContext.Provider value={onLog}>
+        <loggerContext.Provider value={logger}>
           <timelineContext.Provider value={state}>
             {elements.tasks[type]}
           </timelineContext.Provider>
@@ -66,7 +67,7 @@ export function Run<const T extends RegisteredTask>({
 
     case 'completed':
       return elements.completed == null ? null : (
-        <loggerContext.Provider value={onLog}>
+        <loggerContext.Provider value={logger}>
           {elements.completed}
         </loggerContext.Provider>
       );
@@ -78,7 +79,7 @@ export function Run<const T extends RegisteredTask>({
     case 'canceled':
     case 'loading':
       return (
-        <loggerContext.Provider value={onLog ?? noLoggerSymbol}>
+        <loggerContext.Provider value={logger}>
           {elements.loading}
         </loggerContext.Provider>
       );
@@ -133,7 +134,7 @@ function useRun<T extends { type: string }, L>({
   loading = false,
   onLog,
 }: UseRunParameter<T, L>): RunState<T, L> {
-  const { onLog: logWrapper, ...loggerState } = useLogWrapper(onLog);
+  const { onLog: logWrapper, error: logError } = useLogWrapper(onLog);
 
   let timelineRef = React.useRef(timeline);
   // Prevent changes to timeline once set.
@@ -154,8 +155,8 @@ function useRun<T extends { type: string }, L>({
   if (timelineState.status === 'error') {
     throw timelineState.error;
   }
-  if (loggerState.status === 'error') {
-    throw loggerState.error;
+  if (logError != null) {
+    throw logError;
   }
   if (!loading && timeline == null) {
     throw new Error('Timeline must be set when loading is false');
@@ -163,30 +164,40 @@ function useRun<T extends { type: string }, L>({
   return { ...timelineState, onLog: logWrapper, loading };
 }
 
-type LoggerState<L> =
-  | { status: 'ok'; onLog: ((newLog: L) => void) | null }
-  | { status: 'error'; error: Error; onLog: ((newLog: L) => void) | null };
-function useLogWrapper<L>(onLog?: Logger<L>): LoggerState<L> {
-  const logWrapper = React.useMemo(() => {
-    if (onLog == null) return null;
-    const thisLogger = onLog;
-    return function logWrapper(newLog: L) {
-      thisLogger(newLog).catch((error) => {
-        let newError: Error =
-          error instanceof Error
-            ? new Error(`Could not add log : ${error.message}`, {
-                cause: error,
-              })
-            : new Error('Could not add log');
-        setLoggerState({ status: 'error', error: newError, onLog: logWrapper });
-      });
-    };
-  }, [onLog]);
-
-  const [loggerState, setLoggerState] = React.useState<LoggerState<L>>({
-    status: 'ok',
-    onLog: logWrapper,
+function useLogWrapper<L>(onLog?: Logger<L>): {
+  onLog: ((newLog: L) => void) | null;
+  error: Error | null;
+} {
+  const onLogRef = React.useRef(onLog);
+  // Insertion effects run before layout effects, so a task logging from a
+  // layout effect in the commit that changes onLog reaches the new one.
+  React.useInsertionEffect(() => {
+    onLogRef.current = onLog;
   });
-
-  return loggerState;
+  const [error, setError] = React.useState<Error | null>(null);
+  // Stable for the lifetime of Run, so effects depending on the logger do not
+  // rerun whenever onLog changes, such as when it is an inline arrow.
+  const logWrapper = React.useCallback((newLog: L) => {
+    const currentOnLog = onLogRef.current;
+    if (currentOnLog == null) {
+      setError(
+        new LogDeliveryError(
+          'Could not add log: onLog was removed from <Run />',
+          { log: newLog },
+        ),
+      );
+      return;
+    }
+    currentOnLog(newLog).catch((cause) => {
+      setError(
+        new LogDeliveryError(
+          cause instanceof Error
+            ? `Could not add log : ${cause.message}`
+            : 'Could not add log',
+          { cause, log: newLog },
+        ),
+      );
+    });
+  }, []);
+  return { onLog: onLog == null ? null : logWrapper, error };
 }
