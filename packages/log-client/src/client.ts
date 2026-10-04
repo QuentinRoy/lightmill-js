@@ -1,3 +1,4 @@
+import { mediaType } from '@lightmill/log-api/vocabulary';
 import createClient from 'openapi-fetch';
 import type { components, paths } from './generated/openapi.js';
 import { anyLogSerializer } from './log-serializer.js';
@@ -9,7 +10,6 @@ import type {
   LogValuesSerializer,
 } from './types.js';
 import { assertNever, RequestError } from './utils.js';
-import { apiMediaType } from './utils.ts';
 
 /**
  * Client used to discover runs and create loggers against a Lightmill log server.
@@ -306,7 +306,7 @@ export class LightmillClient<ClientLog extends LogBase = AnyLog> {
     let response = await this.#fetchClient.PATCH('/runs/{id}', {
       credentials: 'include',
       params: { path: { id: runId } },
-      headers: { 'content-type': apiMediaType },
+      headers: { 'content-type': mediaType },
       body: {
         data: {
           type: 'runs',
@@ -338,7 +338,7 @@ export class LightmillClient<ClientLog extends LogBase = AnyLog> {
     }
     let response = await this.#fetchClient.POST('/runs', {
       credentials: 'include',
-      headers: { 'content-type': apiMediaType },
+      headers: { 'content-type': mediaType },
       body: {
         data: {
           type: 'runs',
@@ -377,7 +377,7 @@ export class LightmillClient<ClientLog extends LogBase = AnyLog> {
     let session = await this.#getSession();
     if (session == null) {
       await this.#fetchClient.POST('/sessions', {
-        headers: { 'content-type': apiMediaType },
+        headers: { 'content-type': mediaType },
         body: {
           data: { type: 'sessions', attributes: { role: 'participant' } },
         },

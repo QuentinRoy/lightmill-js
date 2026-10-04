@@ -310,13 +310,13 @@ importers:
 
   packages/log-client:
     dependencies:
+      '@lightmill/log-api':
+        specifier: workspace:*
+        version: link:../log-api
       openapi-fetch:
         specifier: ^0.13.5
         version: 0.13.8
     devDependencies:
-      '@lightmill/log-api':
-        specifier: workspace:*
-        version: link:../log-api
       '@types/throttle-debounce':
         specifier: ^5.0.2
         version: 5.0.2

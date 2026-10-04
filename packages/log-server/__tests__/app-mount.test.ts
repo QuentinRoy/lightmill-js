@@ -1,7 +1,7 @@
+import { mediaType } from '@lightmill/log-api/vocabulary';
 import express from 'express';
 import request from 'supertest';
 import { describe, it } from 'vitest';
-import { apiMediaType } from '../src/api.ts';
 import { LogServer } from '../src/app.ts';
 import {
   createServerContext,
@@ -25,7 +25,7 @@ describe.for(storeTypes)('LogServer (%s)', (storeType) => {
 
     await api
       .post('/sessions')
-      .set('content-type', apiMediaType)
+      .set('content-type', mediaType)
       .send({ data: { type: 'sessions', attributes: { role: 'participant' } } })
       .expect(404, {});
   });

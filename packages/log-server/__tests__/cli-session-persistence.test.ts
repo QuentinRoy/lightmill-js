@@ -1,3 +1,4 @@
+import { mediaType } from '@lightmill/log-api/vocabulary';
 import {
   spawn,
   type ChildProcess,
@@ -9,7 +10,6 @@ import os from 'node:os';
 import path from 'node:path';
 import * as url from 'node:url';
 import { expect, it } from 'vitest';
-import { apiMediaType } from '../src/api.ts';
 import { SQLiteDataStore } from '../src/sqlite-data-store.ts';
 
 const packageDir = url.fileURLToPath(new URL('..', import.meta.url));
@@ -73,7 +73,7 @@ it('CLI sessions and browser cookies survive a restart', async () => {
     let baseUrl = `http://127.0.0.1:${port}`;
     const response = await fetch(`${baseUrl}/sessions`, {
       method: 'POST',
-      headers: { 'content-type': apiMediaType },
+      headers: { 'content-type': mediaType },
       body: JSON.stringify({
         data: { type: 'sessions', attributes: { role: 'participant' } },
       }),

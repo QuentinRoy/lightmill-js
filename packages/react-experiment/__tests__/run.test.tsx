@@ -18,12 +18,15 @@ function wait(ms: number) {
 }
 
 class ErrorBoundary extends React.Component<
-  { children: React.ReactNode },
+  { children: React.ReactNode; onError?: (error: Error) => void },
   { error: Error | null }
 > {
   state = { error: null as Error | null };
   static getDerivedStateFromError(error: Error) {
     return { error };
+  }
+  componentDidCatch(error: Error) {
+    this.props.onError?.(error);
   }
   render() {
     return this.state.error == null ? (
@@ -424,6 +427,40 @@ describe('run', () => {
     expect(wrapper).toHaveBeenCalledTimes(2);
   });
 
+  it('throws when a held logger is called after onLog is removed', async () => {
+    const user = userEvent.setup();
+    const spy = vi.spyOn(console, 'error');
+    spy.mockImplementation(() => {});
+    const timeline = [{ type: 'A' }];
+    let heldLog: ((log: { type: string }) => void) | undefined;
+    const LogTask = () => {
+      heldLog = useLogger();
+      const { onTaskCompleted } = useTask();
+      return <button onClick={onTaskCompleted}>Complete</button>;
+    };
+    const onError = vi.fn();
+    const element = (onLog?: () => Promise<void>) => (
+      <ErrorBoundary onError={onError}>
+        <Run
+          elements={{ tasks: { A: <LogTask /> }, completed: <div /> }}
+          timeline={timeline}
+          onLog={onLog}
+        />
+      </ErrorBoundary>
+    );
+    const { rerender } = render(element(() => Promise.resolve()));
+    await user.click(screen.getByText('Complete'));
+    rerender(element());
+    act(() => heldLog?.({ type: 'L' }));
+    expect(screen.getByTestId('error')).toHaveTextContent(
+      'Could not add log: onLog was removed from <Run />',
+    );
+    const error = onError.mock.lastCall?.[0];
+    expect(error).toBeInstanceOf(LogDeliveryError);
+    expect(error.log).toEqual({ type: 'L' });
+    spy.mockRestore();
+  });
+
   describe('loading while a task is running', () => {
     const elements = () => ({
       tasks: {
@@ -622,8 +659,9 @@ describe('run', () => {
           const log = useLogger();
           return <button onClick={() => log({ type: 'L' })}>Log</button>;
         };
+        const onError = vi.fn();
         const element = (paused: boolean) => (
-          <ErrorBoundary>
+          <ErrorBoundary onError={onError}>
             <Run
               elements={{ tasks: { A: <LogTask /> }, paused: <div /> }}
               timeline={timeline}
@@ -639,6 +677,9 @@ describe('run', () => {
         expect(await screen.findByTestId('error')).toHaveTextContent(
           'Could not add log : nope',
         );
+        const error = onError.mock.lastCall?.[0];
+        expect(error).toBeInstanceOf(LogDeliveryError);
+        expect(error.log).toEqual({ type: 'L' });
         spy.mockRestore();
       },
     );

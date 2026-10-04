@@ -1,4 +1,6 @@
+import type { RunStatus as ApiRunStatus } from '@lightmill/log-api/vocabulary';
 import { expectTypeOf, it } from 'vitest';
+import type { RunStatus } from '../src/data-store.ts';
 import type {
   DataStore,
   DataStoreTransaction,
@@ -22,4 +24,8 @@ it('has no lifetime or nesting on a transaction', () => {
 it('is disposable, for the SQLite store only', () => {
   expectTypeOf<SQLiteDataStore>().toExtend<AsyncDisposable>();
   expectTypeOf<DataStore>().not.toHaveProperty(Symbol.asyncDispose);
+});
+
+it('stores the run statuses of the API', () => {
+  expectTypeOf<RunStatus>().toEqualTypeOf<ApiRunStatus>();
 });

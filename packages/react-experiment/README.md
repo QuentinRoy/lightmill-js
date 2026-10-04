@@ -109,7 +109,7 @@ Props:
 
 ### `LogDeliveryError`
 
-Thrown by `Run` when `paused` is `true` and there is no `elements.paused`: logs could not be delivered and nothing handles it. Catch it with an error boundary.
+Thrown by `Run` when `paused` is `true` and there is no `elements.paused`: logs could not be delivered and nothing handles it. Also thrown when `onLog` rejects, with the log it could not deliver in its `log` property. Catch it with an error boundary.
 
 ### `useConfirmBeforeUnload(enabled)`
 
