@@ -1,4 +1,8 @@
-import { atomicMediaType, mediaType } from '@lightmill/log-api/vocabulary';
+import {
+  atomicMediaType,
+  mediaType,
+  type RunStatus,
+} from '@lightmill/log-api/vocabulary';
 import type { Client as FetchClient } from 'openapi-fetch';
 import type { JsonValue } from 'type-fest';
 import {
@@ -11,7 +15,7 @@ import {
 import type { components, paths } from './generated/openapi.js';
 import { sendWithRetries } from './send-with-retries.ts';
 import { Subject, subscribeSafely } from './subject.ts';
-import type { LogValuesSerializer, RunStatus } from './types.js';
+import type { LogValuesSerializer } from './types.js';
 import { RequestError, toError } from './utils.js';
 
 interface Typed<Type extends string = string> {
@@ -25,6 +29,8 @@ interface JsonObjectAndDate {
 }
 interface AnyLog extends Typed, OptionallyDated, JsonObjectAndDate {}
 
+type EndedRunStatus = Exclude<RunStatus, 'idle' | 'running'>;
+
 /**
  * State of a logger's log delivery. `idle` and `sending` tell whether logs are
  * in flight, `retrying` that the last batch failed and will be sent again,
@@ -34,9 +40,7 @@ interface AnyLog extends Typed, OptionallyDated, JsonObjectAndDate {}
  * log numbers or a call ends the run, retries show in that call's promise
  * only.
  */
-export type LoggerState =
-  | DeliveryState
-  | Readonly<{ status: Exclude<RunStatus, 'running'> }>;
+export type LoggerState = DeliveryState | Readonly<{ status: EndedRunStatus }>;
 
 /**
  * How long a request may take before it is aborted and retried: `base`
@@ -57,7 +61,7 @@ const defaultRequestTimeout: RequestTimeout = {
 const defaultBatchBudget = 512 * 1024;
 const textEncoder = new TextEncoder();
 
-const endedStates: Record<Exclude<RunStatus, 'running'>, LoggerState> = {
+const endedStates: Record<EndedRunStatus, LoggerState> = {
   completed: Object.freeze({ status: 'completed' }),
   canceled: Object.freeze({ status: 'canceled' }),
   interrupted: Object.freeze({ status: 'interrupted' }),
@@ -77,7 +81,7 @@ export class LightmillLogger<
 > {
   #serializeValues: LogValuesSerializer<ClientLog>;
   #runId: string;
-  #runStatus: RunStatus = 'running';
+  #runStatus: 'running' | EndedRunStatus = 'running';
   // Set while a call ends the run. Logs added then would be sent to a run
   // that is ending.
   #ending = false;
@@ -326,10 +330,7 @@ export class LightmillLogger<
     await this.#endRun('interrupted', discardInFlightLogs);
   }
 
-  async #endRun(
-    runStatus: 'canceled' | 'completed' | 'interrupted',
-    discardInFlightLogs = false,
-  ) {
+  async #endRun(runStatus: EndedRunStatus, discardInFlightLogs = false) {
     if (this.#runStatus !== 'running') {
       throw new Error(
         `Cannot end a run that is not running. Run is ${this.#runStatus}`,
