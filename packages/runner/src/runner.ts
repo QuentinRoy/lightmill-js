@@ -34,6 +34,7 @@ export class TimelineRunner<Task> {
     | 'loading'
     | 'crashed' = 'idle';
   #currentTask: Task | null = null;
+  #taskStartedCall: 'none' | 'active' | 'completed' = 'none';
 
   /**
    * Creates a timeline runner.
@@ -96,8 +97,17 @@ export class TimelineRunner<Task> {
     if (this.#currentTask == null) {
       throw new Error('Internal error: current task is null');
     }
+    if (this.#taskStartedCall === 'completed') {
+      throw new Error('Task already completed');
+    }
     this.onTaskCompleted?.(this.#currentTask);
-    this.#toNext();
+    // Advancing from inside onTaskStarted would recurse once per task and
+    // overflow the stack on long sync timelines, so #toNext loops instead.
+    if (this.#taskStartedCall === 'active') {
+      this.#taskStartedCall = 'completed';
+    } else {
+      this.#toNext();
+    }
     return this;
   }
 
@@ -119,22 +129,26 @@ export class TimelineRunner<Task> {
   }
 
   #toNext() {
-    let next: ReturnType<MaybeAsyncIterator<Task>['next']>;
-    try {
-      next = this.#iterator.next();
-    } catch (error) {
-      this.#handleNextTaskError(error);
-      return;
-    }
-    if ('then' in next) {
-      this.#status = 'loading';
-      this.onLoading?.();
-      next.then(
-        (...args) => this.#handleNextTaskResult(...args),
-        (...args) => this.#handleNextTaskError(...args),
-      );
-    } else {
-      this.#handleNextTaskResult(next);
+    while (true) {
+      let next: ReturnType<MaybeAsyncIterator<Task>['next']>;
+      try {
+        next = this.#iterator.next();
+      } catch (error) {
+        this.#handleNextTaskError(error);
+        return;
+      }
+      if ('then' in next) {
+        this.#status = 'loading';
+        this.onLoading?.();
+        next.then(
+          (result) => {
+            if (this.#startTask(result)) this.#toNext();
+          },
+          (error) => this.#handleNextTaskError(error),
+        );
+        return;
+      }
+      if (!this.#startTask(next)) return;
     }
   }
 
@@ -146,14 +160,34 @@ export class TimelineRunner<Task> {
     this.onError(error);
   }
 
-  #handleNextTaskResult(nextTaskResult: IteratorResult<Task>) {
+  /**
+   * @returns Whether onTaskStarted completed the task, so the runner must
+   * advance.
+   */
+  #startTask(nextTaskResult: IteratorResult<Task>): boolean {
     if (nextTaskResult.done) {
       this.#status = 'completed';
       this.onTimelineCompleted?.();
-    } else {
-      this.#status = 'running';
-      this.#currentTask = nextTaskResult.value;
-      this.onTaskStarted?.(this.#currentTask);
+      return false;
     }
+    this.#status = 'running';
+    this.#currentTask = nextTaskResult.value;
+    this.#taskStartedCall = 'active';
+    try {
+      this.onTaskStarted?.(this.#currentTask);
+    } catch (error) {
+      this.#endTaskStartedCall();
+      this.#status = 'crashed';
+      throw error;
+    }
+    return (
+      this.#endTaskStartedCall() === 'completed' && this.#status === 'running'
+    );
+  }
+
+  #endTaskStartedCall() {
+    const call = this.#taskStartedCall;
+    this.#taskStartedCall = 'none';
+    return call;
   }
 }
