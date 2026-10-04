@@ -437,6 +437,7 @@ export class MockServer {
         if (!(err instanceof Error)) {
           throw new Error(
             `Unexpected error type: ${typeof err}. Expected an Error.`,
+            { cause: err },
           );
         }
         return HttpResponse.json(

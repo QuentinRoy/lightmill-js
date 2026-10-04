@@ -214,6 +214,7 @@ async function addExperiment({ database, name }: AddExperimentParameter) {
       ) {
         throw new Error(
           `An experiment named "${name}" already exists. Choose a different name.`,
+          { cause: error },
         );
       }
       throw error;

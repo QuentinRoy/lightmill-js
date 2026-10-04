@@ -200,8 +200,8 @@ export function getStrict<
 export function decodeBase64(content: string): string {
   try {
     return Buffer.from(content, 'base64').toString('utf8');
-  } catch (_error) {
-    throw new Error('Invalid base64 string');
+  } catch (error) {
+    throw new Error('Invalid base64 string', { cause: error });
   }
 }
 
