@@ -1,4 +1,5 @@
 import type { SessionData } from 'express-session';
+import { canAccessRun, canWriteRun } from './access.ts';
 import { DataStoreError } from './data-store-errors.ts';
 import type { DataStore, LogId, NewLog, RunId } from './data-store.ts';
 import { addLogsToRun, RunRejection } from './run-lifecycle.ts';
@@ -9,6 +10,7 @@ import { addLogsToRun, RunRejection } from './run-lifecycle.ts';
  */
 export type LogIntakeRejection =
   | { code: 'RUN_NOT_FOUND'; runId: RunId }
+  | { code: 'RUN_NOT_OWNED'; runId: RunId }
   | { code: 'INVALID_RUN_STATUS'; runId: RunId }
   | { code: 'LOG_NUMBER_EXISTS'; runId: RunId; index: number; number: number };
 
@@ -22,7 +24,7 @@ export type LogIntakeOutcome =
  * request arrived stores none. A refused request stores nothing.
  * Other errors, like a transaction conflict, are thrown.
  */
-export async function addLogsToAccessibleRun(
+export async function addLogsToWritableRun(
   store: DataStore,
   sessionData: SessionData['data'],
   runId: RunId,
@@ -30,8 +32,15 @@ export async function addLogsToAccessibleRun(
 ): Promise<LogIntakeOutcome> {
   // Checked before reading the store, so a run the session cannot access looks
   // the same as one that does not exist.
-  if (sessionData.role !== 'host' && !sessionData.runs.includes(runId)) {
+  if (!canAccessRun(sessionData, runId)) {
     return { rejection: { code: 'RUN_NOT_FOUND', runId } };
+  }
+  if (!canWriteRun(sessionData, runId)) {
+    // Outside of a transaction, since it only reads: runs are never deleted
+    // and never change session, so the answer cannot go stale.
+    const [run] = await store.getRuns({ runId });
+    const code = run === undefined ? 'RUN_NOT_FOUND' : 'RUN_NOT_OWNED';
+    return { rejection: { code, runId } };
   }
   try {
     return {

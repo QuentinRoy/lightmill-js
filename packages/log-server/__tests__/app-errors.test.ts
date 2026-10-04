@@ -440,6 +440,22 @@ describe.for(storeTypes)('LogServer: busy store (%s server)', (storeType) => {
   });
 
   it('keeps the atomic operations media type', async ({ api, dataStore }) => {
+    const { experimentId } = await dataStore.withTransaction((tx) =>
+      tx.addExperiment({ experimentName: 'experiment' }),
+    );
+    const run = await api
+      .post('/runs')
+      .set('Content-Type', mediaType)
+      .send({
+        data: {
+          type: 'runs',
+          attributes: { name: 'run', status: 'running' },
+          relationships: {
+            experiment: { data: { type: 'experiments', id: experimentId } },
+          },
+        },
+      })
+      .expect(201);
     dataStore.withTransaction.mockRejectedValueOnce(conflict());
     await api
       .post('/operations')
@@ -451,7 +467,9 @@ describe.for(storeTypes)('LogServer: busy store (%s server)', (storeType) => {
             data: {
               type: 'logs',
               attributes: { number: 1, logType: 'test', values: {} },
-              relationships: { run: { data: { type: 'runs', id: '1' } } },
+              relationships: {
+                run: { data: { type: 'runs', id: run.body.data.id } },
+              },
             },
           },
         ],

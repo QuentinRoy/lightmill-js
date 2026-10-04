@@ -1,6 +1,12 @@
 import {
-  getAllowedAndFilteredRunIds,
+  canAccessRun,
+  canCancelRun,
+  canWriteRun,
+  visibleRunIds,
+} from './access.ts';
+import {
   getErrorResponse,
+  getRunNotOwnedResponse,
   getRunResources,
 } from './api.ts';
 import { DataStoreError } from './data-store-errors.ts';
@@ -17,10 +23,7 @@ export const runHandlers = (): PathHandlers<'/runs'> => ({
   '/runs': {
     async get({ sessionData, parameters, dataStore: store }) {
       const filter = {
-        runId: getAllowedAndFilteredRunIds(
-          sessionData,
-          parameters.query['filter[id]'],
-        ),
+        runId: visibleRunIds(sessionData, parameters.query['filter[id]']),
         runStatus: parameters.query['filter[status]'],
         experimentId: parameters.query['filter[experiment.id]'],
         experimentName: parameters.query['filter[experiment.name]'],
@@ -108,10 +111,7 @@ export const runHandlers = (): PathHandlers<'/runs'> => ({
 
   '/runs/{id}': {
     async get({ sessionData, parameters, dataStore: store }) {
-      if (
-        sessionData.role !== 'host' &&
-        !sessionData.runs.includes(parameters.path.id)
-      ) {
+      if (!canAccessRun(sessionData, parameters.path.id)) {
         return getErrorResponse({
           status: 'Not Found',
           code: 'RUN_NOT_FOUND',
@@ -154,13 +154,18 @@ export const runHandlers = (): PathHandlers<'/runs'> => ({
         code: 'RUN_NOT_FOUND',
         detail: `Run "${runId}" not found`,
       });
-      if (sessionData.role !== 'host' && !sessionData.runs.includes(runId)) {
+      if (!canAccessRun(sessionData, runId)) {
         return unknownRunAnswer;
       }
       const [run] = await store.getRuns({ runId });
       if (run === undefined) {
         return unknownRunAnswer;
       }
+      const mayChange =
+        body.data.attributes?.status === 'canceled'
+          ? canCancelRun(sessionData, runId)
+          : canWriteRun(sessionData, runId);
+      if (!mayChange) return getRunNotOwnedResponse(runId);
 
       // Run not found errors must be handled before this.
       if (body.data.id !== runId) {

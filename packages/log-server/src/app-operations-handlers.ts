@@ -4,7 +4,7 @@ import {
   getLogIntakeErrorResponse,
   toNewLog,
 } from './api.ts';
-import { addLogsToAccessibleRun } from './log-intake.ts';
+import { addLogsToWritableRun } from './log-intake.ts';
 import type { PathHandlers } from './router.ts';
 
 // The route's response types require the extension's media type on every
@@ -54,7 +54,7 @@ export const operationHandlers = (): PathHandlers<'/operations'> => ({
         seenNumbers.add(data.attributes.number);
       }
 
-      const outcome = await addLogsToAccessibleRun(
+      const outcome = await addLogsToWritableRun(
         store,
         sessionData,
         runId,

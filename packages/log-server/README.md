@@ -72,6 +72,9 @@ uses `role: "host"`; a participant session cannot create experiments. If
 `hostPassword` is set, authenticate as `hostUser` (default `host`) when
 creating the host session.
 
+A host session reads every run, but only the session that created a run adds
+logs to it or changes it. A host may still cancel any run.
+
 ## API Reference
 
 ### `LogServer(options)`

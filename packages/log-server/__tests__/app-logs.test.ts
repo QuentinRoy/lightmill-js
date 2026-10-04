@@ -21,6 +21,7 @@ import {
 
 type TestContext = {
   runId: RunId;
+  hostRunId: RunId;
   experimentId: ExperimentId;
   dataStore: MockedDataStore;
   sessionStore: WithMockedMethods<SessionStore>;
@@ -49,21 +50,11 @@ function createTest(storeType: StoreType) {
     },
 
     runId: async ({ experimentId, participantApi }, use) => {
-      const response = await participantApi
-        .post('/runs')
-        .set('Content-Type', mediaType)
-        .send({
-          data: {
-            type: 'runs',
-            attributes: { name: 'test-run', status: 'running' },
-            relationships: {
-              experiment: { data: { type: 'experiments', id: experimentId } },
-            },
-          },
-        })
-        .expect(201);
-      expect(response.body.data.id).toBeDefined();
-      use(response.body.data.id);
+      use(await createRun(participantApi, experimentId, 'test-run'));
+    },
+
+    hostRunId: async ({ experimentId, hostApi }, use) => {
+      use(await createRun(hostApi, experimentId, 'host-run'));
     },
 
     dataStore: async ({ session: { dataStore } }, use) => {
@@ -98,6 +89,28 @@ function createTest(storeType: StoreType) {
       use(api);
     },
   });
+}
+
+async function createRun(
+  api: request.Agent,
+  experimentId: ExperimentId,
+  name: string,
+): Promise<RunId> {
+  const response = await api
+    .post('/runs')
+    .set('Content-Type', mediaType)
+    .send({
+      data: {
+        type: 'runs',
+        attributes: { name, status: 'running' },
+        relationships: {
+          experiment: { data: { type: 'experiments', id: experimentId } },
+        },
+      },
+    })
+    .expect(201);
+  expect(response.body.data.id).toBeDefined();
+  return response.body.data.id;
 }
 
 /**
@@ -137,8 +150,21 @@ describe.each(storeTypes)('LogServer: post /logs (%s)', (storeType) => {
   const it = createTest(storeType);
   it.for(userRoles)(
     'adds a log (%s user)',
-    async (userType, { expect, participantApi, hostApi, runId, dataStore }) => {
-      const api = userType === 'host' ? hostApi : participantApi;
+    async (
+      userType,
+      {
+        expect,
+        participantApi,
+        hostApi,
+        runId: participantRunId,
+        hostRunId,
+        dataStore,
+      },
+    ) => {
+      const [api, runId] =
+        userType === 'host'
+          ? [hostApi, hostRunId]
+          : [participantApi, participantRunId];
       const response = await api
         .post('/logs')
         .set('Content-Type', mediaType)
@@ -234,29 +260,6 @@ describe.each(storeTypes)('LogServer: post /logs (%s)', (storeType) => {
     expect(dataStore.tx.addLogs).not.toHaveBeenCalled();
   });
 
-  it('allows hosts to add logs to any run', async ({
-    expect,
-    runId,
-    hostApi,
-  }) => {
-    const sessionResponse = await hostApi.get('/sessions/current').expect(200);
-    // Sanity check to ensure this run is not part of the host session.
-    expect(sessionResponse.body.data.attributes.runs ?? []).not.toContain(
-      runId,
-    );
-    await hostApi
-      .post('/logs')
-      .set('Content-Type', mediaType)
-      .send({
-        data: {
-          type: 'logs',
-          attributes: { number: 1, logType: 'test', values: { x: 'x' } },
-          relationships: { run: { data: { type: 'runs', id: runId } } },
-        },
-      })
-      .expect(201);
-  });
-
   it.for(userRoles)(
     'refuses to add logs to a run that does not exist (%s user)',
     async (userType, { expect, dataStore, participantApi, hostApi }) => {
@@ -286,6 +289,35 @@ describe.each(storeTypes)('LogServer: post /logs (%s)', (storeType) => {
       expect(dataStore.tx.addLogs).not.toHaveBeenCalled();
     },
   );
+
+  it("refuses a host's log to a run another session created", async ({
+    expect,
+    dataStore,
+    hostApi,
+    runId,
+  }) => {
+    await hostApi
+      .post('/logs')
+      .set('Content-Type', mediaType)
+      .send({
+        data: {
+          type: 'logs',
+          attributes: { number: 1, logType: 'test', values: { x: 'x' } },
+          relationships: { run: { data: { type: 'runs', id: runId } } },
+        },
+      })
+      .expect(403, {
+        errors: [
+          {
+            status: 'Forbidden',
+            code: 'RUN_NOT_OWNED',
+            detail: `Run "${runId}" belongs to another session. Only the session that created a run can write to it.`,
+          },
+        ],
+      })
+      .expect('Content-Type', apiContentTypeRegExp);
+    expect(dataStore.tx.addLogs).not.toHaveBeenCalled();
+  });
 
   it.for(nonRunningStatuses)(
     'refuses to add logs to a %s run',
@@ -371,8 +403,20 @@ describe.each(storeTypes)('LogServer: post /logs (%s)', (storeType) => {
 
   it.for(userRoles)(
     'refuses to add logs if their number is already in used (%s user)',
-    async (userType, { participantApi, hostApi, dataStore, runId }) => {
-      const api = userType === 'host' ? hostApi : participantApi;
+    async (
+      userType,
+      {
+        participantApi,
+        hostApi,
+        dataStore,
+        runId: participantRunId,
+        hostRunId,
+      },
+    ) => {
+      const [api, runId] =
+        userType === 'host'
+          ? [hostApi, hostRunId]
+          : [participantApi, participantRunId];
       dataStore.tx.addLogs.mockImplementation(async () => {
         throw new DataStoreError(
           'Error message that should not be seen by the user',
@@ -396,7 +440,7 @@ describe.each(storeTypes)('LogServer: post /logs (%s)', (storeType) => {
               status: 'Conflict',
               code: 'LOG_NUMBER_EXISTS',
               detail:
-                `Cannot add logs to run '1', log number 2 already exists with a different type or values.` +
+                `Cannot add logs to run '${runId}', log number 2 already exists with a different type or values.` +
                 ` Ensure log numbers are unique within the run.`,
             },
           ],
@@ -787,6 +831,19 @@ describe.each(storeTypes)('LogServer: post /operations (%s)', (storeType) => {
         },
       ],
     });
+    expect(dataStore.tx.addLogs).not.toHaveBeenCalled();
+  });
+
+  it("refuses a host's logs to a run another session created", async ({
+    expect,
+    hostApi,
+    runId,
+    dataStore,
+  }) => {
+    const response = await post(hostApi, [add(runId, 1)])
+      .expect(403)
+      .expect('Content-Type', atomicContentTypeRegExp);
+    expect(response.body.errors).toMatchObject([{ code: 'RUN_NOT_OWNED' }]);
     expect(dataStore.tx.addLogs).not.toHaveBeenCalled();
   });
 

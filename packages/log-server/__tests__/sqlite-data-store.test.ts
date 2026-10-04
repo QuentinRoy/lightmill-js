@@ -632,6 +632,11 @@ describe.for([{ queryLimit: 10000 }, { queryLimit: 2 }])(
       await expect(fromAsync(store.getLogs({ runName: [] }))).resolves.toEqual(
         [],
       );
+      // The server relies on this to show a session without runs nothing.
+      await expect(fromAsync(store.getLogs({ runId: [] }))).resolves.toEqual(
+        [],
+      );
+      await expect(store.getRuns({ runId: [] })).resolves.toEqual([]);
       await expect(
         fromAsync(
           store.getLogs({

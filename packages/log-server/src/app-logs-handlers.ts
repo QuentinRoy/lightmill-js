@@ -3,8 +3,8 @@ import { mediaType } from '@lightmill/log-api/vocabulary';
 import type { StandardSchemaV1 } from '@standard-schema/spec';
 import { Readable } from 'node:stream';
 import { parseAcceptHeader } from './accept-headers.ts';
+import { visibleRunIds } from './access.ts';
 import {
-  getAllowedAndFilteredRunIds,
   getErrorResponse,
   getLogIntakeErrorResponse,
   getRunResources,
@@ -13,7 +13,7 @@ import {
 import { csvExportStream } from './csv-export.ts';
 import type { AllFilter } from './data-filters.ts';
 import type { DataStore } from './data-store.ts';
-import { addLogsToAccessibleRun } from './log-intake.ts';
+import { addLogsToWritableRun } from './log-intake.ts';
 import type { HandlerResponseFromRoute, PathHandlers } from './router.ts';
 import { arrayify, firstStrict } from './utils.ts';
 
@@ -29,10 +29,7 @@ export const logHandlers = (): PathHandlers<'/logs'> => ({
       });
       let filter: AllFilter = {
         logType: query['filter[logType]'],
-        runId: getAllowedAndFilteredRunIds(
-          sessionData,
-          query['filter[run.id]'],
-        ),
+        runId: visibleRunIds(sessionData, query['filter[run.id]']),
         experimentId: query['filter[experiment.id]'],
         experimentName: query['filter[experiment.name]'],
         runName: query['filter[run.name]'],
@@ -68,7 +65,7 @@ export const logHandlers = (): PathHandlers<'/logs'> => ({
     },
 
     async post({ dataStore: store, body, sessionData, protocol, host }) {
-      let outcome = await addLogsToAccessibleRun(
+      let outcome = await addLogsToWritableRun(
         store,
         sessionData,
         body.data.relationships.run.data.id,
@@ -91,9 +88,10 @@ export const logHandlers = (): PathHandlers<'/logs'> => ({
 
   '/logs/{id}': {
     async get({ sessionData, dataStore: store, parameters: { path, query } }) {
-      let isHost = sessionData.role === 'host';
-      let runFilter = isHost ? undefined : (sessionData.runs ?? []);
-      let filter: AllFilter = { runId: runFilter, logId: path.id };
+      let filter: AllFilter = {
+        runId: visibleRunIds(sessionData, undefined),
+        logId: path.id,
+      };
       let includeQuery = arrayify(query['include'], true);
       let dataString = '';
       for await (let chunk of jsonResponseChunkGenerator(store, filter, {

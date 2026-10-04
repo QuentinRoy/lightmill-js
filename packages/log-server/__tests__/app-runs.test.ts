@@ -416,6 +416,60 @@ describeForAll(
         .expect(404);
     });
 
+    if (sessionType === 'host') {
+      it('lets a host cancel a run another session created', async ({
+        expect,
+        context: { api, dataStore, experimentId },
+      }) => {
+        const { runId } = await dataStore.withTransaction((tx) =>
+          tx.addRun({ experimentId, runName: 'orphan', runStatus: 'running' }),
+        );
+        await api
+          .patch(`/runs/${runId}`)
+          .set('content-type', mediaType)
+          .send({
+            data: {
+              id: runId,
+              type: 'runs',
+              attributes: { status: 'canceled' },
+            },
+          })
+          .expect(200);
+        const [run] = await dataStore.getRuns({ runId });
+        expect(run?.runStatus).toBe('canceled');
+      });
+
+      it('returns a 403 error if a host tries to change a run another session created', async ({
+        expect,
+        context: { api, dataStore, experimentId },
+      }) => {
+        const { runId } = await dataStore.withTransaction((tx) =>
+          tx.addRun({ experimentId, runName: null, runStatus: 'running' }),
+        );
+        await api
+          .patch(`/runs/${runId}`)
+          .set('content-type', mediaType)
+          .send({
+            data: {
+              id: runId,
+              type: 'runs',
+              attributes: { status: 'completed' },
+            },
+          })
+          .expect(403, {
+            errors: [
+              {
+                status: 'Forbidden',
+                code: 'RUN_NOT_OWNED',
+                detail: `Run "${runId}" belongs to another session. Only the session that created a run can write to it.`,
+              },
+            ],
+          });
+        const [run] = await dataStore.getRuns({ runId });
+        expect(run?.runStatus).toBe('running');
+      });
+    }
+
     if (sessionType === 'participant') {
       it('returns a 404 error if a participant tries to change the status of the run but does not have access to that run', async ({
         context: { api, dataStore, experimentId, sessionStore },
@@ -805,13 +859,18 @@ describeForAll(
               attributes: { status, lastLogNumber },
             },
           })
-          .expect(403)
-          .expect('Content-Type', apiContentTypeRegExp)
-          .expect((response) => {
-            expect(response.body.errors[0].code).toBe(
-              'INVALID_LAST_LOG_NUMBER',
-            );
-          });
+          .expect(400, {
+            errors: [
+              {
+                status: 'Bad Request',
+                code: 'INVALID_REQUEST_BODY',
+                detail:
+                  "lastLogNumber resumes the run, so it requires the status 'running'.",
+                source: { pointer: '/data/attributes/lastLogNumber' },
+              },
+            ],
+          })
+          .expect('Content-Type', apiContentTypeRegExp);
         await expect(dataStore.getRuns({ runId })).resolves.toMatchObject([
           { runStatus: from, lastLogNumber: 2 },
         ]);

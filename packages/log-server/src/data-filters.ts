@@ -25,6 +25,10 @@ export type LogFilter = ReadonlyDeep<{
   logId?: string | string[] | undefined;
 }>;
 
+/**
+ * In every filter, an undefined field matches everything and an empty array
+ * matches nothing.
+ */
 export type AllFilter = LogFilter & RunFilter & ExperimentFilter;
 
 export type RunFilter = ReadonlyDeep<{
