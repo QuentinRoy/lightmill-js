@@ -859,13 +859,18 @@ describeForAll(
               attributes: { status, lastLogNumber },
             },
           })
-          .expect(403)
-          .expect('Content-Type', apiContentTypeRegExp)
-          .expect((response) => {
-            expect(response.body.errors[0].code).toBe(
-              'INVALID_LAST_LOG_NUMBER',
-            );
-          });
+          .expect(400, {
+            errors: [
+              {
+                status: 'Bad Request',
+                code: 'INVALID_REQUEST_BODY',
+                detail:
+                  "lastLogNumber resumes the run, so it requires the status 'running'.",
+                source: { pointer: '/data/attributes/lastLogNumber' },
+              },
+            ],
+          })
+          .expect('Content-Type', apiContentTypeRegExp);
         await expect(dataStore.getRuns({ runId })).resolves.toMatchObject([
           { runStatus: from, lastLogNumber: 2 },
         ]);

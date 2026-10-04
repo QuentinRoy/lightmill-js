@@ -161,12 +161,10 @@ export const runHandlers = (): PathHandlers<'/runs'> => ({
       if (run === undefined) {
         return unknownRunAnswer;
       }
-      const isCancel =
-        body.data.attributes?.status === 'canceled' &&
-        body.data.attributes.lastLogNumber === undefined;
-      const mayChange = isCancel
-        ? canCancelRun(sessionData, runId)
-        : canWriteRun(sessionData, runId);
+      const mayChange =
+        body.data.attributes?.status === 'canceled'
+          ? canCancelRun(sessionData, runId)
+          : canWriteRun(sessionData, runId);
       if (!mayChange) return getRunNotOwnedResponse(runId);
 
       // Run not found errors must be handled before this.

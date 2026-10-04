@@ -46,9 +46,27 @@ const RunAttributes = z
     firstMissingLogNumber: z.union([z.number().int().positive(), z.null()]),
   })
   .openapi('RunAttributes');
-const RunAttributesUpdate = RunAttributes.omit({
-  firstMissingLogNumber: true,
-}).partial();
+const RunAttributesUpdate = RunAttributes.omit({ firstMissingLogNumber: true })
+  .extend({
+    lastLogNumber: RunAttributes.shape.lastLogNumber.describe(
+      "Resumes the run after this log number, and cancels the logs after it. Requires the status 'running', or no status on a running run.",
+    ),
+  })
+  .partial()
+  .superRefine((attributes, context) => {
+    if (
+      attributes.lastLogNumber !== undefined &&
+      attributes.status !== undefined &&
+      attributes.status !== 'running'
+    ) {
+      context.addIssue({
+        code: 'custom',
+        path: ['lastLogNumber'],
+        message:
+          "lastLogNumber resumes the run, so it requires the status 'running'.",
+      });
+    }
+  });
 const RunAttributesCreate = RunAttributes.omit({
   lastLogNumber: true,
   firstMissingLogNumber: true,
