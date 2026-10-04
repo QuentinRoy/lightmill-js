@@ -15,8 +15,7 @@ a full stack:
 
 | Package                         | Description                                                 | README                                                                         |
 | ------------------------------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------ |
-| `@lightmill/convert-touchstone` | Convert TouchStone XML to Lightmill static design format.   | [packages/convert-touchstone/README.md](packages/convert-touchstone/README.md) |
-| `@lightmill/static-design`      | Model static experiment designs and start run iterators.    | [packages/static-design/README.md](packages/static-design/README.md)           |
+| `@lightmill/convert-touchstone` | Convert TouchStone XML to an experiment design.             | [packages/convert-touchstone/README.md](packages/convert-touchstone/README.md) |
 | `@lightmill/runner`             | Execute timeline iterators with lifecycle callbacks.        | [packages/runner/README.md](packages/runner/README.md)                         |
 | `@lightmill/react-experiment`   | React `Run` component and hooks for task execution/logging. | [packages/react-experiment/README.md](packages/react-experiment/README.md)     |
 | `@lightmill/log-api`            | Shared API contract and OpenAPI artifacts for logging.      | [packages/log-api/README.md](packages/log-api/README.md)                       |
@@ -54,7 +53,7 @@ pnpm -r run test
 
 Common integration flow:
 
-1. Convert or define a design with `@lightmill/convert-touchstone` or `@lightmill/static-design`.
+1. Convert a design with `@lightmill/convert-touchstone`, or define its timelines directly.
 2. Execute tasks with `@lightmill/runner` or `@lightmill/react-experiment`.
 3. Persist logs through `@lightmill/log-client` + `@lightmill/log-server`.
 4. Use `@lightmill/log-api` as source of truth for API schemas and types.
@@ -64,7 +63,6 @@ Common integration flow:
 ```txt
 packages/
 	convert-touchstone/
-	static-design/
 	runner/
 	react-experiment/
 	log-api/

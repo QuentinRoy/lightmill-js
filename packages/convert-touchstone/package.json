@@ -28,7 +28,6 @@
     "yargs": "17.7.2"
   },
   "devDependencies": {
-    "@lightmill/static-design": "workspace:*",
     "@types/sax": "^1.2.7",
     "cross-env": "catalog:",
     "typescript": "catalog:",

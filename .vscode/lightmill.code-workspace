@@ -17,10 +17,6 @@
 		"path": "../packages/runner"
 	},
 	{
-		"name": "packages/static-design",
-		"path": "../packages/static-design"
-	},
-	{
 		"name": "packages/log-api",
 		"path": "../packages/log-api"
 	},

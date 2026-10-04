@@ -1,4 +1,3 @@
-import type StaticDesign from '@lightmill/static-design';
 import * as sax from 'sax';
 
 export type Experiment = { author: string; description: string; id: string };
@@ -14,8 +13,9 @@ export type Block = ({ practice: false; number: number } | { practice: true }) &
 export type FactorValues = Record<string, unknown>;
 export type MinimalTask = { type: string; id: string };
 export type UndefinedTask = MinimalTask & Record<string, unknown>;
-export type DesignConfig<T extends MinimalTask> = Experiment &
-  ConstructorParameters<typeof StaticDesign<T>>[0];
+export type DesignConfig<T extends MinimalTask> = Experiment & {
+  runs: Array<Run<T>>;
+};
 
 type TypeParserKey = 'integer' | 'float' | 'string';
 type TypeParser = ((x: string) => number) | ((x: string) => string);
@@ -54,8 +54,7 @@ type DefinedMapperOptions<T> = {
 /**
  * @param touchStoneXML The XML to parse.
  * @param [options] Options for mapping tasks to different stages of the experiment
- * @return The experimental design converted into a format
- * supported by @lightmill/static-design.
+ * @return The experimental design, with one timeline of tasks per run.
  *
  * @example
  * // Map each run to a task to insert before the trials of the run.
