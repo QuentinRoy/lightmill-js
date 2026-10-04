@@ -17,7 +17,9 @@ rotation needs.
 ```ts
 import { latinSquare } from '@lightmill/counterbalancing';
 
-const orders = latinSquare(['mouse', 'touch', 'pen']);
+// With an odd number of conditions, balancing carryover effects doubles the
+// number of orders.
+const orders = latinSquare(['mouse', 'touch', 'pen'], { balanced: true });
 // [
 //   ['mouse', 'touch', 'pen'],
 //   ['touch', 'pen', 'mouse'],
@@ -31,11 +33,11 @@ const order = orders[runIndex % orders.length];
 
 ## API Reference
 
-| Function                                       | Orders returned                                                                                                                                                                                                                                                                                          |
-| ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `latinSquare(conditions, { balanced? })`       | n, or 2n for an odd n above 1 when balanced (the default). Each condition appears once at every position; balanced, each also precedes every other one equally often, which counterbalances first-order carryover effects. `balanced: false` keeps n orders, halving the runs a complete rotation needs. |
-| `permutations(conditions)`                     | n!, every order.                                                                                                                                                                                                                                                                                         |
-| `randomOrders(conditions, { count, random? })` | `count` independent shuffles. `random` returns a number in [0, 1) and defaults to `Math.random`; pass a seeded generator to reproduce the orders.                                                                                                                                                        |
+| Function                                       | Orders returned                                                                                                                                                                                                                                                                    |
+| ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `latinSquare(conditions, { balanced? })`       | n, or 2n for an odd n above 1 when `balanced`. Each condition appears once at every position. With an even n, or when `balanced`, each condition also precedes every other one equally often, which counterbalances first-order carryover effects. `balanced` defaults to `false`. |
+| `permutations(conditions)`                     | n!, every order.                                                                                                                                                                                                                                                                   |
+| `randomOrders(conditions, { count, random? })` | `count` independent shuffles. `random` returns a number in [0, 1) and defaults to `Math.random`; pass a seeded generator to reproduce the orders.                                                                                                                                  |
 
 `n` is the number of conditions. Every function throws a `TypeError` when
 `conditions` is empty. All but `randomOrders` also throw a `TypeError` when

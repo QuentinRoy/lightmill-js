@@ -2,22 +2,21 @@
  * Creates a latin square of condition orders: each condition appears once in
  * every order and once at every position across orders.
  *
- * By default, the square is also balanced: each condition precedes every other
- * condition equally often, which counterbalances first-order carryover
- * effects. With an odd number of conditions, this doubles the number of
- * orders.
+ * With an even number of conditions, the square is also balanced: each
+ * condition precedes every other condition equally often, which
+ * counterbalances first-order carryover effects.
  *
  * @param conditions The conditions to order.
  * @param options How to build the square.
- * @param options.balanced Whether to balance the square. Defaults to `true`.
- * Without balancing, an odd number of conditions gets one order per condition,
- * so a complete rotation needs half as many runs.
+ * @param options.balanced Whether to also balance the square with an odd
+ * number of conditions, which doubles the number of orders. Defaults to
+ * `false`.
  * @returns One order per condition, or two when balancing an odd number (above
  * 1) of conditions.
  */
 export function latinSquare<T>(
   conditions: readonly T[],
-  { balanced = true }: { balanced?: boolean } = {},
+  { balanced = false }: { balanced?: boolean } = {},
 ): T[][] {
   checkConditions(conditions);
   const n = conditions.length;

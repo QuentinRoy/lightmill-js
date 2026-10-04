@@ -11,8 +11,18 @@ describe('latinSquare', () => {
     ]);
   });
 
-  it('returns two orders per condition for an odd number of conditions', () => {
+  it('returns one order per condition for an odd number of conditions', () => {
     expect(latinSquare(['A', 'B', 'C', 'D', 'E'])).toEqual([
+      ['A', 'B', 'E', 'C', 'D'],
+      ['B', 'C', 'A', 'D', 'E'],
+      ['C', 'D', 'B', 'E', 'A'],
+      ['D', 'E', 'C', 'A', 'B'],
+      ['E', 'A', 'D', 'B', 'C'],
+    ]);
+  });
+
+  it('returns two orders per condition when balancing an odd number of conditions', () => {
+    expect(latinSquare(['A', 'B', 'C', 'D', 'E'], { balanced: true })).toEqual([
       ['A', 'B', 'E', 'C', 'D'],
       ['B', 'C', 'A', 'D', 'E'],
       ['C', 'D', 'B', 'E', 'A'],
@@ -26,20 +36,8 @@ describe('latinSquare', () => {
     ]);
   });
 
-  it('returns one order per condition when not balanced', () => {
-    expect(latinSquare(['A', 'B', 'C', 'D', 'E'], { balanced: false })).toEqual(
-      [
-        ['A', 'B', 'E', 'C', 'D'],
-        ['B', 'C', 'A', 'D', 'E'],
-        ['C', 'D', 'B', 'E', 'A'],
-        ['D', 'E', 'C', 'A', 'B'],
-        ['E', 'A', 'D', 'B', 'C'],
-      ],
-    );
-  });
-
   it('returns a single order for a single condition', () => {
-    expect(latinSquare(['A'])).toEqual([['A']]);
+    expect(latinSquare(['A'], { balanced: true })).toEqual([['A']]);
   });
 });
 
