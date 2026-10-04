@@ -1,5 +1,21 @@
 # @lightmill/log-api
 
+## 5.0.0-beta.4
+
+### Major Changes
+
+- [#396](https://github.com/QuentinRoy/lightmill-js/pull/396) [`bbcb236`](https://github.com/QuentinRoy/lightmill-js/commit/bbcb236a538f3b185bde94da31c95fcd78b49d1e) - `PATCH /runs/{id}` refuses a `lastLogNumber` sent with a status other than `running` as an invalid request body: `400 INVALID_REQUEST_BODY`, with a `source.pointer` to `/data/attributes/lastLogNumber`. It used to answer `403 INVALID_LAST_LOG_NUMBER`. The schema now describes `lastLogNumber`: it resumes the run, so it requires the status `running`, or no status on a running run. A `lastLogNumber` without a status on a run that is not running still answers `403 INVALID_LAST_LOG_NUMBER`. Update clients that handle `403 INVALID_LAST_LOG_NUMBER` for the first case.
+
+### Minor Changes
+
+- [#396](https://github.com/QuentinRoy/lightmill-js/pull/396) [`bbcb236`](https://github.com/QuentinRoy/lightmill-js/commit/bbcb236a538f3b185bde94da31c95fcd78b49d1e) - `POST /logs`, `POST /operations` and `PATCH /runs/{id}` document a `403 RUN_NOT_OWNED` error, for a write to a run another session created.
+
+- [#386](https://github.com/QuentinRoy/lightmill-js/pull/386) [`6abfe1b`](https://github.com/QuentinRoy/lightmill-js/commit/6abfe1b27e852b8af7b284816140c5b6ab77082b) - `@lightmill/log-api/vocabulary` exports the terms of the API without loading zod or the OpenAPI document: `mediaType`, `atomicMediaType`, `sessionCookieName`, `runStatuses` and `RunStatus`, `userRoles` and `UserRole`, and `httpStatuses` with `HttpStatusMap`, `HttpStatusCode` and `HttpStatusText`.
+
+### Patch Changes
+
+- [#383](https://github.com/QuentinRoy/lightmill-js/pull/383) [`1968561`](https://github.com/QuentinRoy/lightmill-js/commit/1968561109828d73952f465409053ab00cdaf3f9) - Fix `PATCH /runs/{id}` documenting a `403 INVALID_ROLE` error that the server never sends.
+
 ## 5.0.0-beta.3
 
 ### Minor Changes
