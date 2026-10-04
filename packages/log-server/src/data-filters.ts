@@ -9,10 +9,16 @@ import {
 } from './data-store.ts';
 import { arrayify, firstStrict, removePrefix, startsWith } from './utils.ts';
 
-export const createQueryFilterRun = createQueryFilterFactory(parseRunFilter);
-export const createQueryFilterExperiment = createQueryFilterFactory(
-  parseExperimentFilter,
-);
+// The filter types are annotated by name: TypeScript cannot write the type
+// that `ReadonlyDeep` resolves to in a declaration file.
+export const createQueryFilterRun: QueryFilterFactory<
+  RunFilter,
+  ReturnType<typeof parseRunFilter>
+> = createQueryFilterFactory(parseRunFilter);
+export const createQueryFilterExperiment: QueryFilterFactory<
+  ExperimentFilter,
+  ReturnType<typeof parseExperimentFilter>
+> = createQueryFilterFactory(parseExperimentFilter);
 export const createQueryFilterAll = createQueryFilterFactory(parseAllFilter);
 
 export type ExperimentFilter = ReadonlyDeep<{
@@ -77,11 +83,15 @@ function createParsedFilterQuery<
     return qb.where((wb) => wb.and(clauses.map((c) => wb(...c))));
   };
 }
+type QueryFilterFactory<I, O extends ParsedFilter> = <Namespace extends string>(
+  filter: I,
+  n: Namespace,
+) => ReturnType<typeof createParsedFilterQuery<O, Namespace>>;
+
 function createQueryFilterFactory<I, O extends ParsedFilter>(
   parser: (input: I) => O,
-) {
-  return <Namespace extends string>(filter: I, n: Namespace) =>
-    createParsedFilterQuery(parser(filter), n);
+): QueryFilterFactory<I, O> {
+  return (filter, n) => createParsedFilterQuery(parser(filter), n);
 }
 
 type Clause<T extends ParsedFilter, Namespace extends string> = {

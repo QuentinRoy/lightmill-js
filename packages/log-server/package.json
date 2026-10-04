@@ -47,7 +47,7 @@
     "onchange": "^7.1.0",
     "string-dedent": "^3.0.2",
     "supertest": "^7.3.1",
-    "type-fest": "^4.41.0",
+    "type-fest": "^5.10.0",
     "typescript": "catalog:",
     "vitest": "catalog:"
   },

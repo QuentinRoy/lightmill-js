@@ -39,7 +39,7 @@
     "jsdom": "^26.0.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "type-fest": "^4.9.0",
+    "type-fest": "^5.10.0",
     "typescript": "catalog:",
     "vite": "catalog:",
     "vitest": "catalog:"
