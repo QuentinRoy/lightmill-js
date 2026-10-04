@@ -7,12 +7,11 @@ import type { Store as ExpressSessionStore } from 'express-session';
 import {
   CamelCasePlugin,
   DeduplicateJoinsPlugin,
-  FileMigrationProvider,
   Kysely,
-  Migrator,
   sql,
   SqliteDialect,
 } from 'kysely';
+import { FileMigrationProvider, Migrator } from 'kysely/migration';
 import loglevel, { type LogLevelDesc } from 'loglevel';
 import fs from 'node:fs/promises';
 import path from 'node:path';

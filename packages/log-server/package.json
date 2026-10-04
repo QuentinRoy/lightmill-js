@@ -63,7 +63,7 @@
     "dotenv": "^16.5.0",
     "express": "^5.2.1",
     "express-session": "^1.19.0",
-    "kysely": "^0.28.2",
+    "kysely": "^0.29.6",
     "loglevel": "^1.9.2",
     "memorystore": "^1.6.8",
     "remeda": "^2.50.0",
