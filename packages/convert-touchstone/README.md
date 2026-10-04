@@ -1,10 +1,10 @@
 # @lightmill/convert-touchstone
 
-Convert a TouchStone XML design file into a Lightmill static design object.
+Convert a TouchStone XML design file into an experiment design object.
 
 This package is useful when your experiment design is authored in TouchStone and
-you want to execute it with Lightmill packages such as
-[@lightmill/static-design](../static-design) and [@lightmill/runner](../runner).
+you want to run its timelines with [@lightmill/runner](../runner) or
+[@lightmill/react-experiment](../react-experiment).
 
 ## Install
 
@@ -53,7 +53,7 @@ const design = await convertTouchstone(xml, {
 
 ### `convertTouchstone(touchStoneXML, options?)`
 
-Parse TouchStone XML and return a Lightmill static design:
+Parse TouchStone XML and return an experiment design:
 
 ```ts
 Promise<{
