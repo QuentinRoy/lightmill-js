@@ -2,7 +2,6 @@ import * as LogApi from '@lightmill/log-api';
 import {
   atomicMediaType,
   mediaType,
-  type HttpStatusText,
   type UserRole,
 } from '@lightmill/log-api/vocabulary';
 import type { StandardSchemaV1 } from '@standard-schema/spec';
@@ -12,7 +11,7 @@ import Stream from 'node:stream';
 import type { Simplify } from 'type-fest';
 import { z } from 'zod/v4';
 import {
-  httpStatusCodeFromText,
+  getErrorResponse,
   isContentType,
   parseCookies,
   type HttpStatusCodeFromText,
@@ -422,25 +421,6 @@ async function processResponse({
     return;
   }
   response.send(result.body);
-}
-
-function getErrorResponse<
-  Error extends { code: string; status: HttpStatusText },
->(
-  errors: Array<Error> | Error,
-  statusCode?: HttpStatusCodeFromText<Error['status']>,
-) {
-  errors = Array.isArray(errors) ? errors : [errors];
-  let firstError = errors[0];
-  if (firstError == null) {
-    throw new Error('No errors provided');
-  }
-  return {
-    contentType: mediaType,
-    status:
-      statusCode ?? httpStatusCodeFromText<Error['status']>(firstError.status),
-    body: { errors },
-  };
 }
 
 export type Handlers = {
