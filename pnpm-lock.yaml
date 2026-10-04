@@ -191,8 +191,8 @@ importers:
   .:
     dependencies:
       '@tsconfig/node-ts':
-        specifier: ^23.6.1
-        version: 23.6.1
+        specifier: ^23.6.4
+        version: 23.6.4
       '@tsconfig/node22':
         specifier: ^22.0.2
         version: 22.0.6
@@ -1388,8 +1388,8 @@ packages:
     peerDependencies:
       '@testing-library/dom': '>=7.21.4'
 
-  '@tsconfig/node-ts@23.6.1':
-    resolution: {integrity: sha512-1E5cUp+S65pLKKI9VrGMQPWDHxOEq3dAGM2onG3fLeSRwWbylYFwhIjnzJikjSN7w2nCgwxmv8ifvUKDFkK38Q==}
+  '@tsconfig/node-ts@23.6.4':
+    resolution: {integrity: sha512-37BMJvNQZ+vTgd1xG2TGBkJ6ENeT4eO4Wh2CHrnn0IwH7ybLFCzh4Uc//kc7UIvqiRac4uGdIc1meKOjMSlKzw==}
 
   '@tsconfig/node22@22.0.6':
     resolution: {integrity: sha512-/5thavHAnWDZwH2H6eEn/T8pBEBhtuKaWGMslsj82kJfvzQgOgEMK7X4goBbIUjgVtAzPTtM9Ml64LA0uxO6Iw==}
@@ -4527,7 +4527,7 @@ snapshots:
     dependencies:
       '@testing-library/dom': 10.4.2
 
-  '@tsconfig/node-ts@23.6.1': {}
+  '@tsconfig/node-ts@23.6.4': {}
 
   '@tsconfig/node22@22.0.6': {}
 
