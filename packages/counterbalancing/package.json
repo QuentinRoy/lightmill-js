@@ -1,0 +1,43 @@
+{
+  "name": "@lightmill/counterbalancing",
+  "version": "0.0.0",
+  "description": "Generate condition orders to counterbalance experiment runs.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/QuentinRoy/lightmill-js.git",
+    "directory": "packages/counterbalancing"
+  },
+  "type": "module",
+  "author": "Quentin Roy <contact@quentinroy.fr>",
+  "access": "public",
+  "files": [
+    "dist"
+  ],
+  "main": "./dist/main.js",
+  "types": "./dist/main.d.ts",
+  "exports": {
+    "import": {
+      "types": "./dist/main.d.ts",
+      "default": "./dist/main.js"
+    }
+  },
+  "devDependencies": {
+    "cross-env": "^7.0.3",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vitest": "catalog:"
+  },
+  "scripts": {
+    "test": "cross-env NODE_ENV=test vitest",
+    "build": "tsc -b tsconfig.build.json",
+    "prepublish": "pnpm run build",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "experiment",
+    "counterbalancing",
+    "latin-square"
+  ],
+  "private": false
+}
