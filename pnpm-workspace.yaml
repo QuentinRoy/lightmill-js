@@ -12,4 +12,4 @@ catalog:
   vite: ^6.4.1
   vitest: 4.1.11
   '@vitest/ui': 4.1.11
-  '@types/node': ^22.18.0
+  '@types/node': ^22.20.5
