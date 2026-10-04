@@ -1,8 +1,5 @@
-import {
-  getAllowedAndFilteredRunIds,
-  getErrorResponse,
-  getRunResources,
-} from './api.ts';
+import { canAccessRun, visibleRunIds } from './access.ts';
+import { getErrorResponse, getRunResources } from './api.ts';
 import { DataStoreError } from './data-store-errors.ts';
 import type { HandlerResponseFromRoute, PathHandlers } from './router.ts';
 import {
@@ -17,10 +14,7 @@ export const runHandlers = (): PathHandlers<'/runs'> => ({
   '/runs': {
     async get({ sessionData, parameters, dataStore: store }) {
       const filter = {
-        runId: getAllowedAndFilteredRunIds(
-          sessionData,
-          parameters.query['filter[id]'],
-        ),
+        runId: visibleRunIds(sessionData, parameters.query['filter[id]']),
         runStatus: parameters.query['filter[status]'],
         experimentId: parameters.query['filter[experiment.id]'],
         experimentName: parameters.query['filter[experiment.name]'],
@@ -108,10 +102,7 @@ export const runHandlers = (): PathHandlers<'/runs'> => ({
 
   '/runs/{id}': {
     async get({ sessionData, parameters, dataStore: store }) {
-      if (
-        sessionData.role !== 'host' &&
-        !sessionData.runs.includes(parameters.path.id)
-      ) {
+      if (!canAccessRun(sessionData, parameters.path.id)) {
         return getErrorResponse({
           status: 'Not Found',
           code: 'RUN_NOT_FOUND',

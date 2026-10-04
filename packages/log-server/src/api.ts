@@ -5,12 +5,10 @@ import {
   type HttpStatusMap,
   type HttpStatusText,
 } from '@lightmill/log-api/vocabulary';
-import type { SessionData } from 'express-session';
-import { groupBy, intersection, map, pipe, uniqueBy } from 'remeda';
+import { groupBy, map, pipe, uniqueBy } from 'remeda';
 import type { ConditionalKeys, JsonObject } from 'type-fest';
 import type { DataStore, NewLog } from './data-store.ts';
 import type { LogIntakeRejection } from './log-intake.ts';
-import { arrayify } from './utils.ts';
 
 export function getErrorResponse<
   const Error extends { code: string; status: HttpStatusText },
@@ -139,22 +137,6 @@ export async function getRunResources(
       },
     })),
   };
-}
-
-export function getAllowedAndFilteredRunIds(
-  sessionData: SessionData['data'] | undefined,
-  queryFilter: undefined | string | string[],
-) {
-  if (sessionData == null) {
-    return [];
-  }
-  if (sessionData.role === 'host') {
-    return queryFilter;
-  }
-  if (queryFilter == null) {
-    return sessionData.runs;
-  }
-  return intersection(sessionData.runs, arrayify(queryFilter, true));
 }
 
 /**
