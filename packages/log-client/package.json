@@ -29,7 +29,7 @@
     "cross-env": "^7.0.3",
     "msw": "^2.7.3",
     "onchange": "^7.1.0",
-    "openapi-typescript": "^7.8.0",
+    "openapi-typescript": "^7.13.0",
     "type-fest": "^4.39.1",
     "typescript": "catalog:",
     "vitest": "catalog:"
