@@ -7,7 +7,7 @@ import {
 } from '@lightmill/log-api/vocabulary';
 import type { StandardSchemaV1 } from '@standard-schema/spec';
 import { Readable } from 'node:stream';
-import { groupBy, map, pipe, uniqueBy } from 'remeda';
+import { chunk, groupBy, map, pipe, uniqueBy } from 'remeda';
 import { httpStatusCodeFromText, type HttpStatusCodeFromText } from './api.ts';
 import type { AllFilter, ExperimentFilter } from './data-filters.ts';
 import type {
@@ -15,6 +15,7 @@ import type {
   ExperimentId,
   ExperimentRecord,
   Log,
+  LogId,
   RunId,
 } from './data-store.ts';
 import type { LogIntakeRejection } from './log-intake.ts';
@@ -41,15 +42,26 @@ export function getRequestMediaType(route: RouteWithBody) {
 }
 export type RouteMediaType = ReturnType<typeof getRequestMediaType>;
 
+const routes: Record<string, Record<string, RouteWithBody>> = LogApi.routes;
+const methodsByLowerCasePath = new Map(
+  Object.entries(routes).map(
+    ([path, methods]): [string, Record<string, RouteWithBody>] => [
+      path.toLowerCase(),
+      methods,
+    ],
+  ),
+);
+
 /**
  * The media type the server answers with on `path`, for responses that are
  * not tied to one of its routes: a method it does not have, or an error of
  * the body parser, which runs before routing.
  */
 export function getResponseMediaType(path: string) {
-  const routes: Record<string, Record<string, RouteWithBody>> = LogApi.routes;
-  // Express matches a trailing slash too.
-  const methods = routes[path.replace(/\/+$/, '')];
+  // Express matches a path in any case, with or without a trailing slash.
+  const methods = methodsByLowerCasePath.get(
+    path.replace(/\/+$/, '').toLowerCase(),
+  );
   return methods != null &&
     Object.values(methods).some(
       (route) => getRequestMediaType(route) === atomicMediaType,
@@ -314,38 +326,46 @@ async function getRunResources(
 }
 type RunResources = Awaited<ReturnType<typeof getRunResources>>;
 
-// What each route's `include` names stand for, in the order the included
-// resources appear in a document.
+// What each route's `include` names stand for. A nested name stands for every
+// resource on its path: the experiments of `runs.experiment` are only linked
+// from their runs, and a compound document must hold what it links to.
 const runIncludes = {
-  experiment: 'experiments',
-  lastLogs: 'lastLogs',
+  experiment: ['experiments'],
+  lastLogs: ['lastLogs'],
 } as const;
 const sessionIncludes = {
-  runs: 'runs',
-  'runs.experiment': 'experiments',
-  'runs.lastLogs': 'lastLogs',
+  runs: ['runs'],
+  'runs.experiment': ['runs', 'experiments'],
+  'runs.lastLogs': ['runs', 'lastLogs'],
 } as const;
 const logIncludes = {
-  'run.experiment': 'experiments',
-  run: 'runs',
-  'run.lastLogs': 'lastLogs',
+  run: ['runs'],
+  'run.experiment': ['runs', 'experiments'],
+  'run.lastLogs': ['runs', 'lastLogs'],
 } as const;
+
+// The order of the included resources in a document.
+const includedKindOrder = [
+  'runs',
+  'experiments',
+  'lastLogs',
+] as const satisfies ReadonlyArray<keyof RunResources>;
 
 type IncludeQuery<Names extends Record<string, unknown>> =
   keyof Names | ReadonlyArray<keyof Names> | undefined;
 
 function getIncludedKinds<
-  const Names extends Record<string, keyof RunResources>,
+  const Names extends Record<string, ReadonlyArray<keyof RunResources>>,
 >(
   names: Names,
   include: IncludeQuery<NoInfer<Names>>,
-): Array<Names[keyof Names]> {
+): Array<Names[keyof Names][number]> {
   const requested: Array<keyof Names> = arrayify(include, true);
-  return (
-    Object.entries(names)
-      .filter(([name]) => requested.includes(name))
-      // Object.entries widens the values to `keyof RunResources`.
-      .map(([, kind]) => kind as Names[keyof Names])
+  const kinds = new Set<keyof RunResources>(
+    requested.flatMap((name) => names[name]),
+  );
+  return includedKindOrder.filter((kind): kind is Names[keyof Names][number] =>
+    kinds.has(kind),
   );
 }
 
@@ -480,7 +500,13 @@ async function* logsDocumentChunks(
     yield '\n]}';
     return;
   }
-  const resources = await getIncludedRunResources(store, runIds, kinds);
+  const runResources = await getIncludedRunResources(store, runIds, kinds);
+  const resources = kinds.includes('lastLogs')
+    ? {
+        ...runResources,
+        lastLogs: await omitListedLogs(store, filter, runResources.lastLogs),
+      }
+    : runResources;
   yield '],\n"included":[';
   started = false;
   for (const kind of kinds) {
@@ -509,7 +535,35 @@ export async function getLogDocument(
   if (log === undefined) return undefined;
   const kinds = getIncludedKinds(logIncludes, include);
   const resources = await getIncludedRunResources(store, [log.runId], kinds);
-  return withIncluded(logResource(log), resources, kinds);
+  // The log is the document's data: it is not included again as a last log.
+  const lastLogs = resources.lastLogs.filter(({ id }) => id !== log.logId);
+  return withIncluded(logResource(log), { ...resources, lastLogs }, kinds);
+}
+
+/**
+ * The logs the document does not list in its data. A compound document holds a
+ * resource once, and the last log of a run is usually one of the logs listed.
+ */
+async function omitListedLogs(
+  store: DataStore,
+  filter: Omit<AllFilter, 'runStatus'>,
+  logs: RunResources['lastLogs'],
+) {
+  const listed = new Set<LogId>();
+  // By chunks: a log id is a bound variable, and a run has a last log per type.
+  for (const logId of chunk(
+    logs.map(({ id }) => id),
+    1000,
+  )) {
+    for await (const log of store.getLogs({
+      ...filter,
+      runStatus: '-canceled',
+      logId,
+    })) {
+      listed.add(log.logId);
+    }
+  }
+  return logs.filter(({ id }) => !listed.has(id));
 }
 
 /** The resources `kinds` ask for, looked up only if there is any to ask for. */

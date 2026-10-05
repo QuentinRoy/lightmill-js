@@ -359,7 +359,7 @@ describe.for(suite)(
       );
       const response = await api
         .get('/sessions/current')
-        .query({ include: ['runs', 'runs.experiment', 'runs.lastLogs'] })
+        .query({ include: ['runs.experiment', 'runs.lastLogs'] })
         .expect(200)
         .expect('Content-Type', apiContentTypeRegExp);
       expect(

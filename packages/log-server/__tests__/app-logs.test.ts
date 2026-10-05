@@ -1231,9 +1231,49 @@ describe.each(storeTypes)('createLogServer: get /logs (%s)', (storeType) => {
     expect(includedOf('runs')).toContainEqual(
       expect.objectContaining({ id: runId }),
     );
-    // One last log per run: all logs have the same type.
-    expect(includedOf('logs')).toHaveLength(2);
+    // The last log of each run is one of the logs listed in data.
+    expect(includedOf('logs')).toEqual([]);
     expect(dataStore.getRuns).toHaveBeenCalledTimes(1);
+  });
+
+  it('includes the runs on the way to their experiments', async ({
+    expect,
+    hostApi,
+  }) => {
+    const response = await hostApi
+      .get('/logs')
+      .set('Accept', mediaType)
+      .query({ include: 'run.experiment' })
+      .expect(200);
+    expect(
+      response.body.included.map((r: { type: string }) => r.type).sort(),
+    ).toEqual(['experiments', 'runs', 'runs']);
+  });
+
+  it('includes the last logs that the document does not list', async ({
+    expect,
+    hostApi,
+    dataStore,
+    runId,
+  }) => {
+    await dataStore.withTransaction((tx) =>
+      tx.addLogs(runId, [{ type: 'other-type', values: {}, number: 4 }]),
+    );
+    const response = await hostApi
+      .get('/logs')
+      .set('Accept', mediaType)
+      .query({ 'filter[logType]': 'log-type', include: 'run.lastLogs' })
+      .expect(200);
+    // The last 'log-type' log of each run is listed in data. Only the last
+    // 'other-type' log is not.
+    const includedLogs = response.body.included.filter(
+      (r: { type: string }) => r.type === 'logs',
+    );
+    expect(includedLogs).toEqual([
+      expect.objectContaining({
+        attributes: expect.objectContaining({ logType: 'other-type' }),
+      }),
+    ]);
   });
 
   it('aborts the response, and keeps serving, when the include lookup fails after the logs were sent', async ({
@@ -1259,7 +1299,7 @@ describe.for(storeTypes)(
   (storeType) => {
     const it = createTest(storeType);
 
-    it('includes the requested related resources', async ({
+    it('includes the requested related resources, without repeating the log', async ({
       dataStore,
       participantApi,
       runId,
@@ -1279,14 +1319,53 @@ describe.for(storeTypes)(
         .expect('Content-Type', apiContentTypeRegExp);
 
       expect(response.body.data.id).toBe(logId);
-      expect(response.body.included).toHaveLength(3);
-      expect(response.body.included).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({ type: 'experiments', id: experimentId }),
-          expect.objectContaining({ type: 'runs', id: runId }),
-          expect.objectContaining({ type: 'logs', id: logId }),
+      // The log is also the last log of its run: it is the data, not included.
+      expect(response.body.included).toEqual([
+        expect.objectContaining({ type: 'runs', id: runId }),
+        expect.objectContaining({ type: 'experiments', id: experimentId }),
+      ]);
+    });
+
+    it('includes the run on the way to its experiment', async ({
+      dataStore,
+      participantApi,
+      runId,
+      experimentId,
+      expect,
+    }) => {
+      const [logRecord] = await dataStore.withTransaction((tx) =>
+        tx.addLogs(runId, [{ type: 'log-type', values: {}, number: 1 }]),
+      );
+      const response = await participantApi
+        .get(`/logs/${logRecord!.logId}`)
+        .query({ include: 'run.experiment' })
+        .expect(200);
+      expect(response.body.included).toEqual([
+        expect.objectContaining({ type: 'runs', id: runId }),
+        expect.objectContaining({ type: 'experiments', id: experimentId }),
+      ]);
+    });
+
+    it('includes the last log of the run when it is another log', async ({
+      dataStore,
+      participantApi,
+      runId,
+      expect,
+    }) => {
+      const [first, last] = await dataStore.withTransaction((tx) =>
+        tx.addLogs(runId, [
+          { type: 'log-type', values: {}, number: 1 },
+          { type: 'log-type', values: {}, number: 2 },
         ]),
       );
+      const response = await participantApi
+        .get(`/logs/${first!.logId}`)
+        .query({ include: 'run.lastLogs' })
+        .expect(200);
+      expect(response.body.included).toEqual([
+        expect.objectContaining({ type: 'runs', id: runId }),
+        expect.objectContaining({ type: 'logs', id: last!.logId }),
+      ]);
     });
 
     it("returns a 404 error if the log is not part of one of the participant's runs", async ({

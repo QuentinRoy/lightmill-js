@@ -25,12 +25,13 @@ afterEach(() => {
 type Fixture = { api: request.Agent };
 
 // Body errors happen before routing, so each route answers them with its own
-// media type: the trailing slash checks the lookup does not depend on its
-// exact spelling.
+// media type: the trailing slash and the upper case check the lookup does not
+// depend on its exact spelling.
 const bodyErrorRoutes = [
   ['/logs', mediaType, apiContentTypeRegExp],
   ['/operations', atomicMediaType, atomicContentTypeRegExp],
   ['/operations/', atomicMediaType, atomicContentTypeRegExp],
+  ['/OPERATIONS', atomicMediaType, atomicContentTypeRegExp],
 ] as const;
 
 describe.for(storeTypes)('createLogServer Errors (%s server)', (storeType) => {
