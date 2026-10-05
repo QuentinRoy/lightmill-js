@@ -143,12 +143,8 @@ function createRunStore<Task>({
   };
 }
 
-const noStore: RunStore<never> = {
-  timeline: [],
-  subscribe: () => () => {},
-  getSnapshot: () => loadingSnapshot,
-  start: () => {},
-};
+const noSubscribe = () => () => {};
+const getLoadingSnapshot = () => loadingSnapshot;
 
 type UseRunStateOptions<Task> = {
   timeline?: AnyIteratorOrIterable<Task> | null;
@@ -187,16 +183,17 @@ export function useRunState<Task>({
   } else if (storeRef.current.timeline !== timeline) {
     throw new Error('Timeline cannot be changed once set');
   }
-  const store = storeRef.current ?? noStore;
+  const store = storeRef.current;
 
   React.useEffect(() => {
-    store.start();
+    store?.start();
   }, [store]);
 
+  // Until a timeline is set, the run is loading.
   const snapshot = React.useSyncExternalStore(
-    store.subscribe,
-    store.getSnapshot,
-    store.getSnapshot,
+    store?.subscribe ?? noSubscribe,
+    store?.getSnapshot ?? getLoadingSnapshot,
+    store?.getSnapshot ?? getLoadingSnapshot,
   );
   if (snapshot.status === 'error') {
     throw snapshot.error;
