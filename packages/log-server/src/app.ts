@@ -51,11 +51,12 @@ export function createLogServer({
     // URLSearchParams decodes malformed percent-encoding into U+FFFD, which
     // would filter on a value the client never sent.
     for (const pair of str.split('&')) {
-      try {
-        decodeURIComponent(pair);
-      } catch {
-        const [parameter = ''] = new URLSearchParams(pair).keys();
-        throw new MalformedQueryError(parameter);
+      const [key = ''] = pair.split('=', 1);
+      if (!isDecodable(key)) throw new MalformedQueryError(key);
+      if (!isDecodable(pair)) {
+        throw new MalformedQueryError(
+          decodeURIComponent(key.replaceAll('+', ' ')),
+        );
       }
     }
     let params = new URLSearchParams(str);
@@ -105,4 +106,13 @@ export function createLogServer({
   app.use(createErrorHandler());
 
   return { middleware: app };
+}
+
+function isDecodable(component: string) {
+  try {
+    decodeURIComponent(component);
+    return true;
+  } catch {
+    return false;
+  }
 }

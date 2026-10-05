@@ -132,32 +132,45 @@ describe.for(storeTypes)('createLogServer Errors (%s server)', (storeType) => {
           },
         ],
       });
+    // A key that cannot be decoded is named as the client sent it.
+    await api
+      .get('/experiments?%E0=1')
+      .expect('Content-Type', apiContentTypeRegExp)
+      .expect(400, {
+        errors: [
+          {
+            status: 'Bad Request',
+            code: 'INVALID_REQUEST_QUERY',
+            detail: 'Query parameter "%E0" has malformed percent-encoding.',
+            source: { parameter: '%E0' },
+          },
+        ],
+      });
   });
 
-  it('decodes query parameters once', async ({ api, expect }) => {
+  it('decodes query parameters once', async ({ api }) => {
     await api
       .post('/sessions')
       .set('Content-Type', mediaType)
-      .send({ data: { type: 'sessions', attributes: { role: 'participant' } } })
+      .send({ data: { type: 'sessions', attributes: { role: 'host' } } })
       .expect(201);
-    let response = await api
-      .get('/experiments?x%2526y=1')
+    const { body } = await api
+      .post('/experiments')
+      .set('Content-Type', mediaType)
+      .send({ data: { type: 'experiments', attributes: { name: 'a&b+c' } } })
+      .expect(201);
+    await api
+      .get('/experiments?filter[name]=a%26b%2Bc')
       .expect('Content-Type', apiContentTypeRegExp)
-      .expect(400);
-    expect(response.body).toMatchInlineSnapshot(`
-      {
-        "errors": [
+      .expect(200, {
+        data: [
           {
-            "code": "INVALID_REQUEST_QUERY",
-            "detail": "Unrecognized key: "x%26y"",
-            "source": {
-              "parameter": "",
-            },
-            "status": "Bad Request",
+            id: body.data.id,
+            type: 'experiments',
+            attributes: { name: 'a&b+c' },
           },
         ],
-      }
-    `);
+      });
   });
 
   it('returns a 415 error if the requested route does not accept the media type', async ({
