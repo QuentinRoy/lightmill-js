@@ -1,4 +1,4 @@
-import { LogServer, SQLiteDataStore } from '@lightmill/log-server';
+import { createLogServer, SQLiteDataStore } from '@lightmill/log-server';
 import express from 'express';
 import { setupServer, type SetupServer } from 'msw/node';
 import { once } from 'node:events';
@@ -48,7 +48,7 @@ export class TestServer {
 
   static async start() {
     const dataStore = await SQLiteDataStore.open(':memory:');
-    const { middleware } = LogServer({
+    const { middleware } = createLogServer({
       dataStore,
       sessionKeys: ['test-secret'],
       allowCrossOrigin: false,
