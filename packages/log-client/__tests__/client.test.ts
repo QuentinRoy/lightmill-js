@@ -3,7 +3,7 @@ import { describe, expect } from 'vitest';
 import { LightmillClient } from '../src/client.js';
 import { LightmillLogger } from '../src/logger.js';
 import { RequestError } from '../src/utils.js';
-import { serverTest, type TestServer } from './test-server.ts';
+import { serverTest } from './test-server.ts';
 
 const experimentName = 'test-experiment';
 const date = new Date('2022-12-31T23:00:00.000Z');
@@ -46,13 +46,6 @@ async function seedRun(
   );
   if (stop != null) await stopRun[stop](logger);
   return logger;
-}
-
-async function storedRuns(server: TestServer) {
-  return (await server.dataStore.getRuns()).map(({ runName, runStatus }) => ({
-    runName,
-    runStatus,
-  }));
 }
 
 describe('LogClient#getResumableRuns', () => {
@@ -236,7 +229,7 @@ describe('LogClient#startRun', () => {
   it('should create a run without a run name', async ({ server, client }) => {
     const logger = await client.startRun({ experimentName });
     expect(logger).toBeInstanceOf(LightmillLogger);
-    await expect(storedRuns(server)).resolves.toEqual([
+    await expect(server.storedRuns()).resolves.toEqual([
       { runName: null, runStatus: 'running' },
     ]);
   });
@@ -247,7 +240,7 @@ describe('LogClient#startRun', () => {
       runName: 'test-run',
     });
     expect(logger).toBeInstanceOf(LightmillLogger);
-    await expect(storedRuns(server)).resolves.toEqual([
+    await expect(server.storedRuns()).resolves.toEqual([
       { runName: 'test-run', runStatus: 'running' },
     ]);
   });
@@ -288,7 +281,7 @@ describe('LogClient#startRun', () => {
       await expect(client.startRun({ experimentName })).rejects.toThrow(
         RequestError,
       );
-      await expect(storedRuns(server)).resolves.toEqual([]);
+      await expect(server.storedRuns()).resolves.toEqual([]);
     });
   });
 
@@ -312,7 +305,7 @@ describe('LogClient#startRun', () => {
       after: { number: 4 },
     });
     await logger.addLog({ type: 'step', date, step: 'new' });
-    await expect(storedRuns(server)).resolves.toEqual([
+    await expect(server.storedRuns()).resolves.toEqual([
       { runName: 'test-run', runStatus: 'running' },
     ]);
     await expect(

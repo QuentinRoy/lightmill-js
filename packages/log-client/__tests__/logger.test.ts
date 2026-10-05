@@ -36,7 +36,7 @@ describe('LogClient#addLog', () => {
       val: 1,
       date: new Date('2021-06-03T02:00:00.000Z'),
     });
-    await expect(storedLogs(server)).resolves.toEqual([
+    await expect(server.storedLogs()).resolves.toEqual([
       {
         number: 1,
         type: 'mock-log',
@@ -48,7 +48,7 @@ describe('LogClient#addLog', () => {
   it('should add a default date to logs', async ({ logger, server }) => {
     fakeDate('2019-06-03T02:00:00.000Z');
     await logger.addLog({ type: 'mock-log', val: 'xxx' });
-    await expect(storedLogs(server)).resolves.toEqual([
+    await expect(server.storedLogs()).resolves.toEqual([
       {
         number: 1,
         type: 'mock-log',
@@ -60,7 +60,7 @@ describe('LogClient#addLog', () => {
   it('should send logs with no provided values', async ({ logger, server }) => {
     fakeDate('2019-06-03T02:00:00.000Z');
     await logger.addLog({ type: 'mock-log' });
-    await expect(storedLogs(server)).resolves.toEqual([
+    await expect(server.storedLogs()).resolves.toEqual([
       {
         number: 1,
         type: 'mock-log',
@@ -100,7 +100,7 @@ describe('LogClient#addLog (after resume)', () => {
         date: new Date('2021-06-03T02:00:20.000Z'),
       }),
     ]);
-    const logs = await storedLogs(server);
+    const logs = await server.storedLogs();
     expect(logs.map(({ number, values }) => [number, values.val])).toEqual([
       [1, 'old-1'],
       [2, 'old-2'],
@@ -688,18 +688,10 @@ function holdOperations(server: TestServer) {
   return held;
 }
 
-async function storedLogs(server: TestServer) {
-  return (await server.storedLogs()).map(({ number, type, values }) => ({
-    number,
-    type,
-    values,
-  }));
-}
-
 async function storedNumbers(server: TestServer) {
-  return (await storedLogs(server)).map((log) => log.number);
+  return (await server.storedLogs()).map((log) => log.number);
 }
 
 async function runStatuses(server: TestServer) {
-  return (await server.dataStore.getRuns()).map((run) => run.runStatus);
+  return (await server.storedRuns()).map((run) => run.runStatus);
 }

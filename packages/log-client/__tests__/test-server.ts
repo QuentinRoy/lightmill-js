@@ -5,6 +5,7 @@ import { once } from 'node:events';
 import { createServer, type Server } from 'node:http';
 import { CookieJar } from 'tough-cookie';
 import { test, vi } from 'vitest';
+import { parseOperations } from './test-utils.ts';
 
 /**
  * A real log server on an in-memory database, listening on a free local port.
@@ -81,6 +82,13 @@ export class TestServer {
     });
   }
 
+  async storedRuns() {
+    return (await this.dataStore.getRuns()).map(({ runName, runStatus }) => ({
+      runName,
+      runStatus,
+    }));
+  }
+
   /** Every log the server stored, whichever run it belongs to. */
   async storedLogs() {
     const logs: Array<{
@@ -102,12 +110,8 @@ export class TestServer {
     const batches: number[][] = [];
     for (const { method, path, body } of this.#requests) {
       if (method !== 'POST' || path !== '/operations') continue;
-      const { 'atomic:operations': operations } = JSON.parse(await body);
       batches.push(
-        operations.map(
-          (op: { data: { attributes: { number: number } } }) =>
-            op.data.attributes.number,
-        ),
+        parseOperations(await body).map((op) => op.data.attributes.number),
       );
     }
     return batches;

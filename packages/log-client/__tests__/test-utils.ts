@@ -85,14 +85,10 @@ export class DeferManager {
   #requests = new Subject();
   #count = 0;
 
-  addRequest(): Promise<void>;
-  addRequest<T>(result: T): Promise<T>;
-  addRequest(result?: unknown) {
-    return new Promise((resolve) => {
+  addRequest() {
+    return new Promise<void>((resolve) => {
       this.#count++;
-      this.#pendingRequests.push(() => {
-        resolve(result);
-      });
+      this.#pendingRequests.push(resolve);
       this.#requests.next(null);
     });
   }
@@ -145,8 +141,11 @@ type Operation = {
   data: { attributes: { number: number; values: Record<string, unknown> } };
 };
 
+export function parseOperations(body: string): Operation[] {
+  return JSON.parse(body)['atomic:operations'];
+}
+
 /** The operations of a `POST /operations` request, which stays readable. */
 export async function readOperations(request: Request): Promise<Operation[]> {
-  const body = JSON.parse(await request.clone().text());
-  return body['atomic:operations'];
+  return parseOperations(await request.clone().text());
 }
