@@ -57,7 +57,12 @@ export class LightmillClient<ClientLog extends LogBase = AnyLog> {
     // If serializeLog is not provided, we know that InputLog is a subset of
     // AnyLog, so we can use the default serializer.
     this.#serializeLog = serializeLog ?? anyLogSerializer;
-    this.#fetchClient = createClient<paths>({ baseUrl: apiRoot });
+    // The session lives in a cookie, so every request must send it, including
+    // to a cross-origin server.
+    this.#fetchClient = createClient<paths>({
+      baseUrl: apiRoot,
+      credentials: 'include',
+    });
     this.#requestThrottle = requestThrottle;
     this.#requestTimeout = requestTimeout;
   }
@@ -65,7 +70,6 @@ export class LightmillClient<ClientLog extends LogBase = AnyLog> {
   async #getSession() {
     let response = await this.#fetchClient.GET('/sessions/{id}', {
       params: { path: { id: 'current' } },
-      credentials: 'include',
     });
     if (response.response.status === 404) {
       return null;
@@ -100,7 +104,6 @@ export class LightmillClient<ClientLog extends LogBase = AnyLog> {
       return [];
     }
     let response = await this.#fetchClient.GET('/runs', {
-      credentials: 'include',
       params: {
         query: {
           'filter[status]': ['running', 'interrupted'],
@@ -304,7 +307,6 @@ export class LightmillClient<ClientLog extends LogBase = AnyLog> {
     let runId: string =
       options.runId ?? (await this.#getRunIdFromName(options));
     let response = await this.#fetchClient.PATCH('/runs/{id}', {
-      credentials: 'include',
       params: { path: { id: runId } },
       headers: { 'content-type': mediaType },
       body: {
@@ -337,7 +339,6 @@ export class LightmillClient<ClientLog extends LogBase = AnyLog> {
       throw new Error(`Couldn't find experiment ${experimentName}`);
     }
     let response = await this.#fetchClient.POST('/runs', {
-      credentials: 'include',
       headers: { 'content-type': mediaType },
       body: {
         data: {
@@ -376,12 +377,15 @@ export class LightmillClient<ClientLog extends LogBase = AnyLog> {
   async #getOrCreateSession() {
     let session = await this.#getSession();
     if (session == null) {
-      await this.#fetchClient.POST('/sessions', {
+      let response = await this.#fetchClient.POST('/sessions', {
         headers: { 'content-type': mediaType },
         body: {
           data: { type: 'sessions', attributes: { role: 'participant' } },
         },
       });
+      if (response.error) {
+        throw new RequestError(response);
+      }
     }
   }
 
@@ -393,7 +397,6 @@ export class LightmillClient<ClientLog extends LogBase = AnyLog> {
   async logout() {
     let response = await this.#fetchClient.DELETE('/sessions/{id}', {
       params: { path: { id: 'current' } },
-      credentials: 'include',
     });
     if (response.error) {
       throw new RequestError(response);
