@@ -462,7 +462,10 @@ function getHandlerErrorResponse(
     return getErrorResponse(sessionRequiredError, routeMediaType);
   }
   // The store persisted nothing, and the same request may succeed.
-  if (error instanceof DataStoreError && error.code === 'TRANSACTION_CONFLICT') {
+  if (
+    error instanceof DataStoreError &&
+    error.code === 'TRANSACTION_CONFLICT'
+  ) {
     return {
       ...getErrorResponse(
         {

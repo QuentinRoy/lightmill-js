@@ -80,6 +80,8 @@ describe.for(storeTypes)('createLogServer Errors (%s server)', (storeType) => {
     const response = await api
       .get('/sessions/%E0%A4%A')
       .expect('Content-Type', apiContentTypeRegExp);
+    // Only the class: the current `400 INVALID_REQUEST_BODY` names a body for
+    // a path problem, and is not a contract to keep.
     expect(response.status).toBeGreaterThanOrEqual(400);
     expect(response.status).toBeLessThan(500);
   });
@@ -143,6 +145,15 @@ describe.for(storeTypes)('createLogServer Errors (%s server)', (storeType) => {
       .send(Buffer.from('{"data": ', 'utf8'))
       .expect('Content-Type', apiContentTypeRegExp)
       .expect(415);
+  });
+
+  it('returns a 415 error for a chunked body without a media type', async ({
+    api,
+  }) => {
+    const request = api.post('/sessions');
+    // Writing before ending sends the body in chunks, without a length.
+    request.write('{"data": ');
+    await request.expect('Content-Type', apiContentTypeRegExp).expect(415);
   });
 
   it('accepts an empty body without a media type', async ({ api }) => {
@@ -572,15 +583,17 @@ describe.for(storeTypes)(
       dataStore.getRuns.mockRejectedValueOnce(
         Object.assign(new Error('boom'), { status: 400 }),
       );
-      await api.get('/runs').expect(500, {
-        errors: [
-          {
-            status: 'Internal Server Error',
-            code: 'INTERNAL_SERVER_ERROR',
-            detail: 'boom',
-          },
-        ],
-      });
+      await api
+        .get('/runs')
+        .expect(500, {
+          errors: [
+            {
+              status: 'Internal Server Error',
+              code: 'INTERNAL_SERVER_ERROR',
+              detail: 'boom',
+            },
+          ],
+        });
     });
 
     it('keeps the atomic operations media type', async ({ api, dataStore }) => {
