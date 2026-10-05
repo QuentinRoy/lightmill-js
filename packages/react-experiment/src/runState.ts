@@ -178,13 +178,23 @@ export function useRunState<Task>({
     onCompletedRef.current = onCompleted;
   });
 
+  // onCompleted only runs while Run is mounted. A completion that lands while
+  // it is not (e.g. hidden by <Activity>) waits for the next mount, so it is
+  // not lost; if there is none, nobody is left to be told.
+  const mountedRef = React.useRef(false);
+  const completedWhileUnmountedRef = React.useRef(false);
+  const notifyCompleted = () => {
+    if (mountedRef.current) onCompletedRef.current?.();
+    else completedWhileUnmountedRef.current = true;
+  };
+
   const storeRef = React.useRef<RunStore<Task> | null>(null);
   if (storeRef.current == null) {
     if (timeline != null) {
       storeRef.current = createRunStore({
         timeline,
         resumeAfterTask,
-        onCompleted: () => onCompletedRef.current?.(),
+        onCompleted: notifyCompleted,
       });
     }
   } else if (storeRef.current.timeline !== timeline) {
@@ -193,7 +203,15 @@ export function useRunState<Task>({
   const store = storeRef.current ?? noStore;
 
   React.useEffect(() => {
+    mountedRef.current = true;
+    if (completedWhileUnmountedRef.current) {
+      completedWhileUnmountedRef.current = false;
+      onCompletedRef.current?.();
+    }
     store.start();
+    return () => {
+      mountedRef.current = false;
+    };
   }, [store]);
 
   const snapshot = React.useSyncExternalStore(

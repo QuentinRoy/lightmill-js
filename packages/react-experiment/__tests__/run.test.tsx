@@ -523,6 +523,27 @@ describe('run', () => {
       },
     );
 
+    it('does not call onCompleted when the timeline completes after unmount', async () => {
+      vi.useFakeTimers();
+      const onCompleted = vi.fn();
+      const { unmount } = render(
+        <Run
+          elements={{
+            tasks: {
+              A: <Task type="A" dataProp="a" />,
+              B: <Task type="B" dataProp="b" />,
+            },
+          }}
+          timeline={asyncTaskGen(5, [])}
+          onCompleted={onCompleted}
+        />,
+      );
+      unmount();
+      await act(() => vi.advanceTimersByTime(50));
+      expect(onCompleted).not.toHaveBeenCalled();
+      vi.useRealTimers();
+    });
+
     it('does not start anything when an async next() resolves after unmount', async () => {
       vi.useFakeTimers();
       const spy = vi.spyOn(console, 'error');
