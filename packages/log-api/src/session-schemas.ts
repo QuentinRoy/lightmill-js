@@ -52,8 +52,9 @@ const SessionGetResponse = getDataDocumentSchema({
 }).openapi('SessionGetResponse');
 
 // -----------------------------------------------------------------------------
+const SessionIncludeName = z.enum(['runs', 'runs.experiment', 'runs.lastLogs']);
 const IncludesQuery = z
-  .array(z.enum(['runs', 'runs.experiment', 'runs.lastLogs']))
+  .union([SessionIncludeName, z.array(SessionIncludeName)])
   .optional()
   .describe('Related resources to include in the response');
 

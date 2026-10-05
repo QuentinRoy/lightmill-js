@@ -366,6 +366,17 @@ describe.for(suite)(
         response.body.included.map((r: { type: string }) => r.type),
       ).toEqual(['runs', 'experiments', 'logs']);
     });
+
+    it('accepts a single include value', async ({ api }) => {
+      await api
+        .post('/sessions')
+        .set('content-type', mediaType)
+        .send({
+          data: { type: 'sessions', attributes: { role: 'participant' } },
+        })
+        .expect(201);
+      await api.get('/sessions/current').query({ include: 'runs' }).expect(200);
+    });
   },
 );
 
