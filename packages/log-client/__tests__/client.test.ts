@@ -100,7 +100,9 @@ describe('LogClient#getResumableRuns', () => {
     ]);
   });
 
-  it('should find the latest log type', async ({ client }) => {
+  it('should pick the highest last log of the resumable types', async ({
+    client,
+  }) => {
     await seedRun(client, {
       runName: 'run-name',
       logs: [

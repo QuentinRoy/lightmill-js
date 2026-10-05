@@ -45,7 +45,7 @@ describe('LogClient#addLog', () => {
     ]);
   });
 
-  it('should add a default date to logs ', async ({ logger, server }) => {
+  it('should add a default date to logs', async ({ logger, server }) => {
     fakeDate('2019-06-03T02:00:00.000Z');
     await logger.addLog({ type: 'mock-log', val: 'xxx' });
     await expect(storedLogs(server)).resolves.toEqual([
@@ -198,7 +198,7 @@ describe('LogClient#flush', () => {
     );
   });
 
-  it('fails if there are still missing logs on the server', async ({
+  it('fails if there are still missing log numbers on the server', async ({
     logger,
     server,
   }) => {
