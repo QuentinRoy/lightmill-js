@@ -678,6 +678,30 @@ describe('LogClient retries', () => {
     ]);
   });
 
+  it('halves a batch that gets a 413 with no body', async ({
+    logger,
+    server,
+  }) => {
+    const post = server.handlers['/operations'].post;
+    const ok = post.getMockImplementation()!;
+    post.mockImplementation((request) =>
+      request.body['atomic:operations'].length > 2
+        ? rawResponse(413, { headers: { 'Content-Length': '0' } })
+        : ok(request),
+    );
+    await Promise.all([
+      logger.addLog({ type: 'mock-log' }),
+      logger.addLog({ type: 'mock-log' }),
+      logger.addLog({ type: 'mock-log' }),
+      logger.addLog({ type: 'mock-log' }),
+    ]);
+    expect(getBatches(server)).toEqual([
+      [1, 2, 3, 4],
+      [1, 2],
+      [3, 4],
+    ]);
+  });
+
   it('pauses when a single log gets a 413', async ({ logger, server }) => {
     server.handlers['/operations'].post.mockImplementation(() =>
       rawResponse(413),
