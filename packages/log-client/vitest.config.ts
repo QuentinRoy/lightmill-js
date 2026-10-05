@@ -6,7 +6,7 @@ const dirname = url.fileURLToPath(new URL('.', import.meta.url));
 
 export default defineConfig({
   test: {
-    environment: 'jsdom',
+    environment: 'node',
     root: resolve(dirname),
     globals: true,
     include: ['**/__tests__/*.test.ts'],
