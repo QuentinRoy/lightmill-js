@@ -294,3 +294,18 @@ describe('LogClient#startRun', () => {
     });
   });
 });
+
+describe('LogClient#logout', () => {
+  it('should end the session', async ({ client }) => {
+    await client.startRun({ experimentName, runName: 'test-run' });
+    await client.logout();
+    // The session, with its run, is gone: the client has no run to resume.
+    await expect(
+      client.getResumableRuns({ resumableLogTypes: [] }),
+    ).resolves.toEqual([]);
+  });
+
+  it('should reject without a session', async ({ client }) => {
+    await expect(client.logout()).rejects.toBeInstanceOf(RequestError);
+  });
+});
