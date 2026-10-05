@@ -11,6 +11,7 @@ import type { DataStore } from './data-store.ts';
 import {
   createErrorHandler,
   createRouter,
+  MalformedQueryError,
   validateHandlers,
 } from './router.ts';
 
@@ -47,7 +48,18 @@ export function createLogServer({
 
   app.set('query parser', (str: string | null) => {
     if (str == null) return {};
-    let params = new URLSearchParams(decodeURIComponent(str));
+    // URLSearchParams decodes malformed percent-encoding into U+FFFD, which
+    // would filter on a value the client never sent.
+    for (const pair of str.split('&')) {
+      const [key = ''] = pair.split('=', 1);
+      if (!isDecodable(key)) throw new MalformedQueryError(key);
+      if (!isDecodable(pair)) {
+        throw new MalformedQueryError(
+          decodeURIComponent(key.replaceAll('+', ' ')),
+        );
+      }
+    }
+    let params = new URLSearchParams(str);
     let values: Record<string, string[] | string> = {};
     for (const [key, value] of params.entries()) {
       let oldValue = values[key];
@@ -94,4 +106,13 @@ export function createLogServer({
   app.use(createErrorHandler());
 
   return { middleware: app };
+}
+
+function isDecodable(component: string) {
+  try {
+    decodeURIComponent(component);
+    return true;
+  } catch {
+    return false;
+  }
 }
