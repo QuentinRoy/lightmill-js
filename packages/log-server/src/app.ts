@@ -1,4 +1,4 @@
-import { mediaType, sessionCookieName } from '@lightmill/log-api/vocabulary';
+import { sessionCookieName } from '@lightmill/log-api/vocabulary';
 import express from 'express';
 import session from 'express-session';
 import MemorySessionStoreModule from 'memorystore';
@@ -13,10 +13,6 @@ import {
   createRouter,
   validateHandlers,
 } from './router.ts';
-
-// Room for a batch of logs from log-client and its envelope, and for a single
-// large log. Not an option until someone needs one.
-const REQUEST_BODY_LIMIT = '1mb';
 
 const MemorySessionStore = MemorySessionStoreModule(session);
 
@@ -67,13 +63,6 @@ export function createLogServer({
   });
 
   app.use(
-    express.json({
-      type: [mediaType, 'application/json'],
-      limit: REQUEST_BODY_LIMIT,
-    }),
-  );
-
-  app.use(
     session({
       store: sessionStore,
       secret: sessionKeys,
@@ -102,7 +91,7 @@ export function createLogServer({
 
   app.use(createRouter({ handlers, dataStore }));
 
-  app.use(createErrorHandler({ requestBodyLimit: REQUEST_BODY_LIMIT }));
+  app.use(createErrorHandler());
 
   return { middleware: app };
 }

@@ -3,8 +3,9 @@
 import { atomicMediaType, mediaType } from '@lightmill/log-api/vocabulary';
 import express from 'express';
 import { MemoryStore } from 'express-session';
+import log from 'loglevel';
 import request from 'supertest';
-import { afterEach, describe, test, vi } from 'vitest';
+import { afterEach, describe, onTestFinished, test, vi } from 'vitest';
 import { DataStoreError } from '../src/data-store-errors.ts';
 import {
   apiContentTypeRegExp,
@@ -24,9 +25,8 @@ afterEach(() => {
 
 type Fixture = { api: request.Agent };
 
-// Body errors happen before routing, so each route answers them with its own
-// media type: the trailing slash and the upper case check the lookup does not
-// depend on its exact spelling.
+// Each route answers body errors with its own media type, however the path is
+// spelled.
 const bodyErrorRoutes = [
   ['/logs', mediaType, apiContentTypeRegExp],
   ['/operations', atomicMediaType, atomicContentTypeRegExp],
@@ -74,6 +74,38 @@ describe.for(storeTypes)('createLogServer Errors (%s server)', (storeType) => {
       });
   });
 
+  it('returns a client error for a path parameter that cannot be decoded', async ({
+    api,
+    expect,
+  }) => {
+    const response = await api
+      .get('/sessions/%E0%A4%A')
+      .expect('Content-Type', apiContentTypeRegExp);
+    // Only the class: the current `400 INVALID_REQUEST_BODY` names a body for
+    // a path problem, and is not a contract to keep.
+    expect(response.status).toBeGreaterThanOrEqual(400);
+    expect(response.status).toBeLessThan(500);
+  });
+
+  it('returns a 404 error for a route that does not exist whatever its body', async ({
+    api,
+  }) => {
+    await api
+      .post('/not-a-route')
+      .set('Content-Type', mediaType)
+      .send('{"data": ')
+      .expect('Content-Type', apiContentTypeRegExp)
+      .expect(404, {
+        errors: [
+          {
+            status: 'Not Found',
+            code: 'NOT_FOUND',
+            detail: 'Resource /not-a-route does not exist.',
+          },
+        ],
+      });
+  });
+
   it('returns a 415 error if the requested route does not accept the media type', async ({
     api,
     expect,
@@ -94,6 +126,74 @@ describe.for(storeTypes)('createLogServer Errors (%s server)', (storeType) => {
         ],
       }
     `);
+  });
+
+  it('returns a 415 error for an unaccepted media type whatever the body', async ({
+    api,
+  }) => {
+    await api
+      .post('/sessions')
+      .set('content-type', 'application/json')
+      .send('{"data": ')
+      .expect('Content-Type', apiContentTypeRegExp)
+      .expect(415);
+  });
+
+  it('returns a 415 error for a body without a media type', async ({ api }) => {
+    await api
+      .post('/sessions')
+      // A Buffer is sent as is, without a Content-Type header.
+      .send(Buffer.from('{"data": ', 'utf8'))
+      .expect('Content-Type', apiContentTypeRegExp)
+      .expect(415);
+  });
+
+  it('returns a 415 error for a chunked body without a media type', async ({
+    api,
+  }) => {
+    const request = api.post('/sessions');
+    // Writing before ending sends the body in chunks, without a length.
+    request.write('{"data": ');
+    await request.expect('Content-Type', apiContentTypeRegExp).expect(415);
+  });
+
+  it('accepts an empty body without a media type', async ({ api }) => {
+    await api
+      .post('/sessions')
+      .set('Content-Type', mediaType)
+      .send({ data: { type: 'sessions', attributes: { role: 'participant' } } })
+      .expect(201);
+    await api
+      .delete('/sessions/current')
+      .set('Content-Length', '0')
+      .expect(200, { data: null });
+  });
+
+  it('returns a 400 error if a route without a body receives one', async ({
+    api,
+    expect,
+  }) => {
+    await api
+      .post('/sessions')
+      .set('Content-Type', mediaType)
+      .send({ data: { type: 'sessions', attributes: { role: 'participant' } } })
+      .expect(201);
+    const response = await api
+      .get('/experiments')
+      .set('Content-Type', mediaType)
+      .send({ data: {} })
+      .expect('Content-Type', apiContentTypeRegExp)
+      .expect(400);
+    expect(response.body).toEqual({
+      errors: [
+        {
+          status: 'Bad Request',
+          code: 'INVALID_REQUEST_BODY',
+          detail: expect.any(String),
+          source: { pointer: '' },
+        },
+      ],
+    });
   });
 
   it('answers a 415 on /operations with the atomic media type', async ({
@@ -238,6 +338,18 @@ describe.for(storeTypes)('createLogServer Errors (%s server)', (storeType) => {
         ],
       }
     `);
+  });
+
+  it('returns a 405 error for an unsupported method whatever its body', async ({
+    api,
+  }) => {
+    await api
+      .put('/sessions/current')
+      .set('Content-Type', mediaType)
+      .send('{"data": ')
+      .expect('Content-Type', apiContentTypeRegExp)
+      .expect('Allow', 'DELETE, GET')
+      .expect(405);
   });
 
   it('returns 400 error if a request body is invalid', async ({ api }) => {
@@ -463,6 +575,32 @@ describe.for(storeTypes)(
         .get('/runs')
         .expect('Retry-After', '1')
         .expect(503, serviceUnavailable);
+    });
+
+    it('answers 500 when a handler throws an error with a client status', async ({
+      api,
+      dataStore,
+      expect,
+    }) => {
+      const logError = vi.spyOn(log, 'error').mockImplementation(() => {});
+      onTestFinished(() => logError.mockRestore());
+      dataStore.getRuns.mockRejectedValueOnce(
+        Object.assign(new Error('boom'), { status: 400 }),
+      );
+      await api
+        .get('/runs')
+        .expect(500, {
+          errors: [
+            {
+              status: 'Internal Server Error',
+              code: 'INTERNAL_SERVER_ERROR',
+              detail: 'boom',
+            },
+          ],
+        });
+      expect(logError).toHaveBeenCalledWith(
+        expect.objectContaining({ message: 'boom' }),
+      );
     });
 
     it('keeps the atomic operations media type', async ({ api, dataStore }) => {

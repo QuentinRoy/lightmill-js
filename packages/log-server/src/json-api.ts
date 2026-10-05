@@ -42,34 +42,6 @@ export function getRequestMediaType(route: RouteWithBody) {
 }
 export type RouteMediaType = ReturnType<typeof getRequestMediaType>;
 
-const routes: Record<string, Record<string, RouteWithBody>> = LogApi.routes;
-const methodsByLowerCasePath = new Map(
-  Object.entries(routes).map(
-    ([path, methods]): [string, Record<string, RouteWithBody>] => [
-      path.toLowerCase(),
-      methods,
-    ],
-  ),
-);
-
-/**
- * The media type the server answers with on `path`, for responses that are
- * not tied to one of its routes: a method it does not have, or an error of
- * the body parser, which runs before routing.
- */
-export function getResponseMediaType(path: string) {
-  // Express matches a path in any case, with or without a trailing slash.
-  const methods = methodsByLowerCasePath.get(
-    path.replace(/\/+$/, '').toLowerCase(),
-  );
-  return methods != null &&
-    Object.values(methods).some(
-      (route) => getRequestMediaType(route) === atomicMediaType,
-    )
-    ? atomicMediaType
-    : mediaType;
-}
-
 /**
  * Whether a Content-Type header is the same JSON:API media type as `expected`:
  * same type, same extensions. JSON:API only allows the `ext` and `profile`
