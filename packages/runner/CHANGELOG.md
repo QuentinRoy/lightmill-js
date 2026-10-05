@@ -1,5 +1,17 @@
 # Change Log
 
+## 3.1.0-beta.0
+
+### Minor Changes
+
+- [#391](https://github.com/QuentinRoy/lightmill-js/pull/391) [`3d7ba85`](https://github.com/QuentinRoy/lightmill-js/commit/3d7ba85388cc0e56df5c19528f6dbf3d71549214) - `Runner` and `run` accept a timeline iterator whose `next()` returns a promise on some calls only, such as one that turns async partway through. The new `MaybeAsyncIterator` type describes it.
+
+### Patch Changes
+
+- [#392](https://github.com/QuentinRoy/lightmill-js/pull/392) [`64958f8`](https://github.com/QuentinRoy/lightmill-js/commit/64958f862fd5d38bc48670e690fbdd76b50ebf8f) - Fix `completeTask()` called from `onTaskStarted` overflowing the stack on long synchronous timelines (around 3,000 tasks). The next task now starts once `onTaskStarted` returns, so code after `completeTask()` in `onTaskStarted` runs before the next task starts instead of after the rest of the timeline. Calling `completeTask()` twice from the same `onTaskStarted` now throws instead of completing the next task, and a throwing `onTaskStarted` now sets the runner's status to `crashed`.
+
+- [#391](https://github.com/QuentinRoy/lightmill-js/pull/391) [`3d7ba85`](https://github.com/QuentinRoy/lightmill-js/commit/3d7ba85388cc0e56df5c19528f6dbf3d71549214) - Fix errors thrown by a sync timeline bypassing `onError`. They escaped from `start()` or `completeTask()` and left the runner `running`. They now go to `onError` and set the status to `crashed`, like errors from async timelines, and are still thrown when there is no `onError`.
+
 ## 3.0.0
 
 ### Major Changes
