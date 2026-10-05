@@ -209,7 +209,6 @@ export class LightmillLogger<
       results = await sendWithRetries(
         async (signal) => {
           const response = await this.#fetchClient.POST('/operations', {
-            credentials: 'include',
             headers: { 'content-type': atomicMediaType },
             body: { 'atomic:operations': batch.map((log) => log.operation) },
             signal,
@@ -286,7 +285,6 @@ export class LightmillLogger<
     return sendWithRetries(
       async (signal) => {
         const response = await this.#fetchClient.GET('/runs/{id}', {
-          credentials: 'include',
           params: { path: { id: this.#runId } },
           headers: { 'content-type': mediaType },
           signal,
@@ -351,7 +349,6 @@ export class LightmillLogger<
       await sendWithRetries(
         async (signal) => {
           const response = await this.#fetchClient.PATCH('/runs/{id}', {
-            credentials: 'include',
             params: { path: { id: this.#runId } },
             headers: { 'content-type': mediaType },
             body: {

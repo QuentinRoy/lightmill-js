@@ -4,6 +4,7 @@ import { serverTest } from '../__mocks__/mock-server.js';
 import { LightmillClient } from '../src/client.js';
 import type { paths } from '../src/generated/openapi.js';
 import { LightmillLogger } from '../src/logger.js';
+import { RequestError } from '../src/utils.js';
 
 const it = serverTest.extend<{ client: LightmillClient; timer: void }>({
   timer: [
@@ -311,6 +312,69 @@ describe('LogClient#startRun', () => {
         } satisfies ApiBody<'post', '/runs'>,
       },
     ]);
+  });
+
+  describe('without a session', () => {
+    it.beforeEach(({ server }) => {
+      server.set([{ experimentId: 'test-experiment' }]);
+      server.handlers['/sessions/{id}'].get.mockResolvedValueOnce({
+        status: 404,
+        body: {
+          errors: [{ status: 'Not Found', code: 'SESSION_NOT_FOUND' }],
+        },
+      });
+    });
+
+    it('should send credentials with every request', async ({
+      expect,
+      server,
+    }) => {
+      server.handlers['/sessions'].post.mockResolvedValueOnce({
+        status: 201,
+        body: {
+          data: {
+            type: 'sessions',
+            id: 'test-session',
+            attributes: { role: 'participant' },
+            relationships: { runs: { data: [] } },
+          },
+        },
+      });
+      // Spying must happen before the client captures the global fetch.
+      const fetchSpy = vi.spyOn(globalThis, 'fetch');
+      const client = new LightmillClient({ apiRoot: server.getBaseUrl() });
+      await client.startRun({ experimentName: 'test-experiment-name' });
+      const requests = fetchSpy.mock.calls.map(([r]) => r as Request);
+      expect(requests.map((r) => `${r.method} ${new URL(r.url).pathname}`))
+        .toMatchInlineSnapshot(`
+        [
+          "GET /api/sessions/current",
+          "POST /api/sessions",
+          "GET /api/experiments",
+          "POST /api/runs",
+        ]
+      `);
+      expect(requests.map((r) => r.credentials)).toEqual(
+        requests.map(() => 'include'),
+      );
+    });
+
+    it('should fail if the session cannot be created', async ({
+      expect,
+      server,
+      client,
+    }) => {
+      server.handlers['/sessions'].post.mockResolvedValueOnce({
+        status: 403,
+        body: {
+          errors: [{ status: 'Forbidden', code: 'INVALID_CREDENTIALS' }],
+        },
+      });
+      await expect(
+        client.startRun({ experimentName: 'test-experiment-name' }),
+      ).rejects.toThrow(RequestError);
+      await expect(server.waitForChangeRequests()).resolves.toHaveLength(1);
+    });
   });
 
   it('should resume an existing run if from is provided', async ({
