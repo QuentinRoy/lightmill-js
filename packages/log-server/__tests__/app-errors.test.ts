@@ -73,6 +73,17 @@ describe.for(storeTypes)('createLogServer Errors (%s server)', (storeType) => {
       });
   });
 
+  it('returns a client error for a path parameter that cannot be decoded', async ({
+    api,
+    expect,
+  }) => {
+    const response = await api
+      .get('/sessions/%E0%A4%A')
+      .expect('Content-Type', apiContentTypeRegExp);
+    expect(response.status).toBeGreaterThanOrEqual(400);
+    expect(response.status).toBeLessThan(500);
+  });
+
   it('returns a 404 error for a route that does not exist whatever its body', async ({
     api,
   }) => {
@@ -552,6 +563,24 @@ describe.for(storeTypes)(
         .get('/runs')
         .expect('Retry-After', '1')
         .expect(503, serviceUnavailable);
+    });
+
+    it('answers 500 when a handler throws an error with a client status', async ({
+      api,
+      dataStore,
+    }) => {
+      dataStore.getRuns.mockRejectedValueOnce(
+        Object.assign(new Error('boom'), { status: 400 }),
+      );
+      await api.get('/runs').expect(500, {
+        errors: [
+          {
+            status: 'Internal Server Error',
+            code: 'INTERNAL_SERVER_ERROR',
+            detail: 'boom',
+          },
+        ],
+      });
     });
 
     it('keeps the atomic operations media type', async ({ api, dataStore }) => {

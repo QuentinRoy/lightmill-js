@@ -40,7 +40,7 @@ import {
 // large log. Not an option until someone needs one.
 const REQUEST_BODY_LIMIT = '1mb';
 
-// Each route vets the Content-Type header before parsing. Requests without
+// Each route checks the Content-Type header before parsing. Requests without
 // one have no body, but may still say `Content-Length: 0`, which the parser
 // would read as `{}`.
 const parseJsonBody = Express.json({
@@ -160,68 +160,13 @@ export function createRouter({
         throw new TypeError(`No route config for ${method} ${path}`);
       }
       const expectedMediaType = getRequestMediaType(routeConfig);
-      const checkContentType: Express.RequestHandler = async (
-        request,
-        response,
-        next,
-      ) => {
-        const contentType = request.headers['content-type'];
-        if (
-          contentType == null
-            ? !hasBody(request)
-            : isContentType(contentType, expectedMediaType)
-        ) {
-          next();
-          return;
-        }
-        await processResponse({
-          result: getErrorResponse(
-            {
-              status: 'Unsupported Media Type',
-              code: 'UNSUPPORTED_MEDIA_TYPE',
-              detail:
-                `Content type must be '${expectedMediaType}'.` +
-                ` Set 'Content-Type' header to '${expectedMediaType}'.`,
-            },
-            expectedMediaType,
-          ),
-          request,
-          response,
-        });
-      };
-      const handle: Express.RequestHandler = async (request, response) => {
-        const { headers, params, query, body, session } = request;
-        const result = await handler({
-          body,
-          parameters: {
-            headers,
-            path: params,
-            query,
-            cookies: parseCookies(headers['cookie']),
-          },
-          sessionData: session?.data ?? null,
-          dataStore,
-          protocol: request.protocol,
-          host: request.host,
-          lockSession: (fn) => lockSession(request, whenFinished(response), fn),
-        });
-        await processResponse({ result, request, response });
-      };
-      // Express sends this route's errors here, whether from the body parser
-      // or from the handler.
-      const onError: Express.ErrorRequestHandler = async (
-        error: unknown,
-        request,
-        response,
-        _next,
-      ) => {
-        await processResponse({
-          result: getRouteErrorResponse(error, expectedMediaType),
-          request,
-          response,
-        });
-      };
-      route[method](checkContentType, parseJsonBody, handle, onError);
+      route[method](
+        checkContentType(expectedMediaType),
+        parseJsonBody,
+        answerBodyErrors(expectedMediaType),
+        handleWith(handler, dataStore),
+        answerErrors(expectedMediaType),
+      );
     }
     route.all(async (request, response) => {
       const allowedMethods = Object.keys(methods)
@@ -419,7 +364,97 @@ function hasBody(request: Express.Request) {
   return encoding != null || (length != null && Number(length) > 0);
 }
 
-function getRouteErrorResponse(
+function checkContentType(
+  expectedMediaType: RouteMediaType,
+): Express.RequestHandler {
+  return async (request, response, next) => {
+    const contentType = request.headers['content-type'];
+    if (
+      contentType == null
+        ? !hasBody(request)
+        : isContentType(contentType, expectedMediaType)
+    ) {
+      next();
+      return;
+    }
+    await processResponse({
+      result: getErrorResponse(
+        {
+          status: 'Unsupported Media Type',
+          code: 'UNSUPPORTED_MEDIA_TYPE',
+          detail:
+            `Content type must be '${expectedMediaType}'.` +
+            ` Set 'Content-Type' header to '${expectedMediaType}'.`,
+        },
+        expectedMediaType,
+      ),
+      request,
+      response,
+    });
+  };
+}
+
+function handleWith(
+  handler: Handler,
+  dataStore: DataStore,
+): Express.RequestHandler {
+  return async (request, response) => {
+    const { headers, params, query, body, session } = request;
+    const result = await handler({
+      body,
+      parameters: {
+        headers,
+        path: params,
+        query,
+        cookies: parseCookies(headers['cookie']),
+      },
+      sessionData: session?.data ?? null,
+      dataStore,
+      protocol: request.protocol,
+      host: request.host,
+      lockSession: (fn) => lockSession(request, whenFinished(response), fn),
+    });
+    await processResponse({ result, request, response });
+  };
+}
+
+// Express sends an error to the next error middleware of the stack, so the
+// one placed right after the body parser only gets the parser's errors.
+function answerBodyErrors(
+  routeMediaType: RouteMediaType,
+): Express.ErrorRequestHandler {
+  return async (error: unknown, request, response, _next) => {
+    const cause = toError(error);
+    const bodyError = getBodyParserError(cause, REQUEST_BODY_LIMIT);
+    await processResponse({
+      result: getErrorResponse(
+        bodyError ?? getServerError(cause),
+        routeMediaType,
+      ),
+      request,
+      response,
+    });
+  };
+}
+
+function answerErrors(
+  routeMediaType: RouteMediaType,
+): Express.ErrorRequestHandler {
+  return async (error: unknown, request, response, next) => {
+    // Too late to answer: Express logs the error and closes the connection.
+    if (response.headersSent) {
+      next(error);
+      return;
+    }
+    await processResponse({
+      result: getHandlerErrorResponse(error, routeMediaType),
+      request,
+      response,
+    });
+  };
+}
+
+function getHandlerErrorResponse(
   error: unknown,
   routeMediaType: RouteMediaType,
 ): HandlerResponse {
@@ -441,25 +476,35 @@ function getRouteErrorResponse(
       headers: { 'retry-after': '1' },
     };
   }
-  return getErrorResponse(getUnexpectedError(error), routeMediaType);
+  return getErrorResponse(getServerError(toError(error)), routeMediaType);
 }
 
-function getUnexpectedError(error: unknown) {
-  const cause = error instanceof Error ? error : new Error(String(error));
-  const clientError = getBodyParserError(cause, REQUEST_BODY_LIMIT);
-  // Any other error is the server's: it is logged and answered with a 500.
-  if (clientError == null) log.error(cause);
-  return clientError ?? getInternalServerError(cause);
+function getServerError(error: Error) {
+  log.error(error);
+  return getInternalServerError(error);
+}
+
+function toError(error: unknown) {
+  return error instanceof Error ? error : new Error(String(error));
 }
 
 /**
  * Express error middleware answering what fails outside a route: the session
- * store, or a path parameter Express cannot decode.
+ * store, or Express's router itself.
  */
 export function createErrorHandler(): Express.ErrorRequestHandler {
-  return async (error: unknown, request, response, _next) => {
+  return async (error: unknown, request, response, next) => {
+    // Too late to answer: Express logs the error and closes the connection.
+    if (response.headersSent) {
+      next(error);
+      return;
+    }
+    const cause = toError(error);
+    // Express's router raises a 4xx http-error, like body-parser does, for a
+    // path parameter it cannot decode. It is the client's error.
+    const clientError = getBodyParserError(cause, REQUEST_BODY_LIMIT);
     await processResponse({
-      result: getErrorResponse(getUnexpectedError(error)),
+      result: getErrorResponse(clientError ?? getServerError(cause)),
       request,
       response,
     });
