@@ -5,13 +5,14 @@ import {
   type UserRole,
 } from '@lightmill/log-api/vocabulary';
 import type { StandardSchemaV1 } from '@standard-schema/spec';
+import { parseCookie } from 'cookie';
 import * as Express from 'express';
 import type { SessionData } from 'express-session';
 import log from 'loglevel';
 import Stream from 'node:stream';
 import type { Simplify } from 'type-fest';
 import { z } from 'zod';
-import { parseCookies, type HttpStatusCodeFromText } from './api.ts';
+import type { HttpStatusCodeFromText } from './api.ts';
 import { DataStoreError } from './data-store-errors.ts';
 import type { DataStore, RunId } from './data-store.ts';
 import {
@@ -406,7 +407,7 @@ function handleWith(
         headers,
         path: params,
         query,
-        cookies: parseCookies(headers['cookie']),
+        cookies: parseCookie(headers['cookie'] ?? ''),
       },
       sessionData: session?.data ?? null,
       dataStore,
