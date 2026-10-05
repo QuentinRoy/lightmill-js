@@ -1,4 +1,5 @@
 import type { StandardSchemaV1 } from '@standard-schema/spec';
+import { createHash, timingSafeEqual } from 'node:crypto';
 import { mapKeys, toSnakeCase } from 'remeda';
 import type {
   ArrayIndices,
@@ -205,6 +206,19 @@ export function decodeBase64(content: string): string {
   }
 }
 
+// Hashing first gives timingSafeEqual equal-length inputs without leaking the
+// length of the expected value.
+function safeEqual(a: string, b: string): boolean {
+  return timingSafeEqual(
+    createHash('sha256').update(a).digest(),
+    createHash('sha256').update(b).digest(),
+  );
+}
+
+/**
+ * Checks an Authorization header against Basic credentials (RFC 7617).
+ * Returns false for a missing or malformed header.
+ */
 export function checkBasicAuth(
   header: string | undefined | null,
   username: string,
@@ -212,17 +226,19 @@ export function checkBasicAuth(
 ): boolean {
   if (header == null) return false;
   const [type, encoded] = header.split(' ');
-  if (type !== 'Basic') {
+  if (type !== 'Basic' || encoded == null) {
     return false;
   }
-  if (encoded == null) {
-    throw new Error('Invalid Basic Authorization header');
+  const decoded = decodeBase64(encoded);
+  // Only the first colon separates the user-id: the password may contain more.
+  const separator = decoded.indexOf(':');
+  if (separator === -1) {
+    return false;
   }
-  const [authUsername, authPassword] = decodeBase64(encoded).split(':');
-  if (authUsername == null || authPassword == null) {
-    throw new Error('Invalid Basic Authorization header');
-  }
-  return authUsername === username && authPassword === password;
+  // Evaluate both so timing does not reveal whether the username matched.
+  const usernameMatches = safeEqual(decoded.slice(0, separator), username);
+  const passwordMatches = safeEqual(decoded.slice(separator + 1), password);
+  return usernameMatches && passwordMatches;
 }
 
 /**
