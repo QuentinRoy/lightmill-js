@@ -361,7 +361,7 @@ async function processResponse({
 function hasBody(request: Express.Request) {
   const { 'content-length': length, 'transfer-encoding': encoding } =
     request.headers;
-  return encoding != null || (length != null && Number(length) > 0);
+  return encoding != null || Number(length) > 0;
 }
 
 function checkContentType(
@@ -369,11 +369,11 @@ function checkContentType(
 ): Express.RequestHandler {
   return async (request, response, next) => {
     const contentType = request.headers['content-type'];
-    if (
+    const isAccepted =
       contentType == null
         ? !hasBody(request)
-        : isContentType(contentType, expectedMediaType)
-    ) {
+        : isContentType(contentType, expectedMediaType);
+    if (isAccepted) {
       next();
       return;
     }
@@ -428,7 +428,7 @@ function answerBodyErrors(
     const bodyError = getBodyParserError(cause, REQUEST_BODY_LIMIT);
     await processResponse({
       result: getErrorResponse(
-        bodyError ?? getServerError(cause),
+        bodyError ?? logServerError(cause),
         routeMediaType,
       ),
       request,
@@ -479,10 +479,10 @@ function getHandlerErrorResponse(
       headers: { 'retry-after': '1' },
     };
   }
-  return getErrorResponse(getServerError(toError(error)), routeMediaType);
+  return getErrorResponse(logServerError(toError(error)), routeMediaType);
 }
 
-function getServerError(error: Error) {
+function logServerError(error: Error) {
   log.error(error);
   return getInternalServerError(error);
 }
@@ -507,7 +507,7 @@ export function createErrorHandler(): Express.ErrorRequestHandler {
     // path parameter it cannot decode. It is the client's error.
     const clientError = getBodyParserError(cause, REQUEST_BODY_LIMIT);
     await processResponse({
-      result: getErrorResponse(clientError ?? getServerError(cause)),
+      result: getErrorResponse(clientError ?? logServerError(cause)),
       request,
       response,
     });
