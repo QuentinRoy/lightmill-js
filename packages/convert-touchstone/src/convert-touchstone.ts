@@ -1,3 +1,4 @@
+// sax is CommonJS: Node only exposes its functions on the default export.
 import sax from 'sax';
 
 export type Experiment = { author: string; description: string; id: string };
@@ -94,6 +95,10 @@ export default function convertTouchstone(
   }: MapperOptions<FacultativeId<UndefinedTask>> = {},
 ): Promise<DesignConfig<UndefinedTask>> {
   return new Promise((resolve, reject) => {
+    // A stream is decoded as UTF-8 whatever its XML declaration says, so
+    // accented characters of ISO-8859-1 files (as Touchstone exports) come out
+    // as U+FFFD. sax 1.6 refuses such streams instead, which is why package.json
+    // stops at 1.5. Decode by the declared encoding before lifting that limit.
     const saxParser =
       typeof touchStoneXML === 'string'
         ? sax.parser(true, { lowercase: true })
