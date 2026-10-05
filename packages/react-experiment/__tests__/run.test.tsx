@@ -544,6 +544,33 @@ describe('run', () => {
       vi.useRealTimers();
     });
 
+    it('calls onCompleted once Run is shown again if the timeline completed while it was hidden', async () => {
+      vi.useFakeTimers();
+      const onCompleted = vi.fn();
+      const ui = (mode: 'visible' | 'hidden') => (
+        <React.Activity mode={mode}>
+          <Run
+            elements={{
+              tasks: {
+                A: <Task type="A" dataProp="a" />,
+                B: <Task type="B" dataProp="b" />,
+              },
+            }}
+            timeline={timeline}
+            onCompleted={onCompleted}
+          />
+        </React.Activity>
+      );
+      const timeline = asyncTaskGen(5, []);
+      const { rerender } = render(ui('visible'));
+      rerender(ui('hidden'));
+      await act(() => vi.advanceTimersByTime(50));
+      expect(onCompleted).not.toHaveBeenCalled();
+      rerender(ui('visible'));
+      expect(onCompleted).toHaveBeenCalledOnce();
+      vi.useRealTimers();
+    });
+
     it('does not start anything when an async next() resolves after unmount', async () => {
       vi.useFakeTimers();
       const spy = vi.spyOn(console, 'error');
