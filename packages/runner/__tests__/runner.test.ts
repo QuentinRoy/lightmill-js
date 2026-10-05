@@ -293,4 +293,36 @@ describe('TimelineRunner', () => {
     expect(() => runner.start()).toThrow('Task already completed');
     expect(onTaskCompleted.mock.calls).toEqual([[1]]);
   });
+
+  it('ignores a pending async next() once canceled', async () => {
+    let pending = deffer<IteratorResult<number>>({ value: 1, done: false });
+    let onTaskStarted = vi.fn();
+    let onError = vi.fn();
+    let runner = new TimelineRunner<number>({
+      timeline: { next: () => pending.promise },
+      onTaskStarted,
+      onError,
+    });
+    runner.start();
+    runner.cancel();
+    pending.resolve();
+    await wait();
+    expect(runner.status).toBe('canceled');
+    expect(onTaskStarted).not.toHaveBeenCalled();
+  });
+
+  it('ignores a pending async next() rejection once canceled', async () => {
+    let pending = deffer<IteratorResult<number>>({ value: 1, done: false });
+    let onError = vi.fn();
+    let runner = new TimelineRunner<number>({
+      timeline: { next: () => pending.promise },
+      onError,
+    });
+    runner.start();
+    runner.cancel();
+    pending.reject(new Error('oops'));
+    await wait();
+    expect(runner.status).toBe('canceled');
+    expect(onError).not.toHaveBeenCalled();
+  });
 });
