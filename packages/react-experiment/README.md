@@ -15,6 +15,8 @@ This package provides:
 npm install @lightmill/react-experiment react
 ```
 
+Requires React 19.2 or later.
+
 ## Type Registration
 
 Augment `RegisterExperiment` with your task/log types:
@@ -96,7 +98,7 @@ function TrialTask() {
 
 Props:
 
-- `timeline`: iterator/iterable of tasks.
+- `timeline`: iterator/iterable of tasks. `Run` consumes it once and it cannot be changed after it is set, so remounting `Run` needs a fresh timeline.
 - `elements.tasks`: map from task type to React element.
 - `elements.loading`: optional element to render while `loading` is `true`, once the task that was running has ended. It wins over `elements.completed`, and loses to `elements.paused`.
 - `elements.completed`: optional completion element.
@@ -104,7 +106,7 @@ Props:
 - `paused`: set it to `true` when logs cannot be delivered. `Run` keeps rendering the running task, then `elements.paused` instead of what comes next (including `elements.completed`). The timeline and `onCompleted` are not affected. See [Handling log delivery failures](#handling-log-delivery-failures).
 - `loading`: set it to `true` while the app is not ready to move on (the timeline may then be unset). `Run` keeps rendering the running task, then `elements.loading` instead of what comes next. If `loading` goes back to `false` before the task ends, the task is not restarted.
 - `onLog`: optional async log handler.
-- `onCompleted`: optional callback after completion.
+- `onCompleted`: optional callback after completion. Called once, and only while `Run` is mounted.
 - `resumeAfterTask`: optional function that returns `true` for the last completed task. `Run` starts after the first task it matches, and throws if none does.
 
 ### `LogDeliveryError`
