@@ -66,8 +66,6 @@ export class TestServer {
   async stop() {
     this.msw.close();
     vi.unstubAllGlobals();
-    // Tests fake timers as they need to.
-    vi.useRealTimers();
     this.#http.closeAllConnections();
     this.#http.close();
     await this.dataStore.close();

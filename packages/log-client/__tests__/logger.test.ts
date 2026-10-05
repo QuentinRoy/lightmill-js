@@ -6,6 +6,7 @@ import { serverTest, type TestServer } from './test-server.ts';
 import {
   advanceUntilSettled,
   DeferManager,
+  fakeDate,
   fakeTimers,
   readOperations,
   until,
@@ -45,8 +46,7 @@ describe('LogClient#addLog', () => {
   });
 
   it('should add a default date to logs ', async ({ logger, server }) => {
-    vi.useFakeTimers({ toFake: ['Date'] });
-    vi.setSystemTime('2019-06-03T02:00:00.000Z');
+    fakeDate('2019-06-03T02:00:00.000Z');
     await logger.addLog({ type: 'mock-log', val: 'xxx' });
     await expect(storedLogs(server)).resolves.toEqual([
       {
@@ -58,8 +58,7 @@ describe('LogClient#addLog', () => {
   });
 
   it('should send logs with no provided values', async ({ logger, server }) => {
-    vi.useFakeTimers({ toFake: ['Date'] });
-    vi.setSystemTime('2019-06-03T02:00:00.000Z');
+    fakeDate('2019-06-03T02:00:00.000Z');
     await logger.addLog({ type: 'mock-log' });
     await expect(storedLogs(server)).resolves.toEqual([
       {

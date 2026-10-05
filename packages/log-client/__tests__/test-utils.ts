@@ -1,5 +1,5 @@
 import { setImmediate } from 'node:timers';
-import { vi } from 'vitest';
+import { onTestFinished, vi } from 'vitest';
 import { Subject } from '../src/subject.ts';
 
 // Under the test timeout, so a loop that never ends fails the test instead of
@@ -24,6 +24,18 @@ export function fakeTimers() {
     ],
   });
   return () => vi.useRealTimers();
+}
+
+/**
+ * Fakes only the date, and restores it when the test ends. For a test that
+ * asserts the date the logger gives a log.
+ */
+export function fakeDate(date: string) {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(date);
+  onTestFinished(() => {
+    vi.useRealTimers();
+  });
 }
 
 async function loopUntil(done: () => boolean, step: () => Promise<unknown>) {
