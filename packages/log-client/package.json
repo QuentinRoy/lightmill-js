@@ -26,17 +26,17 @@
   "devDependencies": {
     "@types/throttle-debounce": "^5.0.2",
     "@vitest/ui": "catalog:",
-    "cross-env": "^7.0.3",
-    "msw": "^2.7.3",
+    "cross-env": "^10.1.0",
+    "msw": "^3.0.2",
     "onchange": "^7.1.0",
-    "openapi-typescript": "^7.8.0",
-    "type-fest": "^4.39.1",
+    "openapi-typescript": "^7.13.0",
+    "type-fest": "^5.10.0",
     "typescript": "catalog:",
     "vitest": "catalog:"
   },
   "dependencies": {
     "@lightmill/log-api": "workspace:*",
-    "openapi-fetch": "^0.13.5"
+    "openapi-fetch": "^0.17.0"
   },
   "scripts": {
     "test": "cross-env NODE_ENV=test vitest",

@@ -245,10 +245,9 @@ unchanged.
 `SQLiteDataStore` also has a `[Symbol.asyncDispose]()` method that calls
 `close()`, so a script can write
 `await using store = await SQLiteDataStore.open(path)`. The `DataStore`
-contract does not require it. That syntax needs TypeScript 5.2 or later, and
-runs natively on Node 24 and later. On Node 22, compile with a target below
-`esnext`. Type declarations reference the `esnext.disposable` library, so
-type-only consumers need nothing more.
+contract does not require it. That syntax needs TypeScript 5.2 or later. Type
+declarations reference the `esnext.disposable` library, so type-only consumers
+need nothing more.
 
 ## CLI
 

@@ -37,9 +37,9 @@ export function arrayify<T>(
 }
 
 export type SnakeCaseProps<R extends Record<PropertyKey, unknown>> = {
-  [K in keyof R as K extends string
-    ? ReturnType<typeof toSnakeCase<K>>
-    : K]: R[K];
+  [
+    K in keyof R as K extends string ? ReturnType<typeof toSnakeCase<K>> : K
+  ]: R[K];
 };
 
 export type LowercaseProps<R extends Record<PropertyKey, unknown>> = {
@@ -65,15 +65,14 @@ type RemovePrefixResult<
   S extends string,
   T extends string,
 > = S extends `${T}${infer R}`
-  ?
-      | R
-      // If T is a string literal, we cannot really know what will be removed
-      // at the start of S, so we return the union of the remaining string.
-      | (string extends T ? StringEnd<S> | S : never)
+  ? | R
+    // If T is a string literal, we cannot really know what will be removed
+    // at the start of S, so we return the union of the remaining string.
+    | (string extends T ? StringEnd<S> | S : never)
 
-      // If T is a union, the result could either be the string without the
-      // prefix, or the string itself (depending on what the prefix is).
-      | (IsUnion<T> extends true ? S : never)
+    // If T is a union, the result could either be the string without the
+    // prefix, or the string itself (depending on what the prefix is).
+    | (IsUnion<T> extends true ? S : never)
   : S;
 
 export function removePrefix<S extends string, T extends string>(
@@ -201,8 +200,8 @@ export function getStrict<
 export function decodeBase64(content: string): string {
   try {
     return Buffer.from(content, 'base64').toString('utf8');
-  } catch (_error) {
-    throw new Error('Invalid base64 string');
+  } catch (error) {
+    throw new Error('Invalid base64 string', { cause: error });
   }
 }
 

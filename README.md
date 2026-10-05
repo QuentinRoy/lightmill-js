@@ -27,7 +27,7 @@ a full stack:
 
 ### Requirements
 
-- Node.js 24.x
+- Node.js 24.12 or later
 - pnpm 12+
 
 ### Install dependencies

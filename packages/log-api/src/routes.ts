@@ -9,11 +9,9 @@ type MountedRoute<
   R extends Record<`/${string}`, unknown>,
   B extends `/${string}`,
 > = {
-  [K in keyof R as K extends '/'
-    ? B
-    : K extends string
-      ? `${B}${K}`
-      : never]: R[K];
+  [
+    K in keyof R as K extends '/' ? B : K extends string ? `${B}${K}` : never
+  ]: R[K];
 };
 function mountRoute<
   const R extends Record<`/${string}`, unknown>,

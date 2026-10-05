@@ -9,7 +9,7 @@ import * as Express from 'express';
 import type { SessionData } from 'express-session';
 import Stream from 'node:stream';
 import type { Simplify } from 'type-fest';
-import { z } from 'zod/v4';
+import { z } from 'zod';
 import {
   getErrorResponse,
   isContentType,
@@ -323,38 +323,30 @@ function validateHandler({
       validatedCookie.issues != null
     ) {
       const errors: Array<ValidationError> = [
-        ...(validatedBody.issues ?? []).map(
-          (issue): ValidationError => ({
-            code: 'INVALID_REQUEST_BODY',
-            status: 'Bad Request',
-            detail: issue.message,
-            source: { pointer: toJsonPointer(issue.path ?? []) },
-          }),
-        ),
-        ...(validatedQuery.issues ?? []).map(
-          (issue): ValidationError => ({
-            code: 'INVALID_REQUEST_QUERY',
-            status: 'Bad Request',
-            detail: issue.message,
-            source: { parameter: issue.path?.join('.') ?? '' },
-          }),
-        ),
-        ...(validatedHeader.issues ?? []).map(
-          (issue): ValidationError => ({
-            code: 'INVALID_REQUEST_HEADERS',
-            status: 'Bad Request',
-            detail: issue.message,
-            source: { header: issue.path?.join('.') ?? '' },
-          }),
-        ),
-        ...(validatedCookie.issues ?? []).map(
-          (issue): ValidationError => ({
-            code: 'INVALID_REQUEST_HEADERS',
-            status: 'Bad Request',
-            detail: issue.message,
-            source: { header: 'cookie' },
-          }),
-        ),
+        ...(validatedBody.issues ?? []).map((issue): ValidationError => ({
+          code: 'INVALID_REQUEST_BODY',
+          status: 'Bad Request',
+          detail: issue.message,
+          source: { pointer: toJsonPointer(issue.path ?? []) },
+        })),
+        ...(validatedQuery.issues ?? []).map((issue): ValidationError => ({
+          code: 'INVALID_REQUEST_QUERY',
+          status: 'Bad Request',
+          detail: issue.message,
+          source: { parameter: issue.path?.join('.') ?? '' },
+        })),
+        ...(validatedHeader.issues ?? []).map((issue): ValidationError => ({
+          code: 'INVALID_REQUEST_HEADERS',
+          status: 'Bad Request',
+          detail: issue.message,
+          source: { header: issue.path?.join('.') ?? '' },
+        })),
+        ...(validatedCookie.issues ?? []).map((issue): ValidationError => ({
+          code: 'INVALID_REQUEST_HEADERS',
+          status: 'Bad Request',
+          detail: issue.message,
+          source: { header: 'cookie' },
+        })),
       ];
       return getErrorResponse(errors);
     }
@@ -451,7 +443,9 @@ export type HandlerResponseFromRoute<
 }
   ? {
       [Status in keyof Responses]: {
-        [ContentType in keyof Responses[Status]['content']]: Responses[Status]['content'][ContentType] extends {
+        [
+          ContentType in keyof Responses[Status]['content']
+        ]: Responses[Status]['content'][ContentType] extends {
           schema: infer Schema extends StandardSchemaV1;
         }
           ? HandlerResponse<
@@ -502,8 +496,8 @@ interface HandlerSchemaEntry<
   QuerySchema extends StandardSchemaV1 = StandardSchemaV1,
   HeadersSchema extends StandardSchemaV1 = StandardSchemaV1,
   CookiesSchema extends StandardSchemaV1 = StandardSchemaV1,
-  ResponseSchemaEntries extends
-    Array<ResponseSchemaEntry> = Array<ResponseSchemaEntry>,
+  ResponseSchemaEntries extends Array<ResponseSchemaEntry> =
+    Array<ResponseSchemaEntry>,
 > {
   body: BodySchema;
   parameters: {

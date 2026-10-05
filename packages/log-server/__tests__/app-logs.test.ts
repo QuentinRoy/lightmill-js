@@ -935,6 +935,21 @@ describe.each(storeTypes)('LogServer: get /logs (%s)', (storeType) => {
     expect(result.text).toMatchSnapshot();
   });
 
+  it('quotes csv values containing a lone carriage return', async ({
+    expect,
+    hostApi,
+    dataStore,
+    runId,
+  }) => {
+    await dataStore.withTransaction((tx) =>
+      tx.addLogs(runId, [
+        { type: 'log-type', values: { x: 'a\rb', y: 'y6' }, number: 4 },
+      ]),
+    );
+    let result = await hostApi.get('/logs').expect(200);
+    expect(result.text).toContain('"a\rb"');
+  });
+
   it('returns logs as json if json is the first supported format in the Accept header', async ({
     expect,
     hostApi,

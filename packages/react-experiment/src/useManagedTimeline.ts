@@ -22,10 +22,7 @@ export type TimelineState<Task> =
     };
 
 export type AnyIteratorOrIterable<Task> =
-  | AsyncIterator<Task>
-  | AsyncIterable<Task>
-  | Iterator<Task>
-  | Iterable<Task>;
+  AsyncIterator<Task> | AsyncIterable<Task> | Iterator<Task> | Iterable<Task>;
 
 type Options<Task extends { type: string }> = {
   onTimelineCompleted?: () => void;

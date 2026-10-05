@@ -11,7 +11,7 @@ import {
   type JsonBodyType,
   type StrictRequest,
 } from 'msw';
-import { setupServer, SetupServerApi } from 'msw/node';
+import { setupServer, type SetupServer } from 'msw/node';
 import type { IsNever, RequiredKeysOf } from 'type-fest';
 import { test, vi, type Mock } from 'vitest';
 import { type paths } from '../src/generated/openapi.js';
@@ -119,7 +119,7 @@ export class MockServer {
   #baseUrl = 'https://server.test/api';
   #runs = new Map<string, Run>();
   #experiments = new Map<string, Experiment>();
-  #server: SetupServerApi;
+  #server: SetupServer;
   #requests: Array<Request> = [];
   handlers: MockedHandlerMap = this.#createMockedHandlersMap();
 
@@ -437,6 +437,7 @@ export class MockServer {
         if (!(err instanceof Error)) {
           throw new Error(
             `Unexpected error type: ${typeof err}. Expected an Error.`,
+            { cause: err },
           );
         }
         return HttpResponse.json(
@@ -531,7 +532,7 @@ export class MockServer {
   }
 
   start() {
-    this.#server.listen({ onUnhandledRequest: 'error' });
+    this.#server.listen({ onUnhandledFrame: 'error' });
   }
 
   stop() {

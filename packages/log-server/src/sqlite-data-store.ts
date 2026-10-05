@@ -7,12 +7,11 @@ import type { Store as ExpressSessionStore } from 'express-session';
 import {
   CamelCasePlugin,
   DeduplicateJoinsPlugin,
-  FileMigrationProvider,
   Kysely,
-  Migrator,
   sql,
   SqliteDialect,
 } from 'kysely';
+import { FileMigrationProvider, Migrator } from 'kysely/migration';
 import loglevel, { type LogLevelDesc } from 'loglevel';
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -576,15 +575,13 @@ class Queries {
     } catch (e) {
       // A log a resume kept is in an earlier sequence: it hits the sequence
       // start trigger instead of the unique constraint.
-      if (
-        !(
-          e instanceof SQLiteDB.SqliteError &&
-          (e.code === 'SQLITE_CONSTRAINT_PRIMARYKEY' ||
-            e.code === 'SQLITE_CONSTRAINT_UNIQUE' ||
-            (e.code === 'SQLITE_CONSTRAINT_TRIGGER' &&
-              e.message === belowSequenceStartMessage))
-        )
-      ) {
+      if (!(
+        e instanceof SQLiteDB.SqliteError &&
+        (e.code === 'SQLITE_CONSTRAINT_PRIMARYKEY' ||
+          e.code === 'SQLITE_CONSTRAINT_UNIQUE' ||
+          (e.code === 'SQLITE_CONSTRAINT_TRIGGER' &&
+            e.message === belowSequenceStartMessage))
+      )) {
         throw e;
       }
       // The failed statement was rolled back, the transaction is still

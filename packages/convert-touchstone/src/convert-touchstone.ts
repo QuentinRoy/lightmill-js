@@ -1,11 +1,11 @@
-import * as sax from 'sax';
+// sax is CommonJS: Node only exposes its functions on the default export.
+import sax from 'sax';
 
 export type Experiment = { author: string; description: string; id: string };
 export type WithId = { id: string };
 export type Run<T extends MinimalTask> = { id: string; timeline: Array<T> };
 export type Trial = (
-  | { practice: false; number: number; blockNumber: number }
-  | { practice: true }
+  { practice: false; number: number; blockNumber: number } | { practice: true }
 ) &
   FactorValues;
 export type Block = ({ practice: false; number: number } | { practice: true }) &
@@ -33,9 +33,7 @@ type Mapper<FArgs extends MapperArgs, T> =
   | Array<string | T>
   | ((...args: FArgs) => string | T | Array<string | T>);
 type DefinedMapper<FArgs extends MapperArgs, T> =
-  | ((...args: FArgs) => T | Array<T>)
-  | T
-  | Array<T>;
+  ((...args: FArgs) => T | Array<T>) | T | Array<T>;
 type MapperOptions<T> = {
   preBlock?: Mapper<[Block, WithId, Experiment], T>;
   postBlock?: Mapper<[Block, WithId, Experiment], T>;
@@ -58,23 +56,23 @@ type DefinedMapperOptions<T> = {
  *
  * @example
  * // Map each run to a task to insert before the trials of the run.
- * const preRuns = (run, experiment) => ({
+ * const preRun = (run, experiment) => ({
  *   ...run,
  *   type: 'pre-run'
  * });
  * // Mappers can also be strings...
- * const postRuns = 'post-run';  // This is the same as above.
+ * const postRun = 'post-run';  // This is the same as above.
  * // ...arrays of string (if several tasks need to be inserted)...
- * const preBlocks = [
+ * const preBlock = [
  *   'pre-block-1',
  *   'pre-block-2',
  * ];
  * // ...or functions that returns Task or array of Tasks.
- * const postBlocks = (block, run, experiment) => [
+ * const postBlock = (block, run, experiment) => [
  *   { type: 'post-block-1', runId: run.id, id: getId(block, run, experiment) },
  *   { ...block , type: 'post-block-2', id: getId(block, run, experiment) }
  * ];
- * convertTouchStone(data, { preBlocks, postBlocks, postRuns, preRuns })
+ * convertTouchstone(data, { preBlock, postBlock, postRun, preRun })
  *   .then(doSomething);
  */
 export default function convertTouchstone<T extends MinimalTask>(
@@ -97,6 +95,10 @@ export default function convertTouchstone(
   }: MapperOptions<FacultativeId<UndefinedTask>> = {},
 ): Promise<DesignConfig<UndefinedTask>> {
   return new Promise((resolve, reject) => {
+    // A stream is decoded as UTF-8 whatever its XML declaration says, so
+    // accented characters of ISO-8859-1 files (as Touchstone exports) come out
+    // as U+FFFD. sax 1.6 refuses such streams instead, which is why package.json
+    // stops at 1.5. Decode by the declared encoding before lifting that limit.
     const saxParser =
       typeof touchStoneXML === 'string'
         ? sax.parser(true, { lowercase: true })

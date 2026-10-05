@@ -18,7 +18,8 @@ import { LogServer, SQLiteDataStore } from './index.ts';
 // Constants and setup
 // -------------------
 
-dotenv.config();
+// dotenv logs a line about the variables it loaded; the CLI's output is its own.
+dotenv.config({ quiet: true });
 
 const __dirname = url.fileURLToPath(new URL('.', import.meta.url));
 
@@ -212,6 +213,7 @@ async function addExperiment({ database, name }: AddExperimentParameter) {
       ) {
         throw new Error(
           `An experiment named "${name}" already exists. Choose a different name.`,
+          { cause: error },
         );
       }
       throw error;

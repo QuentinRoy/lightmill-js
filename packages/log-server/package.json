@@ -34,20 +34,20 @@
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
-    "@types/better-sqlite3": "^7.6.13",
-    "@types/cookie-parser": "^1.4.8",
+    "@types/better-sqlite3": "^9.6.0",
+    "@types/cookie-parser": "^1.4.10",
     "@types/cors": "^2.8.18",
-    "@types/express": "^5.0.2",
-    "@types/express-session": "^1.18.1",
+    "@types/express": "^5.0.6",
+    "@types/express-session": "^1.19.0",
     "@types/node": "catalog:",
-    "@types/supertest": "^6.0.3",
-    "@types/yargs": "^17.0.33",
+    "@types/supertest": "^7.2.1",
+    "@types/yargs": "^17.0.35",
     "@vitest/ui": "catalog:",
-    "cross-env": "^7.0.3",
+    "cross-env": "^10.1.0",
     "onchange": "^7.1.0",
-    "string-dedent": "^3.0.1",
-    "supertest": "^7.1.1",
-    "type-fest": "^4.41.0",
+    "string-dedent": "^3.0.2",
+    "supertest": "^7.3.1",
+    "type-fest": "^5.10.0",
     "typescript": "catalog:",
     "vitest": "catalog:"
   },
@@ -56,21 +56,21 @@
   },
   "dependencies": {
     "@lightmill/log-api": "workspace:*",
-    "@standard-schema/spec": "^1.0.0",
+    "@standard-schema/spec": "^1.1.0",
     "better-sqlite3": "^13.0.3",
-    "cors": "^2.8.5",
-    "csv": "^6.3.11",
-    "dotenv": "^16.5.0",
-    "express": "^5.2.0",
-    "express-session": "^1.18.1",
-    "kysely": "^0.28.2",
+    "cors": "^2.8.6",
+    "csv": "^6.6.4",
+    "dotenv": "^18.0.5",
+    "express": "^5.2.1",
+    "express-session": "^1.19.0",
+    "kysely": "^0.29.6",
     "loglevel": "^1.9.2",
-    "memorystore": "^1.6.7",
-    "remeda": "^2.21.8",
-    "yargs": "17.7.2",
-    "zod": "^3.25.7"
+    "memorystore": "^1.6.8",
+    "remeda": "^2.50.0",
+    "yargs": "18.2.0",
+    "zod": "^4.6.5"
   },
   "engines": {
-    "node": "^22.18.0 || >=24.3.0"
+    "node": ">=24.12.0"
   }
 }
