@@ -3,6 +3,7 @@ import express from 'express';
 import { setupServer, type SetupServer } from 'msw/node';
 import { once } from 'node:events';
 import { createServer, type Server } from 'node:http';
+import { CookieJar } from 'tough-cookie';
 import { test, vi } from 'vitest';
 
 /**
@@ -131,7 +132,7 @@ export class TestServer {
 // asks for credentials. A client that forgets them loses its session.
 function stubFetchWithCookieJar() {
   const baseFetch = globalThis.fetch;
-  const cookies = new Map<string, string>();
+  const jar = new CookieJar();
   // openapi-fetch reads globalThis.fetch when a client is created, so this
   // must be in place before the test creates one.
   vi.stubGlobal(
@@ -139,18 +140,14 @@ function stubFetchWithCookieJar() {
     async (input: RequestInfo | URL, init?: RequestInit) => {
       const request = new Request(input, init);
       const withCredentials = request.credentials === 'include';
-      if (withCredentials && cookies.size > 0) {
-        request.headers.set(
-          'cookie',
-          [...cookies].map(([name, value]) => `${name}=${value}`).join('; '),
-        );
+      if (withCredentials) {
+        const cookie = await jar.getCookieString(request.url);
+        if (cookie !== '') request.headers.set('cookie', cookie);
       }
       const response = await baseFetch(request);
       if (withCredentials) {
         for (const setCookie of response.headers.getSetCookie()) {
-          const [pair = ''] = setCookie.split(';');
-          const separator = pair.indexOf('=');
-          cookies.set(pair.slice(0, separator), pair.slice(separator + 1));
+          await jar.setCookie(setCookie, request.url);
         }
       }
       return response;
