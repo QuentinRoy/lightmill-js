@@ -454,10 +454,32 @@ function answerErrors(
   };
 }
 
+/** A query parameter whose percent-encoding is malformed. */
+export class MalformedQueryError extends Error {
+  readonly parameter: string;
+
+  constructor(parameter: string) {
+    super(`Query parameter "${parameter}" has malformed percent-encoding.`);
+    this.parameter = parameter;
+  }
+}
+
 function getHandlerErrorResponse(
   error: unknown,
   routeMediaType: RouteMediaType,
 ): HandlerResponse {
+  // Express parses the query when a handler first reads it.
+  if (error instanceof MalformedQueryError) {
+    return getErrorResponse(
+      {
+        status: 'Bad Request',
+        code: 'INVALID_REQUEST_QUERY',
+        detail: error.message,
+        source: { parameter: error.parameter },
+      },
+      routeMediaType,
+    );
+  }
   if (error instanceof SessionGoneError) {
     return getErrorResponse(sessionRequiredError, routeMediaType);
   }

@@ -112,31 +112,26 @@ describe.for(storeTypes)('createLogServer Errors (%s server)', (storeType) => {
 
   it('returns a 400 error if a query parameter has malformed percent-encoding', async ({
     api,
-    expect,
   }) => {
     await api
       .post('/sessions')
       .set('Content-Type', mediaType)
       .send({ data: { type: 'sessions', attributes: { role: 'participant' } } })
       .expect(201);
-    let response = await api
-      .get('/experiments?x=%E0%A4%A')
+    await api
+      .get('/experiments?filter[name]=%E0%A4%A')
       .expect('Content-Type', apiContentTypeRegExp)
-      .expect(400);
-    expect(response.body).toMatchInlineSnapshot(`
-      {
-        "errors": [
+      .expect(400, {
+        errors: [
           {
-            "code": "INVALID_REQUEST_QUERY",
-            "detail": "Unrecognized key: "x"",
-            "source": {
-              "parameter": "",
-            },
-            "status": "Bad Request",
+            status: 'Bad Request',
+            code: 'INVALID_REQUEST_QUERY',
+            detail:
+              'Query parameter "filter[name]" has malformed percent-encoding.',
+            source: { parameter: 'filter[name]' },
           },
         ],
-      }
-    `);
+      });
   });
 
   it('decodes query parameters once', async ({ api, expect }) => {
