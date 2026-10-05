@@ -462,23 +462,23 @@ describe('run', () => {
   });
 
   describe('StrictMode', () => {
-    const tasks: Task[] = [
+    const tasks = [
       { type: 'A', a: 'one' },
       { type: 'A', a: 'two' },
       { type: 'A', a: 'three' },
-    ];
+    ] as const;
     // Records every task the timeline is asked for, to catch tasks pulled
     // twice or lost.
     const syncGen = function* (pulled: string[]) {
       for (const task of tasks) {
-        pulled.push((task as { a: string }).a);
+        pulled.push(task.a);
         yield task;
       }
     };
     const asyncGen = async function* (pulled: string[]) {
       for (const task of tasks) {
         await wait(5);
-        pulled.push((task as { a: string }).a);
+        pulled.push(task.a);
         yield task;
       }
     };
@@ -498,10 +498,7 @@ describe('run', () => {
           <React.StrictMode>
             <Run
               elements={{
-                tasks: {
-                  A: <Task type="A" dataProp="a" />,
-                  B: <Task type="B" dataProp="b" />,
-                },
+                tasks: { A: <Task type="A" dataProp="a" /> },
                 loading: <div data-testid="loading" />,
                 completed: <div data-testid="end" />,
               }}
@@ -533,12 +530,7 @@ describe('run', () => {
       const pulled: string[] = [];
       const { unmount } = render(
         <Run
-          elements={{
-            tasks: {
-              A: <Task type="A" dataProp="a" />,
-              B: <Task type="B" dataProp="b" />,
-            },
-          }}
+          elements={{ tasks: { A: <Task type="A" dataProp="a" /> } }}
           timeline={asyncGen(pulled)}
         />,
       );

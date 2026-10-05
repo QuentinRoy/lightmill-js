@@ -73,6 +73,8 @@ function skipThrough<Task>(
   };
 }
 
+const loadingSnapshot = { status: 'loading' } as const;
+
 // The timeline iterator is one-shot and the runner cannot be rewound, so the
 // store lives as long as the timeline, not as long as an effect: unsubscribing
 // (as StrictMode and <Activity> do) must not cancel it.
@@ -86,7 +88,7 @@ function createRunStore<Task>({
   onCompleted: () => void;
 }): RunStore<Task> {
   const listeners = new Set<() => void>();
-  let snapshot: StoreSnapshot<Task> = { status: 'loading' };
+  let snapshot: StoreSnapshot<Task> = loadingSnapshot;
   let started = false;
   const setSnapshot = (next: StoreSnapshot<Task>) => {
     snapshot = next;
@@ -141,7 +143,6 @@ function createRunStore<Task>({
   };
 }
 
-const loadingSnapshot = { status: 'loading' } as const;
 const noStore: RunStore<never> = {
   timeline: [],
   subscribe: () => () => {},
