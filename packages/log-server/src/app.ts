@@ -47,7 +47,7 @@ export function createLogServer({
 
   app.set('query parser', (str: string | null) => {
     if (str == null) return {};
-    let params = new URLSearchParams(decodeURIComponent(str));
+    let params = new URLSearchParams(str);
     let values: Record<string, string[] | string> = {};
     for (const [key, value] of params.entries()) {
       let oldValue = values[key];

@@ -502,16 +502,27 @@ export function createErrorHandler(): Express.ErrorRequestHandler {
       next(error);
       return;
     }
-    const cause = toError(error);
-    // Express's router raises a 4xx http-error, like body-parser does, for a
-    // path parameter it cannot decode. It is the client's error.
-    const clientError = getBodyParserError(cause, REQUEST_BODY_LIMIT);
     await processResponse({
-      result: getErrorResponse(clientError ?? logServerError(cause)),
+      result: getErrorResponse(
+        isPathDecodingError(error)
+          ? {
+              status: 'Not Found',
+              code: 'NOT_FOUND',
+              detail: `Resource ${request.originalUrl} does not exist.`,
+            }
+          : logServerError(toError(error)),
+      ),
       request,
       response,
     });
   };
+}
+
+// Express's router raises a URIError with a 400 status for a path parameter
+// it cannot decode. Like any other invalid path parameter, it names no
+// resource.
+function isPathDecodingError(error: unknown) {
+  return error instanceof URIError && 'status' in error && error.status === 400;
 }
 
 export type Handlers = {

@@ -74,17 +74,21 @@ describe.for(storeTypes)('createLogServer Errors (%s server)', (storeType) => {
       });
   });
 
-  it('returns a client error for a path parameter that cannot be decoded', async ({
+  it('returns a 404 error if a path parameter has malformed percent-encoding', async ({
     api,
-    expect,
   }) => {
-    const response = await api
+    await api
       .get('/sessions/%E0%A4%A')
-      .expect('Content-Type', apiContentTypeRegExp);
-    // Only the class: the current `400 INVALID_REQUEST_BODY` names a body for
-    // a path problem, and is not a contract to keep.
-    expect(response.status).toBeGreaterThanOrEqual(400);
-    expect(response.status).toBeLessThan(500);
+      .expect('Content-Type', apiContentTypeRegExp)
+      .expect(404, {
+        errors: [
+          {
+            status: 'Not Found',
+            code: 'NOT_FOUND',
+            detail: 'Resource /sessions/%E0%A4%A does not exist.',
+          },
+        ],
+      });
   });
 
   it('returns a 404 error for a route that does not exist whatever its body', async ({
@@ -104,6 +108,61 @@ describe.for(storeTypes)('createLogServer Errors (%s server)', (storeType) => {
           },
         ],
       });
+  });
+
+  it('returns a 400 error if a query parameter has malformed percent-encoding', async ({
+    api,
+    expect,
+  }) => {
+    await api
+      .post('/sessions')
+      .set('Content-Type', mediaType)
+      .send({ data: { type: 'sessions', attributes: { role: 'participant' } } })
+      .expect(201);
+    let response = await api
+      .get('/experiments?x=%E0%A4%A')
+      .expect('Content-Type', apiContentTypeRegExp)
+      .expect(400);
+    expect(response.body).toMatchInlineSnapshot(`
+      {
+        "errors": [
+          {
+            "code": "INVALID_REQUEST_QUERY",
+            "detail": "Unrecognized key: "x"",
+            "source": {
+              "parameter": "",
+            },
+            "status": "Bad Request",
+          },
+        ],
+      }
+    `);
+  });
+
+  it('decodes query parameters once', async ({ api, expect }) => {
+    await api
+      .post('/sessions')
+      .set('Content-Type', mediaType)
+      .send({ data: { type: 'sessions', attributes: { role: 'participant' } } })
+      .expect(201);
+    let response = await api
+      .get('/experiments?x%2526y=1')
+      .expect('Content-Type', apiContentTypeRegExp)
+      .expect(400);
+    expect(response.body).toMatchInlineSnapshot(`
+      {
+        "errors": [
+          {
+            "code": "INVALID_REQUEST_QUERY",
+            "detail": "Unrecognized key: "x%26y"",
+            "source": {
+              "parameter": "",
+            },
+            "status": "Bad Request",
+          },
+        ],
+      }
+    `);
   });
 
   it('returns a 415 error if the requested route does not accept the media type', async ({
