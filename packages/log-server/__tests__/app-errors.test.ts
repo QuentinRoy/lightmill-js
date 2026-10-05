@@ -25,12 +25,13 @@ afterEach(() => {
 type Fixture = { api: request.Agent };
 
 // Body errors happen before routing, so each route answers them with its own
-// media type: the trailing slash checks the lookup does not depend on its
-// exact spelling.
+// media type: the trailing slash and the upper case check the lookup does not
+// depend on its exact spelling.
 const bodyErrorRoutes = [
   ['/logs', mediaType, apiContentTypeRegExp],
   ['/operations', atomicMediaType, atomicContentTypeRegExp],
   ['/operations/', atomicMediaType, atomicContentTypeRegExp],
+  ['/OPERATIONS', atomicMediaType, atomicContentTypeRegExp],
 ] as const;
 
 describe.for(storeTypes)('createLogServer Errors (%s server)', (storeType) => {
@@ -93,6 +94,27 @@ describe.for(storeTypes)('createLogServer Errors (%s server)', (storeType) => {
         ],
       }
     `);
+  });
+
+  it('answers a 415 on /operations with the atomic media type', async ({
+    api,
+  }) => {
+    await api
+      .post('/operations')
+      .set('Content-Type', mediaType)
+      .send({ 'atomic:operations': [] })
+      .expect('Content-Type', atomicContentTypeRegExp)
+      .expect(415);
+  });
+
+  it('answers a 405 on /operations with the atomic media type', async ({
+    api,
+  }) => {
+    await api
+      .get('/operations')
+      .expect('Content-Type', atomicContentTypeRegExp)
+      .expect('Allow', 'POST')
+      .expect(405);
   });
 
   it.for(bodyErrorRoutes)(
@@ -481,6 +503,56 @@ describe.for(storeTypes)(
         .expect('Content-Type', atomicContentTypeRegExp)
         .expect('Retry-After', '1')
         .expect(503, serviceUnavailable);
+    });
+
+    it('keeps the atomic operations media type on a 500', async ({
+      api,
+      dataStore,
+    }) => {
+      const { experimentId } = await dataStore.withTransaction((tx) =>
+        tx.addExperiment({ experimentName: 'experiment' }),
+      );
+      const run = await api
+        .post('/runs')
+        .set('Content-Type', mediaType)
+        .send({
+          data: {
+            type: 'runs',
+            attributes: { name: 'run', status: 'running' },
+            relationships: {
+              experiment: { data: { type: 'experiments', id: experimentId } },
+            },
+          },
+        })
+        .expect(201);
+      dataStore.withTransaction.mockRejectedValueOnce(new Error('boom'));
+      await api
+        .post('/operations')
+        .set('Content-Type', atomicMediaType)
+        .send({
+          'atomic:operations': [
+            {
+              op: 'add',
+              data: {
+                type: 'logs',
+                attributes: { number: 1, logType: 'test', values: {} },
+                relationships: {
+                  run: { data: { type: 'runs', id: run.body.data.id } },
+                },
+              },
+            },
+          ],
+        })
+        .expect('Content-Type', atomicContentTypeRegExp)
+        .expect(500, {
+          errors: [
+            {
+              status: 'Internal Server Error',
+              code: 'INTERNAL_SERVER_ERROR',
+              detail: 'boom',
+            },
+          ],
+        });
     });
   },
 );

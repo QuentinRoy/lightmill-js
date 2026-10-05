@@ -1,5 +1,9 @@
-import { getErrorResponse } from './api.ts';
 import { DataStoreError } from './data-store-errors.ts';
+import {
+  getErrorResponse,
+  getExperimentDocument,
+  getExperimentsDocument,
+} from './json-api.ts';
 import type { PathHandlers } from './router.ts';
 
 export const createExperimentHandlers = (): PathHandlers<'/experiments'> => ({
@@ -43,47 +47,26 @@ export const createExperimentHandlers = (): PathHandlers<'/experiments'> => ({
     async get({ dataStore: store, parameters: { query } }) {
       // Note: There is currently no restrictions on who can access this
       // endpoint.
-      const experiments = await store.getExperiments({
-        experimentName: query['filter[name]'],
-      });
       return {
         status: 200,
-        body: {
-          data: experiments.map((experiment) => ({
-            id: experiment.experimentId,
-            type: 'experiments' as const,
-            attributes: { name: experiment.experimentName },
-          })),
-        },
+        body: await getExperimentsDocument(store, {
+          experimentName: query['filter[name]'],
+        }),
       };
     },
   },
 
   '/experiments/{id}': {
     async get({ parameters: { path }, dataStore: store }) {
-      const experiments = await store.getExperiments({ experimentId: path.id });
-      if (experiments.length > 1) {
-        // This should not happen, but we handle it gracefully.
-        throw new Error('Multiple experiments found for the given ID');
-      }
-      const experiment = experiments[0];
-      if (experiment == null) {
+      const document = await getExperimentDocument(store, path.id);
+      if (document == null) {
         return getErrorResponse({
           status: 'Not Found',
           detail: `Experiment "${path.id}" not found.`,
           code: 'EXPERIMENT_NOT_FOUND',
         });
       }
-      return {
-        status: 200,
-        body: {
-          data: {
-            id: experiment.experimentId,
-            type: 'experiments',
-            attributes: { name: experiment.experimentName },
-          },
-        },
-      };
+      return { status: 200, body: document };
     },
   },
 });

@@ -1,23 +1,26 @@
 import * as LogApi from '@lightmill/log-api';
-import {
-  atomicMediaType,
-  mediaType,
-  type UserRole,
-} from '@lightmill/log-api/vocabulary';
+import { mediaType, type UserRole } from '@lightmill/log-api/vocabulary';
 import type { StandardSchemaV1 } from '@standard-schema/spec';
 import * as Express from 'express';
 import type { SessionData } from 'express-session';
+import log from 'loglevel';
 import Stream from 'node:stream';
 import type { Simplify } from 'type-fest';
 import { z } from 'zod';
-import {
-  getErrorResponse,
-  isContentType,
-  parseCookies,
-  type HttpStatusCodeFromText,
-} from './api.ts';
+import { parseCookies, type HttpStatusCodeFromText } from './api.ts';
 import { DataStoreError } from './data-store-errors.ts';
 import type { DataStore, RunId } from './data-store.ts';
+import {
+  getBodyParserError,
+  getErrorResponse,
+  getInternalServerError,
+  getRequestMediaType,
+  getResponseMediaType,
+  isContentType,
+  sessionRequiredError,
+  type RouteMediaType,
+  type RouteWithBody,
+} from './json-api.ts';
 import {
   lockSession,
   SessionGoneError,
@@ -109,6 +112,7 @@ export function validateHandlers({
         schemas,
         isSessionRequired,
         validateResponse,
+        routeMediaType: getRequestMediaType(route),
       });
       // @ts-expect-error: Type should be correct.
       result[path][method] = newHandler;
@@ -145,13 +149,16 @@ export function createRouter({
           (request.body != null && contentType == null)
         ) {
           await processResponse({
-            result: getErrorResponse({
-              status: 'Unsupported Media Type',
-              code: 'UNSUPPORTED_MEDIA_TYPE',
-              detail:
-                `Content type must be '${expectedMediaType}'.` +
-                ` Set 'Content-Type' header to '${expectedMediaType}'.`,
-            }),
+            result: getErrorResponse(
+              {
+                status: 'Unsupported Media Type',
+                code: 'UNSUPPORTED_MEDIA_TYPE',
+                detail:
+                  `Content type must be '${expectedMediaType}'.` +
+                  ` Set 'Content-Type' header to '${expectedMediaType}'.`,
+              },
+              expectedMediaType,
+            ),
             request,
             response,
           });
@@ -169,7 +176,7 @@ export function createRouter({
           lockSession: (fn) => lockSession(request, whenFinished(response), fn),
         }).catch((error: unknown) => {
           if (error instanceof SessionGoneError) {
-            return getSessionRequiredResponse();
+            return getErrorResponse(sessionRequiredError, expectedMediaType);
           }
           // The store persisted nothing, and the same request may succeed.
           if (
@@ -177,29 +184,21 @@ export function createRouter({
             error.code === 'TRANSACTION_CONFLICT'
           ) {
             return {
-              ...getErrorResponse({
-                status: 'Service Unavailable',
-                code: 'SERVICE_UNAVAILABLE',
-                detail:
-                  'The server could not process the request right now, and nothing was saved. Try again.',
-              }),
+              ...getErrorResponse(
+                {
+                  status: 'Service Unavailable',
+                  code: 'SERVICE_UNAVAILABLE',
+                  detail:
+                    'The server could not process the request right now, and nothing was saved. Try again.',
+                },
+                expectedMediaType,
+              ),
               headers: { 'retry-after': '1' },
             };
           }
           throw error;
         });
-        await processResponse({
-          // Errors raised outside the handler (e.g. validation) don't know
-          // about the extension, but a response to a request using one must
-          // carry it too.
-          result:
-            expectedMediaType === atomicMediaType &&
-            (result.contentType ?? mediaType) === mediaType
-              ? { ...result, contentType: atomicMediaType }
-              : result,
-          request,
-          response,
-        });
+        await processResponse({ result, request, response });
       });
     }
     route.all(async (request, response) => {
@@ -211,13 +210,16 @@ export function createRouter({
       });
       await processResponse({
         result: {
-          ...getErrorResponse({
-            status: 'Method Not Allowed',
-            code: 'METHOD_NOT_ALLOWED',
-            detail:
-              `${request.method} method is not allowed for resource ${path}.` +
-              ` Allowed methods are ${conjunctionListFormat.format(allowedMethods)}.`,
-          }),
+          ...getErrorResponse(
+            {
+              status: 'Method Not Allowed',
+              code: 'METHOD_NOT_ALLOWED',
+              detail:
+                `${request.method} method is not allowed for resource ${path}.` +
+                ` Allowed methods are ${conjunctionListFormat.format(allowedMethods)}.`,
+            },
+            getResponseMediaType(path),
+          ),
           headers: { allow: allowedMethods.join(', ') },
         },
         request,
@@ -241,58 +243,22 @@ export function createRouter({
   return router;
 }
 
-// A route accepts a single request media type: the plain one unless its body
-// is declared with another (the atomic operations extension).
-// The index signature lets routes without a body match: TypeScript rejects
-// them otherwise, for sharing no property with an all-optional type.
-type RouteWithBody = {
-  request: { body?: { content: object }; [key: string]: unknown };
-};
-function getRequestMediaType(route: RouteWithBody) {
-  return route.request.body != null &&
-    atomicMediaType in route.request.body.content
-    ? atomicMediaType
-    : mediaType;
-}
-
-/**
- * The media type the router answers with on `path`, for responses produced
- * outside of it (e.g. by the body parser, which runs before routing).
- */
-export function getResponseMediaType(path: string) {
-  const routes: Record<string, Record<string, RouteWithBody>> = LogApi.routes;
-  // Express matches a trailing slash too.
-  const methods = routes[path.replace(/\/+$/, '')];
-  return methods != null &&
-    Object.values(methods).some(
-      (route) => getRequestMediaType(route) === atomicMediaType,
-    )
-    ? atomicMediaType
-    : mediaType;
-}
-
-function getSessionRequiredResponse() {
-  return getErrorResponse({
-    status: 'Forbidden',
-    code: 'SESSION_REQUIRED',
-    detail: 'A session is required. Post to /sessions to create one.',
-  });
-}
-
 function validateHandler({
   schemas,
   validateResponse,
   isSessionRequired,
   handler,
+  routeMediaType,
 }: {
   schemas: HandlerSchemaEntry;
   validateResponse?: boolean;
   isSessionRequired: boolean;
   handler: Handler;
+  routeMediaType: RouteMediaType;
 }): Handler {
   return async ({ sessionData, body, parameters, ...otherHandlerOptions }) => {
     if (isSessionRequired && sessionData == null) {
-      return getSessionRequiredResponse();
+      return getErrorResponse(sessionRequiredError, routeMediaType);
     }
 
     const validatedPath = await schemas['parameters']['path'][
@@ -300,7 +266,10 @@ function validateHandler({
     ].validate(parameters.path);
 
     if (validatedPath.issues != null) {
-      return getErrorResponse({ status: 'Not Found', code: 'NOT_FOUND' });
+      return getErrorResponse(
+        { status: 'Not Found', code: 'NOT_FOUND' },
+        routeMediaType,
+      );
     }
 
     const validatedBody = await schemas['body']['~standard'].validate(
@@ -348,7 +317,7 @@ function validateHandler({
           source: { header: 'cookie' },
         })),
       ];
-      return getErrorResponse(errors);
+      return getErrorResponse(errors, routeMediaType);
     }
 
     const response = await handler({
@@ -365,7 +334,8 @@ function validateHandler({
     // We do not validate the response if it is a stream. It may be possible
     // but would imply starting to stream the answer and only failing before
     // sending the last chunk.
-    if (!validateResponse || response.body instanceof Stream) return response;
+    if (!validateResponse || response.body instanceof Stream.Readable)
+      return response;
     const responseSchema = schemas.responses.find(
       (r) =>
         r.status === response.status &&
@@ -408,11 +378,41 @@ async function processResponse({
   for (const [key, value] of Object.entries(result.headers ?? {})) {
     response.setHeader(key, String(value));
   }
-  if (result.body instanceof Stream) {
-    result.body.pipe(response);
+  if (result.body instanceof Stream.Readable) {
+    // The status is already sent when a stream fails, so there is no error
+    // response left to give. Destroying the response makes the client see an
+    // aborted request, not a document that looks complete or a hang. `pipe`
+    // would neither destroy it nor handle the error.
+    Stream.pipeline(result.body, response, (error) => {
+      if (error != null) log.error(error);
+    });
     return;
   }
   response.send(result.body);
+}
+
+/**
+ * Express error middleware answering what is raised outside a route: the
+ * body parser, which runs before routing, and anything a handler throws.
+ */
+export function createErrorHandler({
+  requestBodyLimit,
+}: {
+  requestBodyLimit: string;
+}): Express.ErrorRequestHandler {
+  return async (error: Error, request, response, _next) => {
+    const bodyParserError = getBodyParserError(error, requestBodyLimit);
+    // Any other error is the server's: it is logged and answered with a 500.
+    if (bodyParserError == null) log.error(error);
+    await processResponse({
+      result: getErrorResponse(
+        bodyParserError ?? getInternalServerError(error),
+        getResponseMediaType(request.path),
+      ),
+      request,
+      response,
+    });
+  };
 }
 
 export type Handlers = {
@@ -536,7 +536,7 @@ type HandlerResponse<
 > = Simplify<
   { sessionData?: SessionData['data'] } & (Body extends null
     ? { body?: null }
-    : { body: Body | Stream }) &
+    : { body: Body | Stream.Readable }) &
     (string extends ContentType
       ? { contentType?: string | undefined }
       : ConditionalOptionalProps<
@@ -643,7 +643,7 @@ type ValidationError = StandardSchemaV1.InferOutput<
   typeof LogApi.RequestValidationErrorResponse
 >['errors'][number];
 interface ServerErrorResponse<Status extends number, Body> {
-  contentType: typeof mediaType;
+  contentType: RouteMediaType;
   status: Status;
   body: Body;
   sessionData?: SessionData['data'];

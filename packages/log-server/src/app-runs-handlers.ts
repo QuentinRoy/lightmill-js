@@ -4,12 +4,13 @@ import {
   canWriteRun,
   visibleRunIds,
 } from './access.ts';
+import { DataStoreError } from './data-store-errors.ts';
 import {
   getErrorResponse,
-  getRunNotOwnedResponse,
-  getRunResources,
-} from './api.ts';
-import { DataStoreError } from './data-store-errors.ts';
+  getRunDocument,
+  getRunNotOwnedError,
+  getRunsDocument,
+} from './json-api.ts';
 import type { HandlerResponseFromRoute, PathHandlers } from './router.ts';
 import {
   addRunToExperiment,
@@ -17,7 +18,6 @@ import {
   RunRejection,
   updateRun,
 } from './run-lifecycle.ts';
-import { arrayify, firstStrict } from './utils.ts';
 
 export const createRunHandlers = (): PathHandlers<'/runs'> => ({
   '/runs': {
@@ -29,17 +29,9 @@ export const createRunHandlers = (): PathHandlers<'/runs'> => ({
         experimentName: parameters.query['filter[experiment.name]'],
         runName: parameters.query['filter[name]'],
       };
-      const { runs, ...otherResources } = await getRunResources(store, {
-        filter,
-      });
-      const included = getIncluded({
-        ...otherResources,
-        include: parameters.query.include,
-      });
       return {
         status: 200,
-        // included may not be undefined.
-        body: included == null ? { data: runs } : { data: runs, included },
+        body: await getRunsDocument(store, filter, parameters.query.include),
       };
     },
     async post({ dataStore: store, lockSession, body, protocol, host }) {
@@ -118,27 +110,19 @@ export const createRunHandlers = (): PathHandlers<'/runs'> => ({
           detail: `Run "${parameters.path.id}" not found`,
         });
       }
-      const { runs, experiments, lastLogs } = await getRunResources(store, {
-        filter: { runId: parameters.path.id },
-      });
-      const run = runs[0];
-      if (run === undefined) {
+      const document = await getRunDocument(
+        store,
+        parameters.path.id,
+        parameters.query.include,
+      );
+      if (document === undefined) {
         return getErrorResponse({
           status: 'Not Found',
           code: 'RUN_NOT_FOUND',
           detail: `Run "${parameters.path.id}" not found`,
         });
       }
-      const included = getIncluded({
-        experiments,
-        lastLogs,
-        include: parameters.query.include,
-      });
-      return {
-        status: 200,
-        // included may not be undefined.
-        body: included == null ? { data: run } : { data: run, included },
-      };
+      return { status: 200, body: document };
     },
 
     async patch({
@@ -165,7 +149,7 @@ export const createRunHandlers = (): PathHandlers<'/runs'> => ({
         body.data.attributes?.status === 'canceled'
           ? canCancelRun(sessionData, runId)
           : canWriteRun(sessionData, runId);
-      if (!mayChange) return getRunNotOwnedResponse(runId);
+      if (!mayChange) return getErrorResponse(getRunNotOwnedError(runId));
 
       // Run not found errors must be handled before this.
       if (body.data.id !== runId) {
@@ -232,29 +216,11 @@ export const createRunHandlers = (): PathHandlers<'/runs'> => ({
             throw e;
         }
       }
-      const { runs } = await getRunResources(store, { filter: { runId } });
-      return { status: 200, body: { data: firstStrict(runs) } };
+      const document = await getRunDocument(store, runId);
+      if (document === undefined) {
+        throw new Error(`Run "${runId}" not found after being updated`);
+      }
+      return { status: 200, body: document };
     },
   },
 });
-
-type IncludeNames = 'experiment' | 'lastLogs';
-
-function getIncluded({
-  experiments,
-  lastLogs,
-  include,
-}: Omit<Awaited<ReturnType<typeof getRunResources>>, 'runs'> & {
-  include: Array<IncludeNames> | IncludeNames | undefined;
-}) {
-  let arrayInclude = arrayify(include, true);
-  const includesExperiments = arrayInclude.includes('experiment');
-  const includesLastLogs = arrayInclude.includes('lastLogs');
-  if (!includesExperiments && !includesLastLogs) {
-    return undefined;
-  }
-  return [
-    ...(includesExperiments ? experiments : []),
-    ...(includesLastLogs ? lastLogs : []),
-  ];
-}

@@ -326,6 +326,46 @@ describe.for(suite)(
         })
         .expect('Content-Type', apiContentTypeRegExp);
     });
+
+    it("includes the session's runs, experiments and last logs", async ({
+      api,
+      dataStore,
+    }) => {
+      await api
+        .post('/sessions')
+        .auth('host user', 'host password')
+        .set('content-type', mediaType)
+        .send({ data: { type: 'sessions', attributes: { role: 'host' } } })
+        .expect(201);
+      const { experimentId } = await dataStore.withTransaction((tx) =>
+        tx.addExperiment({ experimentName: 'experiment' }),
+      );
+      const run = await api
+        .post('/runs')
+        .set('content-type', mediaType)
+        .send({
+          data: {
+            type: 'runs',
+            attributes: { name: 'run', status: 'running' },
+            relationships: {
+              experiment: { data: { type: 'experiments', id: experimentId } },
+            },
+          },
+        })
+        .expect(201);
+      const runId = run.body.data.id;
+      await dataStore.withTransaction((tx) =>
+        tx.addLogs(runId, [{ type: 'test', values: {}, number: 1 }]),
+      );
+      const response = await api
+        .get('/sessions/current')
+        .query({ include: ['runs.experiment', 'runs.lastLogs'] })
+        .expect(200)
+        .expect('Content-Type', apiContentTypeRegExp);
+      expect(
+        response.body.included.map((r: { type: string }) => r.type),
+      ).toEqual(['runs', 'experiments', 'logs']);
+    });
   },
 );
 

@@ -1,30 +1,23 @@
 import { atomicMediaType } from '@lightmill/log-api/vocabulary';
-import {
-  getErrorResponse,
-  getLogIntakeErrorResponse,
-  toNewLog,
-} from './api.ts';
+import { toNewLog } from './api.ts';
+import { getErrorResponse, getLogIntakeError } from './json-api.ts';
 import { addLogsToWritableRun } from './log-intake.ts';
 import type { PathHandlers } from './router.ts';
-
-// The route's response types require the extension's media type on every
-// response. The router adds it to the errors it raises itself.
-const inAtomic = <Response extends object>(response: Response) => ({
-  ...response,
-  contentType: atomicMediaType,
-});
 
 const pointerTo = (index: number, path: string) =>
   `/atomic:operations/${index}/data/${path}`;
 
+// Every response of this route, errors included, carries the extension's
+// media type.
 const badRequest = (detail: string, pointer: string) =>
-  inAtomic(
-    getErrorResponse({
+  getErrorResponse(
+    {
       status: 'Bad Request',
       code: 'INVALID_REQUEST_BODY',
       detail,
       source: { pointer },
-    }),
+    },
+    atomicMediaType,
   );
 
 export const createOperationHandlers = (): PathHandlers<'/operations'> => ({
@@ -61,10 +54,11 @@ export const createOperationHandlers = (): PathHandlers<'/operations'> => ({
         operations.map(({ data }) => toNewLog(data)),
       );
       if ('rejection' in outcome) {
-        return inAtomic(
-          getLogIntakeErrorResponse(outcome.rejection, (index) => ({
+        return getErrorResponse(
+          getLogIntakeError(outcome.rejection, (index) => ({
             source: { pointer: pointerTo(index, 'attributes/number') },
           })),
+          atomicMediaType,
         );
       }
       return {
