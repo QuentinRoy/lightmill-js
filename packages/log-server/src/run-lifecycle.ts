@@ -133,10 +133,11 @@ export function assertCreationStatus(
 }
 
 /**
- * Creates a run. Run it in a transaction, and let a rejection roll it back.
+ * Adds a run to an experiment. Run it in a transaction, and let a rejection
+ * roll it back.
  * @throws {RunRejection} `INVALID_RUN_STATUS`
  */
-export function createRun(
+export function addRunToExperiment(
   tx: DataStoreTransaction,
   {
     experimentId,

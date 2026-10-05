@@ -17,7 +17,7 @@ import { addLogsToWritableRun } from './log-intake.ts';
 import type { HandlerResponseFromRoute, PathHandlers } from './router.ts';
 import { arrayify, firstStrict } from './utils.ts';
 
-export const logHandlers = (): PathHandlers<'/logs'> => ({
+export const createLogHandlers = (): PathHandlers<'/logs'> => ({
   '/logs': {
     async get({
       sessionData,

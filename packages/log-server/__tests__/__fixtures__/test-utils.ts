@@ -12,7 +12,7 @@ import request from 'supertest';
 import type { Simplify, ValueOf } from 'type-fest';
 import { onTestFinished, test, vi, type Mock, type TestAPI } from 'vitest';
 import { type HttpMethod } from '../../src/api.ts';
-import { LogServer } from '../../src/app.ts';
+import { createLogServer } from '../../src/app.ts';
 import type {
   DataStore,
   DataStoreTransaction,
@@ -128,7 +128,7 @@ async function createServerContextFromStores<
   serverOptions?: ServerOptions;
 }) {
   return {
-    server: LogServer({
+    server: createLogServer({
       dataStore: dataStore,
       sessionStore,
       ...baseServerOptions,

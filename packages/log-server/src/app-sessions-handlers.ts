@@ -8,7 +8,7 @@ type SessionHandlerOptions = {
   hostUser: string;
   hostPassword?: string | undefined;
 };
-export const sessionHandlers = ({
+export const createSessionHandlers = ({
   hostPassword,
   hostUser,
 }: SessionHandlerOptions): PathHandlers<'/sessions'> => ({

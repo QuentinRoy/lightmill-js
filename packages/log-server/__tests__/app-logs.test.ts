@@ -146,7 +146,7 @@ const nonRunningStatuses = [
   'canceled',
 ] as const satisfies RunStatus[];
 
-describe.each(storeTypes)('LogServer: post /logs (%s)', (storeType) => {
+describe.each(storeTypes)('createLogServer: post /logs (%s)', (storeType) => {
   const it = createTest(storeType);
   it.for(userRoles)(
     'adds a log (%s user)',
@@ -512,245 +512,246 @@ describe.each(storeTypes)('LogServer: post /logs (%s)', (storeType) => {
   });
 });
 
-describe.each(storeTypes)('LogServer: post /operations (%s)', (storeType) => {
-  const it = createTest(storeType);
-  const add = (
-    runId: string,
-    number: number,
-    values: object = { n: number },
-  ) => ({
-    op: 'add',
-    data: {
-      type: 'logs',
-      attributes: { number, logType: 'test', values },
-      relationships: { run: { data: { type: 'runs', id: runId } } },
-    },
-  });
-  const post = (api: request.Agent, operations: object[]) =>
-    api
-      .post('/operations')
-      .set('Content-Type', atomicMediaType)
-      .send({ 'atomic:operations': operations });
-
-  it('adds logs and answers their ids in order', async ({
-    expect,
-    participantApi,
-    runId,
-    dataStore,
-  }) => {
-    const response = await post(participantApi, [add(runId, 2), add(runId, 1)])
-      .expect(200)
-      .expect('Content-Type', atomicContentTypeRegExp);
-    expect(response.body).toEqual({
-      'atomic:results': [
-        { data: { type: 'logs', id: expect.any(String) } },
-        { data: { type: 'logs', id: expect.any(String) } },
-      ],
+describe.each(storeTypes)(
+  'createLogServer: post /operations (%s)',
+  (storeType) => {
+    const it = createTest(storeType);
+    const add = (
+      runId: string,
+      number: number,
+      values: object = { n: number },
+    ) => ({
+      op: 'add',
+      data: {
+        type: 'logs',
+        attributes: { number, logType: 'test', values },
+        relationships: { run: { data: { type: 'runs', id: runId } } },
+      },
     });
-    expect(dataStore.tx.addLogs).toHaveBeenCalledTimes(1);
-    const [second, first] = response.body['atomic:results'];
-    const logs = await participantApi
-      .get('/logs')
-      .set('Accept', mediaType)
-      .expect(200);
-    const numberOf = (id: string) =>
-      logs.body.data.find((l: { id: string }) => l.id === id).attributes.number;
-    expect([numberOf(second.data.id), numberOf(first.data.id)]).toEqual([2, 1]);
-  });
+    const post = (api: request.Agent, operations: object[]) =>
+      api
+        .post('/operations')
+        .set('Content-Type', atomicMediaType)
+        .send({ 'atomic:operations': operations });
 
-  it('accepts a body of several hundred kilobytes', async ({
-    expect,
-    participantApi,
-    runId,
-  }) => {
-    const padding = 'x'.repeat(600 * 1024);
-    const response = await post(participantApi, [
-      add(runId, 1, { padding }),
-    ]).expect(200);
-    expect(response.body['atomic:results']).toHaveLength(1);
-  });
-
-  it('answers the stored ids to a resent batch, and stores what is new', async ({
-    expect,
-    participantApi,
-    runId,
-  }) => {
-    const first = await post(participantApi, [
-      add(runId, 1),
-      add(runId, 2),
-    ]).expect(200);
-    const resent = await post(participantApi, [
-      add(runId, 2),
-      add(runId, 1),
-      add(runId, 3),
-    ]).expect(200);
-    const [id1, id2] = first.body['atomic:results'];
-    expect(resent.body['atomic:results'].slice(0, 2)).toEqual([id2, id1]);
-  });
-
-  it('stores nothing if one log conflicts with a stored one', async ({
-    expect,
-    participantApi,
-    runId,
-  }) => {
-    await post(participantApi, [add(runId, 1)]).expect(200);
-    const response = await post(participantApi, [
-      add(runId, 2),
-      add(runId, 1, { other: 1 }),
-    ])
-      .expect(409)
-      .expect('Content-Type', atomicContentTypeRegExp);
-    expect(response.body).toEqual({
-      errors: [
-        {
-          status: 'Conflict',
-          code: 'LOG_NUMBER_EXISTS',
-          detail: expect.any(String),
-          source: { pointer: '/atomic:operations/1/data/attributes/number' },
-        },
-      ],
+    it('adds logs and answers their ids in order', async ({
+      expect,
+      participantApi,
+      runId,
+      dataStore,
+    }) => {
+      const response = await post(participantApi, [
+        add(runId, 2),
+        add(runId, 1),
+      ])
+        .expect(200)
+        .expect('Content-Type', atomicContentTypeRegExp);
+      expect(response.body).toEqual({
+        'atomic:results': [
+          { data: { type: 'logs', id: expect.any(String) } },
+          { data: { type: 'logs', id: expect.any(String) } },
+        ],
+      });
+      expect(dataStore.tx.addLogs).toHaveBeenCalledTimes(1);
+      const [second, first] = response.body['atomic:results'];
+      const logs = await participantApi
+        .get('/logs')
+        .set('Accept', mediaType)
+        .expect(200);
+      const numberOf = (id: string) =>
+        logs.body.data.find((l: { id: string }) => l.id === id).attributes
+          .number;
+      expect([numberOf(second.data.id), numberOf(first.data.id)]).toEqual([
+        2, 1,
+      ]);
     });
-    // Number 2 was not stored by the failed batch, so it is still free.
-    await post(participantApi, [add(runId, 2, { other: 2 })]).expect(200);
-  });
 
-  it('points at the first conflicting log', async ({
-    expect,
-    participantApi,
-    runId,
-  }) => {
-    await post(participantApi, [add(runId, 1), add(runId, 2)]).expect(200);
-    const response = await post(participantApi, [
-      add(runId, 3),
-      add(runId, 2, { other: 2 }),
-      add(runId, 1, { other: 1 }),
-    ]).expect(409);
-    expect(response.body.errors[0].source.pointer).toBe(
-      '/atomic:operations/1/data/attributes/number',
-    );
-  });
-
-  it('treats the logs a resume kept as stored', async ({
-    expect,
-    participantApi,
-    runId,
-    dataStore,
-  }) => {
-    const first = await post(participantApi, [
-      add(runId, 1),
-      add(runId, 2),
-    ]).expect(200);
-    await resumeAfter(participantApi, runId, 1);
-    const stored = await fromAsync(dataStore.getLogs({ runId }));
-    const conflict = await post(participantApi, [
-      add(runId, 2, { other: 2 }),
-      add(runId, 1, { other: 1 }),
-    ]).expect(409);
-    expect(conflict.body.errors[0]).toMatchObject({
-      code: 'LOG_NUMBER_EXISTS',
-      source: { pointer: '/atomic:operations/1/data/attributes/number' },
+    it('accepts a body of several hundred kilobytes', async ({
+      expect,
+      participantApi,
+      runId,
+    }) => {
+      const padding = 'x'.repeat(600 * 1024);
+      const response = await post(participantApi, [
+        add(runId, 1, { padding }),
+      ]).expect(200);
+      expect(response.body['atomic:results']).toHaveLength(1);
     });
-    await expect(fromAsync(dataStore.getLogs({ runId }))).resolves.toEqual(
-      stored,
-    );
-    const resent = await post(participantApi, [
-      add(runId, 2, { other: 2 }),
-      add(runId, 1),
-    ]).expect(200);
-    expect(resent.body['atomic:results'][1]).toEqual(
-      first.body['atomic:results'][0],
-    );
-  });
 
-  it('refuses a number repeated within the batch', async ({
-    expect,
-    participantApi,
-    runId,
-  }) => {
-    const response = await post(participantApi, [add(runId, 1), add(runId, 1)])
-      .expect(400)
-      .expect('Content-Type', atomicContentTypeRegExp);
-    expect(response.body).toEqual({
-      errors: [
-        {
-          status: 'Bad Request',
-          code: 'INVALID_REQUEST_BODY',
-          detail: expect.any(String),
-          source: { pointer: '/atomic:operations/1/data/attributes/number' },
-        },
-      ],
+    it('answers the stored ids to a resent batch, and stores what is new', async ({
+      expect,
+      participantApi,
+      runId,
+    }) => {
+      const first = await post(participantApi, [
+        add(runId, 1),
+        add(runId, 2),
+      ]).expect(200);
+      const resent = await post(participantApi, [
+        add(runId, 2),
+        add(runId, 1),
+        add(runId, 3),
+      ]).expect(200);
+      const [id1, id2] = first.body['atomic:results'];
+      expect(resent.body['atomic:results'].slice(0, 2)).toEqual([id2, id1]);
     });
-  });
 
-  it('refuses logs of several runs', async ({
-    expect,
-    participantApi,
-    runId,
-  }) => {
-    const response = await post(participantApi, [
-      add(runId, 1),
-      add('other-run', 2),
-    ])
-      .expect(400)
-      .expect('Content-Type', atomicContentTypeRegExp);
-    expect(response.body).toEqual({
-      errors: [
-        {
-          status: 'Bad Request',
-          code: 'INVALID_REQUEST_BODY',
-          detail: expect.any(String),
-          source: {
-            pointer: '/atomic:operations/1/data/relationships/run/data/id',
+    it('stores nothing if one log conflicts with a stored one', async ({
+      expect,
+      participantApi,
+      runId,
+    }) => {
+      await post(participantApi, [add(runId, 1)]).expect(200);
+      const response = await post(participantApi, [
+        add(runId, 2),
+        add(runId, 1, { other: 1 }),
+      ])
+        .expect(409)
+        .expect('Content-Type', atomicContentTypeRegExp);
+      expect(response.body).toEqual({
+        errors: [
+          {
+            status: 'Conflict',
+            code: 'LOG_NUMBER_EXISTS',
+            detail: expect.any(String),
+            source: { pointer: '/atomic:operations/1/data/attributes/number' },
           },
-        },
-      ],
+        ],
+      });
+      // Number 2 was not stored by the failed batch, so it is still free.
+      await post(participantApi, [add(runId, 2, { other: 2 })]).expect(200);
     });
-  });
 
-  it('refuses operations other than adding logs', async ({
-    expect,
-    participantApi,
-    runId,
-  }) => {
-    const response = await post(participantApi, [
-      { ...add(runId, 1), op: 'remove' },
-    ])
-      .expect(400)
-      .expect('Content-Type', atomicContentTypeRegExp);
-    expect(response.body.errors[0]).toMatchObject({
-      code: 'INVALID_REQUEST_BODY',
-      source: { pointer: '/atomic:operations/0/op' },
+    it('points at the first conflicting log', async ({
+      expect,
+      participantApi,
+      runId,
+    }) => {
+      await post(participantApi, [add(runId, 1), add(runId, 2)]).expect(200);
+      const response = await post(participantApi, [
+        add(runId, 3),
+        add(runId, 2, { other: 2 }),
+        add(runId, 1, { other: 1 }),
+      ]).expect(409);
+      expect(response.body.errors[0].source.pointer).toBe(
+        '/atomic:operations/1/data/attributes/number',
+      );
     });
-    await post(participantApi, []).expect(400);
-  });
 
-  it('refuses logs for a run that is not running', async ({
-    expect,
-    participantApi,
-    runId,
-    dataStore,
-  }) => {
-    await participantApi
-      .patch(`/runs/${runId}`)
-      .set('Content-Type', mediaType)
-      .send({
-        data: { id: runId, type: 'runs', attributes: { status: 'completed' } },
-      })
-      .expect(200);
-    dataStore.tx.addLogs.mockClear();
-    const response = await post(participantApi, [add(runId, 1)])
-      .expect(403)
-      .expect('Content-Type', atomicContentTypeRegExp);
-    expect(response.body.errors[0]).toMatchObject({
-      code: 'INVALID_RUN_STATUS',
+    it('treats the logs a resume kept as stored', async ({
+      expect,
+      participantApi,
+      runId,
+      dataStore,
+    }) => {
+      const first = await post(participantApi, [
+        add(runId, 1),
+        add(runId, 2),
+      ]).expect(200);
+      await resumeAfter(participantApi, runId, 1);
+      const stored = await fromAsync(dataStore.getLogs({ runId }));
+      const conflict = await post(participantApi, [
+        add(runId, 2, { other: 2 }),
+        add(runId, 1, { other: 1 }),
+      ]).expect(409);
+      expect(conflict.body.errors[0]).toMatchObject({
+        code: 'LOG_NUMBER_EXISTS',
+        source: { pointer: '/atomic:operations/1/data/attributes/number' },
+      });
+      await expect(fromAsync(dataStore.getLogs({ runId }))).resolves.toEqual(
+        stored,
+      );
+      const resent = await post(participantApi, [
+        add(runId, 2, { other: 2 }),
+        add(runId, 1),
+      ]).expect(200);
+      expect(resent.body['atomic:results'][1]).toEqual(
+        first.body['atomic:results'][0],
+      );
     });
-    expect(dataStore.tx.addLogs).not.toHaveBeenCalled();
-  });
 
-  it.for(nonRunningStatuses)(
-    'refuses logs for a %s run',
-    async (status, { expect, participantApi, runId, dataStore }) => {
-      await dataStore.withTransaction((tx) => tx.setRunStatus(runId, status));
+    it('refuses a number repeated within the batch', async ({
+      expect,
+      participantApi,
+      runId,
+    }) => {
+      const response = await post(participantApi, [
+        add(runId, 1),
+        add(runId, 1),
+      ])
+        .expect(400)
+        .expect('Content-Type', atomicContentTypeRegExp);
+      expect(response.body).toEqual({
+        errors: [
+          {
+            status: 'Bad Request',
+            code: 'INVALID_REQUEST_BODY',
+            detail: expect.any(String),
+            source: { pointer: '/atomic:operations/1/data/attributes/number' },
+          },
+        ],
+      });
+    });
+
+    it('refuses logs of several runs', async ({
+      expect,
+      participantApi,
+      runId,
+    }) => {
+      const response = await post(participantApi, [
+        add(runId, 1),
+        add('other-run', 2),
+      ])
+        .expect(400)
+        .expect('Content-Type', atomicContentTypeRegExp);
+      expect(response.body).toEqual({
+        errors: [
+          {
+            status: 'Bad Request',
+            code: 'INVALID_REQUEST_BODY',
+            detail: expect.any(String),
+            source: {
+              pointer: '/atomic:operations/1/data/relationships/run/data/id',
+            },
+          },
+        ],
+      });
+    });
+
+    it('refuses operations other than adding logs', async ({
+      expect,
+      participantApi,
+      runId,
+    }) => {
+      const response = await post(participantApi, [
+        { ...add(runId, 1), op: 'remove' },
+      ])
+        .expect(400)
+        .expect('Content-Type', atomicContentTypeRegExp);
+      expect(response.body.errors[0]).toMatchObject({
+        code: 'INVALID_REQUEST_BODY',
+        source: { pointer: '/atomic:operations/0/op' },
+      });
+      await post(participantApi, []).expect(400);
+    });
+
+    it('refuses logs for a run that is not running', async ({
+      expect,
+      participantApi,
+      runId,
+      dataStore,
+    }) => {
+      await participantApi
+        .patch(`/runs/${runId}`)
+        .set('Content-Type', mediaType)
+        .send({
+          data: {
+            id: runId,
+            type: 'runs',
+            attributes: { status: 'completed' },
+          },
+        })
+        .expect(200);
       dataStore.tx.addLogs.mockClear();
       const response = await post(participantApi, [add(runId, 1)])
         .expect(403)
@@ -759,151 +760,171 @@ describe.each(storeTypes)('LogServer: post /operations (%s)', (storeType) => {
         code: 'INVALID_RUN_STATUS',
       });
       expect(dataStore.tx.addLogs).not.toHaveBeenCalled();
-    },
-  );
+    });
 
-  it('reads the run and adds the logs in one transaction', async ({
-    expect,
-    participantApi,
-    runId,
-    dataStore,
-  }) => {
-    dataStore.withTransaction.mockClear();
-    dataStore.getRuns.mockClear();
-    dataStore.tx.getRuns.mockClear();
-    dataStore.tx.addLogs.mockClear();
-    await post(participantApi, [add(runId, 1), add(runId, 2)]).expect(200);
-    expect(dataStore.withTransaction).toHaveBeenCalledTimes(1);
-    expect(dataStore.getRuns).not.toHaveBeenCalled();
-    expect(dataStore.tx.getRuns).toHaveBeenCalledWith({ runId });
-    expect(dataStore.tx.getRuns.mock.invocationCallOrder[0]).toBeLessThan(
-      dataStore.tx.addLogs.mock.invocationCallOrder[0]!,
+    it.for(nonRunningStatuses)(
+      'refuses logs for a %s run',
+      async (status, { expect, participantApi, runId, dataStore }) => {
+        await dataStore.withTransaction((tx) => tx.setRunStatus(runId, status));
+        dataStore.tx.addLogs.mockClear();
+        const response = await post(participantApi, [add(runId, 1)])
+          .expect(403)
+          .expect('Content-Type', atomicContentTypeRegExp);
+        expect(response.body.errors[0]).toMatchObject({
+          code: 'INVALID_RUN_STATUS',
+        });
+        expect(dataStore.tx.addLogs).not.toHaveBeenCalled();
+      },
     );
-  });
 
-  it('stores nothing if the run ends after the request was accepted', async ({
-    expect,
-    participantApi,
-    runId,
-    dataStore,
-  }) => {
-    completeRunBeforeNextTransaction(dataStore, runId);
-    const response = await post(participantApi, [add(runId, 1), add(runId, 2)])
-      .expect(403)
-      .expect('Content-Type', atomicContentTypeRegExp);
-    expect(response.body.errors[0]).toMatchObject({
-      code: 'INVALID_RUN_STATUS',
+    it('reads the run and adds the logs in one transaction', async ({
+      expect,
+      participantApi,
+      runId,
+      dataStore,
+    }) => {
+      dataStore.withTransaction.mockClear();
+      dataStore.getRuns.mockClear();
+      dataStore.tx.getRuns.mockClear();
+      dataStore.tx.addLogs.mockClear();
+      await post(participantApi, [add(runId, 1), add(runId, 2)]).expect(200);
+      expect(dataStore.withTransaction).toHaveBeenCalledTimes(1);
+      expect(dataStore.getRuns).not.toHaveBeenCalled();
+      expect(dataStore.tx.getRuns).toHaveBeenCalledWith({ runId });
+      expect(dataStore.tx.getRuns.mock.invocationCallOrder[0]).toBeLessThan(
+        dataStore.tx.addLogs.mock.invocationCallOrder[0]!,
+      );
     });
-    await expect(fromAsync(dataStore.getLogs({ runId }))).resolves.toEqual([]);
-  });
 
-  it('refuses to add a resource that is not a log', async ({
-    expect,
-    participantApi,
-    runId,
-  }) => {
-    const operation = add(runId, 1);
-    const response = await post(participantApi, [
-      { ...operation, data: { ...operation.data, type: 'runs' } },
-    ])
-      .expect(400)
-      .expect('Content-Type', atomicContentTypeRegExp);
-    expect(response.body.errors[0]).toMatchObject({
-      code: 'INVALID_REQUEST_BODY',
-      source: { pointer: '/atomic:operations/0/data/type' },
+    it('stores nothing if the run ends after the request was accepted', async ({
+      expect,
+      participantApi,
+      runId,
+      dataStore,
+    }) => {
+      completeRunBeforeNextTransaction(dataStore, runId);
+      const response = await post(participantApi, [
+        add(runId, 1),
+        add(runId, 2),
+      ])
+        .expect(403)
+        .expect('Content-Type', atomicContentTypeRegExp);
+      expect(response.body.errors[0]).toMatchObject({
+        code: 'INVALID_RUN_STATUS',
+      });
+      await expect(fromAsync(dataStore.getLogs({ runId }))).resolves.toEqual(
+        [],
+      );
     });
-  });
 
-  it('refuses a run the client has no access to', async ({
-    expect,
-    participantApi,
-    dataStore,
-  }) => {
-    const response = await post(participantApi, [add('does-not-exist', 1)])
-      .expect(403)
-      .expect('Content-Type', atomicContentTypeRegExp);
-    expect(response.body).toEqual({
-      errors: [
-        {
-          status: 'Forbidden',
-          code: 'RUN_NOT_FOUND',
-          detail: 'Run "does-not-exist" not found',
-        },
-      ],
+    it('refuses to add a resource that is not a log', async ({
+      expect,
+      participantApi,
+      runId,
+    }) => {
+      const operation = add(runId, 1);
+      const response = await post(participantApi, [
+        { ...operation, data: { ...operation.data, type: 'runs' } },
+      ])
+        .expect(400)
+        .expect('Content-Type', atomicContentTypeRegExp);
+      expect(response.body.errors[0]).toMatchObject({
+        code: 'INVALID_REQUEST_BODY',
+        source: { pointer: '/atomic:operations/0/data/type' },
+      });
     });
-    expect(dataStore.tx.addLogs).not.toHaveBeenCalled();
-  });
 
-  it("refuses a host's logs to a run another session created", async ({
-    expect,
-    hostApi,
-    runId,
-    dataStore,
-  }) => {
-    const response = await post(hostApi, [add(runId, 1)])
-      .expect(403)
-      .expect('Content-Type', atomicContentTypeRegExp);
-    expect(response.body.errors).toMatchObject([{ code: 'RUN_NOT_OWNED' }]);
-    expect(dataStore.tx.addLogs).not.toHaveBeenCalled();
-  });
+    it('refuses a run the client has no access to', async ({
+      expect,
+      participantApi,
+      dataStore,
+    }) => {
+      const response = await post(participantApi, [add('does-not-exist', 1)])
+        .expect(403)
+        .expect('Content-Type', atomicContentTypeRegExp);
+      expect(response.body).toEqual({
+        errors: [
+          {
+            status: 'Forbidden',
+            code: 'RUN_NOT_FOUND',
+            detail: 'Run "does-not-exist" not found',
+          },
+        ],
+      });
+      expect(dataStore.tx.addLogs).not.toHaveBeenCalled();
+    });
 
-  it.for([
-    'Application/Vnd.Api+JSON; EXT="https://jsonapi.org/ext/atomic"',
-    `${atomicMediaType}; profile="https://example.com/profile"`,
-  ])(
-    'accepts the content type %s',
-    async (contentType, { participantApi, runId }) => {
+    it("refuses a host's logs to a run another session created", async ({
+      expect,
+      hostApi,
+      runId,
+      dataStore,
+    }) => {
+      const response = await post(hostApi, [add(runId, 1)])
+        .expect(403)
+        .expect('Content-Type', atomicContentTypeRegExp);
+      expect(response.body.errors).toMatchObject([{ code: 'RUN_NOT_OWNED' }]);
+      expect(dataStore.tx.addLogs).not.toHaveBeenCalled();
+    });
+
+    it.for([
+      'Application/Vnd.Api+JSON; EXT="https://jsonapi.org/ext/atomic"',
+      `${atomicMediaType}; profile="https://example.com/profile"`,
+    ])(
+      'accepts the content type %s',
+      async (contentType, { participantApi, runId }) => {
+        await participantApi
+          .post('/operations')
+          .set('Content-Type', contentType)
+          .send({ 'atomic:operations': [add(runId, 1)] })
+          .expect(200);
+      },
+    );
+
+    it.for([
+      'application/vnd.api+json; ext="https://JSONAPI.org/ext/atomic"',
+      `${atomicMediaType}; charset=utf-8`,
+      'application/vnd.api+json; ext=https://jsonapi.org/ext/atomic',
+      'application/vnd.api+json; ext="https://jsonapi.org/ext/atomic https://example.com/ext"',
+    ])(
+      'refuses the content type %s',
+      async (contentType, { participantApi, runId }) => {
+        await participantApi
+          .post('/operations')
+          .set('Content-Type', contentType)
+          .send({ 'atomic:operations': [add(runId, 1)] })
+          .expect(415);
+      },
+    );
+
+    it('refuses an unknown extension', async ({ participantApi, runId }) => {
       await participantApi
         .post('/operations')
-        .set('Content-Type', contentType)
-        .send({ 'atomic:operations': [add(runId, 1)] })
-        .expect(200);
-    },
-  );
-
-  it.for([
-    'application/vnd.api+json; ext="https://JSONAPI.org/ext/atomic"',
-    `${atomicMediaType}; charset=utf-8`,
-    'application/vnd.api+json; ext=https://jsonapi.org/ext/atomic',
-    'application/vnd.api+json; ext="https://jsonapi.org/ext/atomic https://example.com/ext"',
-  ])(
-    'refuses the content type %s',
-    async (contentType, { participantApi, runId }) => {
-      await participantApi
-        .post('/operations')
-        .set('Content-Type', contentType)
+        .set('Content-Type', `${mediaType};ext="https://example.com/ext"`)
         .send({ 'atomic:operations': [add(runId, 1)] })
         .expect(415);
-    },
-  );
+    });
 
-  it('refuses an unknown extension', async ({ participantApi, runId }) => {
-    await participantApi
-      .post('/operations')
-      .set('Content-Type', `${mediaType};ext="https://example.com/ext"`)
-      .send({ 'atomic:operations': [add(runId, 1)] })
-      .expect(415);
-  });
+    it('requires the atomic operations media type', async ({
+      participantApi,
+      runId,
+    }) => {
+      const body = { 'atomic:operations': [add(runId, 1)] };
+      await participantApi
+        .post('/operations')
+        .set('Content-Type', mediaType)
+        .send(body)
+        .expect(415);
+      await participantApi
+        .post('/logs')
+        .set('Content-Type', atomicMediaType)
+        .send(add(runId, 1))
+        .expect(415);
+    });
+  },
+);
 
-  it('requires the atomic operations media type', async ({
-    participantApi,
-    runId,
-  }) => {
-    const body = { 'atomic:operations': [add(runId, 1)] };
-    await participantApi
-      .post('/operations')
-      .set('Content-Type', mediaType)
-      .send(body)
-      .expect(415);
-    await participantApi
-      .post('/logs')
-      .set('Content-Type', atomicMediaType)
-      .send(add(runId, 1))
-      .expect(415);
-  });
-});
-
-describe.each(storeTypes)('LogServer: get /logs (%s)', (storeType) => {
+describe.each(storeTypes)('createLogServer: get /logs (%s)', (storeType) => {
   const it = createTest(storeType);
 
   beforeEach<TestContext>(
@@ -1187,73 +1208,76 @@ describe.each(storeTypes)('LogServer: get /logs (%s)', (storeType) => {
   );
 });
 
-describe.for(storeTypes)('LogServer: get /logs/{id} (%s)', (storeType) => {
-  const it = createTest(storeType);
+describe.for(storeTypes)(
+  'createLogServer: get /logs/{id} (%s)',
+  (storeType) => {
+    const it = createTest(storeType);
 
-  it("returns a 404 error if the log is not part of one of the participant's runs", async ({
-    dataStore,
-    participantApi,
-    experimentId,
-  }) => {
-    const { runId } = await dataStore.withTransaction((tx) =>
-      tx.addRun({ experimentId, runStatus: 'running' }),
-    );
-    const [logRecord] = await dataStore.withTransaction((tx) =>
-      tx.addLogs(runId, [
-        { type: 'log-type', values: { value: 'v' }, number: 1 },
-      ]),
-    );
-    await participantApi
-      .get(`/logs/${logRecord!.logId}`)
-      .expect(404, {
-        errors: [
-          {
-            status: 'Not Found',
-            code: 'LOG_NOT_FOUND',
-            detail: `Log "${logRecord!.logId}" not found`,
-          },
-        ],
-      })
-      .expect('Content-Type', apiContentTypeRegExp);
-  });
+    it("returns a 404 error if the log is not part of one of the participant's runs", async ({
+      dataStore,
+      participantApi,
+      experimentId,
+    }) => {
+      const { runId } = await dataStore.withTransaction((tx) =>
+        tx.addRun({ experimentId, runStatus: 'running' }),
+      );
+      const [logRecord] = await dataStore.withTransaction((tx) =>
+        tx.addLogs(runId, [
+          { type: 'log-type', values: { value: 'v' }, number: 1 },
+        ]),
+      );
+      await participantApi
+        .get(`/logs/${logRecord!.logId}`)
+        .expect(404, {
+          errors: [
+            {
+              status: 'Not Found',
+              code: 'LOG_NOT_FOUND',
+              detail: `Log "${logRecord!.logId}" not found`,
+            },
+          ],
+        })
+        .expect('Content-Type', apiContentTypeRegExp);
+    });
 
-  it('returns a 404 error if the log does not exist', async ({
-    participantApi,
-  }) => {
-    await participantApi
-      .get('/logs/does-not-exist')
-      .expect(404, {
-        errors: [
-          {
-            status: 'Not Found',
-            code: 'LOG_NOT_FOUND',
-            detail: 'Log "does-not-exist" not found',
-          },
-        ],
-      })
-      .expect('Content-Type', apiContentTypeRegExp);
-  });
+    it('returns a 404 error if the log does not exist', async ({
+      participantApi,
+    }) => {
+      await participantApi
+        .get('/logs/does-not-exist')
+        .expect(404, {
+          errors: [
+            {
+              status: 'Not Found',
+              code: 'LOG_NOT_FOUND',
+              detail: 'Log "does-not-exist" not found',
+            },
+          ],
+        })
+        .expect('Content-Type', apiContentTypeRegExp);
+    });
 
-  it('returns the log', async ({ dataStore, participantApi, runId }) => {
-    const [logRecord] = await dataStore.withTransaction((tx) =>
-      tx.addLogs(runId, [
-        { type: 'log-type', values: { value: 'v' }, number: 1 },
-      ]),
-    );
-    const logId = logRecord!.logId;
-    await participantApi
-      .get(`/logs/${logId}`)
-      .expect(200, {
-        data: {
-          id: logId,
-          type: 'logs',
-          attributes: {
-            logType: 'log-type',
-            number: 1,
-            values: { value: 'v' },
+    it('returns the log', async ({ dataStore, participantApi, runId }) => {
+      const [logRecord] = await dataStore.withTransaction((tx) =>
+        tx.addLogs(runId, [
+          { type: 'log-type', values: { value: 'v' }, number: 1 },
+        ]),
+      );
+      const logId = logRecord!.logId;
+      await participantApi
+        .get(`/logs/${logId}`)
+        .expect(200, {
+          data: {
+            id: logId,
+            type: 'logs',
+            attributes: {
+              logType: 'log-type',
+              number: 1,
+              values: { value: 'v' },
+            },
+            relationships: { run: { data: { id: runId, type: 'runs' } } },
           },
-          relationships: { run: { data: { id: runId, type: 'runs' } } },
-        },
-      });
-  });
-});
+        });
+    });
+  },
+);

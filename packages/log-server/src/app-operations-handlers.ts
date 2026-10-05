@@ -27,7 +27,7 @@ const badRequest = (detail: string, pointer: string) =>
     }),
   );
 
-export const operationHandlers = (): PathHandlers<'/operations'> => ({
+export const createOperationHandlers = (): PathHandlers<'/operations'> => ({
   '/operations': {
     async post({ dataStore: store, body, sessionData }) {
       const operations = body['atomic:operations'];
