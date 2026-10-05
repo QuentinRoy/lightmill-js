@@ -1,6 +1,6 @@
 import * as React from 'react';
 import type { RegisteredLog, RegisteredTask, Typed } from './config.js';
-import { loggerContext, noLoggerSymbol, timelineContext } from './contexts.js';
+import { loggerContext, noLoggerSymbol, taskContext } from './contexts.js';
 import { LogDeliveryError } from './errors.js';
 import { type AnyIteratorOrIterable, useRunState } from './runState.js';
 
@@ -61,9 +61,9 @@ export function Run<const T extends RegisteredTask>({
         throw new Error(`No task registered for type ${state.task.type}`);
       }
       element = (
-        <timelineContext.Provider value={state}>
+        <taskContext.Provider value={state}>
           {elements.tasks[type]}
-        </timelineContext.Provider>
+        </taskContext.Provider>
       );
       break;
     }

@@ -1,6 +1,6 @@
 import * as React from 'react';
 import type { RegisteredTask } from './config.js';
-import { timelineContext } from './contexts.js';
+import { taskContext } from './contexts.js';
 
 type UseTaskResult<Task extends RegisteredTask> = {
   task: Task;
@@ -13,7 +13,7 @@ export function useTask(): UseTaskResult<RegisteredTask>;
 export function useTask(
   type?: RegisteredTask['type'],
 ): UseTaskResult<RegisteredTask> {
-  const state = React.useContext(timelineContext);
+  const state = React.useContext(taskContext);
   if (state == null) {
     throw new Error('No task found. Is this component rendered in a <Run />?');
   }
