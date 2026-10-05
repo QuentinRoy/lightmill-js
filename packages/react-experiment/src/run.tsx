@@ -3,6 +3,7 @@ import type { RegisteredLog, RegisteredTask, Typed } from './config.js';
 import { loggerContext, noLoggerSymbol, taskContext } from './contexts.js';
 import { LogDeliveryError } from './errors.js';
 import { type AnyIteratorOrIterable, useRunState } from './runState.js';
+import { type Logger, useLogWrapper } from './useLogWrapper.js';
 
 export type RunElements<T extends Typed> = {
   tasks: Record<T['type'], React.ReactElement>;
@@ -10,8 +11,6 @@ export type RunElements<T extends Typed> = {
   completed?: React.ReactElement;
   paused?: React.ReactElement;
 };
-
-export type Logger<Log> = (log: Log) => Promise<void>;
 
 type RunParameter<Task extends { type: string }, Log> = {
   onCompleted?: () => void;
@@ -87,42 +86,4 @@ export function Run<const T extends RegisteredTask>({
       {element}
     </loggerContext.Provider>
   );
-}
-
-function useLogWrapper<L>(onLog?: Logger<L>): {
-  onLog: ((newLog: L) => void) | null;
-  error: Error | null;
-} {
-  const onLogRef = React.useRef(onLog);
-  // Insertion effects run before layout effects, so a task logging from a
-  // layout effect in the commit that changes onLog reaches the new one.
-  React.useInsertionEffect(() => {
-    onLogRef.current = onLog;
-  });
-  const [error, setError] = React.useState<Error | null>(null);
-  // Stable for the lifetime of Run, so effects depending on the logger do not
-  // rerun whenever onLog changes, such as when it is an inline arrow.
-  const logWrapper = React.useCallback((newLog: L) => {
-    const currentOnLog = onLogRef.current;
-    if (currentOnLog == null) {
-      setError(
-        new LogDeliveryError(
-          'Could not add log: onLog was removed from <Run />',
-          { log: newLog },
-        ),
-      );
-      return;
-    }
-    currentOnLog(newLog).catch((cause) => {
-      setError(
-        new LogDeliveryError(
-          cause instanceof Error
-            ? `Could not add log : ${cause.message}`
-            : 'Could not add log',
-          { cause, log: newLog },
-        ),
-      );
-    });
-  }, []);
-  return { onLog: onLog == null ? null : logWrapper, error };
 }
