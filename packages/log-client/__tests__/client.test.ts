@@ -319,9 +319,7 @@ describe('LogClient#startRun', () => {
       server.set([{ experimentId: 'test-experiment' }]);
       server.handlers['/sessions/{id}'].get.mockResolvedValueOnce({
         status: 404,
-        body: {
-          errors: [{ status: 'Not Found', code: 'SESSION_NOT_FOUND' }],
-        },
+        body: { errors: [{ status: 'Not Found', code: 'SESSION_NOT_FOUND' }] },
       });
     });
 
