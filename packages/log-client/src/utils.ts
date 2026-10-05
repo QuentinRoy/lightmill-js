@@ -81,7 +81,8 @@ type SuccessData<R extends FetchResult> = R extends {
 
 /**
  * Returns the data of a successful openapi-fetch result, and throws a
- * RequestError for a failed one.
+ * RequestError for a failed one. The return type holds because of that check:
+ * a result that passes it is the successful member of the union.
  */
 export function unwrap<R extends FetchResult>(result: R): SuccessData<R>;
 export function unwrap(result: FetchResult): unknown {

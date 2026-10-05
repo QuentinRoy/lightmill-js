@@ -378,7 +378,9 @@ describe('LogClient server errors', () => {
     expect(logger.state).toMatchObject({ status: 'paused' });
   });
 
-  // openapi-fetch reports a failed response with `Content-Length: 0` apart.
+  // openapi-fetch sets `error` to '' for a failed response without a body,
+  // but leaves it undefined when it has `Content-Length: 0`. Only the second
+  // case slipped through before `unwrap()`.
   for (const [title, init] of [
     ['halves a batch that gets a 413', undefined],
     [
