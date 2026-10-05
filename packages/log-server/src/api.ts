@@ -26,23 +26,6 @@ export function toNewLog({
   };
 }
 
-export function parseCookies(cookieHeader: string | undefined) {
-  if (cookieHeader == null) return {};
-  return Object.fromEntries(
-    cookieHeader.split(';').map((cookie) => {
-      const [key, value] = cookie
-        .split('=')
-        .map((part) => decodeURIComponent(part.trim()));
-      if (key == null || value == null) {
-        throw new Error(
-          `Invalid cookie format: "${cookie}". Expected "key=value" format.`,
-        );
-      }
-      return [key, value];
-    }),
-  );
-}
-
 export const reverseHttpStatuses = Object.fromEntries(
   Object.entries(httpStatuses).map(([code, text]) => [text, Number(code)]),
 ) as ReverseHttpStatusMap;

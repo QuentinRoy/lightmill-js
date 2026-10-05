@@ -148,6 +148,18 @@ describe.for(storeTypes)('createLogServer Errors (%s server)', (storeType) => {
       });
   });
 
+  // The agent has no cookie yet, so it sends the header as is: once it has
+  // one, it would rewrite this header through its cookie jar.
+  it('ignores cookies it cannot parse', async ({ api }) => {
+    await api
+      .post('/sessions')
+      .set('Content-Type', mediaType)
+      .set('Cookie', 'foo=%E0%A4%A; bar; baz=1')
+      .send({ data: { type: 'sessions', attributes: { role: 'participant' } } })
+      .expect('Content-Type', apiContentTypeRegExp)
+      .expect(201);
+  });
+
   it('decodes query parameters once', async ({ api }) => {
     await api
       .post('/sessions')
