@@ -154,8 +154,9 @@ export class SQLiteDataStore implements DataStore, AsyncDisposable {
 
   /**
    * The express-session store persisting sessions in this database, on this
-   * data store's connection. Pass it to `LogServer` as `sessionStore`. Every
-   * call returns the same store, which `close()` ends along with the data store.
+   * data store's connection. Pass it to `createLogServer` as `sessionStore`.
+   * Every call returns the same store, which `close()` ends along with the data
+   * store.
    */
   getSessionStore(): ExpressSessionStore {
     this.#sessionStore ??= new SessionStore(this.#db);

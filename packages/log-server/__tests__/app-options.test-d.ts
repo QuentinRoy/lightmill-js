@@ -1,7 +1,7 @@
 import { expectTypeOf, it } from 'vitest';
-import { LogServer } from '../src/app.ts';
+import { createLogServer } from '../src/app.ts';
 
-type Options = Parameters<typeof LogServer>[0];
+type Options = Parameters<typeof createLogServer>[0];
 type RequiredOptions = Pick<Options, 'dataStore' | 'sessionKeys'>;
 type IsAllowed<T> = T extends Options ? true : false;
 

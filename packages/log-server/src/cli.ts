@@ -13,7 +13,7 @@ import yargs from 'yargs';
 import { z } from 'zod';
 import { csvExportStream } from './csv-export.ts';
 import { DataStoreError } from './data-store-errors.ts';
-import { LogServer, SQLiteDataStore } from './index.ts';
+import { createLogServer, SQLiteDataStore } from './index.ts';
 
 // Constants and setup
 // -------------------
@@ -81,7 +81,7 @@ async function start({
   if (!sameOrigin) app.use(cors());
   let server = app
     .use(
-      LogServer({
+      createLogServer({
         dataStore: store,
         sessionStore: store.getSessionStore(),
         sessionMaxAge,

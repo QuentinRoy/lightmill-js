@@ -2,7 +2,7 @@ import { getErrorResponse } from './api.ts';
 import { DataStoreError } from './data-store-errors.ts';
 import type { PathHandlers } from './router.ts';
 
-export const experimentHandlers = (): PathHandlers<'/experiments'> => ({
+export const createExperimentHandlers = (): PathHandlers<'/experiments'> => ({
   '/experiments': {
     async post({ body, dataStore: store, sessionData, protocol, host }) {
       if (sessionData.role !== 'host') {

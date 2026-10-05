@@ -1,6 +1,6 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`LogServer: get /logs (sqlite) > filters logs by experiment id (csv) 1`] = `
+exports[`createLogServer: get /logs (sqlite) > filters logs by experiment id (csv) 1`] = `
 "type,experiment_name,run_name,run_status,value
 log-type,log-test-experiment,log-test-run,running,1
 test-type,log-test-experiment,log-test-run,running,2
@@ -9,7 +9,7 @@ test-type,log-test-experiment,other-run-1,running,4
 "
 `;
 
-exports[`LogServer: get /logs (sqlite) > filters logs by experiment id (json) 1`] = `
+exports[`createLogServer: get /logs (sqlite) > filters logs by experiment id (json) 1`] = `
 {
   "data": [
     {
@@ -92,7 +92,7 @@ exports[`LogServer: get /logs (sqlite) > filters logs by experiment id (json) 1`
 }
 `;
 
-exports[`LogServer: get /logs (sqlite) > filters logs by experiment name (csv) 1`] = `
+exports[`createLogServer: get /logs (sqlite) > filters logs by experiment name (csv) 1`] = `
 "type,run_name,run_status,value
 log-type,log-test-run,running,1
 test-type,log-test-run,running,2
@@ -101,7 +101,7 @@ test-type,other-run-1,running,4
 "
 `;
 
-exports[`LogServer: get /logs (sqlite) > filters logs by experiment name (json) 1`] = `
+exports[`createLogServer: get /logs (sqlite) > filters logs by experiment name (json) 1`] = `
 {
   "data": [
     {
@@ -184,14 +184,14 @@ exports[`LogServer: get /logs (sqlite) > filters logs by experiment name (json) 
 }
 `;
 
-exports[`LogServer: get /logs (sqlite) > filters logs by run id (csv) 1`] = `
+exports[`createLogServer: get /logs (sqlite) > filters logs by run id (csv) 1`] = `
 "type,experiment_name,run_name,run_status,value
 log-type,log-test-experiment,other-run-1,running,3
 test-type,log-test-experiment,other-run-1,running,4
 "
 `;
 
-exports[`LogServer: get /logs (sqlite) > filters logs by run id (json) 1`] = `
+exports[`createLogServer: get /logs (sqlite) > filters logs by run id (json) 1`] = `
 {
   "data": [
     {
@@ -236,7 +236,7 @@ exports[`LogServer: get /logs (sqlite) > filters logs by run id (json) 1`] = `
 }
 `;
 
-exports[`LogServer: get /logs (sqlite) > filters logs by run name (csv) 1`] = `
+exports[`createLogServer: get /logs (sqlite) > filters logs by run name (csv) 1`] = `
 "type,experiment_name,run_status,value
 log-type,log-test-experiment,running,1
 test-type,log-test-experiment,running,2
@@ -245,7 +245,7 @@ log-type,test-experiment,running,6
 "
 `;
 
-exports[`LogServer: get /logs (sqlite) > filters logs by run name (json) 1`] = `
+exports[`createLogServer: get /logs (sqlite) > filters logs by run name (json) 1`] = `
 {
   "data": [
     {
@@ -328,9 +328,9 @@ exports[`LogServer: get /logs (sqlite) > filters logs by run name (json) 1`] = `
 }
 `;
 
-exports[`LogServer: get /logs (sqlite) > filters logs by run name, type, and experiment name (csv) 1`] = `{}`;
+exports[`createLogServer: get /logs (sqlite) > filters logs by run name, type, and experiment name (csv) 1`] = `{}`;
 
-exports[`LogServer: get /logs (sqlite) > filters logs by run name, type, and experiment name (json) 1`] = `
+exports[`createLogServer: get /logs (sqlite) > filters logs by run name, type, and experiment name (json) 1`] = `
 {
   "data": [
     {
@@ -356,7 +356,7 @@ exports[`LogServer: get /logs (sqlite) > filters logs by run name, type, and exp
 }
 `;
 
-exports[`LogServer: get /logs (sqlite) > filters logs by type (csv) 1`] = `
+exports[`createLogServer: get /logs (sqlite) > filters logs by type (csv) 1`] = `
 "experiment_name,run_name,run_status,value
 log-test-experiment,log-test-run,running,2
 log-test-experiment,other-run-1,running,4
@@ -365,7 +365,7 @@ test-experiment,other-run-2,running,7
 "
 `;
 
-exports[`LogServer: get /logs (sqlite) > filters logs by type (json) 1`] = `
+exports[`createLogServer: get /logs (sqlite) > filters logs by type (json) 1`] = `
 {
   "data": [
     {
@@ -448,7 +448,7 @@ exports[`LogServer: get /logs (sqlite) > filters logs by type (json) 1`] = `
 }
 `;
 
-exports[`LogServer: get /logs (sqlite) > respects the q weighting factor 1`] = `
+exports[`createLogServer: get /logs (sqlite) > respects the q weighting factor 1`] = `
 "{"data":[
 {"type":"logs","id":"4","attributes":{"logType":"log-type","number":1,"values":{"x":"x4","y":"y4"}},"relationships":{"run":{"data":{"type":"runs","id":"2"}}}},
 {"type":"logs","id":"5","attributes":{"logType":"log-type","number":2,"values":{"y":"y5","x":"x5"}},"relationships":{"run":{"data":{"type":"runs","id":"2"}}}},
@@ -458,7 +458,7 @@ exports[`LogServer: get /logs (sqlite) > respects the q weighting factor 1`] = `
 ]}"
 `;
 
-exports[`LogServer: get /logs (sqlite) > returns logs as csv by default 1`] = `
+exports[`createLogServer: get /logs (sqlite) > returns logs as csv by default 1`] = `
 "type,experiment_name,run_name,run_status,x,y
 log-type,test-experiment,other-run,running,x4,y4
 log-type,test-experiment,other-run,running,x5,y5
@@ -468,7 +468,7 @@ log-type,test-experiment,test-run,running,x3,y3
 "
 `;
 
-exports[`LogServer: get /logs (sqlite) > returns logs as csv if csv is the first supported format in the Accept header 1`] = `
+exports[`createLogServer: get /logs (sqlite) > returns logs as csv if csv is the first supported format in the Accept header 1`] = `
 "type,experiment_name,run_name,run_status,x,y
 log-type,test-experiment,other-run,running,x4,y4
 log-type,test-experiment,other-run,running,x5,y5
@@ -478,7 +478,7 @@ log-type,test-experiment,test-run,running,x3,y3
 "
 `;
 
-exports[`LogServer: get /logs (sqlite) > returns logs as csv if no format specified in accept header is supported 1`] = `
+exports[`createLogServer: get /logs (sqlite) > returns logs as csv if no format specified in accept header is supported 1`] = `
 "type,experiment_name,run_name,run_status,x,y
 log-type,test-experiment,other-run,running,x4,y4
 log-type,test-experiment,other-run,running,x5,y5
@@ -488,7 +488,7 @@ log-type,test-experiment,test-run,running,x3,y3
 "
 `;
 
-exports[`LogServer: get /logs (sqlite) > returns logs as json if json is the first supported format in the Accept header 1`] = `
+exports[`createLogServer: get /logs (sqlite) > returns logs as json if json is the first supported format in the Accept header 1`] = `
 {
   "data": [
     {
@@ -595,7 +595,7 @@ exports[`LogServer: get /logs (sqlite) > returns logs as json if json is the fir
 }
 `;
 
-exports[`LogServer: get /logs (sqlite) > returns only logs a participant has access to 1`] = `
+exports[`createLogServer: get /logs (sqlite) > returns only logs a participant has access to 1`] = `
 {
   "data": [
     {
