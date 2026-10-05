@@ -199,8 +199,10 @@ export function useRunState<Task>({
     throw snapshot.error;
   }
 
-  // From an effect so that it never runs for a Run that is gone, and still runs
-  // once a Run hidden by <Activity> that completed meanwhile is shown again.
+  // onCompleted is called from an effect because effects only run while Run is
+  // mounted and visible. It is therefore never called after an unmount, and a
+  // completion that happens while <Activity> hides Run is reported once Run is
+  // shown again. The ref keeps StrictMode's effect rerun from calling it twice.
   const completedNotifiedRef = React.useRef(false);
   const completed = snapshot.status === 'completed';
   React.useEffect(() => {
