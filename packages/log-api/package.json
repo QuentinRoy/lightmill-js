@@ -30,7 +30,7 @@
     "src"
   ],
   "scripts": {
-    "build-api": "mkdir -p dist && node --experimental-strip-types scripts/build-api.ts > dist/openapi.yaml",
+    "build-api": "mkdir -p dist && node scripts/build-api.ts > dist/openapi.yaml",
     "build-js": "tsc -b tsconfig.build.json",
     "build": "pnpm run build-api && pnpm run build-js",
     "watch:build": "onchange -i 'src/*' -i 'scripts/*.ts' -- pnpm build",
