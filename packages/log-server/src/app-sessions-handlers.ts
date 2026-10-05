@@ -1,8 +1,6 @@
-import { type UserRole } from '@lightmill/log-api/vocabulary';
-import { getErrorResponse, getRunResources } from './api.ts';
-import { type DataStore, type RunId } from './data-store.ts';
+import { getErrorResponse, getSessionDocument } from './json-api.ts';
 import type { PathHandlers } from './router.ts';
-import { arrayify, checkBasicAuth } from './utils.ts';
+import { checkBasicAuth } from './utils.ts';
 
 type SessionHandlerOptions = {
   hostUser: string;
@@ -62,7 +60,7 @@ export const sessionHandlers = ({
         sessionData,
         headers: { location: `${protocol + '://' + host}/sessions/current` },
         status: 201,
-        body: await getSessionResource(sessionData, store),
+        body: await getSessionDocument(store, sessionData),
       };
     },
   },
@@ -78,9 +76,7 @@ export const sessionHandlers = ({
       }
       return {
         status: 200,
-        body: await getSessionResource(sessionData, store, {
-          includeRuns: arrayify(query.include, true).includes('runs'),
-        }),
+        body: await getSessionDocument(store, sessionData, query.include),
       };
     },
 
@@ -99,52 +95,3 @@ export const sessionHandlers = ({
     },
   },
 });
-
-async function getSessionResource(
-  sessionData: { runs: RunId[]; role: UserRole },
-  store: DataStore,
-  {
-    includeRuns = false,
-    includeExperiment = false,
-    includeRunLastLogs = false,
-  }: {
-    includeRuns?: boolean;
-    includeExperiment?: boolean;
-    includeRunLastLogs?: boolean;
-  } = {},
-) {
-  if (sessionData == null) {
-    throw new Error('Session not populated');
-  }
-  let attributes = { role: sessionData.role };
-  let relationships = {
-    runs: {
-      data: sessionData.runs.map((runId) => {
-        return { type: 'runs' as const, id: runId };
-      }),
-    },
-  };
-  let included;
-  if (includeRuns || includeExperiment || includeRunLastLogs) {
-    let { runs, experiments, lastLogs } = await getRunResources(store, {
-      filter: { runId: sessionData.runs },
-    });
-    included = [
-      ...(includeRuns ? runs : []),
-      ...(includeExperiment ? experiments : []),
-      ...(includeRunLastLogs ? lastLogs : []),
-    ];
-  } else {
-    included = undefined;
-  }
-
-  return {
-    data: {
-      type: 'sessions' as const,
-      id: 'current' as const,
-      attributes,
-      relationships,
-    },
-    ...(included === undefined ? {} : { included }),
-  };
-}

@@ -1185,10 +1185,86 @@ describe.each(storeTypes)('LogServer: get /logs (%s)', (storeType) => {
       expect(response.body).toMatchSnapshot();
     },
   );
+
+  it('includes the related resources of every run, looking the runs up once', async ({
+    expect,
+    hostApi,
+    dataStore,
+    runId,
+    experimentId,
+  }) => {
+    dataStore.getRuns.mockClear();
+    const response = await hostApi
+      .get('/logs')
+      .set('Accept', mediaType)
+      .query({ include: ['run', 'run.experiment', 'run.lastLogs'] })
+      .expect(200)
+      .expect('Content-Type', apiContentTypeRegExp);
+
+    const includedOf = (type: string) =>
+      response.body.included.filter((r: { type: string }) => r.type === type);
+    expect(includedOf('experiments')).toEqual([
+      expect.objectContaining({ id: experimentId }),
+    ]);
+    expect(includedOf('runs')).toHaveLength(2);
+    expect(includedOf('runs')).toContainEqual(
+      expect.objectContaining({ id: runId }),
+    );
+    // One last log per run: all logs have the same type.
+    expect(includedOf('logs')).toHaveLength(2);
+    expect(dataStore.getRuns).toHaveBeenCalledTimes(1);
+  });
+
+  it('aborts the response, and keeps serving, when the include lookup fails after the logs were sent', async ({
+    expect,
+    hostApi,
+    dataStore,
+  }) => {
+    dataStore.getRuns.mockRejectedValueOnce(new Error('boom'));
+    // The status is sent before the lookup: all that is left is to abort.
+    await expect(
+      hostApi
+        .get('/logs')
+        .set('Accept', mediaType)
+        .query({ include: 'run' })
+        .timeout(2000),
+    ).rejects.toThrow();
+    await hostApi.get('/logs').set('Accept', mediaType).expect(200);
+  });
 });
 
 describe.for(storeTypes)('LogServer: get /logs/{id} (%s)', (storeType) => {
   const it = createTest(storeType);
+
+  it('includes the requested related resources', async ({
+    dataStore,
+    participantApi,
+    runId,
+    experimentId,
+    expect,
+  }) => {
+    const [logRecord] = await dataStore.withTransaction((tx) =>
+      tx.addLogs(runId, [
+        { type: 'log-type', values: { value: 'v' }, number: 1 },
+      ]),
+    );
+    const logId = logRecord!.logId;
+    const response = await participantApi
+      .get(`/logs/${logId}`)
+      .query({ include: ['run', 'run.experiment', 'run.lastLogs'] })
+      .expect(200)
+      .expect('Content-Type', apiContentTypeRegExp);
+
+    expect(response.body.data.id).toBe(logId);
+    expect(response.body.included).toHaveLength(3);
+    expect(response.body.included).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: 'experiments', id: experimentId }),
+        expect.objectContaining({ type: 'runs', id: runId }),
+        expect.objectContaining({ type: 'logs', id: logId }),
+      ]),
+    );
+  });
 
   it("returns a 404 error if the log is not part of one of the participant's runs", async ({
     dataStore,

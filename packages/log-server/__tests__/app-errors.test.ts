@@ -95,6 +95,27 @@ describe.for(storeTypes)('LogServer Errors (%s server)', (storeType) => {
     `);
   });
 
+  it('answers a 415 on /operations with the atomic media type', async ({
+    api,
+  }) => {
+    await api
+      .post('/operations')
+      .set('Content-Type', mediaType)
+      .send({ 'atomic:operations': [] })
+      .expect('Content-Type', atomicContentTypeRegExp)
+      .expect(415);
+  });
+
+  it('answers a 405 on /operations with the atomic media type', async ({
+    api,
+  }) => {
+    await api
+      .get('/operations')
+      .expect('Content-Type', atomicContentTypeRegExp)
+      .expect('Allow', 'POST')
+      .expect(405);
+  });
+
   it.for(bodyErrorRoutes)(
     'returns a 413 error if the body of a request to %s is over 1 MB',
     async ([path, contentType, contentTypeRegExp], { api, expect }) => {
@@ -477,5 +498,55 @@ describe.for(storeTypes)('LogServer: busy store (%s server)', (storeType) => {
       .expect('Content-Type', atomicContentTypeRegExp)
       .expect('Retry-After', '1')
       .expect(503, serviceUnavailable);
+  });
+
+  it('keeps the atomic operations media type on a 500', async ({
+    api,
+    dataStore,
+  }) => {
+    const { experimentId } = await dataStore.withTransaction((tx) =>
+      tx.addExperiment({ experimentName: 'experiment' }),
+    );
+    const run = await api
+      .post('/runs')
+      .set('Content-Type', mediaType)
+      .send({
+        data: {
+          type: 'runs',
+          attributes: { name: 'run', status: 'running' },
+          relationships: {
+            experiment: { data: { type: 'experiments', id: experimentId } },
+          },
+        },
+      })
+      .expect(201);
+    dataStore.withTransaction.mockRejectedValueOnce(new Error('boom'));
+    await api
+      .post('/operations')
+      .set('Content-Type', atomicMediaType)
+      .send({
+        'atomic:operations': [
+          {
+            op: 'add',
+            data: {
+              type: 'logs',
+              attributes: { number: 1, logType: 'test', values: {} },
+              relationships: {
+                run: { data: { type: 'runs', id: run.body.data.id } },
+              },
+            },
+          },
+        ],
+      })
+      .expect('Content-Type', atomicContentTypeRegExp)
+      .expect(500, {
+        errors: [
+          {
+            status: 'Internal Server Error',
+            code: 'INTERNAL_SERVER_ERROR',
+            detail: 'boom',
+          },
+        ],
+      });
   });
 });

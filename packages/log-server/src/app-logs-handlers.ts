@@ -1,18 +1,15 @@
-import type { routes } from '@lightmill/log-api';
 import { mediaType } from '@lightmill/log-api/vocabulary';
-import type { StandardSchemaV1 } from '@standard-schema/spec';
-import { Readable } from 'node:stream';
 import { parseAcceptHeader } from './accept-headers.ts';
 import { visibleRunIds } from './access.ts';
-import {
-  getErrorResponse,
-  getLogIntakeErrorResponse,
-  getRunResources,
-  toNewLog,
-} from './api.ts';
+import { toNewLog } from './api.ts';
 import { csvExportStream } from './csv-export.ts';
 import type { AllFilter } from './data-filters.ts';
-import type { DataStore } from './data-store.ts';
+import {
+  getErrorResponse,
+  getLogDocument,
+  getLogIntakeError,
+  getLogsDocumentStream,
+} from './json-api.ts';
 import { addLogsToWritableRun } from './log-intake.ts';
 import type { HandlerResponseFromRoute, PathHandlers } from './router.ts';
 import { arrayify, firstStrict } from './utils.ts';
@@ -34,9 +31,8 @@ export const logHandlers = (): PathHandlers<'/logs'> => ({
         experimentName: query['filter[experiment.name]'],
         runName: query['filter[run.name]'],
       };
-      let includeQuery = arrayify(query['include'], true);
       if (responseMimeType === 'csv') {
-        if (includeQuery.length > 0) {
+        if (arrayify(query['include'], true).length > 0) {
           return getErrorResponse({
             status: 'Bad Request',
             code: 'NOT_SUPPORTED_QUERY_PARAMETER',
@@ -55,11 +51,7 @@ export const logHandlers = (): PathHandlers<'/logs'> => ({
 
       return {
         status: 200,
-        body: jsonResponseStream(store, filter, {
-          run: includeQuery.includes('run'),
-          experiment: includeQuery.includes('run.experiment'),
-          lastLogs: includeQuery.includes('run.lastLogs'),
-        }),
+        body: getLogsDocumentStream(store, filter, query['include']),
         contentType: mediaType,
       };
     },
@@ -72,7 +64,9 @@ export const logHandlers = (): PathHandlers<'/logs'> => ({
         [toNewLog(body.data)],
       );
       if ('rejection' in outcome) {
-        return getLogIntakeErrorResponse(outcome.rejection, () => ({}));
+        return getErrorResponse(
+          getLogIntakeError(outcome.rejection, () => ({})),
+        );
       }
       let { logId: insertedLogId, created } = firstStrict(outcome.results);
       return {
@@ -92,31 +86,15 @@ export const logHandlers = (): PathHandlers<'/logs'> => ({
         runId: visibleRunIds(sessionData, undefined),
         logId: path.id,
       };
-      let includeQuery = arrayify(query['include'], true);
-      let dataString = '';
-      for await (let chunk of jsonResponseChunkGenerator(store, filter, {
-        run: includeQuery.includes('run') ?? false,
-        experiment: includeQuery.includes('run.experiment') ?? false,
-        lastLogs: includeQuery.includes('run.lastLogs') ?? false,
-      })) {
-        dataString += chunk;
-      }
-      let data = JSON.parse(dataString);
-      if (data.data.length > 1) {
-        throw new Error(`More than one log found for id '${path.id}'`);
-      }
-      if (data.data.length === 0) {
+      let document = await getLogDocument(store, filter, query['include']);
+      if (document == null) {
         return getErrorResponse({
           status: 'Not Found',
           code: 'LOG_NOT_FOUND',
           detail: `Log "${path.id}" not found`,
         });
       }
-      return {
-        status: 200,
-        body: { data: firstStrict(data.data) },
-        included: data.included,
-      };
+      return { status: 200, body: document };
     },
   },
 });
@@ -140,107 +118,4 @@ function getResponseMimeType(
     }
   }
   return defaultMimeType;
-}
-
-function jsonResponseStream(
-  store: DataStore,
-  filter: Omit<AllFilter, 'runStatus'> = {},
-  includes: { run?: boolean; experiment?: boolean; lastLogs?: boolean } = {},
-): Readable {
-  return Readable.from(jsonResponseChunkGenerator(store, filter, includes));
-}
-
-type RunResource = StandardSchemaV1.InferOutput<
-  (typeof routes)['/runs/{id}']['get']['responses'][200]['content'][typeof mediaType]['schema']
->['data'];
-type ExperimentResource = StandardSchemaV1.InferOutput<
-  (typeof routes)['/experiments/{id}']['get']['responses'][200]['content'][typeof mediaType]['schema']
->['data'];
-type LogResource = StandardSchemaV1.InferOutput<
-  (typeof routes)['/logs/{id}']['get']['responses'][200]['content'][typeof mediaType]['schema']
->['data'];
-
-async function* jsonResponseChunkGenerator(
-  store: DataStore,
-  filter: Omit<AllFilter, 'runStatus'>,
-  includes: { run?: boolean; experiment?: boolean; lastLogs?: boolean },
-) {
-  let runs = new Map<string, RunResource | null>();
-  let experiments = new Map<string, ExperimentResource | null>();
-  let includedLogs = new Array<LogResource>();
-  let logs = await store.getLogs({ ...filter, runStatus: '-canceled' });
-  yield '{"data":[';
-  let started = false;
-  for await (let log of logs) {
-    yield started ? ',\n' : '\n';
-    started = true;
-    yield JSON.stringify(
-      {
-        type: 'logs',
-        id: log.logId,
-        attributes: {
-          logType: log.type,
-          number: log.number,
-          values: log.values,
-        },
-        relationships: { run: { data: { type: 'runs', id: log.runId } } },
-      } satisfies LogResource,
-      stringifyDateSerializer,
-    );
-    if (
-      (!includes.run && !includes.experiment && !includes.lastLogs) ||
-      runs.has(log.runId)
-    ) {
-      continue;
-    }
-    let runResources =
-      includes.run || includes.lastLogs
-        ? await getRunResources(store, { filter: { runId: log.runId } })
-        : { runs: [], experiments: [], lastLogs: [] };
-
-    if (includes.run) {
-      runs.set(log.runId, firstStrict(runResources.runs));
-    } else {
-      // We won't include the run resource in the response, but we still need to
-      // remember that we have seen it, so we don't process this again.
-      runs.set(log.runId, null);
-    }
-    if (includes.lastLogs) {
-      includedLogs.push(...runResources.lastLogs);
-    }
-    if (!includes.experiment) continue;
-    let experiment = experiments.get(log.experimentId);
-    if (experiment == null) {
-      experiment = {
-        type: 'experiments',
-        id: log.experimentId,
-        attributes: { name: log.experimentName },
-      };
-      experiments.set(log.experimentId, experiment);
-    }
-  }
-  if (!includes.run && !includes.experiment && !includes.lastLogs) {
-    yield '\n]}';
-    return;
-  }
-  yield '],\n"included":[';
-  started = false;
-  for (let value of [
-    ...experiments.values(),
-    ...runs.values(),
-    ...includedLogs,
-  ]) {
-    if (value == null) continue;
-    yield started ? ',\n' : '\n';
-    started = true;
-    yield JSON.stringify(value, stringifyDateSerializer);
-  }
-  yield '\n]}';
-}
-
-function stringifyDateSerializer(_key: string, value: unknown) {
-  if (value instanceof Date) {
-    return value.toISOString();
-  }
-  return value;
 }
