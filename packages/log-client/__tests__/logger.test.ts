@@ -226,32 +226,6 @@ describe('LogClient#flush', () => {
 });
 
 describe('LogClient batches', () => {
-  beforeEach(fakeTimers);
-  const throttledIt = it.extend({ requestThrottle: 1000 });
-
-  it('sends the logs added while a batch is in flight in the next batch', async ({
-    logger,
-    server,
-  }) => {
-    const reqManager = holdOperations(server);
-    const p1 = logger.addLog({ type: 'mock-log' });
-    await reqManager.waitForRequests(1);
-    const p2 = logger.addLog({ type: 'mock-log' });
-    const p3 = logger.addLog({ type: 'mock-log' });
-    await vi.advanceTimersByTimeAsync(1000);
-    expect(reqManager.count()).toBe(1);
-    reqManager.resolveNextRequest();
-    await expect(p1).resolves.toBeUndefined();
-    await reqManager.waitForRequests(2);
-    reqManager.resolveNextRequest();
-    await expect(Promise.all([p2, p3])).resolves.toEqual([
-      undefined,
-      undefined,
-    ]);
-    await expect(server.operationBatches()).resolves.toEqual([[1], [2, 3]]);
-    await expect(storedNumbers(server)).resolves.toEqual([1, 2, 3]);
-  });
-
   it('closes a batch at 512 kB of serialized operations', async ({
     logger,
     server,
@@ -273,38 +247,6 @@ describe('LogClient batches', () => {
     ]);
     await expect(storedNumbers(server)).resolves.toEqual([1, 2, 3, 4, 5]);
   });
-
-  throttledIt(
-    'waits requestThrottle between batch starts, except when flushing',
-    async ({ logger, server }) => {
-      await logger.addLog({ type: 'mock-log' });
-      const p2 = logger.addLog({ type: 'mock-log' });
-      await vi.advanceTimersByTimeAsync(900);
-      await expect(server.operationBatches()).resolves.toEqual([[1]]);
-      await vi.advanceTimersByTimeAsync(100);
-      await p2;
-      await expect(server.operationBatches()).resolves.toEqual([[1], [2]]);
-      void logger.addLog({ type: 'mock-log' });
-      await logger.flush();
-      await expect(server.operationBatches()).resolves.toEqual([[1], [2], [3]]);
-    },
-  );
-
-  throttledIt(
-    'sends the next batch at once when flushing during a batch',
-    async ({ logger, server }) => {
-      const reqManager = holdOperations(server);
-      void logger.addLog({ type: 'mock-log' });
-      await reqManager.waitForRequests(1);
-      void logger.addLog({ type: 'mock-log' });
-      const flushPromise = logger.flush();
-      reqManager.resolveNextRequest();
-      await reqManager.waitForRequests(2);
-      reqManager.resolveNextRequest();
-      await expect(flushPromise).resolves.toBeUndefined();
-      await expect(server.operationBatches()).resolves.toEqual([[1], [2]]);
-    },
-  );
 
   it('rejects every log of a failed batch', async ({ logger, server }) => {
     server.msw.use(
@@ -360,78 +302,67 @@ describe('LogClient batches', () => {
   });
 });
 
-describe('LogClient retries', () => {
-  beforeEach(() => {
-    // Makes every backoff delay its maximum: 250 ms, 500 ms, 1 s, ...
-    const random = vi.spyOn(Math, 'random').mockReturnValue(1);
-    return () => random.mockRestore();
-  });
+describe('LogClient batches (timing)', () => {
   beforeEach(fakeTimers);
+  const throttledIt = it.extend({ requestThrottle: 1000 });
 
-  // The first request to `path` is answered here, the others by the server.
-  function failOnce(
-    server: TestServer,
-    method: 'post' | 'patch',
-    path: string,
-    resolver: Parameters<typeof http.post>[1],
-  ) {
-    server.msw.use(http[method](server.url(path), resolver, { once: true }));
-  }
-  const respond = (status: number, init?: ResponseInit) =>
-    new HttpResponse(null, { ...init, status });
-
-  it('retries a batch that fails with a 5xx', async ({ logger, server }) => {
-    failOnce(server, 'post', '/operations', () => respond(503));
-    const states: LoggerState[] = [];
-    logger.subscribe((state) => states.push(state));
-    const p1 = logger.addLog({ type: 'mock-log' });
-    await until(() => logger.state.status === 'retrying');
-    await vi.advanceTimersByTimeAsync(249);
-    await expect(server.operationBatches()).resolves.toEqual([[1]]);
-    await vi.advanceTimersByTimeAsync(1);
-    await expect(p1).resolves.toBeUndefined();
-    await expect(server.operationBatches()).resolves.toEqual([[1], [1]]);
-    await expect(storedNumbers(server)).resolves.toEqual([1]);
-    expect(states).toEqual([
-      { status: 'sending' },
-      {
-        status: 'retrying',
-        error: expect.objectContaining({ status: 503 }),
-        attempt: 1,
-        delayMs: 250,
-      },
-      { status: 'idle' },
-    ]);
-  });
-
-  it('waits for Retry-After on a 429', async ({ logger, server }) => {
-    failOnce(server, 'post', '/operations', () =>
-      respond(429, { headers: { 'Retry-After': '5' } }),
-    );
-    const p1 = logger.addLog({ type: 'mock-log' });
-    await until(() => logger.state.status === 'retrying');
-    await vi.advanceTimersByTimeAsync(4999);
-    expect(server.requestCount('POST', '/operations')).toBe(1);
-    await vi.advanceTimersByTimeAsync(1);
-    await expect(p1).resolves.toBeUndefined();
-    expect(server.requestCount('POST', '/operations')).toBe(2);
-  });
-
-  it('keeps the backoff when Retry-After is shorter', async ({
+  it('sends the logs added while a batch is in flight in the next batch', async ({
     logger,
     server,
   }) => {
-    failOnce(server, 'post', '/operations', () =>
-      respond(503, { headers: { 'Retry-After': '0' } }),
-    );
+    const reqManager = holdOperations(server);
     const p1 = logger.addLog({ type: 'mock-log' });
-    await until(() => logger.state.status === 'retrying');
-    await vi.advanceTimersByTimeAsync(249);
-    expect(server.requestCount('POST', '/operations')).toBe(1);
-    await vi.advanceTimersByTimeAsync(1);
+    await reqManager.waitForRequests(1);
+    const p2 = logger.addLog({ type: 'mock-log' });
+    const p3 = logger.addLog({ type: 'mock-log' });
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(reqManager.count()).toBe(1);
+    reqManager.resolveNextRequest();
     await expect(p1).resolves.toBeUndefined();
+    await reqManager.waitForRequests(2);
+    reqManager.resolveNextRequest();
+    await expect(Promise.all([p2, p3])).resolves.toEqual([
+      undefined,
+      undefined,
+    ]);
+    await expect(server.operationBatches()).resolves.toEqual([[1], [2, 3]]);
+    await expect(storedNumbers(server)).resolves.toEqual([1, 2, 3]);
   });
 
+  throttledIt(
+    'waits requestThrottle between batch starts, except when flushing',
+    async ({ logger, server }) => {
+      await logger.addLog({ type: 'mock-log' });
+      const p2 = logger.addLog({ type: 'mock-log' });
+      await vi.advanceTimersByTimeAsync(900);
+      await expect(server.operationBatches()).resolves.toEqual([[1]]);
+      await vi.advanceTimersByTimeAsync(100);
+      await p2;
+      await expect(server.operationBatches()).resolves.toEqual([[1], [2]]);
+      void logger.addLog({ type: 'mock-log' });
+      await logger.flush();
+      await expect(server.operationBatches()).resolves.toEqual([[1], [2], [3]]);
+    },
+  );
+
+  throttledIt(
+    'sends the next batch at once when flushing during a batch',
+    async ({ logger, server }) => {
+      const reqManager = holdOperations(server);
+      void logger.addLog({ type: 'mock-log' });
+      await reqManager.waitForRequests(1);
+      void logger.addLog({ type: 'mock-log' });
+      const flushPromise = logger.flush();
+      reqManager.resolveNextRequest();
+      await reqManager.waitForRequests(2);
+      reqManager.resolveNextRequest();
+      await expect(flushPromise).resolves.toBeUndefined();
+      await expect(server.operationBatches()).resolves.toEqual([[1], [2]]);
+    },
+  );
+});
+
+describe('LogClient server errors', () => {
   it('gives up at once when Retry-After ends past two minutes', async ({
     logger,
     server,
@@ -445,71 +376,6 @@ describe('LogClient retries', () => {
       name: 'AddLogError',
     });
     expect(logger.state).toMatchObject({ status: 'paused' });
-  });
-
-  it('retries after a network error', async ({ logger, server }) => {
-    failOnce(server, 'post', '/operations', () => HttpResponse.error());
-    const p1 = logger.addLog({ type: 'mock-log' });
-    await advanceUntilSettled(p1);
-    expect(server.requestCount('POST', '/operations')).toBe(2);
-  });
-
-  it('retries a request the server does not answer in time', async ({
-    logger,
-    server,
-  }) => {
-    failOnce(server, 'post', '/operations', () => new Promise(() => {}));
-    const p1 = logger.addLog({ type: 'mock-log' });
-    await until(() => server.requestCount('POST', '/operations') === 1);
-    await vi.advanceTimersByTimeAsync(10_000);
-    expect(server.requestCount('POST', '/operations')).toBe(1);
-    // The log is under 1 kB, so the timeout is under 10.1 s.
-    await vi.advanceTimersByTimeAsync(100 + 250);
-    await expect(p1).resolves.toBeUndefined();
-    expect(server.requestCount('POST', '/operations')).toBe(2);
-  });
-
-  it('pauses and holds logs after two minutes of failures, until retry()', async ({
-    logger,
-    server,
-  }) => {
-    server.msw.use(http.post(server.url('/operations'), () => respond(503)));
-    const r1 = logger.addLog({ type: 'mock-log', val: 1 }).catch((e) => e);
-    await vi.advanceTimersByTimeAsync(0);
-    let p2Resolved = false;
-    const p2 = logger.addLog({ type: 'mock-log', val: 2 }).then(() => {
-      p2Resolved = true;
-    });
-    await vi.advanceTimersByTimeAsync(2 * 60_000);
-    await expect(r1).resolves.toMatchObject({
-      name: 'AddLogError',
-      logNumber: 1,
-      cause: expect.objectContaining({ status: 503 }),
-    });
-    expect(logger.state).toEqual({
-      status: 'paused',
-      error: expect.objectContaining({ status: 503 }),
-    });
-    expect(logger.inFlightLogs).toEqual([
-      { type: 'mock-log', val: 1 },
-      { type: 'mock-log', val: 2 },
-    ]);
-    const callCount = server.requestCount('POST', '/operations');
-    await vi.advanceTimersByTimeAsync(60_000);
-    expect(server.requestCount('POST', '/operations')).toBe(callCount);
-    await expect(logger.flush()).rejects.toMatchObject({ status: 503 });
-    await expect(logger.completeRun()).rejects.toMatchObject({ status: 503 });
-    expect(p2Resolved).toBe(false);
-
-    // The server is back.
-    server.msw.resetHandlers();
-    await expect(logger.retry()).resolves.toBeUndefined();
-    await expect(p2).resolves.toBeUndefined();
-    expect((await server.operationBatches()).at(-1)).toEqual([1, 2]);
-    await expect(storedNumbers(server)).resolves.toEqual([1, 2]);
-    expect(logger.state).toEqual({ status: 'idle' });
-    expect(logger.inFlightLogs).toEqual([]);
-    await expect(logger.flush()).resolves.toBeUndefined();
   });
 
   // openapi-fetch reports a failed response with `Content-Length: 0` apart.
@@ -579,6 +445,160 @@ describe('LogClient retries', () => {
     expect(logger.state).toMatchObject({ status: 'paused' });
   });
 
+  it('accepts logs again after ending the run fails', async ({
+    logger,
+    server,
+  }) => {
+    failOnce(server, 'patch', '/runs/:id', () => respond(403));
+    await expect(logger.completeRun()).rejects.toMatchObject({ status: 403 });
+    await expect(logger.addLog({ type: 'mock-log' })).resolves.toBeUndefined();
+  });
+
+  it('aborts the batch being sent when discarding in-flight logs', async ({
+    logger,
+    server,
+  }) => {
+    const signals: AbortSignal[] = [];
+    failOnce(server, 'post', '/operations', ({ request }) => {
+      signals.push(request.signal);
+      return new Promise<never>(() => {});
+    });
+    failOnce(server, 'patch', '/runs/:id', () => respond(403));
+    const log = logger.addLog({ type: 'mock-log' }).catch((e) => e);
+    await until(() => signals.length === 1);
+    await expect(
+      logger.cancelRun({ discardInFlightLogs: true }),
+    ).rejects.toMatchObject({ status: 403 });
+    expect(signals[0]?.aborted).toBe(true);
+    await expect(log).resolves.toMatchObject({ name: 'AddLogError' });
+  });
+});
+
+describe('LogClient retries', () => {
+  beforeEach(() => {
+    // Makes every backoff delay its maximum: 250 ms, 500 ms, 1 s, ...
+    const random = vi.spyOn(Math, 'random').mockReturnValue(1);
+    return () => random.mockRestore();
+  });
+  beforeEach(fakeTimers);
+
+  it('retries a batch that fails with a 5xx', async ({ logger, server }) => {
+    failOnce(server, 'post', '/operations', () => respond(503));
+    const states: LoggerState[] = [];
+    logger.subscribe((state) => states.push(state));
+    const p1 = logger.addLog({ type: 'mock-log' });
+    await until(() => logger.state.status === 'retrying');
+    await vi.advanceTimersByTimeAsync(249);
+    await expect(server.operationBatches()).resolves.toEqual([[1]]);
+    await vi.advanceTimersByTimeAsync(1);
+    await expect(p1).resolves.toBeUndefined();
+    await expect(server.operationBatches()).resolves.toEqual([[1], [1]]);
+    await expect(storedNumbers(server)).resolves.toEqual([1]);
+    expect(states).toEqual([
+      { status: 'sending' },
+      {
+        status: 'retrying',
+        error: expect.objectContaining({ status: 503 }),
+        attempt: 1,
+        delayMs: 250,
+      },
+      { status: 'idle' },
+    ]);
+  });
+
+  it('waits for Retry-After on a 429', async ({ logger, server }) => {
+    failOnce(server, 'post', '/operations', () =>
+      respond(429, { headers: { 'Retry-After': '5' } }),
+    );
+    const p1 = logger.addLog({ type: 'mock-log' });
+    await until(() => logger.state.status === 'retrying');
+    await vi.advanceTimersByTimeAsync(4999);
+    expect(server.requestCount('POST', '/operations')).toBe(1);
+    await vi.advanceTimersByTimeAsync(1);
+    await expect(p1).resolves.toBeUndefined();
+    expect(server.requestCount('POST', '/operations')).toBe(2);
+  });
+
+  it('keeps the backoff when Retry-After is shorter', async ({
+    logger,
+    server,
+  }) => {
+    failOnce(server, 'post', '/operations', () =>
+      respond(503, { headers: { 'Retry-After': '0' } }),
+    );
+    const p1 = logger.addLog({ type: 'mock-log' });
+    await until(() => logger.state.status === 'retrying');
+    await vi.advanceTimersByTimeAsync(249);
+    expect(server.requestCount('POST', '/operations')).toBe(1);
+    await vi.advanceTimersByTimeAsync(1);
+    await expect(p1).resolves.toBeUndefined();
+  });
+
+  it('retries after a network error', async ({ logger, server }) => {
+    failOnce(server, 'post', '/operations', () => HttpResponse.error());
+    const p1 = logger.addLog({ type: 'mock-log' });
+    await advanceUntilSettled(p1);
+    expect(server.requestCount('POST', '/operations')).toBe(2);
+  });
+
+  it('retries a request the server does not answer in time', async ({
+    logger,
+    server,
+  }) => {
+    failOnce(server, 'post', '/operations', () => new Promise(() => {}));
+    const p1 = logger.addLog({ type: 'mock-log' });
+    await until(() => server.requestCount('POST', '/operations') === 1);
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(server.requestCount('POST', '/operations')).toBe(1);
+    // The log is under 1 kB, so the timeout is under 10.1 s.
+    await vi.advanceTimersByTimeAsync(100 + 250);
+    await expect(p1).resolves.toBeUndefined();
+    expect(server.requestCount('POST', '/operations')).toBe(2);
+  });
+
+  it('pauses and holds logs after two minutes of failures, until retry()', async ({
+    logger,
+    server,
+  }) => {
+    server.msw.use(http.post(server.url('/operations'), () => respond(503)));
+    const r1 = logger.addLog({ type: 'mock-log', val: 1 }).catch((e) => e);
+    await vi.advanceTimersByTimeAsync(0);
+    let p2Resolved = false;
+    const p2 = logger.addLog({ type: 'mock-log', val: 2 }).then(() => {
+      p2Resolved = true;
+    });
+    await vi.advanceTimersByTimeAsync(2 * 60_000);
+    await expect(r1).resolves.toMatchObject({
+      name: 'AddLogError',
+      logNumber: 1,
+      cause: expect.objectContaining({ status: 503 }),
+    });
+    expect(logger.state).toEqual({
+      status: 'paused',
+      error: expect.objectContaining({ status: 503 }),
+    });
+    expect(logger.inFlightLogs).toEqual([
+      { type: 'mock-log', val: 1 },
+      { type: 'mock-log', val: 2 },
+    ]);
+    const callCount = server.requestCount('POST', '/operations');
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(server.requestCount('POST', '/operations')).toBe(callCount);
+    await expect(logger.flush()).rejects.toMatchObject({ status: 503 });
+    await expect(logger.completeRun()).rejects.toMatchObject({ status: 503 });
+    expect(p2Resolved).toBe(false);
+
+    // The server is back.
+    server.msw.resetHandlers();
+    await expect(logger.retry()).resolves.toBeUndefined();
+    await expect(p2).resolves.toBeUndefined();
+    expect((await server.operationBatches()).at(-1)).toEqual([1, 2]);
+    await expect(storedNumbers(server)).resolves.toEqual([1, 2]);
+    expect(logger.state).toEqual({ status: 'idle' });
+    expect(logger.inFlightLogs).toEqual([]);
+    await expect(logger.flush()).resolves.toBeUndefined();
+  });
+
   it('retries ending a run', async ({ logger, server }) => {
     failOnce(server, 'patch', '/runs/:id', () => respond(503));
     await advanceUntilSettled(logger.completeRun());
@@ -603,15 +623,6 @@ describe('LogClient retries', () => {
     await expect(completion).resolves.toBeUndefined();
   });
 
-  it('accepts logs again after ending the run fails', async ({
-    logger,
-    server,
-  }) => {
-    failOnce(server, 'patch', '/runs/:id', () => respond(403));
-    await expect(logger.completeRun()).rejects.toMatchObject({ status: 403 });
-    await expect(logger.addLog({ type: 'mock-log' })).resolves.toBeUndefined();
-  });
-
   it('only ends a paused run when asked to discard in-flight logs', async ({
     logger,
     server,
@@ -633,25 +644,6 @@ describe('LogClient retries', () => {
     expect(logger.state).toEqual({ status: 'canceled' });
     await expect(runStatuses(server)).resolves.toEqual(['canceled']);
   });
-
-  it('aborts the batch being sent when discarding in-flight logs', async ({
-    logger,
-    server,
-  }) => {
-    const signals: AbortSignal[] = [];
-    failOnce(server, 'post', '/operations', ({ request }) => {
-      signals.push(request.signal);
-      return new Promise<never>(() => {});
-    });
-    failOnce(server, 'patch', '/runs/:id', () => respond(403));
-    const log = logger.addLog({ type: 'mock-log' }).catch((e) => e);
-    await until(() => signals.length === 1);
-    await expect(
-      logger.cancelRun({ discardInFlightLogs: true }),
-    ).rejects.toMatchObject({ status: 403 });
-    expect(signals[0]?.aborted).toBe(true);
-    await expect(log).resolves.toMatchObject({ name: 'AddLogError' });
-  });
 });
 
 describe('LogClient#completeRun', () => {
@@ -667,6 +659,20 @@ describe('LogClient#cancelRun', () => {
     await expect(runStatuses(server)).resolves.toEqual(['canceled']);
   });
 });
+
+// The first request to `path` is answered here, the others by the server.
+function failOnce(
+  server: TestServer,
+  method: 'post' | 'patch',
+  path: string,
+  resolver: Parameters<typeof http.post>[1],
+) {
+  server.msw.use(http[method](server.url(path), resolver, { once: true }));
+}
+
+function respond(status: number, init?: ResponseInit) {
+  return new HttpResponse(null, { ...init, status });
+}
 
 // Holds every POST /operations until the test lets it through to the server.
 function holdOperations(server: TestServer) {
