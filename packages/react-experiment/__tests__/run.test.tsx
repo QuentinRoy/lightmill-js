@@ -304,6 +304,45 @@ describe('run', () => {
     expect(screen.getByTestId('end')).toBeInTheDocument();
   });
 
+  it('completes right away on an empty sync timeline, calling onCompleted once', () => {
+    const onCompleted = vi.fn();
+    render(
+      <React.StrictMode>
+        <Run
+          elements={{
+            tasks: {
+              A: <Task type="A" dataProp="a" />,
+              B: <Task type="B" dataProp="b" />,
+            },
+            completed: <div data-testid="end" />,
+          }}
+          timeline={[]}
+          onCompleted={onCompleted}
+        />
+      </React.StrictMode>,
+    );
+    expect(screen.getByTestId('end')).toBeInTheDocument();
+    expect(onCompleted).toHaveBeenCalledOnce();
+  });
+
+  it('throws if the timeline is unset again', () => {
+    const elements = {
+      tasks: {
+        A: <Task type="A" dataProp="a" />,
+        B: <Task type="B" dataProp="b" />,
+      },
+    };
+    const timeline: Task[] = [{ type: 'A', a: 'hello' }];
+    const { rerender } = render(<Run elements={elements} loading />);
+    rerender(<Run elements={elements} loading timeline={timeline} />);
+    const spy = vi.spyOn(console, 'error');
+    spy.mockImplementation(() => {});
+    expect(() => {
+      rerender(<Run elements={elements} loading />);
+    }).toThrow('Timeline cannot be changed once set');
+    spy.mockRestore();
+  });
+
   it('throws an error if the timeline is changed', async () => {
     const elements = {
       tasks: {
@@ -378,6 +417,32 @@ describe('run', () => {
     expect(await screen.findByTestId('error')).toHaveTextContent(
       'No task matched resumeAfterTask',
     );
+    spy.mockRestore();
+  });
+
+  it('keeps a non-Error thrown by the timeline as the error cause', async () => {
+    const spy = vi.spyOn(console, 'error');
+    spy.mockImplementation(() => {});
+    const onError = vi.fn();
+    render(
+      <ErrorBoundary onError={onError}>
+        <Run
+          elements={{
+            tasks: {
+              A: <Task type="A" dataProp="a" />,
+              B: <Task type="B" dataProp="b" />,
+            },
+          }}
+          timeline={{
+            next: () => {
+              throw 'nope';
+            },
+          }}
+        />
+      </ErrorBoundary>,
+    );
+    expect(await screen.findByTestId('error')).toHaveTextContent('nope');
+    expect(onError.mock.lastCall?.[0].cause).toBe('nope');
     spy.mockRestore();
   });
 
@@ -459,6 +524,138 @@ describe('run', () => {
     expect(error).toBeInstanceOf(LogDeliveryError);
     expect(error.log).toEqual({ type: 'L' });
     spy.mockRestore();
+  });
+
+  describe('StrictMode', () => {
+    const tasks = [
+      { type: 'A', a: 'one' },
+      { type: 'A', a: 'two' },
+      { type: 'A', a: 'three' },
+    ] as const;
+    // Records every task the timeline is asked for, to catch tasks pulled
+    // twice or lost.
+    const syncGen = function* (pulled: string[]) {
+      for (const task of tasks) {
+        pulled.push(task.a);
+        yield task;
+      }
+    };
+    const asyncGen = async function* (pulled: string[]) {
+      for (const task of tasks) {
+        await wait(5);
+        pulled.push(task.a);
+        yield task;
+      }
+    };
+
+    it.each([
+      { name: 'sync', gen: syncGen, resume: false },
+      { name: 'sync', gen: syncGen, resume: true },
+      { name: 'async', gen: asyncGen, resume: false },
+      { name: 'async', gen: asyncGen, resume: true },
+    ])(
+      'renders every task once, in order ($name timeline, resumeAfterTask: $resume)',
+      async ({ gen, resume }) => {
+        const user = userEvent.setup();
+        const pulled: string[] = [];
+        const onCompleted = vi.fn();
+        render(
+          <React.StrictMode>
+            <Run
+              elements={{
+                tasks: { A: <Task type="A" dataProp="a" /> },
+                loading: <div data-testid="loading" />,
+                completed: <div data-testid="end" />,
+              }}
+              timeline={gen(pulled)}
+              resumeAfterTask={
+                resume
+                  ? (task: Task) => task.type === 'A' && task.a === 'one'
+                  : undefined
+              }
+              onCompleted={onCompleted}
+            />
+          </React.StrictMode>,
+        );
+        const expected = resume ? ['two', 'three'] : ['one', 'two', 'three'];
+        for (const a of expected) {
+          expect(await screen.findByTestId('data')).toHaveTextContent(a);
+          await user.click(screen.getByText('Complete'));
+        }
+        expect(await screen.findByTestId('end')).toBeInTheDocument();
+        expect(pulled).toEqual(['one', 'two', 'three']);
+        expect(onCompleted).toHaveBeenCalledOnce();
+      },
+    );
+
+    it('does not call onCompleted when the timeline completes after unmount', async () => {
+      vi.useFakeTimers();
+      const onCompleted = vi.fn();
+      const { unmount } = render(
+        <Run
+          elements={{
+            tasks: {
+              A: <Task type="A" dataProp="a" />,
+              B: <Task type="B" dataProp="b" />,
+            },
+          }}
+          timeline={asyncTaskGen(5, [])}
+          onCompleted={onCompleted}
+        />,
+      );
+      unmount();
+      await act(() => vi.advanceTimersByTime(50));
+      expect(onCompleted).not.toHaveBeenCalled();
+      vi.useRealTimers();
+    });
+
+    it('calls onCompleted once Run is shown again if the timeline completed while it was hidden', async () => {
+      vi.useFakeTimers();
+      const onCompleted = vi.fn();
+      const ui = (mode: 'visible' | 'hidden') => (
+        <React.Activity mode={mode}>
+          <Run
+            elements={{
+              tasks: {
+                A: <Task type="A" dataProp="a" />,
+                B: <Task type="B" dataProp="b" />,
+              },
+            }}
+            timeline={timeline}
+            onCompleted={onCompleted}
+          />
+        </React.Activity>
+      );
+      const timeline = asyncTaskGen(5, []);
+      const { rerender } = render(ui('visible'));
+      rerender(ui('hidden'));
+      await act(() => vi.advanceTimersByTime(50));
+      expect(onCompleted).not.toHaveBeenCalled();
+      rerender(ui('visible'));
+      expect(onCompleted).toHaveBeenCalledOnce();
+      vi.useRealTimers();
+    });
+
+    it('does not start anything when an async next() resolves after unmount', async () => {
+      vi.useFakeTimers();
+      const spy = vi.spyOn(console, 'error');
+      spy.mockImplementation(() => {});
+      const pulled: string[] = [];
+      const { unmount } = render(
+        <Run
+          elements={{ tasks: { A: <Task type="A" dataProp="a" /> } }}
+          timeline={asyncGen(pulled)}
+        />,
+      );
+      unmount();
+      await act(() => vi.advanceTimersByTime(50));
+      expect(pulled).toEqual(['one']);
+      expect(screen.queryByRole('heading')).not.toBeInTheDocument();
+      expect(spy).not.toHaveBeenCalled();
+      spy.mockRestore();
+      vi.runOnlyPendingTimers();
+      vi.useRealTimers();
+    });
   });
 
   describe('loading while a task is running', () => {

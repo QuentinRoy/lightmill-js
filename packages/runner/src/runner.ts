@@ -138,9 +138,13 @@ export class TimelineRunner<Task> {
         this.onLoading?.();
         next.then(
           (result) => {
+            if (this.#status === 'canceled') return;
             if (this.#startTask(result)) this.#toNext();
           },
-          (error) => this.#handleNextTaskError(error),
+          (error) => {
+            if (this.#status === 'canceled') return;
+            this.#handleNextTaskError(error);
+          },
         );
         return;
       }

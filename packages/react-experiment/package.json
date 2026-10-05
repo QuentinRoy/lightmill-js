@@ -23,7 +23,7 @@
   "main": "./dist/main.js",
   "types": "./dist/main.d.ts",
   "peerDependencies": {
-    "react": "^18.2.0 || ^19.0.0"
+    "react": "^19.2.0"
   },
   "dependencies": {
     "@lightmill/runner": "workspace:*"
@@ -37,8 +37,8 @@
     "@vitejs/plugin-react": "^6.1.1",
     "cross-env": "^10.1.0",
     "jsdom": "^29.1.1",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
     "type-fest": "^5.10.0",
     "typescript": "catalog:",
     "vite": "catalog:",
