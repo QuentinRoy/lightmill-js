@@ -1,4 +1,4 @@
-import { http, HttpResponse } from 'msw';
+import { bypass, http, HttpResponse } from 'msw';
 import { describe, expect } from 'vitest';
 import { LightmillClient } from '../src/client.js';
 import { LightmillLogger } from '../src/logger.js';
@@ -147,6 +147,62 @@ describe('LogClient#getResumableRuns', () => {
       client.getResumableRuns({ resumableLogTypes: ['test-type'] }),
     ).resolves.toEqual([
       expect.objectContaining({ toResumeAfter: { number: 0, log: null } }),
+    ]);
+  });
+
+  // The server allows one ongoing run per session, but the client should not
+  // rely on it. The server's own answer is stretched to two runs.
+  it('should handle several resumable runs', async ({ server, client }) => {
+    await seedRun(client, {
+      runName: 'run-1',
+      logs: [{ type: 'test-type', values: { prop: 'value-1' } }],
+    });
+    server.msw.use(
+      http.get(server.url('/runs'), async ({ request }) => {
+        const body = await (await fetch(bypass(request))).json();
+        const [run] = body.data;
+        const log = body.included.find(
+          (resource: { type: string }) => resource.type === 'logs',
+        );
+        body.data.push({
+          ...run,
+          id: 'run-2-id',
+          attributes: {
+            ...run.attributes,
+            name: 'run-2',
+            status: 'interrupted',
+          },
+          relationships: {
+            ...run.relationships,
+            lastLogs: { data: [{ type: 'logs', id: 'log-2-id' }] },
+          },
+        });
+        body.included.push({
+          ...log,
+          id: 'log-2-id',
+          attributes: {
+            ...log.attributes,
+            number: 7,
+            values: { ...log.attributes.values, prop: 'value-2' },
+          },
+        });
+        return HttpResponse.json(body);
+      }),
+    );
+    await expect(
+      client.getResumableRuns({ resumableLogTypes: ['test-type'] }),
+    ).resolves.toEqual([
+      expect.objectContaining({
+        run: expect.objectContaining({ name: 'run-1', status: 'running' }),
+        toResumeAfter: expect.objectContaining({ number: 1 }),
+      }),
+      expect.objectContaining({
+        run: expect.objectContaining({ name: 'run-2', status: 'interrupted' }),
+        toResumeAfter: {
+          number: 7,
+          log: { type: 'test-type', prop: 'value-2', date: date.toISOString() },
+        },
+      }),
     ]);
   });
 
