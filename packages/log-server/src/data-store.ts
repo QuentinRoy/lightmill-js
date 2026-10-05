@@ -40,7 +40,7 @@ export interface Log {
   experimentId: ExperimentId;
   experimentName: string;
   runId: RunId;
-  runName: string;
+  runName: string | null;
   runStatus: RunStatus;
   logId: LogId;
   number: number;
