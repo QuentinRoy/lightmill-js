@@ -375,6 +375,46 @@ describe('SQLiteDataStore transactions', () => {
     expect(rest).toHaveLength(4);
     await store.close();
   });
+
+  it('pages through the logs of runs without a name', async () => {
+    const store = await SQLiteDataStore.open(':memory:', {
+      selectQueryLimit: 2,
+    });
+    const runs = await store.withTransaction(async (tx) => {
+      const { experimentId } = await tx.addExperiment({ experimentName: 'e' });
+      const runs = [];
+      for (const [runName, count] of [
+        [undefined, 3],
+        [undefined, 3],
+        ['named', 2],
+      ] as const) {
+        const run = await tx.addRun({
+          experimentId,
+          runName,
+          runStatus: 'running',
+        });
+        await tx.addLogs(
+          run.runId,
+          Array.from({ length: count }, (_, i) => ({
+            type: 'log',
+            number: i + 1,
+            values: {},
+          })),
+        );
+        runs.push(run.runId);
+      }
+      return runs;
+    });
+    const logs = await fromAsync(store.getLogs());
+    // Unnamed runs sort first, then by id; the page size of 2 falls inside runs
+    // and between them.
+    expect(logs.map((log) => [log.runId, log.number])).toEqual([
+      ...[1, 2, 3].map((n) => [runs[0], n]),
+      ...[1, 2, 3].map((n) => [runs[1], n]),
+      ...[1, 2].map((n) => [runs[2], n]),
+    ]);
+    await store.close();
+  });
 });
 
 describe.for([{ queryLimit: 10000 }, { queryLimit: 2 }])(

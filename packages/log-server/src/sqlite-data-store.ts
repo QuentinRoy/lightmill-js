@@ -718,23 +718,42 @@ class Queries {
       ])
       .orderBy('experimentName')
       .orderBy('runName')
+      .orderBy('runId')
       .orderBy('logNumber')
       .limit(this.#selectQueryLimit);
     if (after != null) {
-      query = query.where((eb) =>
-        eb.or([
+      const afterRunId = toDbId(after.runId);
+      // Run names are optional and a comparison with NULL is never true, so a
+      // NULL name needs its own branches. NULL sorts first in SQLite. The run
+      // id is the tiebreaker: names alone can't order same-named runs.
+      query = query.where((eb) => {
+        const sameRunName =
+          after.runName == null
+            ? eb('runName', 'is', null)
+            : eb('runName', '=', after.runName);
+        const laterRunName =
+          after.runName == null
+            ? eb('runName', 'is not', null)
+            : eb('runName', '>', after.runName);
+        return eb.or([
           eb('experimentName', '>', after.experimentName),
           eb.and([
             eb('experimentName', '=', after.experimentName),
-            eb('runName', '>', after.runName),
+            laterRunName,
           ]),
           eb.and([
             eb('experimentName', '=', after.experimentName),
-            eb('runName', '=', after.runName),
+            sameRunName,
+            eb('runId', '>', afterRunId),
+          ]),
+          eb.and([
+            eb('experimentName', '=', after.experimentName),
+            sameRunName,
+            eb('runId', '=', afterRunId),
             eb('logNumber', '>', after.number),
           ]),
-        ]),
-      );
+        ]);
+      });
     }
     const result = await query.execute();
     return result.map((logResult) => ({
