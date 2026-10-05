@@ -3,8 +3,9 @@
 import { atomicMediaType, mediaType } from '@lightmill/log-api/vocabulary';
 import express from 'express';
 import { MemoryStore } from 'express-session';
+import log from 'loglevel';
 import request from 'supertest';
-import { afterEach, describe, test, vi } from 'vitest';
+import { afterEach, describe, onTestFinished, test, vi } from 'vitest';
 import { DataStoreError } from '../src/data-store-errors.ts';
 import {
   apiContentTypeRegExp,
@@ -579,7 +580,10 @@ describe.for(storeTypes)(
     it('answers 500 when a handler throws an error with a client status', async ({
       api,
       dataStore,
+      expect,
     }) => {
+      const logError = vi.spyOn(log, 'error').mockImplementation(() => {});
+      onTestFinished(() => logError.mockRestore());
       dataStore.getRuns.mockRejectedValueOnce(
         Object.assign(new Error('boom'), { status: 400 }),
       );
@@ -594,6 +598,9 @@ describe.for(storeTypes)(
             },
           ],
         });
+      expect(logError).toHaveBeenCalledWith(
+        expect.objectContaining({ message: 'boom' }),
+      );
     });
 
     it('keeps the atomic operations media type', async ({ api, dataStore }) => {
