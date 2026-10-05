@@ -16,7 +16,7 @@ import type { components, paths } from './generated/openapi.js';
 import { sendWithRetries } from './send-with-retries.ts';
 import { Subject, subscribeSafely } from './subject.ts';
 import type { LogValuesSerializer } from './types.js';
-import { RequestError, toError } from './utils.js';
+import { RequestError, toError, unwrap } from './utils.js';
 
 interface Typed<Type extends string = string> {
   type: Type;
@@ -213,10 +213,7 @@ export class LightmillLogger<
             body: { 'atomic:operations': batch.map((log) => log.operation) },
             signal,
           });
-          if (response.error != null) {
-            throw new RequestError(response);
-          }
-          return response.data['atomic:results'];
+          return unwrap(response)['atomic:results'];
         },
         { timeoutMs: this.#timeoutMs(batchSize), ...hooks },
       );
@@ -289,10 +286,7 @@ export class LightmillLogger<
           headers: { 'content-type': mediaType },
           signal,
         });
-        if (response.error != null) {
-          throw new RequestError(response);
-        }
-        return response.data.data.attributes.firstMissingLogNumber;
+        return unwrap(response).data.attributes.firstMissingLogNumber;
       },
       { timeoutMs: this.#timeoutMs(0) },
     );
@@ -360,9 +354,7 @@ export class LightmillLogger<
             },
             signal,
           });
-          if (response.error != null) {
-            throw new RequestError(response);
-          }
+          unwrap(response);
         },
         { timeoutMs: this.#timeoutMs(0) },
       );

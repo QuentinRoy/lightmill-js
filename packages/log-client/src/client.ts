@@ -9,7 +9,7 @@ import type {
   LogBase,
   LogValuesSerializer,
 } from './types.js';
-import { assertNever, RequestError } from './utils.js';
+import { assertNever, unwrap } from './utils.js';
 
 /**
  * Client used to discover runs and create loggers against a Lightmill log server.
@@ -74,10 +74,7 @@ export class LightmillClient<ClientLog extends LogBase = AnyLog> {
     if (response.response.status === 404) {
       return null;
     }
-    if (response.error) {
-      throw new RequestError(response);
-    }
-    return response.data.data;
+    return unwrap(response).data;
   }
 
   /**
@@ -113,10 +110,8 @@ export class LightmillClient<ClientLog extends LogBase = AnyLog> {
         },
       },
     });
-    if (response.error) {
-      throw new RequestError(response);
-    }
-    const resources = response.data.included ?? [];
+    const body = unwrap(response);
+    const resources = body.included ?? [];
     const experiments = new Map<string, ExperimentResource>();
     const logs = new Map<string, LogResource>();
     for (let r of resources) {
@@ -135,7 +130,7 @@ export class LightmillClient<ClientLog extends LogBase = AnyLog> {
     // but there should always be only one resumable run anyway, so
     // this is not a big deal.
     return Promise.all(
-      response.data.data.map(async (r) => {
+      body.data.map(async (r) => {
         let experiment = experiments.get(r.relationships.experiment.data.id);
         if (experiment == null) {
           throw new Error(
@@ -252,10 +247,8 @@ export class LightmillClient<ClientLog extends LogBase = AnyLog> {
     });
     // Checking the length isn't strictly necessary, but it makes the
     // intention clearer, and let typescript know that it may return null.
-    if (response.data != null) {
-      return response.data.data.length > 0 ? response.data.data[0] : null;
-    }
-    throw new RequestError(response);
+    const { data } = unwrap(response);
+    return data.length > 0 ? data[0] : null;
   }
 
   async #getRunFromName(
@@ -275,10 +268,8 @@ export class LightmillClient<ClientLog extends LogBase = AnyLog> {
     });
     // Checking the length isn't strictly necessary, but it makes the
     // intention clearer, and let typescript know that it may return null.
-    if (response.data != null) {
-      return response.data.data.length > 0 ? response.data.data[0] : null;
-    }
-    throw new RequestError(response);
+    const { data } = unwrap(response);
+    return data.length > 0 ? data[0] : null;
   }
 
   async #getRunIdFromName(
@@ -317,12 +308,9 @@ export class LightmillClient<ClientLog extends LogBase = AnyLog> {
         },
       },
     });
-    if (response.error) {
-      throw new RequestError(response);
-    }
     return this.#createLogger({
       runId,
-      lastLogNumber: response.data.data.attributes.lastLogNumber,
+      lastLogNumber: unwrap(response).data.attributes.lastLogNumber,
     });
   }
 
@@ -350,10 +338,7 @@ export class LightmillClient<ClientLog extends LogBase = AnyLog> {
         },
       },
     });
-    if (response.error) {
-      throw new RequestError(response);
-    }
-    const { id: runId } = response.data.data;
+    const { id: runId } = unwrap(response).data;
     return this.#createLogger({ runId, lastLogNumber: 0 });
   }
 
@@ -383,9 +368,7 @@ export class LightmillClient<ClientLog extends LogBase = AnyLog> {
           data: { type: 'sessions', attributes: { role: 'participant' } },
         },
       });
-      if (response.error) {
-        throw new RequestError(response);
-      }
+      unwrap(response);
     }
   }
 
@@ -398,9 +381,7 @@ export class LightmillClient<ClientLog extends LogBase = AnyLog> {
     let response = await this.#fetchClient.DELETE('/sessions/{id}', {
       params: { path: { id: 'current' } },
     });
-    if (response.error) {
-      throw new RequestError(response);
-    }
+    unwrap(response);
   }
 }
 
