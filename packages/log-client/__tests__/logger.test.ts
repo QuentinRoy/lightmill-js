@@ -508,18 +508,24 @@ describe('LogClient retries', () => {
     ]);
   });
 
-  it('waits for Retry-After on a 429', async ({ logger, server }) => {
-    failOnce(server, 'post', '/operations', () =>
-      respond(429, { headers: { 'Retry-After': '5' } }),
-    );
-    const p1 = logger.addLog({ type: 'mock-log' });
-    await until(() => logger.state.status === 'retrying');
-    await vi.advanceTimersByTimeAsync(4999);
-    expect(server.requestCount('POST', '/operations')).toBe(1);
-    await vi.advanceTimersByTimeAsync(1);
-    await expect(p1).resolves.toBeUndefined();
-    expect(server.requestCount('POST', '/operations')).toBe(2);
-  });
+  for (const [title, headers] of [
+    ['waits for Retry-After on a 429', {}],
+    // Seen by openapi-fetch as a failure without a body (see the 413 tests).
+    ['waits for Retry-After on a 429 with no body', { 'Content-Length': '0' }],
+  ] as const) {
+    it(title, async ({ logger, server }) => {
+      failOnce(server, 'post', '/operations', () =>
+        respond(429, { headers: { 'Retry-After': '5', ...headers } }),
+      );
+      const p1 = logger.addLog({ type: 'mock-log' });
+      await until(() => logger.state.status === 'retrying');
+      await vi.advanceTimersByTimeAsync(4999);
+      expect(server.requestCount('POST', '/operations')).toBe(1);
+      await vi.advanceTimersByTimeAsync(1);
+      await expect(p1).resolves.toBeUndefined();
+      expect(server.requestCount('POST', '/operations')).toBe(2);
+    });
+  }
 
   it('keeps the backoff when Retry-After is shorter', async ({
     logger,

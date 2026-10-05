@@ -205,6 +205,25 @@ describe('LogClient#getResumableRuns', () => {
     ]);
   });
 
+  it('should reject when a failed response has no body', async ({
+    server,
+    client,
+  }) => {
+    server.msw.use(
+      http.get(
+        server.url('/sessions/:id'),
+        () =>
+          new HttpResponse(null, {
+            status: 500,
+            headers: { 'Content-Length': '0' },
+          }),
+      ),
+    );
+    await expect(
+      client.getResumableRuns({ resumableLogTypes: [] }),
+    ).rejects.toMatchObject({ name: 'RequestError', status: 500 });
+  });
+
   it('should only return runs matching the experiment and run names', async ({
     client,
   }) => {
