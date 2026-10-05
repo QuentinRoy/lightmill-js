@@ -381,6 +381,32 @@ describe('run', () => {
     spy.mockRestore();
   });
 
+  it('keeps a non-Error thrown by the timeline as the error cause', async () => {
+    const spy = vi.spyOn(console, 'error');
+    spy.mockImplementation(() => {});
+    const onError = vi.fn();
+    render(
+      <ErrorBoundary onError={onError}>
+        <Run
+          elements={{
+            tasks: {
+              A: <Task type="A" dataProp="a" />,
+              B: <Task type="B" dataProp="b" />,
+            },
+          }}
+          timeline={{
+            next: () => {
+              throw 'nope';
+            },
+          }}
+        />
+      </ErrorBoundary>,
+    );
+    expect(await screen.findByTestId('error')).toHaveTextContent('nope');
+    expect(onError.mock.lastCall?.[0].cause).toBe('nope');
+    spy.mockRestore();
+  });
+
   it('throws an error if the same task is completed multiple times', async () => {
     const wrapper = vi.fn(
       (f: () => void, { shouldFail }: { shouldFail: boolean }) => {

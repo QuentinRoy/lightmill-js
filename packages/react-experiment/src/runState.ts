@@ -119,7 +119,10 @@ function createRunStore<Task>({
     onError(error) {
       setSnapshot({
         status: 'error',
-        error: error instanceof Error ? error : new Error(String(error)),
+        error:
+          error instanceof Error
+            ? error
+            : new Error(String(error), { cause: error }),
       });
     },
   });
