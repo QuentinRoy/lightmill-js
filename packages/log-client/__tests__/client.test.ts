@@ -1,4 +1,4 @@
-import { bypass, http, HttpResponse } from 'msw';
+import { bypass, http, HttpResponse, passthrough } from 'msw';
 import { describe, expect } from 'vitest';
 import { LightmillClient } from '../src/client.js';
 import { LightmillLogger } from '../src/logger.js';
@@ -6,6 +6,7 @@ import { RequestError } from '../src/utils.js';
 import { serverTest } from './test-server.ts';
 
 const experimentName = 'test-experiment';
+const otherExperimentName = 'other-experiment';
 const date = new Date('2022-12-31T23:00:00.000Z');
 
 const it = serverTest.extend<{ client: LightmillClient }>({
@@ -15,6 +16,8 @@ const it = serverTest.extend<{ client: LightmillClient }>({
 });
 
 it.beforeEach(async ({ server }) => {
+  // First, so a lookup that forgets to filter by name finds the wrong one.
+  await server.addExperiment(otherExperimentName);
   await server.addExperiment(experimentName);
 });
 
@@ -203,10 +206,8 @@ describe('LogClient#getResumableRuns', () => {
   });
 
   it('should only return runs matching the experiment and run names', async ({
-    server,
     client,
   }) => {
-    await server.addExperiment('other-experiment');
     await seedRun(client, { runName: 'run-1' });
     const resumableRuns = (options: {
       experimentName?: string;
@@ -220,7 +221,7 @@ describe('LogClient#getResumableRuns', () => {
     ).resolves.toEqual([`${experimentName}/run-1`]);
     await expect(resumableRuns({ runName: 'run-2' })).resolves.toEqual([]);
     await expect(
-      resumableRuns({ experimentName: 'other-experiment' }),
+      resumableRuns({ experimentName: otherExperimentName }),
     ).resolves.toEqual([]);
   });
 });
@@ -283,6 +284,32 @@ describe('LogClient#startRun', () => {
       );
       await expect(server.storedRuns()).resolves.toEqual([]);
     });
+  });
+
+  // The server lists the newest run first and a session has one ongoing run,
+  // so a lookup without filters would still find this run: check the query.
+  it('should look a run up by its experiment and run names', async ({
+    server,
+    client,
+  }) => {
+    await seedRun(client, { runName: 'test-run', stop: 'interrupted' });
+    const queries: Array<Record<string, string>> = [];
+    server.msw.use(
+      http.get(server.url('/runs'), ({ request }) => {
+        queries.push(
+          Object.fromEntries(new URL(request.url).searchParams.entries()),
+        );
+        return passthrough();
+      }),
+    );
+    await new LightmillClient({ apiRoot: server.apiRoot }).startRun({
+      runName: 'test-run',
+      experimentName,
+      after: { number: 0 },
+    });
+    expect(queries).toEqual([
+      { 'filter[experiment.name]': experimentName, 'filter[name]': 'test-run' },
+    ]);
   });
 
   it('should resume an existing run if after is provided', async ({
