@@ -304,6 +304,45 @@ describe('run', () => {
     expect(screen.getByTestId('end')).toBeInTheDocument();
   });
 
+  it('completes right away on an empty sync timeline, calling onCompleted once', () => {
+    const onCompleted = vi.fn();
+    render(
+      <React.StrictMode>
+        <Run
+          elements={{
+            tasks: {
+              A: <Task type="A" dataProp="a" />,
+              B: <Task type="B" dataProp="b" />,
+            },
+            completed: <div data-testid="end" />,
+          }}
+          timeline={[]}
+          onCompleted={onCompleted}
+        />
+      </React.StrictMode>,
+    );
+    expect(screen.getByTestId('end')).toBeInTheDocument();
+    expect(onCompleted).toHaveBeenCalledOnce();
+  });
+
+  it('throws if the timeline is unset again', () => {
+    const elements = {
+      tasks: {
+        A: <Task type="A" dataProp="a" />,
+        B: <Task type="B" dataProp="b" />,
+      },
+    };
+    const timeline: Task[] = [{ type: 'A', a: 'hello' }];
+    const { rerender } = render(<Run elements={elements} loading />);
+    rerender(<Run elements={elements} loading timeline={timeline} />);
+    const spy = vi.spyOn(console, 'error');
+    spy.mockImplementation(() => {});
+    expect(() => {
+      rerender(<Run elements={elements} loading />);
+    }).toThrow('Timeline cannot be changed once set');
+    spy.mockRestore();
+  });
+
   it('throws an error if the timeline is changed', async () => {
     const elements = {
       tasks: {
