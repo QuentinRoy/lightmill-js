@@ -57,7 +57,7 @@ async function storedRuns(server: TestServer) {
 describe('LogClient#getResumableRuns', () => {
   // A session has at most one ongoing run, whatever its status.
   for (const status of ['running', 'interrupted'] as const) {
-    it(`should fetch a ${status} run`, async ({ client }) => {
+    it(`should fetch the ${status} run`, async ({ client }) => {
       await seedRun(client, {
         runName: 'run-1',
         end: status === 'interrupted' ? status : undefined,
