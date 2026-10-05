@@ -717,43 +717,36 @@ class Queries {
         eb.ref('l.logValues', '->').key('$').$castTo<string>().as('values'),
       ])
       .orderBy('experimentName')
-      .orderBy('runName')
+      .orderBy(runNameKey)
       .orderBy('runId')
       .orderBy('logNumber')
       .limit(this.#selectQueryLimit);
     if (after != null) {
+      // Unnamed runs have a NULL name, which no comparison matches, so the
+      // name is compared through runNameKey. runId then separates runs that
+      // share a key (unnamed ones).
       const afterRunId = toDbId(after.runId);
-      // Run names are optional and a comparison with NULL is never true, so a
-      // NULL name needs its own branches. NULL sorts first in SQLite. The run
-      // id is the tiebreaker: names alone can't order same-named runs.
-      query = query.where((eb) => {
-        const sameRunName =
-          after.runName == null
-            ? eb('runName', 'is', null)
-            : eb('runName', '=', after.runName);
-        const laterRunName =
-          after.runName == null
-            ? eb('runName', 'is not', null)
-            : eb('runName', '>', after.runName);
-        return eb.or([
+      const afterRunNameKey = after.runName ?? '';
+      query = query.where((eb) =>
+        eb.or([
           eb('experimentName', '>', after.experimentName),
           eb.and([
             eb('experimentName', '=', after.experimentName),
-            laterRunName,
+            eb(runNameKey, '>', afterRunNameKey),
           ]),
           eb.and([
             eb('experimentName', '=', after.experimentName),
-            sameRunName,
+            eb(runNameKey, '=', afterRunNameKey),
             eb('runId', '>', afterRunId),
           ]),
           eb.and([
             eb('experimentName', '=', after.experimentName),
-            sameRunName,
+            eb(runNameKey, '=', afterRunNameKey),
             eb('runId', '=', afterRunId),
             eb('logNumber', '>', after.number),
           ]),
-        ]);
-      });
+        ]),
+      );
     }
     const result = await query.execute();
     return result.map((logResult) => ({
@@ -771,6 +764,8 @@ class Queries {
     }));
   }
 }
+
+const runNameKey = sql<string>`coalesce(l.run_name, '')`;
 
 // end() waits on `set`. The copy kept there settles without rejecting, so a
 // failed call rejects only for its caller and end() still waits for it.
