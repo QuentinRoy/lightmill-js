@@ -375,6 +375,39 @@ describe('SQLiteDataStore transactions', () => {
     expect(rest).toHaveLength(4);
     await store.close();
   });
+
+  it('pages through every log of unnamed runs', async () => {
+    const store = await SQLiteDataStore.open(':memory:', {
+      selectQueryLimit: 2,
+    });
+    await store.withTransaction(async (tx) => {
+      const { experimentId } = await tx.addExperiment({ experimentName: 'e' });
+      for (const runName of [null, null, 'named']) {
+        const run = await tx.addRun({
+          experimentId,
+          runName,
+          runStatus: 'running',
+        });
+        await tx.addLogs(
+          run.runId,
+          [1, 2, 3].map((number) => ({ type: 'log', number, values: {} })),
+        );
+      }
+    });
+    const logs = await fromAsync(store.getLogs());
+    expect(logs.map((log) => [log.runName, log.number])).toEqual([
+      [null, 1],
+      [null, 2],
+      [null, 3],
+      [null, 1],
+      [null, 2],
+      [null, 3],
+      ['named', 1],
+      ['named', 2],
+      ['named', 3],
+    ]);
+    await store.close();
+  });
 });
 
 describe.for([{ queryLimit: 10000 }, { queryLimit: 2 }])(
