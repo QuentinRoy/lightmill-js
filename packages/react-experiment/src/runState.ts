@@ -81,11 +81,9 @@ const loadingSnapshot = { status: 'loading' } as const;
 function createRunStore<Task>({
   timeline,
   resumeAfterTask,
-  onCompleted,
 }: {
   timeline: AnyIteratorOrIterable<Task>;
   resumeAfterTask?: (task: Task) => boolean;
-  onCompleted: () => void;
 }): RunStore<Task> {
   const listeners = new Set<() => void>();
   let snapshot: StoreSnapshot<Task> = loadingSnapshot;
@@ -117,7 +115,6 @@ function createRunStore<Task>({
     },
     onTimelineCompleted() {
       setSnapshot({ status: 'completed' });
-      onCompleted();
     },
     onError(error) {
       setSnapshot({
@@ -173,29 +170,16 @@ export function useRunState<Task>({
   loading,
 }: UseRunStateOptions<Task>): RunState<Task> {
   const onCompletedRef = React.useRef(onCompleted);
-  // Insertion effects run before the effect that starts the store.
+  // Insertion effects run before the effects that start the store and report
+  // its completion.
   React.useInsertionEffect(() => {
     onCompletedRef.current = onCompleted;
   });
 
-  // onCompleted only runs while Run is mounted. A completion that lands while
-  // it is not (e.g. hidden by <Activity>) waits for the next mount, so it is
-  // not lost; if there is none, nobody is left to be told.
-  const mountedRef = React.useRef(false);
-  const completedWhileUnmountedRef = React.useRef(false);
-  const notifyCompleted = () => {
-    if (mountedRef.current) onCompletedRef.current?.();
-    else completedWhileUnmountedRef.current = true;
-  };
-
   const storeRef = React.useRef<RunStore<Task> | null>(null);
   if (storeRef.current == null) {
     if (timeline != null) {
-      storeRef.current = createRunStore({
-        timeline,
-        resumeAfterTask,
-        onCompleted: notifyCompleted,
-      });
+      storeRef.current = createRunStore({ timeline, resumeAfterTask });
     }
   } else if (storeRef.current.timeline !== timeline) {
     throw new Error('Timeline cannot be changed once set');
@@ -203,15 +187,7 @@ export function useRunState<Task>({
   const store = storeRef.current ?? noStore;
 
   React.useEffect(() => {
-    mountedRef.current = true;
-    if (completedWhileUnmountedRef.current) {
-      completedWhileUnmountedRef.current = false;
-      onCompletedRef.current?.();
-    }
     store.start();
-    return () => {
-      mountedRef.current = false;
-    };
   }, [store]);
 
   const snapshot = React.useSyncExternalStore(
@@ -222,6 +198,16 @@ export function useRunState<Task>({
   if (snapshot.status === 'error') {
     throw snapshot.error;
   }
+
+  // From an effect so that it never runs for a Run that is gone, and still runs
+  // once a Run hidden by <Activity> that completed meanwhile is shown again.
+  const completedNotifiedRef = React.useRef(false);
+  const completed = snapshot.status === 'completed';
+  React.useEffect(() => {
+    if (!completed || completedNotifiedRef.current) return;
+    completedNotifiedRef.current = true;
+    onCompletedRef.current?.();
+  }, [completed]);
 
   const interrupted = paused || loading;
   const holdsRunningTask = useHoldsRunningTask(
