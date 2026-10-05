@@ -717,20 +717,32 @@ class Queries {
         eb.ref('l.logValues', '->').key('$').$castTo<string>().as('values'),
       ])
       .orderBy('experimentName')
-      .orderBy('runName')
+      .orderBy(runNameKey)
+      .orderBy('runId')
       .orderBy('logNumber')
       .limit(this.#selectQueryLimit);
     if (after != null) {
+      // Unnamed runs have a NULL name, which no comparison matches, so the
+      // name is compared through runNameKey. runId then separates runs that
+      // share a key (unnamed ones).
+      const afterRunId = toDbId(after.runId);
+      const afterRunNameKey = after.runName ?? '';
       query = query.where((eb) =>
         eb.or([
           eb('experimentName', '>', after.experimentName),
           eb.and([
             eb('experimentName', '=', after.experimentName),
-            eb('runName', '>', after.runName),
+            eb(runNameKey, '>', afterRunNameKey),
           ]),
           eb.and([
             eb('experimentName', '=', after.experimentName),
-            eb('runName', '=', after.runName),
+            eb(runNameKey, '=', afterRunNameKey),
+            eb('runId', '>', afterRunId),
+          ]),
+          eb.and([
+            eb('experimentName', '=', after.experimentName),
+            eb(runNameKey, '=', afterRunNameKey),
+            eb('runId', '=', afterRunId),
             eb('logNumber', '>', after.number),
           ]),
         ]),
@@ -752,6 +764,8 @@ class Queries {
     }));
   }
 }
+
+const runNameKey = sql<string>`coalesce(l.run_name, '')`;
 
 // end() waits on `set`. The copy kept there settles without rejecting, so a
 // failed call rejects only for its caller and end() still waits for it.
