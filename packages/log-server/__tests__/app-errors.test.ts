@@ -33,7 +33,7 @@ const bodyErrorRoutes = [
   ['/operations/', atomicMediaType, atomicContentTypeRegExp],
 ] as const;
 
-describe.for(storeTypes)('LogServer Errors (%s server)', (storeType) => {
+describe.for(storeTypes)('createLogServer Errors (%s server)', (storeType) => {
   const it = test.extend<Fixture>({
     api: async ({}, use) => {
       let { server } = await createServerContext({ type: storeType });
@@ -394,159 +394,164 @@ describe.for(storeTypes)('LogServer Errors (%s server)', (storeType) => {
   );
 });
 
-describe.for(storeTypes)('LogServer: busy store (%s server)', (storeType) => {
-  const it = test.extend<{ api: request.Agent; dataStore: MockedDataStore }>({
-    dataStore: async ({}, use) => {
-      const { dataStore } = await createServerContext({ type: storeType });
-      await use(dataStore);
-    },
-    api: async ({ dataStore }, use) => {
-      const { server } = await createServerContext({
-        dataStore,
-        sessionStore: new MemoryStore(),
-      });
-      const api = request.agent(await listen(express().use(server.middleware)));
-      await api
-        .post('/sessions')
-        .set('Content-Type', mediaType)
-        .send({ data: { type: 'sessions', attributes: { role: 'host' } } })
-        .expect(201);
-      await use(api);
-    },
-  });
-  const conflict = () =>
-    new DataStoreError(
-      'The transaction conflicted with another one.',
-      DataStoreError.TRANSACTION_CONFLICT,
-    );
-  const serviceUnavailable = {
-    errors: [
-      {
-        status: 'Service Unavailable',
-        code: 'SERVICE_UNAVAILABLE',
-        detail:
-          'The server could not process the request right now, and nothing was saved. Try again.',
+describe.for(storeTypes)(
+  'createLogServer: busy store (%s server)',
+  (storeType) => {
+    const it = test.extend<{ api: request.Agent; dataStore: MockedDataStore }>({
+      dataStore: async ({}, use) => {
+        const { dataStore } = await createServerContext({ type: storeType });
+        await use(dataStore);
       },
-    ],
-  };
-
-  it('answers 503 with Retry-After when a transaction conflicts', async ({
-    api,
-    dataStore,
-  }) => {
-    dataStore.withTransaction.mockRejectedValueOnce(conflict());
-    await api
-      .post('/runs')
-      .set('Content-Type', mediaType)
-      .send({
-        data: {
-          type: 'runs',
-          attributes: { name: null, status: 'idle' },
-          relationships: {
-            experiment: { data: { type: 'experiments', id: '1' } },
-          },
+      api: async ({ dataStore }, use) => {
+        const { server } = await createServerContext({
+          dataStore,
+          sessionStore: new MemoryStore(),
+        });
+        const api = request.agent(
+          await listen(express().use(server.middleware)),
+        );
+        await api
+          .post('/sessions')
+          .set('Content-Type', mediaType)
+          .send({ data: { type: 'sessions', attributes: { role: 'host' } } })
+          .expect(201);
+        await use(api);
+      },
+    });
+    const conflict = () =>
+      new DataStoreError(
+        'The transaction conflicted with another one.',
+        DataStoreError.TRANSACTION_CONFLICT,
+      );
+    const serviceUnavailable = {
+      errors: [
+        {
+          status: 'Service Unavailable',
+          code: 'SERVICE_UNAVAILABLE',
+          detail:
+            'The server could not process the request right now, and nothing was saved. Try again.',
         },
-      })
-      .expect('Content-Type', apiContentTypeRegExp)
-      .expect('Retry-After', '1')
-      .expect(503, serviceUnavailable);
-  });
+      ],
+    };
 
-  it('answers 503 when a read conflicts', async ({ api, dataStore }) => {
-    dataStore.getRuns.mockRejectedValueOnce(conflict());
-    await api
-      .get('/runs')
-      .expect('Retry-After', '1')
-      .expect(503, serviceUnavailable);
-  });
-
-  it('keeps the atomic operations media type', async ({ api, dataStore }) => {
-    const { experimentId } = await dataStore.withTransaction((tx) =>
-      tx.addExperiment({ experimentName: 'experiment' }),
-    );
-    const run = await api
-      .post('/runs')
-      .set('Content-Type', mediaType)
-      .send({
-        data: {
-          type: 'runs',
-          attributes: { name: 'run', status: 'running' },
-          relationships: {
-            experiment: { data: { type: 'experiments', id: experimentId } },
-          },
-        },
-      })
-      .expect(201);
-    dataStore.withTransaction.mockRejectedValueOnce(conflict());
-    await api
-      .post('/operations')
-      .set('Content-Type', atomicMediaType)
-      .send({
-        'atomic:operations': [
-          {
-            op: 'add',
-            data: {
-              type: 'logs',
-              attributes: { number: 1, logType: 'test', values: {} },
-              relationships: {
-                run: { data: { type: 'runs', id: run.body.data.id } },
-              },
+    it('answers 503 with Retry-After when a transaction conflicts', async ({
+      api,
+      dataStore,
+    }) => {
+      dataStore.withTransaction.mockRejectedValueOnce(conflict());
+      await api
+        .post('/runs')
+        .set('Content-Type', mediaType)
+        .send({
+          data: {
+            type: 'runs',
+            attributes: { name: null, status: 'idle' },
+            relationships: {
+              experiment: { data: { type: 'experiments', id: '1' } },
             },
           },
-        ],
-      })
-      .expect('Content-Type', atomicContentTypeRegExp)
-      .expect('Retry-After', '1')
-      .expect(503, serviceUnavailable);
-  });
+        })
+        .expect('Content-Type', apiContentTypeRegExp)
+        .expect('Retry-After', '1')
+        .expect(503, serviceUnavailable);
+    });
 
-  it('keeps the atomic operations media type on a 500', async ({
-    api,
-    dataStore,
-  }) => {
-    const { experimentId } = await dataStore.withTransaction((tx) =>
-      tx.addExperiment({ experimentName: 'experiment' }),
-    );
-    const run = await api
-      .post('/runs')
-      .set('Content-Type', mediaType)
-      .send({
-        data: {
-          type: 'runs',
-          attributes: { name: 'run', status: 'running' },
-          relationships: {
-            experiment: { data: { type: 'experiments', id: experimentId } },
-          },
-        },
-      })
-      .expect(201);
-    dataStore.withTransaction.mockRejectedValueOnce(new Error('boom'));
-    await api
-      .post('/operations')
-      .set('Content-Type', atomicMediaType)
-      .send({
-        'atomic:operations': [
-          {
-            op: 'add',
-            data: {
-              type: 'logs',
-              attributes: { number: 1, logType: 'test', values: {} },
-              relationships: {
-                run: { data: { type: 'runs', id: run.body.data.id } },
-              },
+    it('answers 503 when a read conflicts', async ({ api, dataStore }) => {
+      dataStore.getRuns.mockRejectedValueOnce(conflict());
+      await api
+        .get('/runs')
+        .expect('Retry-After', '1')
+        .expect(503, serviceUnavailable);
+    });
+
+    it('keeps the atomic operations media type', async ({ api, dataStore }) => {
+      const { experimentId } = await dataStore.withTransaction((tx) =>
+        tx.addExperiment({ experimentName: 'experiment' }),
+      );
+      const run = await api
+        .post('/runs')
+        .set('Content-Type', mediaType)
+        .send({
+          data: {
+            type: 'runs',
+            attributes: { name: 'run', status: 'running' },
+            relationships: {
+              experiment: { data: { type: 'experiments', id: experimentId } },
             },
           },
-        ],
-      })
-      .expect('Content-Type', atomicContentTypeRegExp)
-      .expect(500, {
-        errors: [
-          {
-            status: 'Internal Server Error',
-            code: 'INTERNAL_SERVER_ERROR',
-            detail: 'boom',
+        })
+        .expect(201);
+      dataStore.withTransaction.mockRejectedValueOnce(conflict());
+      await api
+        .post('/operations')
+        .set('Content-Type', atomicMediaType)
+        .send({
+          'atomic:operations': [
+            {
+              op: 'add',
+              data: {
+                type: 'logs',
+                attributes: { number: 1, logType: 'test', values: {} },
+                relationships: {
+                  run: { data: { type: 'runs', id: run.body.data.id } },
+                },
+              },
+            },
+          ],
+        })
+        .expect('Content-Type', atomicContentTypeRegExp)
+        .expect('Retry-After', '1')
+        .expect(503, serviceUnavailable);
+    });
+
+    it('keeps the atomic operations media type on a 500', async ({
+      api,
+      dataStore,
+    }) => {
+      const { experimentId } = await dataStore.withTransaction((tx) =>
+        tx.addExperiment({ experimentName: 'experiment' }),
+      );
+      const run = await api
+        .post('/runs')
+        .set('Content-Type', mediaType)
+        .send({
+          data: {
+            type: 'runs',
+            attributes: { name: 'run', status: 'running' },
+            relationships: {
+              experiment: { data: { type: 'experiments', id: experimentId } },
+            },
           },
-        ],
-      });
-  });
-});
+        })
+        .expect(201);
+      dataStore.withTransaction.mockRejectedValueOnce(new Error('boom'));
+      await api
+        .post('/operations')
+        .set('Content-Type', atomicMediaType)
+        .send({
+          'atomic:operations': [
+            {
+              op: 'add',
+              data: {
+                type: 'logs',
+                attributes: { number: 1, logType: 'test', values: {} },
+                relationships: {
+                  run: { data: { type: 'runs', id: run.body.data.id } },
+                },
+              },
+            },
+          ],
+        })
+        .expect('Content-Type', atomicContentTypeRegExp)
+        .expect(500, {
+          errors: [
+            {
+              status: 'Internal Server Error',
+              code: 'INTERNAL_SERVER_ERROR',
+              detail: 'boom',
+            },
+          ],
+        });
+    });
+  },
+);

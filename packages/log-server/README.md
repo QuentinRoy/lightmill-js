@@ -4,7 +4,7 @@ Express middleware and datastore implementation for receiving and querying Light
 
 The package exports:
 
-1. `LogServer(...)`: create API middleware.
+1. `createLogServer(...)`: API middleware factory.
 2. `SQLiteDataStore`: SQLite-backed `DataStore` implementation.
 3. `DataStore` type.
 
@@ -18,13 +18,13 @@ npm install @lightmill/log-server express
 
 ```ts
 import express from 'express';
-import { LogServer, SQLiteDataStore } from '@lightmill/log-server';
+import { createLogServer, SQLiteDataStore } from '@lightmill/log-server';
 
 const app = express();
 await SQLiteDataStore.migrateDatabase('./lightmill.db');
 const dataStore = await SQLiteDataStore.open('./lightmill.db');
 
-const { middleware } = LogServer({
+const { middleware } = createLogServer({
   dataStore,
   sessionKeys: ['replace-with-a-secure-secret'],
 });
@@ -49,8 +49,9 @@ log-server experiment add pointing-study --database ./data.sqlite
 The command creates the database if needed. An existing name produces an error
 and exit code 1.
 
-If you embed `LogServer`, add the experiment to the datastore after opening
-it and before accepting runs. Run this setup only once for each name:
+If you call `createLogServer` yourself, add the experiment to the datastore
+after opening it and before accepting runs. Run this setup only once for each
+name:
 
 ```ts
 await dataStore.withTransaction((tx) =>
@@ -77,7 +78,7 @@ logs to it or changes it. A host may still cancel any run.
 
 ## API Reference
 
-### `LogServer(options)`
+### `createLogServer(options)`
 
 Creates an object with `middleware: express.RequestHandler`.
 
@@ -95,7 +96,7 @@ Common optional options:
 - `sessionMaxAge` (cookie lifetime in milliseconds)
 - `trustProxy`
 
-By default, `LogServer` uses cross-origin cookies, which require HTTPS.
+By default, the server uses cross-origin cookies, which require HTTPS.
 For a page and API served from the same origin over HTTP, set
 `allowCrossOrigin: false`. This also turns off secure cookies. Browsers
 reject cross-origin cookies without the `Secure` attribute, so
@@ -104,12 +105,12 @@ reject cross-origin cookies without the `Secure` attribute, so
 ### Resuming runs after a restart
 
 Participant sessions keep the list of runs they can access. By default,
-`LogServer` stores sessions in memory, so restarting the server loses that
-list. Run logs in `SQLiteDataStore` remain, but a participant can no longer
-find or resume those runs through the client.
+the server stores sessions in memory, so restarting it loses that list. Run
+logs in `SQLiteDataStore` remain, but a participant can no longer find or
+resume those runs through the client.
 
-If participants need to resume after a server restart when embedding
-`LogServer`, pass a persistent `express-session` compatible store as
+If participants need to resume after a restart of a server you create with
+`createLogServer`, pass a persistent `express-session` compatible store as
 `sessionStore`, such as the one from
 [`SQLiteDataStore#getSessionStore()`](#class-sqlitedatastore). Set
 `sessionMaxAge` if the browser cookie must also survive closing and reopening
@@ -124,7 +125,7 @@ the browser deletes its cookie or if the session signing key changes.
 
 ### Session stores and concurrent requests
 
-`POST /runs` and `DELETE /sessions/current` change the session, so `LogServer`
+`POST /runs` and `DELETE /sessions/current` change the session, so the server
 handles them one at a time for each session. It reads the session again once
 its turn comes. A store you pass as `sessionStore` must therefore return what
 it just saved when the same process reads it back: once `set` calls back, `get`
@@ -170,7 +171,7 @@ database, on the data store's connection. Every call returns the same store.
 ```ts
 await SQLiteDataStore.migrateDatabase('data.sqlite');
 const dataStore = await SQLiteDataStore.open('data.sqlite');
-LogServer({
+createLogServer({
   dataStore,
   sessionStore: dataStore.getSessionStore(),
   sessionKeys: ['replace-with-a-secure-secret'],
@@ -236,7 +237,7 @@ await dataStore.withTransaction(async (tx) => {
 - **Closing.** `close()` rejects new operations with `STORE_CLOSED` at once,
   waits for the ones in flight, then releases the connection. It can be
   called many times. Calling it inside `fn` deadlocks. The creator of a
-  datastore closes it: `LogServer` never closes the one it is given.
+  datastore closes it: `createLogServer` never closes the one it is given.
 
 The documented `DataStoreError` codes are the same for every datastore, and a
 driver error is their `cause`. A failure with no documented code propagates

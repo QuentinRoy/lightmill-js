@@ -2,11 +2,11 @@ import { mediaType, sessionCookieName } from '@lightmill/log-api/vocabulary';
 import express from 'express';
 import session from 'express-session';
 import MemorySessionStoreModule from 'memorystore';
-import { experimentHandlers } from './app-experiments-handlers.ts';
-import { logHandlers } from './app-logs-handlers.ts';
-import { operationHandlers } from './app-operations-handlers.ts';
-import { runHandlers } from './app-runs-handlers.ts';
-import { sessionHandlers } from './app-sessions-handlers.ts';
+import { createExperimentHandlers } from './app-experiments-handlers.ts';
+import { createLogHandlers } from './app-logs-handlers.ts';
+import { createOperationHandlers } from './app-operations-handlers.ts';
+import { createRunHandlers } from './app-runs-handlers.ts';
+import { createSessionHandlers } from './app-sessions-handlers.ts';
 import type { DataStore } from './data-store.ts';
 import {
   createErrorHandler,
@@ -34,7 +34,7 @@ type CreateLogServerOptions = {
   | { allowCrossOrigin: false; secureCookies?: boolean | undefined }
 );
 
-export function LogServer({
+export function createLogServer({
   dataStore,
   sessionKeys,
   hostPassword,
@@ -92,11 +92,11 @@ export function LogServer({
   const handlers = validateHandlers({
     validateResponse: true,
     handlers: {
-      ...sessionHandlers({ hostPassword, hostUser }),
-      ...experimentHandlers(),
-      ...runHandlers(),
-      ...logHandlers(),
-      ...operationHandlers(),
+      ...createSessionHandlers({ hostPassword, hostUser }),
+      ...createExperimentHandlers(),
+      ...createRunHandlers(),
+      ...createLogHandlers(),
+      ...createOperationHandlers(),
     },
   });
 

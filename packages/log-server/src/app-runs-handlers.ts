@@ -13,13 +13,13 @@ import {
 } from './json-api.ts';
 import type { HandlerResponseFromRoute, PathHandlers } from './router.ts';
 import {
-  createRun,
+  addRunToExperiment,
   ongoingRunStatuses,
   RunRejection,
   updateRun,
 } from './run-lifecycle.ts';
 
-export const runHandlers = (): PathHandlers<'/runs'> => ({
+export const createRunHandlers = (): PathHandlers<'/runs'> => ({
   '/runs': {
     async get({ sessionData, parameters, dataStore: store }) {
       const filter = {
@@ -54,7 +54,7 @@ export const runHandlers = (): PathHandlers<'/runs'> => ({
         }
         try {
           const run = await store.withTransaction((tx) =>
-            createRun(tx, { status, experimentId, runName: name }),
+            addRunToExperiment(tx, { status, experimentId, runName: name }),
           );
           await save({
             ...sessionData,

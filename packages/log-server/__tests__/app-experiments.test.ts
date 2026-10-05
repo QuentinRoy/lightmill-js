@@ -25,7 +25,7 @@ const participantTests = allTests.filter(
 );
 
 describe.for(hostTests)(
-  'LogServer: post /experiments ($sessionType session, $storeType store)',
+  'createLogServer: post /experiments ($sessionType session, $storeType store)',
   ({ test: it }) => {
     it('creates an experiment', async ({ session: { api } }) => {
       await api
@@ -71,7 +71,7 @@ describe.for(hostTests)(
 );
 
 describe.for(participantTests)(
-  'LogServer: post /experiments ($sessionType session, $storeType store)',
+  'createLogServer: post /experiments ($sessionType session, $storeType store)',
   ({ test: it }) => {
     it('refuses to create an experiment', async ({
       expect,
@@ -101,7 +101,7 @@ describe.for(participantTests)(
 );
 
 describe.for(allTests)(
-  'LogServer: get /experiments ($sessionType session, $storeType store)',
+  'createLogServer: get /experiments ($sessionType session, $storeType store)',
   ({ sessionType, storeType }) => {
     const it = createSessionTest({
       sessionType,
@@ -179,7 +179,7 @@ describe.for(allTests)(
 );
 
 describe.for(allTests)(
-  'LogServer: get /experiments/{id} ($sessionType session, $storeType store)',
+  'createLogServer: get /experiments/{id} ($sessionType session, $storeType store)',
   ({ test: it }) => {
     it('returns an experiment by ID', async ({
       session: { api, dataStore },

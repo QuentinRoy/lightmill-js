@@ -151,7 +151,7 @@ const stores = [
 ];
 
 describe.for(stores)(
-  'LogServer: session ordering ($name)',
+  'createLogServer: session ordering ($name)',
   ({ innerSessionStore, touchSavesWholeSession = false }) => {
     const test = baseTest.extend<Fixture>({
       context: async ({}, use) => {

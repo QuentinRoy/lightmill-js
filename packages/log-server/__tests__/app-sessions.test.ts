@@ -5,7 +5,7 @@ import express, { type Application } from 'express';
 import { Store as SessionStore } from 'express-session';
 import request from 'supertest';
 import { describe, expect, test as vitestTest } from 'vitest';
-import { LogServer } from '../src/app.ts';
+import { createLogServer } from '../src/app.ts';
 import type { DataStore } from '../src/data-store.ts';
 import {
   apiContentTypeRegExp,
@@ -35,7 +35,7 @@ const suite = storeTypes.map((storeType) => ({
     // @ts-expect-error There is something weird with express' Application type
     // that messes up with vitest's fixtures, but it's not a big deal.
     app: async ({ dataStore, sessionStore }, use) => {
-      let server = LogServer({
+      let server = createLogServer({
         dataStore: dataStore,
         sessionStore,
         sessionKeys: ['secret'],
@@ -57,8 +57,11 @@ const suite = storeTypes.map((storeType) => ({
 vitestTest('same-origin sessions set a usable cookie on HTTP', async () => {
   let dataStore = await dataStoreCreators[storeTypes[0]]();
   let app = express().use(
-    LogServer({ dataStore, sessionKeys: ['secret'], allowCrossOrigin: false })
-      .middleware,
+    createLogServer({
+      dataStore,
+      sessionKeys: ['secret'],
+      allowCrossOrigin: false,
+    }).middleware,
   );
   let api = request.agent(await listen(app));
   let response = await api
@@ -76,7 +79,7 @@ vitestTest('same-origin sessions set a usable cookie on HTTP', async () => {
 vitestTest('default sessions require HTTPS for a cookie', async () => {
   let dataStore = await dataStoreCreators[storeTypes[0]]();
   let app = express().use(
-    LogServer({ dataStore, sessionKeys: ['secret'] }).middleware,
+    createLogServer({ dataStore, sessionKeys: ['secret'] }).middleware,
   );
   let response = await request(await listen(app))
     .post('/sessions')
@@ -88,7 +91,7 @@ vitestTest('default sessions require HTTPS for a cookie', async () => {
 });
 
 describe.for(suite)(
-  'LogServer: post /sessions ($storeType)',
+  'createLogServer: post /sessions ($storeType)',
   ({ test: it }) => {
     it('can set up a participant session', async ({ api }) => {
       await api
@@ -124,7 +127,7 @@ describe.for(suite)(
     it('always creates a host role if there are no host passwords set on the server', async ({
       dataStore,
     }) => {
-      let server = LogServer({
+      let server = createLogServer({
         dataStore: dataStore,
         sessionKeys: ['secret'],
         hostUser: 'host user',
@@ -240,7 +243,7 @@ describe.for(suite)(
 );
 
 describe.for(suite)(
-  'LogServer: get /sessions/{id} ($storeType)',
+  'createLogServer: get /sessions/{id} ($storeType)',
   ({ test: it }) => {
     it('returns a 404 error if no sessions have been created', async ({
       api,
@@ -367,7 +370,7 @@ describe.for(suite)(
 );
 
 describe.for(suite)(
-  'LogServer: delete /sessions/{id} ($storeType)',
+  'createLogServer: delete /sessions/{id} ($storeType)',
   ({ test: it }) => {
     it('clears the current session', async ({ api }) => {
       await api

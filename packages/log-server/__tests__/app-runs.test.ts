@@ -64,7 +64,7 @@ beforeEach(() => {
 });
 
 describeForAll(
-  'LogServer: post /runs ($sessionType / $storeType)',
+  'createLogServer: post /runs ($sessionType / $storeType)',
   ({ test: it }) => {
     it.for([{ hasAName: true }, { hasAName: false }])(
       'creates a run (with a name: $hasAName)',
@@ -255,7 +255,7 @@ describeForAll(
 );
 
 describeForAll(
-  'LogServer: get /runs/:run ($sessionType / $storeType)',
+  'createLogServer: get /runs/:run ($sessionType / $storeType)',
   ({ test: it, sessionType }) => {
     it('returns a 404 error if the run does not exist', async ({
       context: { api },
@@ -398,7 +398,7 @@ describeForAll(
 );
 
 describeForAll(
-  'LogServer: patch /runs/:run ($sessionType / $storeType)',
+  'createLogServer: patch /runs/:run ($sessionType / $storeType)',
   ({ test: it, sessionType }) => {
     it('returns a 404 error if the client tries to change the status of the run that does not exist', async ({
       context: { api },
@@ -1132,7 +1132,7 @@ describeForAll(
 );
 
 describeForAll(
-  'LogServer: get /runs ($sessionType / $storeType)',
+  'createLogServer: get /runs ($sessionType / $storeType)',
   ({ test: it, sessionType }) => {
     it(
       sessionType === 'host'

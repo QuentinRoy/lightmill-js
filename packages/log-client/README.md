@@ -121,7 +121,7 @@ const state = useSyncExternalStore(logger.subscribe, () => logger.state);
 - `flush()` only waits for logs queued before it was called.
 - `getResumableRuns()` only finds runs in the browser's current participant
   session. It returns an empty list if that session is gone. The standalone
-  server persists sessions; an embedded `LogServer` needs a persistent
-  session store to keep them across restarts. See
+  server persists sessions; a server created with `createLogServer` needs a
+  persistent session store to keep them across restarts. See
   [resuming runs after a restart](../log-server/README.md#resuming-runs-after-a-restart)
   for setup and cookie lifetime.

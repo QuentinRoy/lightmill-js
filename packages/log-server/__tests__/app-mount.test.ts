@@ -2,19 +2,19 @@ import { mediaType } from '@lightmill/log-api/vocabulary';
 import express from 'express';
 import request from 'supertest';
 import { describe, it } from 'vitest';
-import { LogServer } from '../src/app.ts';
+import { createLogServer } from '../src/app.ts';
 import {
   createServerContext,
   listen,
   storeTypes,
 } from './__fixtures__/test-utils.ts';
 
-describe.for(storeTypes)('LogServer (%s)', (storeType) => {
+describe.for(storeTypes)('createLogServer (%s)', (storeType) => {
   it('can be mounted on a sub path', async () => {
     let { dataStore, sessionStore } = await createServerContext({
       type: storeType,
     });
-    let server = LogServer({
+    let server = createLogServer({
       baseUrl: '/api',
       dataStore,
       sessionStore,

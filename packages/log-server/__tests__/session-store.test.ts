@@ -7,7 +7,7 @@ import os from 'node:os';
 import path from 'node:path';
 import request from 'supertest';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { LogServer } from '../src/app.ts';
+import { createLogServer } from '../src/app.ts';
 import { SQLiteDataStore } from '../src/sqlite-data-store.ts';
 import { listen } from './__fixtures__/test-utils.ts';
 
@@ -24,7 +24,7 @@ afterEach(() => {
 async function openServer(options: { sessionMaxAge?: number } = {}) {
   await SQLiteDataStore.migrateDatabase(database);
   const dataStore = await SQLiteDataStore.open(database);
-  const middleware = LogServer({
+  const middleware = createLogServer({
     dataStore,
     sessionStore: dataStore.getSessionStore(),
     sessionKeys: ['secret'],
@@ -60,7 +60,7 @@ function toError(error: unknown) {
   return error instanceof Error ? error : new Error(String(error));
 }
 
-describe('getSessionStore through LogServer', () => {
+describe('getSessionStore through createLogServer', () => {
   it('keeps a session after the server restarts', async () => {
     const first = await openServer({ sessionMaxAge: 60_000 });
     const cookie = await createSession(first.api());
