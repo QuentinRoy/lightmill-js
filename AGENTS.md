@@ -38,4 +38,7 @@ Data loss is the worst failure. Every path that can drop data a caller handed ov
 
 ## Finishing
 
-Before handing off, run `pnpm lint`, `pnpm typecheck`, and `pnpm test`. `pnpm typecheck` needs the packages built first (`pnpm build-all`). A pull request that implements an issue says `Fixes #N` in its body. Leave merging to the maintainer. For work tracked in beads, follow the [completion rules](docs/agents/issue-tracker.md#closing-beads).
+1. Run `pnpm build-all`. Typecheck and log-client's tests read the built packages, log-server's `dist` included, so a stale build checks old code.
+2. Hand off once `pnpm lint`, `pnpm typecheck`, and `pnpm test` all pass.
+
+A pull request that implements an issue says `Fixes #N` in its body. Leave merging to the maintainer. For work tracked in beads, follow the [completion rules](docs/agents/issue-tracker.md#closing-beads).

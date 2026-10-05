@@ -64,6 +64,39 @@ export class RequestError extends Error {
   }
 }
 
+type FetchResult = {
+  data?: unknown;
+  error?: ConstructorParameters<typeof RequestError>[0]['error'];
+  response: Response;
+};
+// The data of the successful member of an openapi-fetch result union. Inferring
+// it from the parameter instead would give `T | undefined`, because the failed
+// member has `data?: never`.
+type SuccessData<R extends FetchResult> = R extends {
+  data: infer D;
+  error?: never;
+}
+  ? D
+  : never;
+
+/**
+ * Returns the data of a successful openapi-fetch result, and throws a
+ * RequestError for a failed one. The return type holds because of that check:
+ * a result that passes it is the successful member of the union.
+ */
+export function unwrap<R extends FetchResult>(result: R): SuccessData<R>;
+export function unwrap(result: FetchResult): unknown {
+  // openapi-fetch leaves `error` undefined for a failed response without a
+  // body, so `error` alone would let it through as a success.
+  if (result.error !== undefined || !result.response.ok) {
+    throw new RequestError({
+      response: result.response,
+      error: result.error ?? '',
+    });
+  }
+  return result.data;
+}
+
 export function assertNever(value: never, isCrashing: boolean = false): never {
   if (isCrashing) {
     throw new Error(`Unexpected value: ${value}`);
