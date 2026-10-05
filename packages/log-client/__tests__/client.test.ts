@@ -20,7 +20,8 @@ it.beforeEach(async ({ server }) => {
 
 type Logger = Awaited<ReturnType<LightmillClient['startRun']>>;
 
-const endRun = {
+// Interrupted is not an ended run: it stays ongoing, and can be resumed.
+const stopRun = {
   completed: (logger: Logger) => logger.completeRun(),
   canceled: (logger: Logger) => logger.cancelRun(),
   interrupted: (logger: Logger) => logger.interruptRun(),
@@ -32,18 +33,18 @@ async function seedRun(
   {
     runName,
     logs = [],
-    end,
+    stop,
   }: {
     runName: string;
     logs?: Array<{ type: string; values?: Record<string, string> }>;
-    end?: keyof typeof endRun;
+    stop?: keyof typeof stopRun;
   },
 ) {
   const logger = await client.startRun({ experimentName, runName });
   await Promise.all(
     logs.map(({ type, values }) => logger.addLog({ type, date, ...values })),
   );
-  if (end != null) await endRun[end](logger);
+  if (stop != null) await stopRun[stop](logger);
   return logger;
 }
 
@@ -60,7 +61,7 @@ describe('LogClient#getResumableRuns', () => {
     it(`should fetch the ${status} run`, async ({ client }) => {
       await seedRun(client, {
         runName: 'run-1',
-        end: status === 'interrupted' ? status : undefined,
+        stop: status === 'interrupted' ? status : undefined,
         logs: [
           { type: 'test-type', values: { prop: 'value-1' } },
           { type: 'other-type', values: { prop: 'value-2' } },
@@ -87,9 +88,9 @@ describe('LogClient#getResumableRuns', () => {
 
   it('should ignore ended runs', async ({ client }) => {
     const logs = [{ type: 'test-type' }];
-    await seedRun(client, { runName: 'run-1', end: 'canceled', logs });
-    await seedRun(client, { runName: 'run-2', end: 'completed', logs });
-    await seedRun(client, { runName: 'run-3', end: 'interrupted', logs });
+    await seedRun(client, { runName: 'run-1', stop: 'canceled', logs });
+    await seedRun(client, { runName: 'run-2', stop: 'completed', logs });
+    await seedRun(client, { runName: 'run-3', stop: 'interrupted', logs });
     await expect(
       client.getResumableRuns({ resumableLogTypes: ['test-type'] }),
     ).resolves.toEqual([
@@ -128,7 +129,7 @@ describe('LogClient#getResumableRuns', () => {
   }) => {
     await seedRun(client, {
       runName: 'run-name',
-      end: 'completed',
+      stop: 'completed',
       logs: [{ type: 'test-type' }],
     });
     await expect(
@@ -295,7 +296,7 @@ describe('LogClient#startRun', () => {
   }) => {
     await seedRun(client, {
       runName: 'test-run',
-      end: 'interrupted',
+      stop: 'interrupted',
       logs: ['a', 'b', 'c', 'd', 'e', 'f'].map((step) => ({
         type: 'step',
         values: { step },
@@ -323,7 +324,7 @@ describe('LogClient#startRun', () => {
   }) => {
     await seedRun(client, {
       runName: 'test-run',
-      end: 'interrupted',
+      stop: 'interrupted',
       logs: [{ type: 'step', values: { step: 'old' } }],
     });
     const logger = await client.startRun({
