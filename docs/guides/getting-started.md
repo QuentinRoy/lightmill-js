@@ -421,14 +421,29 @@ If the app shows the saving failure screen, keep the page open and retry. The do
 
 The error boundary keeps the participant's message short and records the error in the browser's developer console. Check that console and the terminal running the log server when setting up your study.
 
-| Problem                                                         | What to check or do                                                                                                                                                                                                                  |
-| --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| The server says the database is missing or needs migrating.     | Run `npx log-server migrate` in the app directory, using the same database path as `start`.                                                                                                                                          |
-| The app says the experiment could not be found.                 | Run `npx log-server experiment add reaction-time` against that database. The name must match `startRun`.                                                                                                                             |
-| Requests fail or the browser cannot keep a participant session. | Keep the server running, open the app on `localhost` rather than `127.0.0.1`, and match Vite's actual origin with `--allowed-origin`. See the [deployment troubleshooting](deploying.md#troubleshooting) for HTTPS and proxy setups. |
-| `RUN_EXISTS` appears after you finish or switch browsers.       | Use the original browser for an unfinished run. For a new test, choose an unused participant number. A completed run cannot resume.                                                                                                  |
-| The saved task cannot be found when resuming.                   | Restore the original timeline or investigate the changed design. Do not silently restart the tasks under the same run.                                                                                                               |
-| "Saving…" does not finish.                                      | Check the connection and server log. If delivery pauses, retry or download the unsaved answers before leaving the page.                                                                                                              |
+### The database is missing or needs migrating
+
+Run `npx log-server migrate` in the app directory, using the same database path as `start`.
+
+### The experiment cannot be found
+
+Run `npx log-server experiment add reaction-time` against that database. The name must match `startRun`.
+
+### The app cannot reach the server or keep a session
+
+Keep the server running, open the app on `localhost` rather than `127.0.0.1`, and match Vite's actual origin with `--allowed-origin`. See the [deployment troubleshooting](deploying.md#troubleshooting) for HTTPS and proxy setups.
+
+### A participant number cannot start a run
+
+Use the original browser for an unfinished run. For a new test, choose an unused participant number. A completed run cannot resume.
+
+### The saved task cannot be found
+
+Restore the original timeline or investigate the changed design. Do not silently restart the tasks under the same run.
+
+### Saving does not finish
+
+Check the connection and server log. If delivery pauses, retry or download the unsaved answers before leaving the page.
 
 ## Get the data
 
