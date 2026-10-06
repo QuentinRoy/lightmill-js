@@ -9,7 +9,7 @@ By the end, you will have:
 - participants who can reload the page and continue after their saved progress,
 - a CSV file with the results.
 
-You need Node.js 24.12 or later. The tutorial uses npm; any package manager works.
+You need Node.js 24.12 or later and a terminal. The tutorial uses npm; any package manager works. It assumes you can read JavaScript functions, React components, and hooks such as `useState` and `useEffect`. The examples use TypeScript to describe tasks and logs; React's [TypeScript guide](https://react.dev/learn/typescript) explains that syntax. The additional React APIs used to load a run and watch its logger are explained below.
 
 ## Create the app
 
@@ -29,36 +29,6 @@ npm install --save-dev @lightmill/log-server
 - `@lightmill/log-server` is the server. It runs on its own; installing it in the app is only a convenience for this tutorial.
 
 Delete `src/App.css` and `src/index.css`, and remove the `import './index.css'` line from `src/main.tsx`.
-
-## Start the log server
-
-The server needs two secrets. Put them in a `.env` file at the root of the app, and keep that file out of version control:
-
-```sh
-SESSION_KEY=change-me-to-a-long-random-string
-HOST_PASSWORD=change-me-too
-```
-
-`SESSION_KEY` signs the cookies that identify participants. `HOST_PASSWORD` protects the host account, which can read every log.
-
-Create the database, then create the experiment. The client never creates experiments: a participant can only join one that exists.
-
-```sh
-npx log-server migrate
-npx log-server experiment add reaction-time
-```
-
-Both commands use `./data.sqlite` by default. Start the server:
-
-```sh
-npx log-server start --same-site --allowed-origin http://localhost:5173
-```
-
-The server listens on port 3000. `--allowed-origin` lets the page served by Vite on port 5173 call it. `--same-site` tells the server that the page and the server are on the same site, which lets cookies work over plain HTTP. The port doesn't count, so `localhost:5173` and `localhost:3000` are on the same site, but `localhost` and `127.0.0.1` are not: open the app on `localhost`.
-
-The server warns that cookies are only secure over HTTPS. That is expected here. [Deploying](deploying.md) covers HTTPS.
-
-Leave the server running and open another terminal for the rest of the tutorial.
 
 ## Describe the tasks and the logs
 
@@ -165,9 +135,100 @@ Each task mounts fresh, even when the previous task used the same component, so 
 
 `useLogger` does not wait for the server. Logs are sent in the background, in batches, and retried if the network fails. Finishing a task and saving its log are separate events: unsaved logs stay in page memory and are lost if the page closes or reloads. A resumed run may repeat those tasks. The app below offers a retry and a download before participants leave.
 
+## Play the tasks locally
+
+Before connecting the server, check the task components on their own. Replace `src/App.tsx`:
+
+```tsx
+import { TimelinePlayer } from '@lightmill/react-experiment';
+import { createTimeline } from './experiment.ts';
+import { Intro, Trial } from './tasks.tsx';
+
+const timeline = createTimeline(1);
+
+export default function App() {
+  return (
+    <TimelinePlayer
+      timeline={timeline}
+      onLog={async (log) => {
+        console.log(log);
+      }}
+      elements={{
+        tasks: { intro: <Intro />, trial: <Trial /> },
+        completed: <p>All ten trials are done.</p>,
+      }}
+    />
+  );
+}
+```
+
+In the app directory, start Vite:
+
+```sh
+npm run dev
+```
+
+Open <http://localhost:5173/>. You should see the instructions, then ten trials, then the completion message. Logs appear in the browser's developer console only; this version saves no data and starts over when you reload. Stop Vite with Ctrl+C before starting the log server in this terminal.
+
+## Start the log server
+
+The server needs two secrets. Put them in a `.env` file at the root of the app. Add `.env` and `data.sqlite` to `.gitignore`, so neither secrets nor participant data go into version control:
+
+```sh
+SESSION_KEY=change-me-to-a-long-random-string
+HOST_PASSWORD=change-me-too
+```
+
+`SESSION_KEY` signs the cookies that identify participants. `HOST_PASSWORD` protects the host account, which can read every log.
+
+Create the database, then create the experiment. The client never creates experiments: a participant can only join one that exists.
+
+```sh
+npx log-server migrate
+npx log-server experiment add reaction-time
+```
+
+Both commands use `./data.sqlite` by default. Start the server:
+
+```sh
+npx log-server start --same-site --allowed-origin http://localhost:5173
+```
+
+The server listens on port 3000. `--allowed-origin` lets the page served by Vite on port 5173 call it. `--same-site` tells the server that the page and the server are on the same site, which lets cookies work over plain HTTP. The port doesn't count, so `localhost:5173` and `localhost:3000` are on the same site, but `localhost` and `127.0.0.1` are not: open the app on `localhost`.
+
+The server warns that cookies are only secure over HTTPS. That is expected here. [Deploying](deploying.md) covers HTTPS.
+
+Leave the server running and open another terminal for the rest of the tutorial.
+
 ## Wire it together
 
-Replace `src/App.tsx`:
+The complete `src/App.tsx` below adds server logging and resuming to the local player. It has four parts.
+
+### Start or resume a run
+
+`startRun` reads the saved progress for the participant number in the URL. It returns a logger, the timeline, and the id of the last saved task. The timeline is built once for this run; rebuilding it on every render would make `TimelinePlayer` throw.
+
+The `run` promise is also created once, outside the React components. This keeps React's development mode from starting a second run when it renders a component again. Without a positive participant number, no run starts.
+
+### Show the run and watch saving
+
+React's [`use`](https://react.dev/reference/react/use) reads the result of the `run` promise. While it is waiting, [`Suspense`](https://react.dev/reference/react/Suspense) shows "Loading…". Once it resolves, `Experiment` shows the timeline.
+
+[`useSyncExternalStore`](https://react.dev/reference/react/useSyncExternalStore) subscribes to the logger, so the screen updates when delivery changes. `onCompleted` means the timeline has ended, but its last answers may still be on their way. The effect waits for the logger's `idle` state, then calls `completeRun`. Only a successful completion shows "Thank you!".
+
+### Handle a saving failure
+
+`onLog` gives each task's log to `logger.addLog`. The logger sends logs in the background and retries failures. Participants can continue during those retries. If the logger pauses, `paused` lets the current task finish, then shows the retry and download screen before another task is displayed. Calling `retry` starts sending again and lets the player continue.
+
+The `onLog` handler catches a rejection caused by a pause because the logger still holds those answers for retry. It rethrows other failures. Keep the page open while retrying; the download preserves a separate copy for the researcher.
+
+### Show errors and confirm before leaving
+
+An error boundary displays a message if loading the run or playing the timeline fails. `useConfirmBeforeUnload` asks the browser to confirm before leaving while the logger is still running. That confirmation does not save answers and cannot prevent every browser or device from closing the page.
+
+### Complete app
+
+Replace the local player in `src/App.tsx` with this file. Keep `src/experiment.ts` and `src/tasks.tsx` as they are:
 
 ```tsx
 import { Client, type Logger } from '@lightmill/log-client';
