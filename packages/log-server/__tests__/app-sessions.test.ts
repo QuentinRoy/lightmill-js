@@ -57,7 +57,11 @@ const suite = storeTypes.map((storeType) => ({
 }));
 
 async function postSession(
-  options: Partial<Parameters<typeof createLogServer>[0]>,
+  options: {
+    cookieSite: 'same-site';
+    secureCookies?: boolean | 'auto';
+    trustProxy?: boolean;
+  },
   headers: Record<string, string> = {},
 ) {
   let dataStore = await dataStoreCreators[storeTypes[0]]();
@@ -67,7 +71,7 @@ async function postSession(
       sessionKeys: ['secret'],
       ...hostServerOptions,
       ...options,
-    } as Parameters<typeof createLogServer>[0]).middleware,
+    }).middleware,
   );
   let api = createClient(await listen(app));
   let response = await api
@@ -100,13 +104,13 @@ vitestTest('same-site sessions set a secure cookie over HTTPS', async () => {
 });
 
 vitestTest('same-site sessions can force secure cookies', async () => {
-  // Over HTTP, supertest cannot keep a secure cookie, but the header is
-  // still sent.
   let { setCookie } = await postSession(
     { cookieSite: 'same-site', secureCookies: true, trustProxy: true },
     { 'x-forwarded-proto': 'https' },
   );
-  expect(setCookie).toEqual([expect.stringContaining('; Secure;')]);
+  expect(setCookie).toEqual([
+    expect.stringMatching(/; HttpOnly; Secure; SameSite=Strict$/),
+  ]);
 });
 
 vitestTest('same-site sessions can force insecure cookies', async () => {

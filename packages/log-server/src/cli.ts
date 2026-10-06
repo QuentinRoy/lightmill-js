@@ -330,7 +330,7 @@ export function cli() {
             },
           })
           .option('same-site', {
-            desc: 'Use same-site cookies, for a browser page on the same site as the API (the port can differ). Cookies are Secure over HTTPS only',
+            desc: 'Use same-site cookies, for a browser page on the same site as the API (the port can differ). Cookies are Secure over HTTPS, not over HTTP',
             type: 'boolean',
             default: false,
           })

@@ -111,7 +111,8 @@ page on `localhost:5173` can call an API on `localhost:3000`, but `localhost`
 and `127.0.0.1` are different sites. Same-site cookies are `Secure` over HTTPS
 and not over HTTP, so development over plain HTTP works. Behind a reverse proxy
 that terminates TLS, set `trustProxy` so the server sees HTTPS. Set
-`secureCookies` to `true` or `false` to force either. Browsers reject
+`secureCookies` to `true` or `false` to force either (`'auto'`, the same-site
+default, follows the request protocol). Browsers reject
 cross-site cookies without `Secure`, so only `true` is allowed with
 `cookieSite: 'cross-site'`.
 
@@ -140,7 +141,7 @@ whether a request counts as secure. Enable it only behind a reverse proxy that
 sets them, since a client reaching the server directly could forge them. A
 server behind a TLS-terminating proxy needs it, otherwise it sees plain HTTP
 requests and `express-session` drops the `Secure` session cookie, which breaks
-cross-origin sessions.
+cross-site sessions.
 
 ### Resuming runs after a restart
 
