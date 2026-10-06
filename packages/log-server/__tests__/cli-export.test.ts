@@ -79,7 +79,39 @@ it('exports to a file when the standard output is not a terminal', async () => {
     expect(result.stderr).toBe('');
     expect(result.status).toBe(0);
     expect(result.stdout).toMatch(/^2 logs exported in /);
-    expect(readFileSync(output, 'utf8')).toContain('two');
+    expect(readFileSync(output, 'utf8')).toBe(
+      'type,experiment_name,run_name,run_status,value\n' +
+        'a,test experiment,,running,one\n' +
+        'a,test experiment,,running,two\n',
+    );
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+it('reports 0 logs when there is nothing to export', async () => {
+  const directory = mkdtempSync(path.join(os.tmpdir(), 'lightmill-export-'));
+  const database = path.join(directory, 'data.sqlite');
+
+  try {
+    await SQLiteDataStore.migrateDatabase(database);
+
+    const result = spawnSync(
+      process.execPath,
+      [
+        cliPath,
+        'export',
+        '--database',
+        database,
+        '--output',
+        path.join(directory, 'logs.csv'),
+      ],
+      { encoding: 'utf8' },
+    );
+
+    expect(result.stderr).toBe('');
+    expect(result.status).toBe(0);
+    expect(result.stdout).toMatch(/^0 logs exported in /);
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }

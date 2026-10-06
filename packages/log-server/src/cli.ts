@@ -7,11 +7,11 @@ import loglevel from 'loglevel';
 import { createWriteStream, readFileSync } from 'node:fs';
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { Transform } from 'node:stream';
+import { Readable } from 'node:stream';
 import * as url from 'node:url';
 import yargs from 'yargs';
 import { z } from 'zod';
-import { csvExportStream } from './csv-export.ts';
+import { csvExportStream, csvRows, csvStringifier } from './csv-export.ts';
 import { DataStoreError } from './data-store-errors.ts';
 import { createLogServer, SQLiteDataStore } from './index.ts';
 import { isValidHostPassword } from './utils.ts';
@@ -226,36 +226,30 @@ async function exportLogs({
 }: ExportLogsParameter) {
   let filter = { logType, experimentName };
   let store = await openExistingStore(database);
-  let stream = csvExportStream(store, filter);
   if (output === undefined) {
-    stream.pipe(process.stdout).on('error', handleError);
+    csvExportStream(store, filter)
+      .pipe(process.stdout)
+      .on('error', handleError);
     return;
   }
   let startDate = new Date();
   let logCount = 0;
-  let isHeader = true;
   // cursorTo and clearLine only exist on a TTY.
   let showProgress = process.stdout.isTTY;
   let progress = () => `${logCount.toLocaleString('en')} logs exported...`;
   if (showProgress) process.stdout.write(progress());
-  stream
-    .pipe(
-      new Transform({
-        writableObjectMode: true,
-        transform(chunk, _encoding, callback) {
-          if (isHeader) {
-            isHeader = false;
-            return callback(null, chunk);
-          }
-          logCount += 1;
-          if (showProgress) {
-            process.stdout.cursorTo(0);
-            process.stdout.write(progress());
-          }
-          callback(null, chunk);
-        },
-      }),
-    )
+  async function* countedRows() {
+    for await (let row of csvRows(store, filter)) {
+      logCount += 1;
+      if (showProgress) {
+        process.stdout.cursorTo(0);
+        process.stdout.write(progress());
+      }
+      yield row;
+    }
+  }
+  Readable.from(countedRows())
+    .pipe(csvStringifier())
     .pipe(createWriteStream(output))
     .on('error', handleError)
     .on('finish', () => {
