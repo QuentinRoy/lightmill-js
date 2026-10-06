@@ -121,6 +121,7 @@ export class TimelineRunner<Task> {
       throw new Error('TimelineRunner is already completed');
     }
     this.#status = 'canceled';
+    this.onTimelineCanceled?.();
     return this;
   }
 

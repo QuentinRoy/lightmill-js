@@ -325,4 +325,57 @@ describe('TimelineRunner', () => {
     expect(runner.status).toBe('canceled');
     expect(onError).not.toHaveBeenCalled();
   });
+
+  it('calls onTimelineCanceled once, after the status changes, on cancel', () => {
+    let statuses: string[] = [];
+    let runner = new TimelineRunner<number>({
+      timeline: [1, 2],
+      onTimelineCanceled() {
+        statuses.push(runner.status);
+      },
+    });
+    runner.start();
+    runner.cancel();
+    expect(statuses).toEqual(['canceled']);
+    expect(() => runner.cancel()).toThrow('already canceled');
+    expect(statuses).toEqual(['canceled']);
+  });
+
+  it('calls onTimelineCanceled when canceled during a pending async next()', async () => {
+    let pending = deffer<IteratorResult<number>>({ value: 1, done: false });
+    let onTimelineCanceled = vi.fn();
+    let runner = new TimelineRunner<number>({
+      timeline: { next: () => pending.promise },
+      onTimelineCanceled,
+    });
+    runner.start();
+    runner.cancel();
+    pending.resolve();
+    await wait();
+    expect(onTimelineCanceled).toHaveBeenCalledTimes(1);
+  });
+
+  it('propagates an error thrown by onTimelineCanceled, leaving the runner canceled', () => {
+    let error = new Error('oops');
+    let runner = new TimelineRunner<number>({
+      timeline: [1],
+      onTimelineCanceled() {
+        throw error;
+      },
+    });
+    runner.start();
+    expect(() => runner.cancel()).toThrow(error);
+    expect(runner.status).toBe('canceled');
+  });
+
+  it('does not call onTimelineCanceled when cancel throws', () => {
+    let onTimelineCanceled = vi.fn();
+    let runner = new TimelineRunner<number>({
+      timeline: [],
+      onTimelineCanceled,
+    });
+    runner.start();
+    expect(() => runner.cancel()).toThrow('already completed');
+    expect(onTimelineCanceled).not.toHaveBeenCalled();
+  });
 });
