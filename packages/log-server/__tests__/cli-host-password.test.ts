@@ -15,8 +15,15 @@ afterEach(() => {
   rmSync(directory, { recursive: true, force: true });
 });
 
+const sessionKeyArguments = ['--session-key', 'test-session-key'];
+
 function start(args: string[], env: Record<string, string> = {}) {
-  const { HOST_PASSWORD: _, ...inheritedEnv } = process.env;
+  // The CLI also reads these from the environment.
+  const {
+    HOST_PASSWORD: _hostPassword,
+    SESSION_KEY: _sessionKey,
+    ...inheritedEnv
+  } = process.env;
   return spawnSync(
     process.execPath,
     [
@@ -26,8 +33,6 @@ function start(args: string[], env: Record<string, string> = {}) {
       path.join(directory, 'data.sqlite'),
       '--port',
       '0',
-      '--session-key',
-      'test-session-key',
       ...args,
     ],
     {
@@ -44,7 +49,37 @@ it.for([
   { name: 'is empty', args: ['--host-password', ''], env: {} },
   { name: 'is an empty HOST_PASSWORD', args: [], env: { HOST_PASSWORD: '' } },
 ])('start refuses to run if the host password $name', ({ args, env }) => {
-  const result = start(args, env);
+  const result = start([...sessionKeyArguments, ...args], env);
   expect(result.status).toBe(1);
   expect(result.stderr).toContain('No host password set');
+});
+
+it('start refuses a host password given twice', () => {
+  const result = start([
+    ...sessionKeyArguments,
+    '--host-password',
+    'one',
+    '--host-password',
+    'two',
+  ]);
+  expect(result.status).toBe(1);
+  expect(result.stderr).toContain('Pass --host-password only once');
+});
+
+it('start reports a missing session key before a missing host password', () => {
+  const result = start([]);
+  expect(result.status).toBe(1);
+  expect(result.stderr).toContain('No session key set');
+});
+
+// The database does not exist, so a start that gets past the password checks
+// fails on that instead.
+it.for([
+  { name: '--host-password', args: ['--host-password', 'secret'], env: {} },
+  { name: 'HOST_PASSWORD', args: [], env: { HOST_PASSWORD: 'secret' } },
+])('start accepts a host password from $name', ({ args, env }) => {
+  const result = start([...sessionKeyArguments, '--same-origin', ...args], env);
+  expect(result.status).toBe(1);
+  expect(result.stderr).toContain('does not exist');
+  expect(result.stderr).not.toContain('host password');
 });

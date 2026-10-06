@@ -320,6 +320,14 @@ export function cli() {
             desc: 'Password for the host user (required)',
             type: 'string',
             default: env.HOST_PASSWORD,
+            // yargs turns a repeated option into an array, which the check in
+            // `start` would report as a missing password.
+            coerce: (value: string | string[] | undefined) => {
+              if (Array.isArray(value)) {
+                throw new Error('Pass --host-password only once.');
+              }
+              return value;
+            },
           })
           .option('same-origin', {
             desc: 'Use HTTP cookies when the browser page is on the same site as the API (the port can differ)',

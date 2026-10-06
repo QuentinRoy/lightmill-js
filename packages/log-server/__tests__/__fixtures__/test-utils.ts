@@ -186,14 +186,18 @@ export const apiContentTypeRegExp = new RegExp(
 export const atomicContentTypeRegExp =
   /^application\/vnd\.api\+json(;\s*charset=[^\s;]+)?;\s*ext="https:\/\/jsonapi\.org\/ext\/atomic"/;
 
-export const hostCredentials = { user: 'host', password: 'host-password' };
 export const hostServerOptions = {
-  hostUser: hostCredentials.user,
-  hostPassword: hostCredentials.password,
+  hostUser: 'host',
+  hostPassword: 'host-password',
 };
 /** Authenticates a request as the host. */
 export const authenticateAsHost = (req: request.Test) =>
-  req.auth(hostCredentials.user, hostCredentials.password);
+  req.auth(hostServerOptions.hostUser, hostServerOptions.hostPassword);
+/** The CLI arguments that give `log-server start` a host password. */
+export const hostPasswordArguments = [
+  '--host-password',
+  hostServerOptions.hostPassword,
+];
 
 const baseServerOptions = {
   sessionKeys: ['secret'],

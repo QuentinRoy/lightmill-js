@@ -11,6 +11,7 @@ import {
   apiContentTypeRegExp,
   createClient,
   dataStoreCreators,
+  hostServerOptions,
   listen,
   sessionStoreCreators,
   storeTypes,
@@ -61,7 +62,7 @@ vitestTest('same-origin sessions set a usable cookie on HTTP', async () => {
     createLogServer({
       dataStore,
       sessionKeys: ['secret'],
-      hostPassword: 'host password',
+      ...hostServerOptions,
       allowCrossOrigin: false,
     }).middleware,
   );
@@ -84,7 +85,7 @@ vitestTest('default sessions require HTTPS for a cookie', async () => {
     createLogServer({
       dataStore,
       sessionKeys: ['secret'],
-      hostPassword: 'host password',
+      ...hostServerOptions,
     }).middleware,
   );
   let response = await createClient(await listen(app))

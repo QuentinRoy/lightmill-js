@@ -313,7 +313,7 @@ Cookies need HTTPS unless the page and the API are on the same site. For
 development over HTTP, pass `--same-origin` and `--allowed-origin`:
 
 ```sh
-log-server start --same-origin --allowed-origin http://localhost:5173
+log-server start --same-origin --allowed-origin http://localhost:5173 --host-password your-password
 ```
 
 Despite its name, `--same-origin` covers any page on the same site, so a page
@@ -330,7 +330,7 @@ Keep that file and the `--session-key` (or `SESSION_KEY`) stable to allow
 resumption after a restart. For example:
 
 ```sh
-log-server start --database ./data.sqlite --session-key your-secret --host-password your-password --session-max-age-days 30
+log-server start --database ./data.sqlite --session-key your-secret --host-password your-password --allowed-origin https://example.org --session-max-age-days 30
 ```
 
 `start` exits with an error if it has no host password. Set it with

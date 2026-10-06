@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import * as url from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { hostCredentials } from './__fixtures__/test-utils.ts';
+import { hostPasswordArguments } from './__fixtures__/test-utils.ts';
 
 const cliPath = url.fileURLToPath(new URL('../src/cli.ts', import.meta.url));
 
@@ -15,8 +15,7 @@ const commands = {
     '0',
     '--session-key',
     'test-session-key',
-    '--host-password',
-    hostCredentials.password,
+    ...hostPasswordArguments,
     '--same-origin',
   ],
   export: ['export'],
