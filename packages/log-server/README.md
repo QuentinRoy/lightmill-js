@@ -105,10 +105,18 @@ reject cross-origin cookies without the `Secure` attribute, so
 `createLogServer` sets no CORS headers. A page on another origin needs the
 `cors` package in front of it, with an explicit list of origins and
 `credentials: true`: the client sends the session cookie, and browsers refuse
-a credentialed response that allows every origin.
+a credentialed response that allows every origin. Expose `Retry-After` too,
+or browsers hide it from the page and `log-client` cannot use it to pace its
+retries.
 
 ```ts
-app.use(cors({ origin: ['https://example.org'], credentials: true }));
+app.use(
+  cors({
+    origin: ['https://example.org'],
+    credentials: true,
+    exposedHeaders: ['Retry-After'],
+  }),
+);
 app.use(middleware);
 ```
 

@@ -151,6 +151,35 @@ describe('log-server start', () => {
     );
   });
 
+  it('exposes Retry-After to allowed origins', async () => {
+    await withServer(
+      ['--allowed-origin', 'https://one.example'],
+      async (baseUrl) => {
+        const response = await fetch(`${baseUrl}/sessions/current`, {
+          headers: { origin: 'https://one.example' },
+        });
+        expect(response.headers.get('access-control-expose-headers')).toBe(
+          'Retry-After',
+        );
+      },
+    );
+  });
+
+  it('prefers --allowed-origin over ALLOWED_ORIGINS', async () => {
+    await withServer(
+      ['--allowed-origin', 'https://one.example'],
+      async (baseUrl) => {
+        const fromFlag = await preflight(baseUrl, 'https://one.example');
+        expect(fromFlag.headers.get('access-control-allow-origin')).toBe(
+          'https://one.example',
+        );
+        const fromEnv = await preflight(baseUrl, 'https://two.example');
+        expect(fromEnv.headers.get('access-control-allow-origin')).toBeNull();
+      },
+      { ...env, ALLOWED_ORIGINS: 'https://two.example' },
+    );
+  });
+
   it('combines --same-origin with an allowed origin', async () => {
     await withServer(
       ['--same-origin', '--allowed-origin', 'http://localhost:5173'],

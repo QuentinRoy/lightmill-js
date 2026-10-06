@@ -99,9 +99,16 @@ async function start({
   let app = express();
   // Browsers refuse credentialed responses that allow every origin, and any
   // site allowed here can act with a participant's session cookie, so the
-  // list stays explicit.
+  // list stays explicit. Browsers hide `Retry-After` from other origins
+  // unless it is exposed, and `log-client` reads it to pace its retries.
   if (allowedOrigins.length > 0) {
-    app.use(cors({ origin: allowedOrigins, credentials: true }));
+    app.use(
+      cors({
+        origin: allowedOrigins,
+        credentials: true,
+        exposedHeaders: ['Retry-After'],
+      }),
+    );
   }
   let server = app
     .use(
