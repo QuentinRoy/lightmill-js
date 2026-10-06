@@ -13,15 +13,15 @@ a full stack:
 
 ## Packages
 
-| Package                         | Description                                                 | README                                                                         |
-| ------------------------------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------ |
-| `@lightmill/convert-touchstone` | Convert TouchStone XML to an experiment design.             | [packages/convert-touchstone/README.md](packages/convert-touchstone/README.md) |
-| `@lightmill/counterbalancing`   | Generate condition orders to counterbalance runs.           | [packages/counterbalancing/README.md](packages/counterbalancing/README.md)     |
-| `@lightmill/runner`             | Execute timeline iterators with lifecycle callbacks.        | [packages/runner/README.md](packages/runner/README.md)                         |
-| `@lightmill/react-experiment`   | React `Run` component and hooks for task execution/logging. | [packages/react-experiment/README.md](packages/react-experiment/README.md)     |
-| `@lightmill/log-api`            | Shared API contract and OpenAPI artifacts for logging.      | [packages/log-api/README.md](packages/log-api/README.md)                       |
-| `@lightmill/log-client`         | Browser/client SDK for sessions, resumable runs, and logs.  | [packages/log-client/README.md](packages/log-client/README.md)                 |
-| `@lightmill/log-server`         | Express middleware and SQLite datastore for logs.           | [packages/log-server/README.md](packages/log-server/README.md)                 |
+| Package                         | Description                                                            | README                                                                         |
+| ------------------------------- | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `@lightmill/convert-touchstone` | Convert TouchStone XML to an experiment design.                        | [packages/convert-touchstone/README.md](packages/convert-touchstone/README.md) |
+| `@lightmill/counterbalancing`   | Generate condition orders to counterbalance runs.                      | [packages/counterbalancing/README.md](packages/counterbalancing/README.md)     |
+| `@lightmill/runner`             | Execute timeline iterators with lifecycle callbacks.                   | [packages/runner/README.md](packages/runner/README.md)                         |
+| `@lightmill/react-experiment`   | React `TimelinePlayer` component and hooks for task execution/logging. | [packages/react-experiment/README.md](packages/react-experiment/README.md)     |
+| `@lightmill/log-api`            | Shared API contract and OpenAPI artifacts for logging.                 | [packages/log-api/README.md](packages/log-api/README.md)                       |
+| `@lightmill/log-client`         | Browser/client SDK for sessions, resumable runs, and logs.             | [packages/log-client/README.md](packages/log-client/README.md)                 |
+| `@lightmill/log-server`         | Express middleware and SQLite datastore for logs.                      | [packages/log-server/README.md](packages/log-server/README.md)                 |
 
 ## Quick Start
 

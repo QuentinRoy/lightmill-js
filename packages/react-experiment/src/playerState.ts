@@ -1,13 +1,10 @@
-import {
-  type MaybeAsyncIterator,
-  Runner as TimelineRunner,
-} from '@lightmill/runner';
+import { type MaybeAsyncIterator, TimelineRunner } from '@lightmill/runner';
 import * as React from 'react';
 
 export type AnyIteratorOrIterable<Task> =
   AsyncIterator<Task> | AsyncIterable<Task> | Iterator<Task> | Iterable<Task>;
 
-export type RunTaskState<Task> = {
+export type PlayerTaskState<Task> = {
   status: 'task';
   task: Task;
   // Different for each started task, even if the timeline yields the same
@@ -16,17 +13,17 @@ export type RunTaskState<Task> = {
   onTaskCompleted: () => void;
 };
 
-export type RunState<Task> =
-  | RunTaskState<Task>
+export type PlayerState<Task> =
+  | PlayerTaskState<Task>
   | { status: 'loading' }
   | { status: 'paused' }
   | { status: 'completed' };
 
 type StoreSnapshot<Task> =
-  | Exclude<RunState<Task>, { status: 'paused' }>
+  | Exclude<PlayerState<Task>, { status: 'paused' }>
   | { status: 'error'; error: Error };
 
-type RunStore<Task> = {
+type PlayerStore<Task> = {
   timeline: AnyIteratorOrIterable<Task>;
   subscribe: (listener: () => void) => () => void;
   getSnapshot: () => StoreSnapshot<Task>;
@@ -78,13 +75,13 @@ const loadingSnapshot = { status: 'loading' } as const;
 // The timeline iterator is one-shot and the runner cannot be rewound, so the
 // store lives as long as the timeline, not as long as an effect: unsubscribing
 // (as StrictMode and <Activity> do) must not cancel it.
-function createRunStore<Task>({
+function createPlayerStore<Task>({
   timeline,
   resumeAfterTask,
 }: {
   timeline: AnyIteratorOrIterable<Task>;
   resumeAfterTask?: (task: Task) => boolean;
-}): RunStore<Task> {
+}): PlayerStore<Task> {
   const listeners = new Set<() => void>();
   let snapshot: StoreSnapshot<Task> = loadingSnapshot;
   let started = false;
@@ -146,7 +143,7 @@ function createRunStore<Task>({
 const noSubscribe = () => () => {};
 const getLoadingSnapshot = () => loadingSnapshot;
 
-type UseRunStateOptions<Task> = {
+type UsePlayerStateOptions<Task> = {
   timeline?: AnyIteratorOrIterable<Task> | null;
   resumeAfterTask?: (task: Task) => boolean;
   onCompleted?: () => void;
@@ -155,19 +152,19 @@ type UseRunStateOptions<Task> = {
 };
 
 /**
- * What `Run` has to render. While paused or loading, the task that was
- * running when the interruption began stays; once the timeline moves on,
+ * What `TimelinePlayer` has to render. While paused or loading, the task that
+ * was running when the interruption began stays; once the timeline moves on,
  * paused or loading replaces whatever comes next.
  *
  * Throws timeline errors, and if no timeline is set while not loading.
  */
-export function useRunState<Task>({
+export function usePlayerState<Task>({
   timeline,
   resumeAfterTask,
   onCompleted,
   paused,
   loading,
-}: UseRunStateOptions<Task>): RunState<Task> {
+}: UsePlayerStateOptions<Task>): PlayerState<Task> {
   const onCompletedRef = React.useRef(onCompleted);
   // Insertion effects run before the effects that start the store and report
   // its completion.
@@ -175,10 +172,10 @@ export function useRunState<Task>({
     onCompletedRef.current = onCompleted;
   });
 
-  const storeRef = React.useRef<RunStore<Task> | null>(null);
+  const storeRef = React.useRef<PlayerStore<Task> | null>(null);
   if (storeRef.current == null) {
     if (timeline != null) {
-      storeRef.current = createRunStore({ timeline, resumeAfterTask });
+      storeRef.current = createPlayerStore({ timeline, resumeAfterTask });
     }
   } else if (storeRef.current.timeline !== timeline) {
     throw new Error('Timeline cannot be changed once set');
@@ -189,7 +186,7 @@ export function useRunState<Task>({
     store?.start();
   }, [store]);
 
-  // Until a timeline is set, the run is loading.
+  // Until a timeline is set, the player is loading.
   const snapshot = React.useSyncExternalStore(
     store?.subscribe ?? noSubscribe,
     store?.getSnapshot ?? getLoadingSnapshot,
@@ -199,10 +196,11 @@ export function useRunState<Task>({
     throw snapshot.error;
   }
 
-  // onCompleted is called from an effect because effects only run while Run is
-  // mounted and visible. It is therefore never called after an unmount, and a
-  // completion that happens while <Activity> hides Run is reported once Run is
-  // shown again. The ref keeps StrictMode's effect rerun from calling it twice.
+  // onCompleted is called from an effect because effects only run while the
+  // component is mounted and visible. It is therefore never called after an
+  // unmount, and a completion that happens while <Activity> hides the component
+  // is reported once it is shown again. The ref keeps StrictMode's effect rerun
+  // from calling it twice.
   const completedNotifiedRef = React.useRef(false);
   const completed = snapshot.status === 'completed';
   React.useEffect(() => {
