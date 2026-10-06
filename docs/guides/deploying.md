@@ -7,11 +7,11 @@ An online experiment has two parts: the experiment app, which is static files, a
 This walkthrough uses one origin, `https://study.example.org`, with the app at `/` and the API at `/api`. Replace that domain with yours. It assumes you have:
 
 - an experiment app, such as the [getting started](getting-started.md) app;
-- a Linux server with Node.js 24.12 or later, npm, and [Caddy](https://caddyserver.com/docs/install) installed;
+- a Linux server using systemd, with Node.js 24.12 or later, npm, and [Caddy](https://caddyserver.com/docs/install) installed;
 - a domain pointing to that server, with ports 80 and 443 available to Caddy;
 - an unprivileged account named `lightmill` that owns `/srv/lightmill`, and a directory `/srv/my-experiment` where you can copy the app and Caddy can read it.
 
-Have the server administrator create those accounts and directories if needed. Keep port 3000 reachable only by the proxy: the server will trust its forwarded headers. Run the log-server setup commands below as the account that owns `/srv/lightmill`. The service example uses systemd; another process manager can run the same command.
+Have the server administrator create those accounts and directories if needed. Keep port 3000 reachable only by the proxy: the server will trust its forwarded headers. Run the log-server setup commands below as the account that owns `/srv/lightmill`. systemd runs and restarts the server as a service; `systemctl` controls that service and `journalctl` reads its diagnostic output. These are systemd tools, not LightMill commands. If your host uses another process manager, use its start, stop, and log commands instead.
 
 ## Choose where the app and the server live
 
@@ -161,7 +161,7 @@ cd /srv/lightmill
 npx log-server export --experiment-name reaction-time > test-logs.csv
 ```
 
-Check that the run has status `completed` and the expected task ids. If the app cannot start a run, check the service log with `sudo journalctl -u lightmill`; [troubleshooting](#troubleshooting) covers common causes.
+Check that the run has status `completed` and the expected task ids. If the app cannot start a run, read the server's diagnostic output. With the systemd service above, use the [`journalctl` command below](#the-service-does-not-start); if you started the CLI directly, read the terminal where it is running. [Troubleshooting](#troubleshooting) covers common causes.
 
 ## Back up the data
 
@@ -234,11 +234,15 @@ Start with the error in the browser’s developer console or the service log. Th
 
 ### The service does not start
 
-On the server, read the startup error:
+If you installed the `lightmill.service` systemd example above, run this on that server to read its startup messages and errors:
 
 ```sh
 sudo journalctl -u lightmill -n 50 --no-pager
 ```
+
+[`journalctl`](https://www.freedesktop.org/software/systemd/man/255/journalctl.html) reads the systemd journal, where systemd normally collects a service's console output. `-u lightmill` selects `lightmill.service`, `-n 50` selects the most recent 50 entries, and `--no-pager` prints them directly to the terminal. `sudo` gives access when your account cannot read those service logs. This command only reads logs; it does not restart or change the server.
+
+For a CLI started directly with `npx log-server start`, look in the terminal that started it. For another process manager or a managed hosting service, use its log viewer. These diagnostic messages describe the server process; participant answers are stored in SQLite and retrieved with [exports](exporting-data.md).
 
 Use that error to choose the next step:
 
