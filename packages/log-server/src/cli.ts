@@ -28,6 +28,15 @@ const env = z
   .object({
     SESSION_KEY: z.string().optional(),
     HOST_PASSWORD: z.string().optional(),
+    ALLOWED_ORIGINS: z
+      .string()
+      .default('')
+      .transform((value) =>
+        value
+          .split(',')
+          .map((origin) => origin.trim())
+          .filter((origin) => origin !== ''),
+      ),
     PORT: z.coerce.number().default(3000),
     DB_PATH: z.string().default('./data.sqlite'),
     SESSION_MAX_AGE_DAYS: z.coerce.number().positive().finite().default(30),
@@ -58,6 +67,7 @@ type StartParameter = {
   sessionMaxAgeDays: number;
   hostPassword: string | undefined;
   sameOrigin: boolean;
+  allowedOrigin: string[];
   trustProxy: boolean;
 };
 async function start({
@@ -67,6 +77,7 @@ async function start({
   sessionMaxAgeDays,
   hostPassword,
   sameOrigin,
+  allowedOrigin,
   trustProxy,
 }: StartParameter) {
   if (sessionKey == null) {
@@ -87,9 +98,27 @@ async function start({
   if (!Number.isSafeInteger(sessionMaxAge) || sessionMaxAge <= 0) {
     throw new Error('Session max age must be a positive number of days');
   }
+  let allowedOrigins = allowedOrigin.map(parseOrigin);
+  if (!sameOrigin && allowedOrigins.length === 0) {
+    throw new Error(
+      'No allowed origin set. Set the ALLOWED_ORIGINS environment variable or use the --allowed-origin option to name the pages that may call this server, or use --same-origin if the browser loads the page from the same site as the API.',
+    );
+  }
   let store = await openExistingStore(dbPath);
   let app = express();
-  if (!sameOrigin) app.use(cors());
+  // Browsers refuse credentialed responses that allow every origin, and any
+  // site allowed here can act with a participant's session cookie, so the
+  // list stays explicit. Browsers hide `Retry-After` from other origins
+  // unless it is exposed, and `log-client` reads it to pace its retries.
+  if (allowedOrigins.length > 0) {
+    app.use(
+      cors({
+        origin: allowedOrigins,
+        credentials: true,
+        exposedHeaders: ['Retry-After'],
+      }),
+    );
+  }
   let server = app
     .use(
       createLogServer({
@@ -124,6 +153,18 @@ async function start({
       if (error != null) process.exit(1);
     });
   });
+}
+
+// A trailing slash or a path would never match the `Origin` header browsers
+// send, and the server would silently refuse the page.
+function parseOrigin(value: string): string {
+  let origin = URL.canParse(value) ? new URL(value).origin : null;
+  if (origin !== value) {
+    throw new Error(
+      `Invalid allowed origin "${value}". Use an origin such as "https://example.org" or "http://localhost:5173": a scheme, a host, an optional port, and no path.`,
+    );
+  }
+  return origin;
 }
 
 // Opens a database that `log-server migrate` already prepared, and tells the
@@ -281,9 +322,15 @@ export function cli() {
             default: env.HOST_PASSWORD,
           })
           .option('same-origin', {
-            desc: 'Use HTTP cookies when the browser shares the API origin',
+            desc: 'Use HTTP cookies when the browser page is on the same site as the API (the port can differ)',
             type: 'boolean',
             default: false,
+          })
+          .option('allowed-origin', {
+            desc: 'Origin of a page allowed to call the API with credentials, e.g. https://example.org. Repeatable. Required unless --same-origin is set',
+            type: 'string',
+            array: true,
+            default: env.ALLOWED_ORIGINS,
           })
           .option('trust-proxy', {
             desc: 'Trust X-Forwarded-* headers from a reverse proxy',

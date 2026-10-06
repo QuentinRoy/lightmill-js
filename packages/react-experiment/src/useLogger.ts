@@ -21,11 +21,13 @@ export function useLogger<
   const addLog = React.useContext(loggerContext);
   if (addLog == null) {
     throw new Error(
-      'No logger found. Is this component rendered in a <Run />?',
+      'No logger found. Is this component rendered in a <TimelinePlayer />?',
     );
   }
   if (addLog === noLoggerSymbol) {
-    throw new Error('No logger found. Was onLog provided in <Run />?');
+    throw new Error(
+      'No logger found. Was onLog provided in <TimelinePlayer />?',
+    );
   }
 
   return React.useMemo(() => {

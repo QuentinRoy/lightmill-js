@@ -17,6 +17,7 @@ const commands = {
     'test-session-key',
     '--host-password',
     hostCredentials.password,
+    '--same-origin',
   ],
   export: ['export'],
 };
