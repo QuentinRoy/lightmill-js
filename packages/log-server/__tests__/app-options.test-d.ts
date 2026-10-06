@@ -25,10 +25,10 @@ it('rejects insecure cross-site cookies', () => {
   >().toEqualTypeOf<false>();
 });
 
-it('allows automatic and forced cookie security for same-site cookies', () => {
+it('allows forced cookie security for same-site cookies', () => {
   expectTypeOf<
     IsAllowed<
-      RequiredOptions & { cookieSite: 'same-site'; secureCookies: 'auto' }
+      RequiredOptions & { cookieSite: 'same-site'; secureCookies: true }
     >
   >().toEqualTypeOf<true>();
   expectTypeOf<
@@ -36,11 +36,6 @@ it('allows automatic and forced cookie security for same-site cookies', () => {
       RequiredOptions & { cookieSite: 'same-site'; secureCookies: false }
     >
   >().toEqualTypeOf<true>();
-  expectTypeOf<
-    IsAllowed<
-      RequiredOptions & { cookieSite: 'cross-site'; secureCookies: 'auto' }
-    >
-  >().toEqualTypeOf<false>();
 });
 
 it('requires a host password', () => {

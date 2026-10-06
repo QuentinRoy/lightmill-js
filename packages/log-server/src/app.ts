@@ -23,7 +23,7 @@ type CreateLogServerOptions = {
   trustProxy?: boolean | undefined;
 } & (
   | { cookieSite?: 'cross-site' | undefined; secureCookies?: true | undefined }
-  | { cookieSite: 'same-site'; secureCookies?: boolean | 'auto' | undefined }
+  | { cookieSite: 'same-site'; secureCookies?: boolean | undefined }
 );
 
 export function createLogServer({
@@ -32,10 +32,7 @@ export function createLogServer({
   hostPassword,
   hostUser = 'host',
   cookieSite = 'cross-site',
-  // Same-site cookies also work over plain HTTP (development), so `Secure`
-  // follows the request protocol. It relies on `trustProxy` behind a
-  // TLS-terminating proxy.
-  secureCookies = cookieSite === 'cross-site' ? true : 'auto',
+  secureCookies,
   sessionStore = new MemorySessionStore({ checkPeriod: 1000 * 60 * 60 * 24 }),
   sessionMaxAge,
   trustProxy = false,
@@ -53,7 +50,10 @@ export function createLogServer({
       secret: sessionKeys,
       cookie: {
         sameSite: cookieSite === 'cross-site' ? 'none' : 'strict',
-        secure: secureCookies,
+        // Same-site cookies also work over plain HTTP (development), so unless
+        // forced, `Secure` follows the request protocol. Behind a
+        // TLS-terminating proxy, that relies on `trustProxy`.
+        secure: secureCookies ?? (cookieSite === 'same-site' ? 'auto' : true),
         httpOnly: true,
         ...(sessionMaxAge === undefined ? {} : { maxAge: sessionMaxAge }),
       },

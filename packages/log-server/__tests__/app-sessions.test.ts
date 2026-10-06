@@ -59,7 +59,7 @@ const suite = storeTypes.map((storeType) => ({
 async function postSession(
   options: {
     cookieSite: 'same-site';
-    secureCookies?: boolean | 'auto';
+    secureCookies?: boolean;
     trustProxy?: boolean;
   },
   headers: Record<string, string> = {},

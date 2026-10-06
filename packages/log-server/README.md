@@ -99,7 +99,7 @@ Common optional options:
 
 - `hostUser` (default `host`)
 - `cookieSite` (`'cross-site'` by default, or `'same-site'`)
-- `secureCookies` (`true`, `false` or `'auto'`)
+- `secureCookies` (`boolean`)
 - `sessionStore`
 - `sessionMaxAge` (cookie lifetime in milliseconds)
 - `trustProxy` (default `false`)
@@ -111,8 +111,7 @@ page on `localhost:5173` can call an API on `localhost:3000`, but `localhost`
 and `127.0.0.1` are different sites. Same-site cookies are `Secure` over HTTPS
 and not over HTTP, so development over plain HTTP works. Behind a reverse proxy
 that terminates TLS, set `trustProxy` so the server sees HTTPS. Set
-`secureCookies` to `true` or `false` to force either (`'auto'`, the same-site
-default, follows the request protocol). Browsers reject
+`secureCookies` to `true` or `false` to force either. Browsers reject
 cross-site cookies without `Secure`, so only `true` is allowed with
 `cookieSite: 'cross-site'`.
 
