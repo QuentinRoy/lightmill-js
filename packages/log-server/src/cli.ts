@@ -113,6 +113,13 @@ async function start({
       `--secure-cookies ${secureCookies} requires --same-site: cross-site cookies are always Secure.`,
     );
   }
+  // Plain HTTP development uses the same flags, so this stays a warning.
+  // With `never` the cookies are not Secure whatever the proxy does.
+  if (sameSite && !trustProxy && secureCookies !== 'never') {
+    log.warn(
+      'Session cookies are Secure only when the server is reached directly over HTTPS. Behind a reverse proxy that terminates TLS, pass --trust-proxy.',
+    );
+  }
   let store = await openExistingStore(dbPath);
   let app = express();
   // Browsers refuse credentialed responses that allow every origin, and any
