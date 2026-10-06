@@ -2,6 +2,7 @@
 import { mediaType } from '@lightmill/log-api/vocabulary';
 import express from 'express';
 import session, { type SessionData } from 'express-session';
+import MemorySessionStoreModule from 'memorystore';
 import type request from 'supertest';
 import { test as baseTest, describe, onTestFinished, vi } from 'vitest';
 import type { DataStore } from '../src/data-store.ts';
@@ -15,18 +16,23 @@ import {
 } from './__fixtures__/test-utils.ts';
 
 const SESSION_MAX_AGE = 60 * 60 * 1000;
+const MemorySessionStore = MemorySessionStoreModule(session);
 
-type Operation = 'get' | 'set' | 'destroy';
+type Operation = 'get' | 'getResult' | 'set' | 'destroy';
 type Gate = () => Promise<void>;
 
 /**
- * Wraps a session store, which makes it a store with nothing but `get`, `set`
- * and `destroy`. The tests decide when its calls go through, so they control
- * how concurrent requests interleave without sleeping.
+ * Gates session reads and mutations so tests control concurrent requests
+ * without sleeping. The wrapped store keeps its own expiry refresh behavior.
  */
 class GatedSessionStore extends session.Store {
   #inner: session.Store;
-  #gates: Record<Operation, Gate[]> = { get: [], set: [], destroy: [] };
+  #gates: Record<Operation, Gate[]> = {
+    get: [],
+    getResult: [],
+    set: [],
+    destroy: [],
+  };
   #getWaiters: Array<() => void> = [];
   /** What the store was asked to save, in order. */
   sets: Array<{ data: SessionData['data']; expires: number | undefined }> = [];
@@ -34,6 +40,7 @@ class GatedSessionStore extends session.Store {
   constructor(inner: session.Store) {
     super();
     this.#inner = inner;
+    if (inner.touch !== undefined) this.touch = inner.touch.bind(inner);
   }
 
   /**
@@ -55,8 +62,10 @@ class GatedSessionStore extends session.Store {
   ) {
     this.#through('get', callback, () =>
       this.#inner.get(sid, (...args) => {
-        callback(...args);
-        this.#getWaiters.shift()?.();
+        this.#through('getResult', callback, () => {
+          callback(...args);
+          this.#getWaiters.shift()?.();
+        });
       }),
     );
   }
@@ -83,16 +92,6 @@ class GatedSessionStore extends session.Store {
     const gate = this.#gates[operation].shift();
     if (gate === undefined) return run();
     gate().then(run, onError);
-  }
-}
-
-/**
- * A store whose `touch` saves the whole session it is given, which is the
- * session as the request holds it when its response ends.
- */
-class WholeSessionTouchStore extends GatedSessionStore {
-  touch(sid: string, data: SessionData, callback?: (error?: unknown) => void) {
-    this.set(sid, data, callback);
   }
 }
 
@@ -145,22 +144,20 @@ const stores = [
     innerSessionStore: () => new session.MemoryStore(),
   },
   {
-    name: 'session store whose touch saves the whole session',
-    innerSessionStore: () => new session.MemoryStore(),
-    touchSavesWholeSession: true,
+    name: 'default memory session store',
+    innerSessionStore: () => new MemorySessionStore({}),
   },
 ];
 
 describe.for(stores)(
   'createLogServer: session ordering ($name)',
-  ({ innerSessionStore, touchSavesWholeSession = false }) => {
+  ({ innerSessionStore }) => {
     const test = baseTest.extend<Fixture>({
       context: async ({}, use) => {
         const dataStore = await SQLiteDataStore.open(':memory:');
-        const SessionStore = touchSavesWholeSession
-          ? WholeSessionTouchStore
-          : GatedSessionStore;
-        const sessionStore = new SessionStore(innerSessionStore(dataStore));
+        const sessionStore = new GatedSessionStore(
+          innerSessionStore(dataStore),
+        );
         const { server } = await createServerContext({
           dataStore,
           sessionStore,
@@ -234,6 +231,49 @@ describe.for(stores)(
         createRun(api),
         api.delete('/sessions/current'),
       ]);
+      await api.get('/sessions/current').expect(404);
+    });
+
+    test('keeps run ownership when an older read finishes after creation', async ({
+      expect,
+      context: { sessionStore, newSession, createRun },
+    }) => {
+      const api = await newSession();
+      const held = hold();
+      // Hold the old snapshot after the store reads it, before the GET receives it.
+      sessionStore.gate('getResult', held.gate);
+      const reader = send(api.get('/runs'));
+      await held.reached;
+      let created;
+      try {
+        created = await createRun(api).expect(201);
+      } finally {
+        held.release();
+      }
+      expect((await reader).status).toBe(200);
+      const { body } = await api.get('/sessions/current').expect(200);
+      expect(body.data.relationships.runs.data).toEqual([
+        { id: created.body.data.id, type: 'runs' },
+      ]);
+      await createRun(api).expect(403);
+    });
+
+    test('does not restore a deleted session when an older read finishes', async ({
+      expect,
+      context: { sessionStore, newSession },
+    }) => {
+      const api = await newSession();
+      const held = hold();
+      sessionStore.gate('getResult', held.gate);
+      const reader = send(api.get('/runs'));
+      await held.reached;
+      try {
+        await api.delete('/sessions/current').expect(200);
+        await api.get('/sessions/current').expect(404);
+      } finally {
+        held.release();
+      }
+      expect((await reader).status).toBe(200);
       await api.get('/sessions/current').expect(404);
     });
 

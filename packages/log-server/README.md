@@ -134,6 +134,17 @@ Redis on a single server do. A store that reads from a copy of the data that
 can lag behind, or reports a write as done before it can be read, does not.
 Nothing checks this.
 
+If the store implements `touch`, it must refresh only an existing session's
+expiry and cookie lifetime, preserving its current role and run list. It must
+not recreate a deleted session. These guarantees must hold atomically with
+concurrent `set` and `destroy` calls: a separate read followed by a write can
+still overwrite newer data or restore a deleted session. An older request can
+finish after run creation or session deletion and pass its old session data
+to `touch`. Stores that save that whole snapshot are not supported. The default
+memory store preserves the current session data when it refreshes expiry; the
+SQLite session store does not implement `touch`. Custom stores must satisfy
+these requirements; the server does not check or enforce them.
+
 Two limits remain:
 
 - Requests are ordered inside one server process. If several processes share a
