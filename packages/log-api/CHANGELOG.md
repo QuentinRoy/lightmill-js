@@ -1,5 +1,37 @@
 # @lightmill/log-api
 
+## 5.0.0
+
+### Major Changes
+
+- [#270](https://github.com/QuentinRoy/lightmill-js/pull/270) [`6651c93`](https://github.com/QuentinRoy/lightmill-js/commit/6651c93dadb2403ac084f61676df2a792f01891c) - Replace the `openapi.json` export with `openapi.yaml`, the format most OpenAPI tools expect, and stop exporting the TypeScript types generated from the OpenAPI document. Import `@lightmill/log-api/openapi.yaml` with a YAML parser instead of `openapi.json`. For types, infer them from the exported zod schemas, or generate them from `openapi.yaml` with `openapi-typescript`.
+
+- [#396](https://github.com/QuentinRoy/lightmill-js/pull/396) [`bbcb236`](https://github.com/QuentinRoy/lightmill-js/commit/bbcb236a538f3b185bde94da31c95fcd78b49d1e) - `PATCH /runs/{id}` documents `lastLogNumber` as resuming the run, so it requires the status `running`, or no status on a running run. A `lastLogNumber` sent with another status is an invalid request body: `400 INVALID_REQUEST_BODY`, with a `source.pointer` to `/data/attributes/lastLogNumber`. Sent without a status on a run that is not running, it gets `403 INVALID_LAST_LOG_NUMBER`. Send `lastLogNumber` only to resume a run.
+
+- [#315](https://github.com/QuentinRoy/lightmill-js/pull/315) [`6200bd3`](https://github.com/QuentinRoy/lightmill-js/commit/6200bd3952d87a3976c28a3b94d2f588ab75104b) - Run resources replace `missingLogNumbers` with `firstMissingLogNumber`: the lowest missing log number in the run's current log sequence, or `null` when none is missing. Listing every missing log number could not scale to a log number far ahead of the others. Completing a run with missing logs now fails with error code `MISSING_LOGS` instead of `PENDING_LOGS`, and its detail names the missing log number. `Logger#flush()` reads `firstMissingLogNumber`, so `@lightmill/log-client` needs a server of the same version; its `FlushError` now names the missing log number and says how to recover. Read `firstMissingLogNumber` where you read `missingLogNumbers[0]`, and match `MISSING_LOGS` where you matched `PENDING_LOGS`.
+
+- [#270](https://github.com/QuentinRoy/lightmill-js/pull/270) [`6651c93`](https://github.com/QuentinRoy/lightmill-js/commit/6651c93dadb2403ac084f61676df2a792f01891c) - Rename error codes to say what failed: `BODY_VALIDATION` is now `INVALID_REQUEST_BODY`, `HEADERS_VALIDATION` is `INVALID_REQUEST_HEADERS`, `QUERY_VALIDATION` is `INVALID_REQUEST_QUERY`, `INVALID_QUERY_PARAMETER` is `NOT_SUPPORTED_QUERY_PARAMETER`, and `INTERNAL_SERVER` is `INTERNAL_SERVER_ERROR`. `POST /sessions` answers `403 MISSING_CREDENTIALS` to a host session requested without an `Authorization` header. Update code that matches the old codes.
+
+### Minor Changes
+
+- [#270](https://github.com/QuentinRoy/lightmill-js/pull/270) [`6651c93`](https://github.com/QuentinRoy/lightmill-js/commit/6651c93dadb2403ac084f61676df2a792f01891c) - Export the API's zod 4 schemas to validate requests and responses: `routes`, with the schemas of each route, and the server error documents, such as `ServerErrorResponse`.
+
+- [#326](https://github.com/QuentinRoy/lightmill-js/pull/326) [`468a0f9`](https://github.com/QuentinRoy/lightmill-js/commit/468a0f9a01f23d7680753c4244cf9a23f9e61c8c) - `POST /logs` and `POST /operations` document the `413 REQUEST_BODY_TOO_LARGE` error returned when the request body is over 1 MB. `INVALID_REQUEST_BODY` errors may come without `source`, when the request body is not valid JSON.
+
+- [#323](https://github.com/QuentinRoy/lightmill-js/pull/323) [`7828de4`](https://github.com/QuentinRoy/lightmill-js/commit/7828de4b0102904b4936c99be3e64b6660007e6a) - `POST /logs` documents a `200` response, for a log the run already holds with the same number, type, and values.
+
+- [#324](https://github.com/QuentinRoy/lightmill-js/pull/324) [`f3d556d`](https://github.com/QuentinRoy/lightmill-js/commit/f3d556defdb58845ec79884446135cc6f577e596) - `POST /operations` documents adding many logs of one run in a single request, as a JSON:API Atomic Operations request (`atomic:operations` of `add` operations) sent with the `application/vnd.api+json;ext="https://jsonapi.org/ext/atomic"` media type.
+
+- [#374](https://github.com/QuentinRoy/lightmill-js/pull/374) [`8c93c4d`](https://github.com/QuentinRoy/lightmill-js/commit/8c93c4d00b90160c911f19b7e7ac388f53d6af33) - `POST /runs` documents `INVALID_RUN_STATUS` among its `403` errors, for a run created with a status other than `idle` or `running`. `PATCH /runs/{id}` documents `403 IMMUTABLE_RUN_ATTRIBUTE`, for a `name` or an `experiment` relationship that differs from the run's, with a `source.pointer` to the offending attribute. It no longer documents `403 ONGOING_RUNS`: an update is not refused because the session has another ongoing run. Every route may answer `503 SERVICE_UNAVAILABLE` when the server could not process the request and saved nothing: the `Retry-After` header says when to try again.
+
+- [#396](https://github.com/QuentinRoy/lightmill-js/pull/396) [`bbcb236`](https://github.com/QuentinRoy/lightmill-js/commit/bbcb236a538f3b185bde94da31c95fcd78b49d1e) - `POST /logs`, `POST /operations` and `PATCH /runs/{id}` document a `403 RUN_NOT_OWNED` error, for a write to a run another session created.
+
+- [#386](https://github.com/QuentinRoy/lightmill-js/pull/386) [`6abfe1b`](https://github.com/QuentinRoy/lightmill-js/commit/6abfe1b27e852b8af7b284816140c5b6ab77082b) - `@lightmill/log-api/vocabulary` exports the terms of the API without loading zod or the OpenAPI document: `mediaType`, `atomicMediaType`, `sessionCookieName`, `runStatuses` and `RunStatus`, `userRoles` and `UserRole`, and `httpStatuses` with `HttpStatusMap`, `HttpStatusCode` and `HttpStatusText`.
+
+### Patch Changes
+
+- [#383](https://github.com/QuentinRoy/lightmill-js/pull/383) [`1968561`](https://github.com/QuentinRoy/lightmill-js/commit/1968561109828d73952f465409053ab00cdaf3f9) - Fix `PATCH /runs/{id}` documenting a `403 INVALID_ROLE` error that the server never sends.
+
 ## 5.0.0-beta.4
 
 ### Major Changes
