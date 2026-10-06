@@ -5,14 +5,14 @@ import { LogDeliveryError } from './errors.js';
 import { type AnyIteratorOrIterable, useRunState } from './runState.js';
 import { type Logger, useLogWrapper } from './useLogWrapper.js';
 
-export type RunElements<T extends Typed> = {
+export type TimelinePlayerElements<T extends Typed> = {
   tasks: Record<T['type'], React.ReactElement>;
   loading?: React.ReactElement;
   completed?: React.ReactElement;
   paused?: React.ReactElement;
 };
 
-type RunParameter<Task extends { type: string }, Log> = {
+type TimelinePlayerParameter<Task extends { type: string }, Log> = {
   onCompleted?: () => void;
   onLog?: Logger<Log>;
   resumeAfterTask?: (task: Task) => boolean;
@@ -21,26 +21,26 @@ type RunParameter<Task extends { type: string }, Log> = {
   | { timeline?: AnyIteratorOrIterable<Task> | null; loading: true }
 );
 
-export type RunProps<Task extends Typed, Log> = {
-  elements: RunElements<Task>;
+export type TimelinePlayerProps<Task extends Typed, Log> = {
+  elements: TimelinePlayerElements<Task>;
   paused?: boolean;
-} & RunParameter<Task, Log>;
+} & TimelinePlayerParameter<Task, Log>;
 
 /**
  * Runs a timeline, rendering `elements.tasks` for each task in turn.
  *
- * The timeline is consumed once and cannot be rewound: remounting `Run`
+ * The timeline is consumed once and cannot be rewound: remounting `TimelinePlayer`
  * (outside of StrictMode) needs a fresh timeline.
  */
 // This component uses explicit return type to prevent the function from
 // returning undefined, which could indicate a state isn't being handled.
-export function Run<const T extends RegisteredTask>({
+export function TimelinePlayer<const T extends RegisteredTask>({
   elements,
   paused = false,
   onLog,
   loading = false,
   ...runParameter
-}: RunProps<T, RegisteredLog>): React.JSX.Element | null {
+}: TimelinePlayerProps<T, RegisteredLog>): React.JSX.Element | null {
   const { onLog: logWrapper, error: logError } = useLogWrapper(onLog);
   const state = useRunState({ ...runParameter, paused, loading });
   if (logError != null) {
@@ -48,7 +48,7 @@ export function Run<const T extends RegisteredTask>({
   }
   if (paused && elements.paused == null) {
     throw new LogDeliveryError(
-      'Logs could not be delivered. Provide elements.paused to <Run /> to handle this and avoid losing logs and progress, for example by offering to retry.',
+      'Logs could not be delivered. Provide elements.paused to <TimelinePlayer /> to handle this and avoid losing logs and progress, for example by offering to retry.',
     );
   }
 

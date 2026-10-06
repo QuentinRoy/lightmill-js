@@ -155,7 +155,7 @@ type UseRunStateOptions<Task> = {
 };
 
 /**
- * What `Run` has to render. While paused or loading, the task that was
+ * What `TimelinePlayer` has to render. While paused or loading, the task that was
  * running when the interruption began stays; once the timeline moves on,
  * paused or loading replaces whatever comes next.
  *
@@ -199,9 +199,9 @@ export function useRunState<Task>({
     throw snapshot.error;
   }
 
-  // onCompleted is called from an effect because effects only run while Run is
+  // onCompleted is called from an effect because effects only run while TimelinePlayer is
   // mounted and visible. It is therefore never called after an unmount, and a
-  // completion that happens while <Activity> hides Run is reported once Run is
+  // completion that happens while <Activity> hides TimelinePlayer is reported once TimelinePlayer is
   // shown again. The ref keeps StrictMode's effect rerun from calling it twice.
   const completedNotifiedRef = React.useRef(false);
   const completed = snapshot.status === 'completed';

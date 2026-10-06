@@ -4,7 +4,7 @@ React utilities to render and run timeline-based Lightmill experiments.
 
 This package provides:
 
-1. `Run` component to execute a timeline and render task components.
+1. `TimelinePlayer` component to execute a timeline and render task components.
 2. `useTask` hook to access current task and complete it.
 3. `useLogger` hook to emit logs from task components.
 4. `RegisterExperiment` type to register task/log unions globally.
@@ -43,7 +43,11 @@ declare module '@lightmill/react-experiment' {
 ## Usage
 
 ```tsx
-import { Run, useTask, useLogger } from '@lightmill/react-experiment';
+import {
+  TimelinePlayer,
+  useTask,
+  useLogger,
+} from '@lightmill/react-experiment';
 
 function IntroTask() {
   const { task, onTaskCompleted } = useTask('intro');
@@ -79,7 +83,7 @@ function TrialTask() {
 ```
 
 ```tsx
-<Run
+<TimelinePlayer
   timeline={timeline}
   onLog={async (log) => {
     await logger.addLog(log);
@@ -94,28 +98,28 @@ function TrialTask() {
 
 ## API Reference
 
-### `Run` component
+### `TimelinePlayer` component
 
 Props:
 
-- `timeline`: iterator/iterable of tasks. `Run` consumes it once and it cannot be changed after it is set, so remounting `Run` needs a fresh timeline.
+- `timeline`: iterator/iterable of tasks. `TimelinePlayer` consumes it once and it cannot be changed after it is set, so remounting `TimelinePlayer` needs a fresh timeline.
 - `elements.tasks`: map from task type to React element.
 - `elements.loading`: optional element to render while `loading` is `true`, once the task that was running has ended. It wins over `elements.completed`, and loses to `elements.paused`.
 - `elements.completed`: optional completion element.
-- `elements.paused`: element to render while `paused` is `true`, once the task that was running has ended. Recommended if you set `paused`. Without it, `Run` throws a `LogDeliveryError`.
-- `paused`: set it to `true` when logs cannot be delivered. `Run` keeps rendering the running task, then `elements.paused` instead of what comes next (including `elements.completed`). The timeline and `onCompleted` are not affected. See [Handling log delivery failures](#handling-log-delivery-failures).
-- `loading`: set it to `true` while the app is not ready to move on (the timeline may then be unset). `Run` keeps rendering the running task, then `elements.loading` instead of what comes next. If `loading` goes back to `false` before the task ends, the task is not restarted.
+- `elements.paused`: element to render while `paused` is `true`, once the task that was running has ended. Recommended if you set `paused`. Without it, `TimelinePlayer` throws a `LogDeliveryError`.
+- `paused`: set it to `true` when logs cannot be delivered. `TimelinePlayer` keeps rendering the running task, then `elements.paused` instead of what comes next (including `elements.completed`). The timeline and `onCompleted` are not affected. See [Handling log delivery failures](#handling-log-delivery-failures).
+- `loading`: set it to `true` while the app is not ready to move on (the timeline may then be unset). `TimelinePlayer` keeps rendering the running task, then `elements.loading` instead of what comes next. If `loading` goes back to `false` before the task ends, the task is not restarted.
 - `onLog`: optional async log handler.
-- `onCompleted`: optional callback after completion. Called once, and only while `Run` is mounted.
-- `resumeAfterTask`: optional function that returns `true` for the last completed task. `Run` starts after the first task it matches, and throws if none does.
+- `onCompleted`: optional callback after completion. Called once, and only while `TimelinePlayer` is mounted.
+- `resumeAfterTask`: optional function that returns `true` for the last completed task. `TimelinePlayer` starts after the first task it matches, and throws if none does.
 
 ### `LogDeliveryError`
 
-Thrown by `Run` when `paused` is `true` and there is no `elements.paused`: logs could not be delivered and nothing handles it. Also thrown when `onLog` rejects, with the log it could not deliver in its `log` property. Catch it with an error boundary.
+Thrown by `TimelinePlayer` when `paused` is `true` and there is no `elements.paused`: logs could not be delivered and nothing handles it. Also thrown when `onLog` rejects, with the log it could not deliver in its `log` property. Catch it with an error boundary.
 
 ### `useConfirmBeforeUnload(enabled)`
 
-Asks the browser to confirm before the page is closed or reloaded, for as long as `enabled` is `true` and the calling component is mounted. `Run` never does it by itself: decide when from the state you have, such as the logger's state (see [Handling log delivery failures](#handling-log-delivery-failures)) or the timeline when there is no logger.
+Asks the browser to confirm before the page is closed or reloaded, for as long as `enabled` is `true` and the calling component is mounted. `TimelinePlayer` never does it by itself: decide when from the state you have, such as the logger's state (see [Handling log delivery failures](#handling-log-delivery-failures)) or the timeline when there is no logger.
 
 ### `useTask(type?)`
 
@@ -126,19 +130,22 @@ Returns `{ task, onTaskCompleted }` for current running task.
 
 ### `useLogger(type?)`
 
-Returns a logger function bound to `Run`'s `onLog`.
+Returns a logger function bound to `TimelinePlayer`'s `onLog`.
 
 - With `type`, returned function only needs log payload fields (without `type`).
 - Without `type`, returned function accepts full registered log objects.
 
 ## Handling log delivery failures
 
-`Run` does not deliver logs, so it does not know when delivery fails. With [`@lightmill/log-client`](../log-client/README.md), read the logger's state and pass it to `Run`:
+`TimelinePlayer` does not deliver logs, so it does not know when delivery fails. With [`@lightmill/log-client`](../log-client/README.md), read the logger's state and pass it to `TimelinePlayer`:
 
 ```tsx
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import type { Logger } from '@lightmill/log-client';
-import { Run, useConfirmBeforeUnload } from '@lightmill/react-experiment';
+import {
+  TimelinePlayer,
+  useConfirmBeforeUnload,
+} from '@lightmill/react-experiment';
 
 function Experiment({
   logger,
@@ -166,9 +173,9 @@ function Experiment({
   useConfirmBeforeUnload(!runEnded);
 
   return (
-    <Run
+    <TimelinePlayer
       timeline={timeline}
-      // A rejected `onLog` throws in `Run`. The logs a pause rejects are kept
+      // A rejected `onLog` throws in `TimelinePlayer`. The logs a pause rejects are kept
       // by the logger, so only other errors are rethrown.
       onLog={(log) =>
         logger.addLog(log).catch((error) => {
@@ -198,4 +205,4 @@ function Paused({ logger }: { logger: Logger }) {
 }
 ```
 
-`retry()` sends the held logs again. While it runs, the logger state goes back to `sending` and `Run` resumes; if it fails again, the state becomes `paused` once more. `download` stands for whatever your app uses to save a file.
+`retry()` sends the held logs again. While it runs, the logger state goes back to `sending` and `TimelinePlayer` resumes; if it fails again, the state becomes `paused` once more. `download` stands for whatever your app uses to save a file.

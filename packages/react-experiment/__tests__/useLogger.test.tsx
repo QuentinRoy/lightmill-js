@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import userEventPackage from '@testing-library/user-event';
-import { Run, useLogger } from '../src/main.js';
+import { TimelinePlayer, useLogger } from '../src/main.js';
 
 // @ts-expect-error - userEventPackage is not typed correctly
 const userEvent: typeof userEventPackage.default = userEventPackage;
@@ -25,7 +25,13 @@ describe('useLogger', () => {
       completed: <div data-testid="end" />,
     };
     const onLog = vi.fn(() => Promise.resolve());
-    render(<Run elements={config} timeline={[{ type: 't' }]} onLog={onLog} />);
+    render(
+      <TimelinePlayer
+        elements={config}
+        timeline={[{ type: 't' }]}
+        onLog={onLog}
+      />,
+    );
     await user.click(screen.getByRole('button'));
     expect(onLog).toHaveBeenCalledWith({ type: 'task', value: 'value' });
   });
@@ -49,12 +55,18 @@ describe('useLogger', () => {
       completed: <div data-testid="end" />,
     };
     const onLog = vi.fn(() => Promise.resolve());
-    render(<Run elements={config} timeline={[{ type: 't' }]} onLog={onLog} />);
+    render(
+      <TimelinePlayer
+        elements={config}
+        timeline={[{ type: 't' }]}
+        onLog={onLog}
+      />,
+    );
     await user.click(screen.getByRole('button'));
     expect(onLog).toHaveBeenCalledWith({ type: 'task', value: 'value' });
   });
 
-  it('throws if Run has no onLog', () => {
+  it('throws if TimelinePlayer has no onLog', () => {
     const spy = vi.spyOn(console, 'error');
     spy.mockImplementation(() => {});
     const Task = () => {
@@ -63,12 +75,12 @@ describe('useLogger', () => {
     };
     expect(() =>
       render(
-        <Run
+        <TimelinePlayer
           elements={{ tasks: { t: <Task /> } }}
           timeline={[{ type: 't' }]}
         />,
       ),
-    ).toThrow('No logger found. Was onLog provided in <Run />?');
+    ).toThrow('No logger found. Was onLog provided in <TimelinePlayer />?');
     spy.mockRestore();
   });
 
@@ -86,9 +98,17 @@ describe('useLogger', () => {
 
     it('logs to an onLog provided after loading', async () => {
       const user = userEvent.setup();
-      const { rerender } = render(<Run elements={elements} loading />);
+      const { rerender } = render(
+        <TimelinePlayer elements={elements} loading />,
+      );
       const onLog = vi.fn(() => Promise.resolve());
-      rerender(<Run elements={elements} timeline={timeline} onLog={onLog} />);
+      rerender(
+        <TimelinePlayer
+          elements={elements}
+          timeline={timeline}
+          onLog={onLog}
+        />,
+      );
       await user.click(await screen.findByRole('button'));
       expect(onLog).toHaveBeenCalledWith({ type: 'task', value: 'value' });
     });
@@ -98,9 +118,19 @@ describe('useLogger', () => {
       const onLogA = vi.fn(() => Promise.resolve());
       const onLogB = vi.fn(() => Promise.resolve());
       const { rerender } = render(
-        <Run elements={elements} timeline={timeline} onLog={onLogA} />,
+        <TimelinePlayer
+          elements={elements}
+          timeline={timeline}
+          onLog={onLogA}
+        />,
       );
-      rerender(<Run elements={elements} timeline={timeline} onLog={onLogB} />);
+      rerender(
+        <TimelinePlayer
+          elements={elements}
+          timeline={timeline}
+          onLog={onLogB}
+        />,
+      );
       await user.click(screen.getByRole('button'));
       expect(onLogA).not.toHaveBeenCalled();
       expect(onLogB).toHaveBeenCalledWith({ type: 'task', value: 'value' });
@@ -114,14 +144,14 @@ describe('useLogger', () => {
       };
       const taskElements = { tasks: { t: <Task /> } };
       const { rerender } = render(
-        <Run
+        <TimelinePlayer
           elements={taskElements}
           timeline={timeline}
           onLog={async () => {}}
         />,
       );
       rerender(
-        <Run
+        <TimelinePlayer
           elements={taskElements}
           timeline={timeline}
           onLog={async () => {}}
