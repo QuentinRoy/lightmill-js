@@ -11,7 +11,10 @@ import {
   getRunNotOwnedError,
   getRunsDocument,
 } from './json-api.ts';
-import type { HandlerResponseFromRoute, PathHandlers } from './router.ts';
+import type {
+  HandlerResponseFromRoute,
+  PathHandlers,
+} from './request-handling.ts';
 import {
   addRunToExperiment,
   ongoingRunStatuses,

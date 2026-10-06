@@ -4,7 +4,7 @@ import {
   getExperimentDocument,
   getExperimentsDocument,
 } from './json-api.ts';
-import type { PathHandlers } from './router.ts';
+import type { PathHandlers } from './request-handling.ts';
 
 export const createExperimentHandlers = (): PathHandlers<'/experiments'> => ({
   '/experiments': {

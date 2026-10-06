@@ -1,5 +1,5 @@
 import { getErrorResponse, getSessionDocument } from './json-api.ts';
-import type { PathHandlers } from './router.ts';
+import type { PathHandlers } from './request-handling.ts';
 import { checkBasicAuth } from './utils.ts';
 
 type SessionHandlerOptions = {

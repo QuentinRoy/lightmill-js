@@ -8,7 +8,7 @@ import { createOperationHandlers } from './app-operations-handlers.ts';
 import { createRunHandlers } from './app-runs-handlers.ts';
 import { createSessionHandlers } from './app-sessions-handlers.ts';
 import type { DataStore } from './data-store.ts';
-import { createRequestMiddleware } from './router.ts';
+import { createRequestMiddleware } from './request-handling.ts';
 
 const MemorySessionStore = MemorySessionStoreModule(session);
 
