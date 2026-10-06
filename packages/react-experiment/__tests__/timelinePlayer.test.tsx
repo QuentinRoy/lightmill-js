@@ -97,6 +97,23 @@ describe('TimelinePlayer', () => {
     expect(screen.getByTestId('end')).toBeInTheDocument();
   });
 
+  it('mounts each task fresh, even when consecutive tasks have the same type', async () => {
+    const user = userEvent.setup();
+    render(
+      <TimelinePlayer
+        elements={{ tasks: { A: <Task type="A" dataProp="a" /> } }}
+        timeline={[
+          { type: 'A', a: 'one' },
+          { type: 'A', a: 'two' },
+        ]}
+      />,
+    );
+    await user.type(screen.getByRole('textbox'), 'typed');
+    await user.click(screen.getByRole('button'));
+    expect(screen.getByTestId('data')).toHaveTextContent('two');
+    expect(screen.getByRole('textbox')).toHaveValue('');
+  });
+
   it('starts after the task matched by resumeAfterTask', async () => {
     const user = userEvent.setup();
     render(

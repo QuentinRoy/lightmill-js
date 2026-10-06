@@ -60,7 +60,7 @@ export function TimelinePlayer<const T extends RegisteredTask>({
         throw new Error(`No task registered for type ${state.task.type}`);
       }
       element = (
-        <taskContext.Provider value={state}>
+        <taskContext.Provider key={state.taskKey} value={state}>
           {elements.tasks[type]}
         </taskContext.Provider>
       );
