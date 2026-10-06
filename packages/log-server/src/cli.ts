@@ -60,6 +60,7 @@ const log = loglevel.getLogger('main');
 // Command handlers
 // ----------------
 
+type SecureCookies = 'auto' | 'always' | 'never';
 type StartParameter = {
   database: string;
   port: number;
@@ -67,7 +68,7 @@ type StartParameter = {
   sessionMaxAgeDays: number;
   hostPassword: string | undefined;
   sameSite: boolean;
-  secureCookies: 'auto' | 'always' | 'never' | undefined;
+  secureCookies: SecureCookies | undefined;
   allowedOrigin: string[];
   trustProxy: boolean;
 };
@@ -302,6 +303,13 @@ async function addExperiment({ database, name }: AddExperimentParameter) {
 // Command line interface
 // ----------------------
 
+// yargs turns a repeated scalar option into an array. Like most CLIs, the last
+// occurrence wins. yargs' `duplicate-arguments-array: false` would do the same
+// but also make `--allowed-origin` keep only its last origin.
+function lastOccurrence<T>(value: T | T[] | undefined): T | undefined {
+  return Array.isArray(value) ? value.at(-1) : value;
+}
+
 export function cli() {
   yargs(process.argv.slice(2))
     .command(
@@ -338,14 +346,8 @@ export function cli() {
             desc: 'Password for the host user (required)',
             type: 'string',
             default: env.HOST_PASSWORD,
-            // yargs turns a repeated option into an array, which the check in
-            // `start` would report as a missing password.
-            coerce: (value: string | string[] | undefined) => {
-              if (Array.isArray(value)) {
-                throw new Error('Pass --host-password only once.');
-              }
-              return value;
-            },
+            coerce: (value: string | string[] | undefined) =>
+              lastOccurrence(value),
           })
           .option('same-site', {
             desc: 'Use same-site cookies, for a browser page on the same site as the API (the port can differ). Cookies are Secure over HTTPS, not over HTTP',
@@ -356,16 +358,8 @@ export function cli() {
             desc: 'Whether the session cookie is Secure: auto follows the request protocol (needs --trust-proxy behind a TLS-terminating proxy). Defaults to auto with --same-site, always otherwise; auto and never require --same-site',
             type: 'string',
             choices: ['auto', 'always', 'never'] as const,
-            // A repeated option becomes an array, which `createLogServer` would
-            // read as anything but `always`: an unintended insecure cookie.
-            coerce: (
-              value: 'auto' | 'always' | 'never' | string[] | undefined,
-            ) => {
-              if (Array.isArray(value)) {
-                throw new Error('Pass --secure-cookies only once.');
-              }
-              return value;
-            },
+            coerce: (value: SecureCookies | SecureCookies[] | undefined) =>
+              lastOccurrence(value),
           })
           .option('allowed-origin', {
             desc: 'Origin of a page allowed to call the API with credentials, e.g. https://example.org. Repeatable. Required unless --same-site is set',

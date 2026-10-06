@@ -54,16 +54,20 @@ it.for([
   expect(result.stderr).toContain('No host password set');
 });
 
-it('start refuses a host password given twice', () => {
+it.for([
+  ['one', ''],
+  ['', 'two'],
+])('start uses the last of a repeated host password (%j, %j)', (passwords) => {
   const result = start([
     ...sessionKeyArguments,
-    '--host-password',
-    'one',
-    '--host-password',
-    'two',
+    '--same-site',
+    ...passwords.flatMap((password) => ['--host-password', password]),
   ]);
   expect(result.status).toBe(1);
-  expect(result.stderr).toContain('Pass --host-password only once');
+  // The last password decides whether the check passes.
+  expect(result.stderr.includes('No host password set')).toBe(
+    passwords.at(-1) === '',
+  );
 });
 
 it('start reports a missing session key before a missing host password', () => {

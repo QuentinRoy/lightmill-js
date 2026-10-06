@@ -133,19 +133,17 @@ describe('log-server start --secure-cookies', () => {
     expect(result.stderr + result.stdout).toContain('Invalid values');
   });
 
-  it('rejects a repeated option', () => {
-    const result = spawnSync(
-      process.execPath,
-      cliArguments([
+  it('uses the last of a repeated option', async () => {
+    const cookie = await sessionCookie(
+      [
         '--same-site',
         '--secure-cookies',
         'always',
         '--secure-cookies',
         'never',
-      ]),
-      { env, encoding: 'utf8' },
+      ],
+      'https',
     );
-    expect(result.status).not.toBe(0);
-    expect(result.stderr + result.stdout).toContain('only once');
+    expect(cookie).not.toContain('Secure');
   });
 });
