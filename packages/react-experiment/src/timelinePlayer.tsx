@@ -2,7 +2,7 @@ import * as React from 'react';
 import type { RegisteredLog, RegisteredTask, Typed } from './config.js';
 import { loggerContext, noLoggerSymbol, taskContext } from './contexts.js';
 import { LogDeliveryError } from './errors.js';
-import { type AnyIteratorOrIterable, useRunState } from './runState.js';
+import { type AnyIteratorOrIterable, usePlayerState } from './playerState.js';
 import { type Logger, useLogWrapper } from './useLogWrapper.js';
 
 export type TimelinePlayerElements<T extends Typed> = {
@@ -39,10 +39,10 @@ export function TimelinePlayer<const T extends RegisteredTask>({
   paused = false,
   onLog,
   loading = false,
-  ...runParameter
+  ...playerParameter
 }: TimelinePlayerProps<T, RegisteredLog>): React.JSX.Element | null {
   const { onLog: logWrapper, error: logError } = useLogWrapper(onLog);
-  const state = useRunState({ ...runParameter, paused, loading });
+  const state = usePlayerState({ ...playerParameter, paused, loading });
   if (logError != null) {
     throw logError;
   }
