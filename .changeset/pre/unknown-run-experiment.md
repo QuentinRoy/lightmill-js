@@ -2,4 +2,4 @@
 '@lightmill/log-server': patch
 ---
 
-`POST /runs` returns `403 EXPERIMENT_NOT_FOUND` when the requested experiment does not exist.
+Fix `POST /runs` answering `500` for an experiment that does not exist. It now answers `403 EXPERIMENT_NOT_FOUND`.

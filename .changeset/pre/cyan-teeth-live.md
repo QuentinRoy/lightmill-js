@@ -2,4 +2,4 @@
 '@lightmill/log-api': major
 ---
 
-Switch `openapi.json` export to `openapi.yaml`. This aligns with openapi most widespread use. Author should update their code to use `openapi.yaml` instead of `openapi.json`, and switch to corresponding parser.
+Replace the `openapi.json` export with `openapi.yaml`, the format most OpenAPI tools expect, and stop exporting the TypeScript types generated from the OpenAPI document. Import `@lightmill/log-api/openapi.yaml` with a YAML parser instead of `openapi.json`. For types, infer them from the exported zod schemas, or generate them from `openapi.yaml` with `openapi-typescript`.
