@@ -55,7 +55,66 @@ declare module 'express-session' {
   }
 }
 
-export function validateHandlers({
+// Use the dedicated app so query settings stay local and session failures
+// reach the final error handler.
+export function installRequestHandling(
+  app: Express.Application,
+  {
+    handlers,
+    dataStore,
+    sessionMiddleware,
+  }: {
+    handlers: Handlers;
+    dataStore: DataStore;
+    sessionMiddleware: Express.RequestHandler;
+  },
+): void {
+  app.set('query parser', parseQuery);
+  app.use(sessionMiddleware);
+  app.use(
+    createRouter({ handlers: validateHandlers({ handlers }), dataStore }),
+  );
+  app.use(createErrorHandler());
+}
+
+function parseQuery(str: string | null) {
+  if (str == null) return {};
+  // URLSearchParams decodes malformed percent-encoding into U+FFFD, which
+  // would filter on a value the client never sent.
+  for (const pair of str.split('&')) {
+    const [key = ''] = pair.split('=', 1);
+    if (!isDecodable(key)) throw new MalformedQueryError(key);
+    if (!isDecodable(pair)) {
+      throw new MalformedQueryError(
+        decodeURIComponent(key.replaceAll('+', ' ')),
+      );
+    }
+  }
+  let params = new URLSearchParams(str);
+  let values: Record<string, string[] | string> = {};
+  for (const [key, value] of params.entries()) {
+    let oldValue = values[key];
+    if (oldValue == null) {
+      values[key] = value;
+    } else if (Array.isArray(oldValue)) {
+      oldValue.push(value);
+    } else {
+      values[key] = [oldValue, value];
+    }
+  }
+  return values;
+}
+
+function isDecodable(component: string) {
+  try {
+    decodeURIComponent(component);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function validateHandlers({
   handlers,
 }: {
   handlers: Handlers;
@@ -122,15 +181,14 @@ export function validateHandlers({
   return result;
 }
 
-export function createRouter({
+function createRouter({
   handlers,
-  router = Express.Router(),
   dataStore,
 }: {
   handlers: HandlersWithValidation;
-  router?: Express.Router;
   dataStore: DataStore;
 }): Express.Router {
+  const router = Express.Router();
   for (const [path, methods] of unsafeEntries(handlers)) {
     const expressPath = path.replace(/{(\w+)}/g, ':$1');
     const route = router.route(expressPath);
@@ -413,7 +471,7 @@ function answerErrors(
 }
 
 /** A query parameter whose percent-encoding is malformed. */
-export class MalformedQueryError extends Error {
+class MalformedQueryError extends Error {
   readonly parameter: string;
 
   constructor(parameter: string) {
@@ -475,7 +533,7 @@ function toError(error: unknown) {
  * Express error middleware answering what fails outside a route: the session
  * store, or Express's router itself.
  */
-export function createErrorHandler(): Express.ErrorRequestHandler {
+function createErrorHandler(): Express.ErrorRequestHandler {
   return async (error: unknown, request, response, next) => {
     // Too late to answer: Express logs the error and closes the connection.
     if (response.headersSent) {
