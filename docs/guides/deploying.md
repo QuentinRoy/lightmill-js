@@ -221,3 +221,32 @@ Some options of `log-server start` have environment-variable equivalents, listed
 ### Sessions
 
 A participant's session lasts as long as its cookie: 30 days by default, or `--session-max-age-days`. The session is what lets a participant find and resume their run, so set it to cover your whole study. Sessions are stored in the database, so they survive restarts. A participant who clears their cookies, or switches browser or device, can't resume. See [Resuming runs](resuming-runs.md).
+
+## Troubleshooting
+
+| Problem                                          | What to check or do                                                                                                                                                                                                                 |
+| ------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| The service does not start.                      | Read `sudo journalctl -u lightmill`. Check the Node path, working directory, access to `.env` and the database, and both secrets. A missing or outdated database needs `npx log-server migrate` against the same path.              |
+| The app cannot find the experiment.              | Create it with `npx log-server experiment add <name>` in `/srv/lightmill`. Match the app's experiment name.                                                                                                                         |
+| A published app tries to contact `localhost`.    | Change `apiRoot` in the source, rebuild, and copy the new `dist` directory. Check the request URL in the browser's Network panel.                                                                                                   |
+| Requests fail between different origins.         | Match `--allowed-origin` to the app's full origin, including its scheme and port. Use no path or trailing slash. Same-site addresses can still be different origins.                                                                |
+| A participant session is missing after starting. | Check that the browser receives the `lightmill-session-id` cookie. Behind an HTTPS proxy, use `--trust-proxy` and forward `X-Forwarded-Proto: https`. Cross-site apps can also fail because the browser blocks third-party cookies. |
+| `RUN_EXISTS` appears when someone returns.       | A completed run cannot resume. An unfinished run needs its original browser session. For test runs, choose a new participant number. For a replacement, keep the old data and use a new identifier with the same condition order.   |
+
+If a participant has lost their session, keep the original run unless you deliberately want to cancel it. Canceling frees its name but excludes its logs from CSV exports. To cancel it, first [open a host session](exporting-data.md#over-http), then request the run list as that host:
+
+```sh
+curl --fail-with-body --cookie host-cookies.txt --globoff \
+  'https://study.example.org/api/runs?filter[experiment.name]=reaction-time&filter[name]=participant-9001'
+```
+
+Read the run's `id` from the JSON response. Replace `123` in both places below with that id, after checking that you selected the intended run:
+
+```sh
+curl --fail-with-body --request PATCH --cookie host-cookies.txt \
+  --header 'Content-Type: application/vnd.api+json' \
+  --data '{"data":{"type":"runs","id":"123","attributes":{"status":"canceled"}}}' \
+  https://study.example.org/api/runs/123
+```
+
+The database keeps the canceled run and its logs. [JSON exports](exporting-data.md#as-json) can still retrieve them.

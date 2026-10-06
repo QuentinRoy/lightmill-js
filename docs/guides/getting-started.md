@@ -369,12 +369,24 @@ class ErrorBoundary extends Component<
   { children: ReactNode },
   { error: Error | null }
 > {
-  state = { error: null };
+  state: { error: Error | null } = { error: null };
   static getDerivedStateFromError(error: Error) {
     return { error };
   }
+  componentDidCatch(error: Error) {
+    console.error('Could not run the experiment:', error);
+  }
   render() {
-    if (this.state.error != null) {
+    const { error } = this.state;
+    if (error != null && 'code' in error && error.code === 'RUN_EXISTS') {
+      return (
+        <p>
+          This participant number has already been used. If you have not
+          finished, return to the original browser or contact the researcher.
+        </p>
+      );
+    }
+    if (error != null) {
       return <p>Something went wrong. Please contact the researcher.</p>;
     }
     return this.props.children;
@@ -404,6 +416,19 @@ npm run dev
 Open <http://localhost:5173/?participant=1> and do a few trials. Reload the page: the experiment continues after the last trial whose completion log was saved. If an answer had not reached the server, that trial repeats. Finish the experiment and wait for "Thank you!", which appears only after saving and completing the run.
 
 If the app shows the saving failure screen, keep the page open and retry. The download button saves a copy of unsaved answers for the researcher; it does not upload them or complete the run. The server has no automatic import for that file. [Resuming runs](resuming-runs.md#limits) explains the recovery limits.
+
+## Troubleshooting
+
+The error boundary keeps the participant's message short and records the error in the browser's developer console. Check that console and the terminal running the log server when setting up your study.
+
+| Problem                                                         | What to check or do                                                                                                                                                                                                                  |
+| --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| The server says the database is missing or needs migrating.     | Run `npx log-server migrate` in the app directory, using the same database path as `start`.                                                                                                                                          |
+| The app says the experiment could not be found.                 | Run `npx log-server experiment add reaction-time` against that database. The name must match `startRun`.                                                                                                                             |
+| Requests fail or the browser cannot keep a participant session. | Keep the server running, open the app on `localhost` rather than `127.0.0.1`, and match Vite's actual origin with `--allowed-origin`. See the [deployment troubleshooting](deploying.md#troubleshooting) for HTTPS and proxy setups. |
+| `RUN_EXISTS` appears after you finish or switch browsers.       | Use the original browser for an unfinished run. For a new test, choose an unused participant number. A completed run cannot resume.                                                                                                  |
+| The saved task cannot be found when resuming.                   | Restore the original timeline or investigate the changed design. Do not silently restart the tasks under the same run.                                                                                                               |
+| "Saving…" does not finish.                                      | Check the connection and server log. If delivery pauses, retry or download the unsaved answers before leaving the page.                                                                                                              |
 
 ## Get the data
 
