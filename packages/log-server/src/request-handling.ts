@@ -55,8 +55,7 @@ declare module 'express-session' {
   }
 }
 
-// A dedicated app keeps query and proxy settings local and session failures
-// within reach of the final error handler.
+// A dedicated app keeps query and proxy settings local.
 export function createRequestMiddleware({
   handlers,
   dataStore,
@@ -71,9 +70,12 @@ export function createRequestMiddleware({
   const app = express();
   app.set('trust proxy', trustProxy);
   app.set('query parser', parseQuery);
-  app.use(sessionMiddleware);
   app.use(
-    createRouter({ handlers: validateHandlers({ handlers }), dataStore }),
+    createRouter({
+      handlers: validateHandlers({ handlers }),
+      dataStore,
+      sessionMiddleware,
+    }),
   );
   app.use(createErrorHandler());
   return app;
@@ -188,9 +190,11 @@ function validateHandlers({
 function createRouter({
   handlers,
   dataStore,
+  sessionMiddleware,
 }: {
   handlers: HandlersWithValidation;
   dataStore: DataStore;
+  sessionMiddleware: express.RequestHandler;
 }): express.Router {
   const router = express.Router();
   for (const [path, methods] of unsafeEntries(handlers)) {
@@ -208,10 +212,13 @@ function createRouter({
         throw new TypeError(`No route config for ${method} ${path}`);
       }
       const expectedMediaType = getRequestMediaType(routeConfig);
+      // Loading the session inside the route lets its failures answer in the
+      // route's media type.
       route[method](
+        sessionMiddleware,
         checkContentType(expectedMediaType),
         parseJsonBody,
-        answerBodyErrors(expectedMediaType),
+        answerRequestErrors(expectedMediaType),
         handleWith(handler, dataStore),
         answerErrors(expectedMediaType),
       );
@@ -432,15 +439,38 @@ function handleWith(
       dataStore,
       protocol: request.protocol,
       host: request.host,
+      baseUrl: getBaseUrl(request),
       lockSession: (fn) => lockSession(request, whenFinished(response), fn),
     });
     await processResponse({ result, request, response });
   };
 }
 
+// Express sets `request.baseUrl` to the path the server is mounted on. A proxy
+// that strips a prefix before forwarding reports it in `X-Forwarded-Prefix`,
+// which, like `X-Forwarded-Host`, is only trusted when `trust proxy` allows it.
+function getBaseUrl(request: express.Request): string {
+  const trust: unknown = request.app.get('trust proxy fn');
+  const forwardedPrefix = request
+    .get('x-forwarded-prefix')
+    ?.split(',')[0]
+    ?.trim();
+  const prefix =
+    typeof trust === 'function' &&
+    trust(request.socket.remoteAddress, 0) &&
+    forwardedPrefix != null &&
+    // A path, not a protocol-relative URL, query, or fragment, which would
+    // make the location point away from the created resource.
+    /^\/(?!\/)[^?#\s]*$/.test(forwardedPrefix)
+      ? forwardedPrefix
+      : '';
+  return prefix.replace(/\/+$/, '') + request.baseUrl;
+}
+
 // Express sends an error to the next error middleware of the stack, so the
-// one placed right after the body parser only gets the parser's errors.
-function answerBodyErrors(
+// one placed right after the body parser gets the errors of the session and
+// the parser, but not the handler's.
+function answerRequestErrors(
   routeMediaType: RouteMediaType,
 ): express.ErrorRequestHandler {
   return async (error: unknown, request, response, _next) => {
@@ -534,8 +564,8 @@ function toError(error: unknown) {
 }
 
 /**
- * Express error middleware answering what fails outside a route: the session
- * store, or Express's router itself.
+ * Express error middleware answering what fails outside a route: Express's
+ * router itself.
  */
 function createErrorHandler(): express.ErrorRequestHandler {
   return async (error: unknown, request, response, next) => {
@@ -666,6 +696,8 @@ interface HandlerOptions<
   dataStore: DataStore;
   protocol: string;
   host: string;
+  // Path the server is publicly reachable under, without a trailing slash.
+  baseUrl: string;
   lockSession: LockSession;
 }
 

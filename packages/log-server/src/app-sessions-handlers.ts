@@ -18,6 +18,7 @@ export const createSessionHandlers = ({
       dataStore: store,
       protocol,
       host,
+      baseUrl,
     }) {
       const { role: requestedRole = 'participant' } =
         body.data?.attributes ?? {};
@@ -58,7 +59,9 @@ export const createSessionHandlers = ({
       sessionData = { role: requestedRole, runs: [] };
       return {
         sessionData,
-        headers: { location: `${protocol + '://' + host}/sessions/current` },
+        headers: {
+          location: `${protocol + '://' + host + baseUrl}/sessions/current`,
+        },
         status: 201,
         body: await getSessionDocument(store, sessionData),
       };
