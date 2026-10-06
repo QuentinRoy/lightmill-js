@@ -8,8 +8,8 @@ export type PlayerTaskState<Task> = {
   status: 'task';
   task: Task;
   // Different for each started task, even if the timeline yields the same
-  // task object twice.
-  taskKey: symbol;
+  // task object twice. Used as the React key so each task mounts fresh.
+  taskKey: number;
   onTaskCompleted: () => void;
 };
 
@@ -85,6 +85,7 @@ function createPlayerStore<Task>({
   const listeners = new Set<() => void>();
   let snapshot: StoreSnapshot<Task> = loadingSnapshot;
   let started = false;
+  let taskCount = 0;
   const setSnapshot = (next: StoreSnapshot<Task>) => {
     snapshot = next;
     listeners.forEach((listener) => listener());
@@ -99,10 +100,11 @@ function createPlayerStore<Task>({
     },
     onTaskStarted(task) {
       let hasBeenCompleted = false;
+      const taskKey = taskCount++;
       setSnapshot({
         status: 'task',
         task,
-        taskKey: Symbol('task'),
+        taskKey,
         onTaskCompleted() {
           if (hasBeenCompleted) throw new Error('Task already completed');
           runner.completeTask();
@@ -227,12 +229,12 @@ export function usePlayerState<Task>({
 
 function useHoldsRunningTask(
   interrupted: boolean,
-  runningTaskKey: symbol | null,
+  runningTaskKey: number | null,
 ): boolean {
   // null means not interrupted; heldTaskKey is null if no task was running when
   // the interruption began.
   const [pause, setPause] = React.useState<{
-    heldTaskKey: symbol | null;
+    heldTaskKey: number | null;
   } | null>(null);
   // React restarts the render right after a state update made during render,
   // before anything is committed, so the held task is the one that was
