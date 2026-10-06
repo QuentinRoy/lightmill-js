@@ -212,18 +212,19 @@ To keep sessions across restarts, pass a persistent `express-session` store as `
 
 The server speaks [JSON:API](https://jsonapi.org), with the `application/vnd.api+json` media type. [`@lightmill/log-api`](../log-api/README.md) has the full OpenAPI description.
 
-| Route                                   | Who             | Does                                                                   |
-| --------------------------------------- | --------------- | ---------------------------------------------------------------------- |
-| `POST /sessions`                        | anyone          | Opens a participant session, or a host session with the host password. |
-| `GET`, `DELETE /sessions/current`       | session         | Reads or closes the current session.                                   |
-| `GET /experiments`, `/experiments/{id}` | session         | Reads experiments.                                                     |
-| `POST /experiments`                     | host            | Creates an experiment.                                                 |
-| `POST /runs`                            | session         | Starts a run in an experiment.                                         |
-| `GET /runs`, `/runs/{id}`               | session         | Reads the session's runs; a host reads every run.                      |
-| `PATCH /runs/{id}`                      | run owner, host | Changes a run's status, or resumes it. A host can only cancel.         |
-| `POST /logs`                            | run owner       | Adds one log.                                                          |
-| `POST /operations`                      | run owner       | Adds a batch of logs, with the JSON:API Atomic Operations extension.   |
-| `GET /logs`, `/logs/{id}`               | session         | Reads logs, as CSV by default, or as JSON. A host reads every log.     |
+| Route                                   | Who             | Does                                                                             |
+| --------------------------------------- | --------------- | -------------------------------------------------------------------------------- |
+| `POST /sessions`                        | anyone          | Opens a participant session, or a host session with the host password.           |
+| `GET`, `DELETE /sessions/current`       | session         | Reads or closes the current session.                                             |
+| `GET /experiments`, `/experiments/{id}` | session         | Reads experiments.                                                               |
+| `POST /experiments`                     | host            | Creates an experiment.                                                           |
+| `POST /runs`                            | session         | Starts a run in an experiment.                                                   |
+| `GET /runs`, `/runs/{id}`               | session         | Reads the session's runs; a host reads every run.                                |
+| `PATCH /runs/{id}`                      | run owner, host | Changes a run's status, or resumes it. A host can only cancel.                   |
+| `POST /logs`                            | run owner       | Adds one log.                                                                    |
+| `POST /operations`                      | run owner       | Adds a batch of logs, with the JSON:API Atomic Operations extension.             |
+| `GET /logs`                             | session         | Reads logs as CSV by default, or as JSON when requested. A host reads every log. |
+| `GET /logs/{id}`                        | session         | Reads one log as JSON. A host can read any log.                                  |
 
 ## `SQLiteDataStore`
 
