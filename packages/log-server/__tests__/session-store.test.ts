@@ -28,6 +28,7 @@ async function openServer(options: { sessionMaxAge?: number } = {}) {
     dataStore,
     sessionStore: dataStore.getSessionStore(),
     sessionKeys: ['secret'],
+    validateResponses: true,
     allowCrossOrigin: false,
     ...options,
   }).middleware;

@@ -95,12 +95,18 @@ Common optional options:
 - `sessionStore`
 - `sessionMaxAge` (cookie lifetime in milliseconds)
 - `trustProxy`
+- `validateResponses`
 
 By default, the server uses cross-origin cookies, which require HTTPS.
 For a page and API served from the same origin over HTTP, set
 `allowCrossOrigin: false`. This also turns off secure cookies. Browsers
 reject cross-origin cookies without the `Secure` attribute, so
 `secureCookies: false` cannot be used with cross-origin cookies.
+
+Set `validateResponses: true` in tests to check every response, except
+`GET /logs`, against the API schemas. A response that does not match becomes a
+`500`. It is off by default, so production serves data the schemas do not
+expect, such as an experiment created with an empty name, instead of failing.
 
 ### Resuming runs after a restart
 

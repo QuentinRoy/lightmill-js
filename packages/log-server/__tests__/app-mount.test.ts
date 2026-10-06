@@ -19,6 +19,7 @@ describe.for(storeTypes)('createLogServer (%s)', (storeType) => {
       dataStore,
       sessionStore,
       sessionKeys: ['secret'],
+      validateResponses: true,
     });
     let app = express().use('/api', server.middleware);
     let api = request.agent(await listen(app)).host('lightmill-test.com');

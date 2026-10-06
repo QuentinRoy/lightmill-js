@@ -105,6 +105,7 @@ const baseServerOptions = {
   sessionKeys: ['secret'],
   allowCrossOrigin: false as const,
   secureCookies: false,
+  validateResponses: true,
 };
 
 type ServerOptions = {
