@@ -75,8 +75,15 @@ The server finds a participant's runs through their session, so sessions must ou
 Steps 1 to 3 and 5 are the same. Instead of `resumeAfterTask`, skip the tasks yourself: drop every task up to and including the last one logged before you give the timeline to `@lightmill/runner`.
 
 ```ts
-const start = timeline.findIndex((task) => task.id === lastTaskId) + 1;
+let start = 0;
+if (lastTaskId != null) {
+  const index = timeline.findIndex((task) => task.id === lastTaskId);
+  if (index === -1) {
+    throw new Error(`Saved task ${lastTaskId} is missing from the timeline`);
+  }
+  start = index + 1;
+}
 await runTimeline({ timeline: timeline.slice(start), runTask });
 ```
 
-`findIndex` returns `-1` when `lastTaskId` is undefined, so the whole timeline runs.
+With no saved task id, the whole timeline runs. If a saved id is missing from the timeline, stop and investigate the changed design instead of silently repeating every task.
