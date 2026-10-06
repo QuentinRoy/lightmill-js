@@ -46,7 +46,7 @@ Any proxy works the same way: forward the requests, set `X-Forwarded-For`, `X-Fo
 
 ## Configure the server
 
-Every option of `log-server start` has an environment variable. The server reads them from the environment and from a `.env` file in the directory it starts from.
+Some options of `log-server start` have environment-variable equivalents, listed below. The server reads them from the environment and from a `.env` file in the directory it starts from. `--same-site`, `--trust-proxy`, and `--secure-cookies` have no environment-variable equivalents; pass them on the command line.
 
 | Option                   | Environment variable   | Default         |
 | ------------------------ | ---------------------- | --------------- |
