@@ -10,6 +10,7 @@ import { fromAsync } from '../src/utils.ts';
 import {
   addRunToSession,
   apiContentTypeRegExp,
+  authenticateAsHost,
   createClient,
   createRunRequest,
   createServerContext,
@@ -44,6 +45,7 @@ const suite = storeTypes
         const api = createClient(await listen(app)).host(host);
         await api
           .post('/sessions')
+          .use(authenticateAsHost)
           .set('content-type', mediaType)
           .send({
             data: { type: 'sessions', attributes: { role: sessionType } },

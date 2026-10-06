@@ -12,6 +12,7 @@ import { fromAsync } from '../src/utils.ts';
 import {
   apiContentTypeRegExp,
   atomicContentTypeRegExp,
+  authenticateAsHost,
   createClient,
   createSessionTest,
   storeTypes,
@@ -84,6 +85,7 @@ function createTest(storeType: StoreType) {
       const api = createClient(app).host('lightmill-test.com');
       await api
         .post('/sessions')
+        .use(authenticateAsHost)
         .set('Content-Type', mediaType)
         .send({ data: { type: 'sessions', attributes: { role: 'host' } } })
         .expect(201);

@@ -10,6 +10,7 @@ import { DataStoreError } from '../src/data-store-errors.ts';
 import {
   apiContentTypeRegExp,
   atomicContentTypeRegExp,
+  authenticateAsHost,
   createAllRoute,
   createClient,
   createServerContext,
@@ -297,6 +298,7 @@ describe.for(storeTypes)('createLogServer Errors (%s server)', (storeType) => {
   it('decodes query parameters once', async ({ api }) => {
     await api
       .post('/sessions')
+      .use(authenticateAsHost)
       .set('Content-Type', mediaType)
       .send({ data: { type: 'sessions', attributes: { role: 'host' } } })
       .expect(201);
@@ -738,6 +740,7 @@ describe.for(storeTypes)(
         );
         await api
           .post('/sessions')
+          .use(authenticateAsHost)
           .set('Content-Type', mediaType)
           .send({ data: { type: 'sessions', attributes: { role: 'host' } } })
           .expect(201);

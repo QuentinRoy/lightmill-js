@@ -9,13 +9,14 @@ import { createRunHandlers } from './app-runs-handlers.ts';
 import { createSessionHandlers } from './app-sessions-handlers.ts';
 import type { DataStore } from './data-store.ts';
 import { createRequestMiddleware } from './request-handling.ts';
+import { isValidHostPassword } from './utils.ts';
 
 const MemorySessionStore = MemorySessionStoreModule(session);
 
 type CreateLogServerOptions = {
   dataStore: DataStore;
   hostUser?: string | undefined;
-  hostPassword?: string | undefined;
+  hostPassword: string;
   sessionKeys: string[];
   sessionStore?: session.Store;
   sessionMaxAge?: number | undefined;
@@ -36,6 +37,11 @@ export function createLogServer({
   sessionMaxAge,
   trustProxy = false,
 }: CreateLogServerOptions): { middleware: express.RequestHandler } {
+  // The type already requires it, but a JavaScript caller (or an unset
+  // environment variable) would otherwise open every host route to anyone.
+  if (!isValidHostPassword(hostPassword)) {
+    throw new TypeError('createLogServer requires a non-empty hostPassword.');
+  }
   const middleware = createRequestMiddleware({
     dataStore,
     trustProxy,

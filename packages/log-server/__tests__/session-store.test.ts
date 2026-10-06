@@ -9,7 +9,11 @@ import type request from 'supertest';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createLogServer } from '../src/app.ts';
 import { SQLiteDataStore } from '../src/sqlite-data-store.ts';
-import { createClient, listen } from './__fixtures__/test-utils.ts';
+import {
+  createClient,
+  hostServerOptions,
+  listen,
+} from './__fixtures__/test-utils.ts';
 
 let directory: string;
 let database: string;
@@ -29,6 +33,7 @@ async function openServer(options: { sessionMaxAge?: number } = {}) {
     sessionStore: dataStore.getSessionStore(),
     sessionKeys: ['secret'],
     allowCrossOrigin: false,
+    ...hostServerOptions,
     ...options,
   }).middleware;
   const server = await listen(express().use(middleware));

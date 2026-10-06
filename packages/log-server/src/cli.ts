@@ -14,6 +14,7 @@ import { z } from 'zod';
 import { csvExportStream } from './csv-export.ts';
 import { DataStoreError } from './data-store-errors.ts';
 import { createLogServer, SQLiteDataStore } from './index.ts';
+import { isValidHostPassword } from './utils.ts';
 
 // Constants and setup
 // -------------------
@@ -64,7 +65,7 @@ type StartParameter = {
   port: number;
   sessionKey: string | undefined;
   sessionMaxAgeDays: number;
-  hostPassword?: string | undefined;
+  hostPassword: string | undefined;
   sameOrigin: boolean;
   allowedOrigin: string[];
   trustProxy: boolean;
@@ -82,6 +83,14 @@ async function start({
   if (sessionKey == null) {
     log.error(
       'No session key set. Set the SESSION_KEY environment variable or use the --session-key option.',
+    );
+    process.exit(1);
+  }
+  // A host session reads every log and cancels any run, so the server never
+  // starts without a way to protect it.
+  if (!isValidHostPassword(hostPassword)) {
+    log.error(
+      'No host password set. Set the HOST_PASSWORD environment variable or use the --host-password option.',
     );
     process.exit(1);
   }
@@ -308,9 +317,17 @@ export function cli() {
           })
           .option('host-password', {
             alias: 'w',
-            desc: 'Password for the host user',
+            desc: 'Password for the host user (required)',
             type: 'string',
             default: env.HOST_PASSWORD,
+            // yargs turns a repeated option into an array, which the check in
+            // `start` would report as a missing password.
+            coerce: (value: string | string[] | undefined) => {
+              if (Array.isArray(value)) {
+                throw new Error('Pass --host-password only once.');
+              }
+              return value;
+            },
           })
           .option('same-origin', {
             desc: 'Use HTTP cookies when the browser page is on the same site as the API (the port can differ)',

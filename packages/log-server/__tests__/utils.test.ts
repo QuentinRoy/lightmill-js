@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   arrayify,
   fromAsync,
+  isValidHostPassword,
   removePrefix,
   startsWith,
   toJsonPointer,
@@ -152,5 +153,16 @@ describe('toJsonPointer', () => {
     expect(toJsonPointer(['a/b', 'c~d'])).toBe('/a~1b/c~0d');
     // "~" is escaped first, so the "~" of "~1" is not escaped twice.
     expect(toJsonPointer(['~1'])).toBe('/~01');
+  });
+});
+
+describe('isValidHostPassword', () => {
+  it('accepts a non-empty string', () => {
+    expect(isValidHostPassword('secret')).toBe(true);
+    expect(isValidHostPassword(' ')).toBe(true);
+  });
+
+  it.for([undefined, null, '', 0, 1, {}, ['secret']])('rejects %j', (value) => {
+    expect(isValidHostPassword(value)).toBe(false);
   });
 });

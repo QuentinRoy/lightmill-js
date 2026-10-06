@@ -6,6 +6,7 @@ import path from 'node:path';
 import * as url from 'node:url';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { SQLiteDataStore } from '../src/sqlite-data-store.ts';
+import { hostPasswordArguments } from './__fixtures__/test-utils.ts';
 
 // These tests run the built CLI, so they need a fresh build (`pnpm build`).
 
@@ -36,6 +37,7 @@ function cliArguments(...extra: string[]) {
     '0',
     '--session-key',
     'test-session-key',
+    ...hostPasswordArguments,
     ...extra,
   ];
 }

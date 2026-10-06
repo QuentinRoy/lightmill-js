@@ -11,6 +11,7 @@ import path from 'node:path';
 import * as url from 'node:url';
 import { expect, it } from 'vitest';
 import { SQLiteDataStore } from '../src/sqlite-data-store.ts';
+import { hostPasswordArguments } from './__fixtures__/test-utils.ts';
 
 const packageDir = url.fileURLToPath(new URL('..', import.meta.url));
 const cliPath = path.join(packageDir, 'dist', 'cli.js');
@@ -31,6 +32,7 @@ async function startServer(
       '0',
       '--session-key',
       'test-session-key',
+      ...hostPasswordArguments,
       '--session-max-age-days',
       '7',
       '--same-origin',
