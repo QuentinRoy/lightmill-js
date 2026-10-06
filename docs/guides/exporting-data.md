@@ -21,15 +21,15 @@ In an interactive terminal, `--output logs.csv` (`-o logs.csv`) writes to a file
 
 ## Over HTTP
 
-A host can download the same CSV from a running server. Open a host session with the host password, then request `GET /logs`:
+A host can download the same CSV from a running server. Open a host session, then request `GET /logs`. The first command asks for the host password; the server's `.env` file does not put that password in your terminal's environment.
 
 ```sh
-curl --cookie-jar host-cookies.txt --user host:"$HOST_PASSWORD" \
+curl --fail-with-body --cookie-jar host-cookies.txt --user host \
   --header 'Content-Type: application/vnd.api+json' \
   --data '{"data":{"type":"sessions","attributes":{"role":"host"}}}' \
   https://study.example.org/api/sessions
 
-curl --cookie host-cookies.txt --globoff \
+curl --fail-with-body --cookie host-cookies.txt --globoff \
   'https://study.example.org/api/logs?filter[experiment.name]=reaction-time' > logs.csv
 ```
 
@@ -43,7 +43,7 @@ curl --cookie host-cookies.txt --globoff \
 | `filter[run.id]`          | of the runs with the id        |
 | `filter[logType]`         | of the types given             |
 
-`--globoff` stops curl from reading the square brackets as a pattern. Once you are done, delete the session with `DELETE /sessions/current`, or let it expire.
+`--globoff` stops curl from reading the square brackets as a pattern. `--fail-with-body` makes an HTTP error fail the command and keeps its error document available; if the download fails, its output is an error rather than a CSV. Keep the cookie file private. Once you are done, delete the session with `DELETE /sessions/current`, or let it expire.
 
 ## The CSV format
 
