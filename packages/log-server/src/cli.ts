@@ -199,6 +199,10 @@ async function migrateDatabase({ database }: MigrateDatabaseParameter) {
 
 type AddExperimentParameter = { database: string; name: string };
 async function addExperiment({ database, name }: AddExperimentParameter) {
+  // The API requires a non-empty name, so an empty one would break GET /experiments.
+  if (name === '') {
+    throw new Error('The experiment name cannot be empty.');
+  }
   await SQLiteDataStore.migrateDatabase(database);
   let store = await SQLiteDataStore.open(database);
   try {
