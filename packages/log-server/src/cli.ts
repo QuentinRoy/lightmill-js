@@ -7,7 +7,7 @@ import loglevel from 'loglevel';
 import { createWriteStream, readFileSync } from 'node:fs';
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { Readable } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
 import * as url from 'node:url';
 import yargs from 'yargs';
 import { z } from 'zod';
@@ -227,45 +227,53 @@ async function exportLogs({
   let filter = { logType, experimentName };
   let store = await openExistingStore(database);
   if (output === undefined) {
-    csvExportStream(store, filter)
-      .pipe(process.stdout)
-      .on('error', handleError);
+    await pipeline(csvExportStream(store, filter), process.stdout);
     return;
   }
   let startDate = new Date();
   let logCount = 0;
   // cursorTo and clearLine only exist on a TTY.
   let showProgress = process.stdout.isTTY;
-  let progress = () => `${logCount.toLocaleString('en')} logs exported...`;
-  if (showProgress) process.stdout.write(progress());
-  async function* countedRows() {
+  let renderProgress = () => {
+    if (!showProgress) return;
+    process.stdout.cursorTo(0);
+    process.stdout.write(`${logCount.toLocaleString('en')} logs exported...`);
+  };
+  let clearProgress = () => {
+    if (!showProgress) return;
+    process.stdout.clearLine(0);
+    process.stdout.cursorTo(0);
+  };
+  renderProgress();
+  async function* rowsWithProgress() {
     for await (let row of csvRows(store, filter)) {
       logCount += 1;
-      if (showProgress) {
-        process.stdout.cursorTo(0);
-        process.stdout.write(progress());
-      }
+      renderProgress();
       yield row;
     }
   }
-  Readable.from(countedRows())
-    .pipe(csvStringifier())
-    .pipe(createWriteStream(output))
-    .on('error', handleError)
-    .on('finish', () => {
-      if (showProgress) {
-        process.stdout.clearLine(0);
-        process.stdout.cursorTo(0);
-      }
-      let durationInSeconds = (Date.now() - startDate.getTime()) / 1000;
-      process.stdout.write(
-        `${logCount.toLocaleString(
-          'en',
-        )} logs exported in ${durationInSeconds.toLocaleString(
-          'en',
-        )} seconds.\n`,
-      );
-    });
+  // Written to a temporary file first so a failed export neither truncates
+  // an existing file nor leaves a partial one that looks like a smaller export.
+  let temporaryOutput = `${output}.${process.pid}.tmp`;
+  try {
+    await pipeline(
+      rowsWithProgress(),
+      csvStringifier(),
+      createWriteStream(temporaryOutput),
+    );
+    await fs.rename(temporaryOutput, output);
+  } catch (error) {
+    await fs.rm(temporaryOutput, { force: true });
+    throw error;
+  } finally {
+    clearProgress();
+  }
+  let durationInSeconds = (Date.now() - startDate.getTime()) / 1000;
+  process.stdout.write(
+    `${logCount.toLocaleString(
+      'en',
+    )} logs exported in ${durationInSeconds.toLocaleString('en')} seconds.\n`,
+  );
 }
 
 type MigrateDatabaseParameter = { database: string };
