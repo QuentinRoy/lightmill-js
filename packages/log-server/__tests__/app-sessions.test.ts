@@ -3,12 +3,13 @@
 import { mediaType } from '@lightmill/log-api/vocabulary';
 import express, { type Application } from 'express';
 import { Store as SessionStore } from 'express-session';
-import request from 'supertest';
+import type request from 'supertest';
 import { describe, expect, test as vitestTest } from 'vitest';
 import { createLogServer } from '../src/app.ts';
 import type { DataStore } from '../src/data-store.ts';
 import {
   apiContentTypeRegExp,
+  createClient,
   dataStoreCreators,
   listen,
   sessionStoreCreators,
@@ -39,7 +40,6 @@ const suite = storeTypes.map((storeType) => ({
         dataStore: dataStore,
         sessionStore,
         sessionKeys: ['secret'],
-        validateResponses: true,
         hostPassword: 'host password',
         hostUser: 'host user',
         allowCrossOrigin: false,
@@ -49,7 +49,7 @@ const suite = storeTypes.map((storeType) => ({
       await use(app);
     },
     api: async ({ app }, use) => {
-      let api = request.agent(await listen(app));
+      let api = createClient(await listen(app));
       await use(api);
     },
   }),
@@ -61,11 +61,10 @@ vitestTest('same-origin sessions set a usable cookie on HTTP', async () => {
     createLogServer({
       dataStore,
       sessionKeys: ['secret'],
-      validateResponses: true,
       allowCrossOrigin: false,
     }).middleware,
   );
-  let api = request.agent(await listen(app));
+  let api = createClient(await listen(app));
   let response = await api
     .post('/sessions')
     .set('content-type', mediaType)
@@ -81,13 +80,9 @@ vitestTest('same-origin sessions set a usable cookie on HTTP', async () => {
 vitestTest('default sessions require HTTPS for a cookie', async () => {
   let dataStore = await dataStoreCreators[storeTypes[0]]();
   let app = express().use(
-    createLogServer({
-      dataStore,
-      sessionKeys: ['secret'],
-      validateResponses: true,
-    }).middleware,
+    createLogServer({ dataStore, sessionKeys: ['secret'] }).middleware,
   );
-  let response = await request(await listen(app))
+  let response = await createClient(await listen(app))
     .post('/sessions')
     .set('content-type', mediaType)
     .send({ data: { type: 'sessions', attributes: { role: 'participant' } } })
@@ -136,12 +131,11 @@ describe.for(suite)(
       let server = createLogServer({
         dataStore: dataStore,
         sessionKeys: ['secret'],
-        validateResponses: true,
         hostUser: 'host user',
       });
       let app = express();
       app.use(server.middleware);
-      let api = request.agent(await listen(app));
+      let api = createClient(await listen(app));
       await api
         .post('/sessions')
         .set('content-type', mediaType)

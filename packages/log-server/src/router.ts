@@ -57,10 +57,8 @@ declare module 'express-session' {
 
 export function validateHandlers({
   handlers,
-  validateResponse = false,
 }: {
   handlers: Handlers;
-  validateResponse?: boolean;
 }): HandlersWithValidation {
   const result = {} as HandlersWithValidation;
   for (const [path, methods] of unsafeEntries(LogApi.routes)) {
@@ -73,17 +71,6 @@ export function validateHandlers({
       const routeRequest = route.request;
       const cookiesSchema =
         'cookies' in routeRequest ? routeRequest.cookies : z.looseObject({});
-      const responseSchemas = unsafeEntries(route.responses).flatMap(
-        ([status, response]) => {
-          return unsafeEntries(response.content).map(
-            ([contentType, content]) => ({
-              contentType,
-              status: Number(status),
-              body: content.schema,
-            }),
-          );
-        },
-      );
       let bodySchema;
       if ('body' in routeRequest) {
         bodySchema = Object.values(routeRequest.body.content)[0].schema;
@@ -117,7 +104,6 @@ export function validateHandlers({
           path:
             'params' in routeRequest ? routeRequest.params : z.strictObject({}),
         },
-        responses: responseSchemas,
       };
       const isSessionRequired =
         !('security' in route) ||
@@ -127,7 +113,6 @@ export function validateHandlers({
         handler,
         schemas,
         isSessionRequired,
-        validateResponse,
         routeMediaType: getRequestMediaType(route),
       });
       // @ts-expect-error: Type should be correct.
@@ -213,13 +198,11 @@ export function createRouter({
 
 function validateHandler({
   schemas,
-  validateResponse,
   isSessionRequired,
   handler,
   routeMediaType,
 }: {
   schemas: HandlerSchemaEntry;
-  validateResponse?: boolean;
   isSessionRequired: boolean;
   handler: Handler;
   routeMediaType: RouteMediaType;
@@ -288,7 +271,7 @@ function validateHandler({
       return getErrorResponse(errors, routeMediaType);
     }
 
-    const response = await handler({
+    return handler({
       body: validatedBody.value,
       parameters: {
         path: validatedPath.value,
@@ -299,37 +282,6 @@ function validateHandler({
       sessionData: sessionData,
       ...otherHandlerOptions,
     });
-    // We do not validate the response if it is a stream. It may be possible
-    // but would imply starting to stream the answer and only failing before
-    // sending the last chunk.
-    if (!validateResponse || response.body instanceof Stream.Readable)
-      return response;
-    const responseSchema = schemas.responses.find(
-      (r) =>
-        r.status === response.status &&
-        r.contentType === (response.contentType ?? mediaType),
-    );
-    if (responseSchema == null) {
-      throw new Error(
-        `Unexpected response with status ${response.status} and content type ${response.contentType}`,
-      );
-    }
-    const result = await responseSchema.body['~standard'].validate(
-      response.body,
-    );
-    if (result.issues != null) {
-      throw new Error(
-        `Response validation failed: ${result.issues
-          .map((issue) => {
-            const pointer = toJsonPointer(issue.path ?? []);
-            return pointer === ''
-              ? issue.message
-              : `${pointer}: ${issue.message}`;
-          })
-          .join(', ')}`,
-      );
-    }
-    return response;
   };
 }
 
@@ -620,22 +572,12 @@ interface Handler<
   (options: Options): Promise<Response>;
 }
 
-interface ResponseSchemaEntry<
-  BodySchema extends StandardSchemaV1 = StandardSchemaV1,
-> {
-  contentType: string;
-  status: number;
-  body: BodySchema;
-}
-
 interface HandlerSchemaEntry<
   BodySchema extends StandardSchemaV1 = StandardSchemaV1,
   PathSchema extends StandardSchemaV1 = StandardSchemaV1,
   QuerySchema extends StandardSchemaV1 = StandardSchemaV1,
   HeadersSchema extends StandardSchemaV1 = StandardSchemaV1,
   CookiesSchema extends StandardSchemaV1 = StandardSchemaV1,
-  ResponseSchemaEntries extends Array<ResponseSchemaEntry> =
-    Array<ResponseSchemaEntry>,
 > {
   body: BodySchema;
   parameters: {
@@ -644,7 +586,6 @@ interface HandlerSchemaEntry<
     headers: HeadersSchema;
     cookies: CookiesSchema;
   };
-  responses: ResponseSchemaEntries;
 }
 
 interface HandlerOptions<

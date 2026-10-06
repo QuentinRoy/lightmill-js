@@ -5,11 +5,11 @@ import session, { type SessionData } from 'express-session';
 import { mkdtempSync, rmSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import request from 'supertest';
+import type request from 'supertest';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createLogServer } from '../src/app.ts';
 import { SQLiteDataStore } from '../src/sqlite-data-store.ts';
-import { listen } from './__fixtures__/test-utils.ts';
+import { createClient, listen } from './__fixtures__/test-utils.ts';
 
 let directory: string;
 let database: string;
@@ -28,14 +28,14 @@ async function openServer(options: { sessionMaxAge?: number } = {}) {
     dataStore,
     sessionStore: dataStore.getSessionStore(),
     sessionKeys: ['secret'],
-    validateResponses: true,
     allowCrossOrigin: false,
     ...options,
   }).middleware;
   const server = await listen(express().use(middleware));
   return {
-    // A plain request, so no cookie is carried over unless the test sends it.
-    api: () => request(server),
+    // A new client per request, so no cookie is carried over unless the test
+    // sends it.
+    api: () => createClient(server),
     close: async () => {
       server.close();
       server.closeAllConnections();

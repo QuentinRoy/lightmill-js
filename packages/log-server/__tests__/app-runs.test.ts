@@ -3,13 +3,14 @@ import { mediaType } from '@lightmill/log-api/vocabulary';
 import express from 'express';
 import type { Store as SessionStore } from 'express-session';
 import { prop, sortBy } from 'remeda';
-import request from 'supertest';
+import type request from 'supertest';
 import { test as baseTest, beforeEach, describe, vi } from 'vitest';
 import type { DataStore, ExperimentId, RunStatus } from '../src/data-store.ts';
 import { fromAsync } from '../src/utils.ts';
 import {
   addRunToSession,
   apiContentTypeRegExp,
+  createClient,
   createRunRequest,
   createServerContext,
   host,
@@ -40,7 +41,7 @@ const suite = storeTypes
         });
         const app = express();
         app.use(server.middleware);
-        const api = request.agent(await listen(app)).host(host);
+        const api = createClient(await listen(app)).host(host);
         await api
           .post('/sessions')
           .set('content-type', mediaType)

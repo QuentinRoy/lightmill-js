@@ -1,9 +1,9 @@
 import { mediaType } from '@lightmill/log-api/vocabulary';
 import express from 'express';
-import request from 'supertest';
 import { describe, it } from 'vitest';
 import { createLogServer } from '../src/app.ts';
 import {
+  createClient,
   createServerContext,
   listen,
   storeTypes,
@@ -19,10 +19,11 @@ describe.for(storeTypes)('createLogServer (%s)', (storeType) => {
       dataStore,
       sessionStore,
       sessionKeys: ['secret'],
-      validateResponses: true,
     });
     let app = express().use('/api', server.middleware);
-    let api = request.agent(await listen(app)).host('lightmill-test.com');
+    let api = createClient(await listen(app), { basePath: '/api' }).host(
+      'lightmill-test.com',
+    );
 
     await api
       .post('/sessions')

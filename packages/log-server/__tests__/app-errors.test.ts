@@ -4,13 +4,14 @@ import { atomicMediaType, mediaType } from '@lightmill/log-api/vocabulary';
 import express from 'express';
 import { MemoryStore } from 'express-session';
 import log from 'loglevel';
-import request from 'supertest';
+import type request from 'supertest';
 import { afterEach, describe, onTestFinished, test, vi } from 'vitest';
 import { DataStoreError } from '../src/data-store-errors.ts';
 import {
   apiContentTypeRegExp,
   atomicContentTypeRegExp,
   createAllRoute,
+  createClient,
   createServerContext,
   listen,
   storeTypes,
@@ -39,7 +40,7 @@ describe.for(storeTypes)('createLogServer Errors (%s server)', (storeType) => {
     api: async ({}, use) => {
       let { server } = await createServerContext({ type: storeType });
       let app = express().use(server.middleware);
-      let api = request.agent(await listen(app));
+      let api = createClient(await listen(app));
       await use(api);
     },
   });
@@ -599,7 +600,7 @@ describe.for(storeTypes)(
           dataStore,
           sessionStore: new MemoryStore(),
         });
-        const api = request.agent(
+        const api = createClient(
           await listen(express().use(server.middleware)),
         );
         await api

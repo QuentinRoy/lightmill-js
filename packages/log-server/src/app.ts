@@ -26,7 +26,6 @@ type CreateLogServerOptions = {
   sessionMaxAge?: number | undefined;
   baseUrl?: string;
   trustProxy?: boolean | undefined;
-  validateResponses?: boolean | undefined;
 } & (
   | { allowCrossOrigin?: boolean | undefined; secureCookies?: true | undefined }
   | { allowCrossOrigin: false; secureCookies?: boolean | undefined }
@@ -42,7 +41,6 @@ export function createLogServer({
   sessionStore = new MemorySessionStore({ checkPeriod: 1000 * 60 * 60 * 24 }),
   sessionMaxAge,
   trustProxy = true,
-  validateResponses = false,
 }: CreateLogServerOptions): { middleware: express.RequestHandler } {
   const app = express();
 
@@ -93,7 +91,6 @@ export function createLogServer({
   );
 
   const handlers = validateHandlers({
-    validateResponse: validateResponses,
     handlers: {
       ...createSessionHandlers({ hostPassword, hostUser }),
       ...createExperimentHandlers(),
