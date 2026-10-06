@@ -7,11 +7,11 @@ import loglevel from 'loglevel';
 import { createWriteStream, readFileSync } from 'node:fs';
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { Transform } from 'node:stream';
+import { Readable } from 'node:stream';
 import * as url from 'node:url';
 import yargs from 'yargs';
 import { z } from 'zod';
-import { csvExportStream } from './csv-export.ts';
+import { csvExportStream, csvRows, csvStringifier } from './csv-export.ts';
 import { DataStoreError } from './data-store-errors.ts';
 import { createLogServer, SQLiteDataStore } from './index.ts';
 import { isValidHostPassword } from './utils.ts';
@@ -226,33 +226,37 @@ async function exportLogs({
 }: ExportLogsParameter) {
   let filter = { logType, experimentName };
   let store = await openExistingStore(database);
-  let stream = csvExportStream(store, filter);
   if (output === undefined) {
-    stream.pipe(process.stdout).on('error', handleError);
+    csvExportStream(store, filter)
+      .pipe(process.stdout)
+      .on('error', handleError);
     return;
   }
   let startDate = new Date();
   let logCount = 0;
-  process.stdout.write(`${logCount.toLocaleString('en')} logs exported...`);
-  stream
-    .pipe(
-      new Transform({
-        writableObjectMode: true,
-        transform(chunk, _encoding, callback) {
-          process.stdout.cursorTo(0);
-          logCount += 1;
-          process.stdout.write(
-            `${logCount.toLocaleString('en')} logs exported...`,
-          );
-          callback(null, chunk);
-        },
-      }),
-    )
+  // cursorTo and clearLine only exist on a TTY.
+  let showProgress = process.stdout.isTTY;
+  let progress = () => `${logCount.toLocaleString('en')} logs exported...`;
+  if (showProgress) process.stdout.write(progress());
+  async function* countedRows() {
+    for await (let row of csvRows(store, filter)) {
+      logCount += 1;
+      if (showProgress) {
+        process.stdout.cursorTo(0);
+        process.stdout.write(progress());
+      }
+      yield row;
+    }
+  }
+  Readable.from(countedRows())
+    .pipe(csvStringifier())
     .pipe(createWriteStream(output))
     .on('error', handleError)
     .on('finish', () => {
-      process.stdout.clearLine(0);
-      process.stdout.cursorTo(0);
+      if (showProgress) {
+        process.stdout.clearLine(0);
+        process.stdout.cursorTo(0);
+      }
       let durationInSeconds = (Date.now() - startDate.getTime()) / 1000;
       process.stdout.write(
         `${logCount.toLocaleString(
