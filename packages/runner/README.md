@@ -69,7 +69,7 @@ Lifecycle callbacks in constructor options:
 | `onLoading`             | Called while awaiting async iterator results. |
 | `onTaskStarted(task)`   | Called for each emitted task.                 |
 | `onTaskCompleted(task)` | Called when `completeTask()` is called.       |
-| `onTimelineCanceled`    | Reserved callback for cancellation flows.     |
+| `onTimelineCanceled`    | Called once when `cancel()` is called.        |
 | `onError(error)`        | Called when iterator loading fails.           |
 | `onTimelineCompleted`   | Called once at the end of timeline.           |
 

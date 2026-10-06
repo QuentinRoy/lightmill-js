@@ -325,4 +325,30 @@ describe('TimelineRunner', () => {
     expect(runner.status).toBe('canceled');
     expect(onError).not.toHaveBeenCalled();
   });
+
+  it('calls onTimelineCanceled once, after the status changes, on cancel', () => {
+    let statuses: string[] = [];
+    let runner = new TimelineRunner<number>({
+      timeline: [1, 2],
+      onTimelineCanceled() {
+        statuses.push(runner.status);
+      },
+    });
+    runner.start();
+    runner.cancel();
+    expect(statuses).toEqual(['canceled']);
+    expect(() => runner.cancel()).toThrow('already canceled');
+    expect(statuses).toEqual(['canceled']);
+  });
+
+  it('does not call onTimelineCanceled when cancel throws', () => {
+    let onTimelineCanceled = vi.fn();
+    let runner = new TimelineRunner<number>({
+      timeline: [],
+      onTimelineCanceled,
+    });
+    runner.start();
+    expect(() => runner.cancel()).toThrow('already completed');
+    expect(onTimelineCanceled).not.toHaveBeenCalled();
+  });
 });
