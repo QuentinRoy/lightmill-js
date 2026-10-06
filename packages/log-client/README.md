@@ -146,7 +146,7 @@ Starts or resumes a run, and resolves with its logger. `options` is one of:
 Lists the runs the current browser session started that are running or interrupted, optionally filtered by experiment and run name. Each result is `{ run, experiment, toResumeAfter }`:
 
 - `run` is `{ id, name, status }`, `experiment` is `{ id, name }`;
-- `toResumeAfter` is the last log of the run whose type is in `resumableLogTypes`, as `{ number, log }`, or `{ number: 0, log: null }` when there is none. Pass it as `after` to `startRun`.
+- `toResumeAfter` is the last saved log whose type is in `resumableLogTypes` and has no missing log number before it, as `{ number, log }`, or `{ number: 0, log: null }` when there is none. Logs beyond a numbering gap cannot be resume points. Pass it as `after` to `startRun`.
 
 Without a session, it resolves with an empty list.
 

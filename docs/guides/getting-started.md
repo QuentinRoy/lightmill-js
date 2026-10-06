@@ -100,7 +100,7 @@ export function createTimeline(participantNumber: number): Task[] {
 }
 ```
 
-Every task logs once, when it completes, with its id in `taskId`. That is what lets a participant resume after a reload: the server remembers the last log, and the app skips every task up to the one it names.
+Every task logs once, when it completes, with its id in `taskId`. That is what lets a participant resume after a reload: the server identifies the last saved completion log with no earlier log missing, and the app skips every task up to the one it names.
 
 The `declare module` block tells `@lightmill/react-experiment` about your tasks and logs, so its hooks are typed.
 
@@ -304,7 +304,7 @@ class ErrorBoundary extends Component<
 Here is what happens when a participant opens the page:
 
 1. The app reads the participant number from the URL, for example `?participant=3`, and names the run after it. A run is one participant going through the experiment once.
-2. `getResumableRuns` asks the server whether this browser already started this run. If it did, `startRun` resumes it after the last log the server holds. Otherwise, `startRun` creates it.
+2. `getResumableRuns` asks the server whether this browser already started this run. If it did, `startRun` resumes it after the last saved completion log. Otherwise, `startRun` creates it.
 3. While this happens, `use` suspends the component and `Suspense` shows "Loading…". The promise is created once, outside of React, so React's development mode, which renders components twice, does not start two runs.
 4. `TimelinePlayer` shows the task components in turn. When resuming, `resumeAfterTask` skips every task up to the last one logged.
 5. Every log goes to `logger.addLog`. If the server can't be reached for a while, the logger pauses and keeps the logs. `paused` then makes `TimelinePlayer` show the `Paused` screen once the current task ends, and `retry()` sends the logs again.

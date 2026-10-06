@@ -4,7 +4,9 @@ Participants reload pages, close tabs by mistake, and lose their connection. Res
 
 ## How it works
 
-The server stores every log of a run with a number: 1, 2, 3, and so on. To resume, the app finds the last log the server holds for the run, among the types of logs that mark the end of a task. It tells the server to resume after that log, and skips every task of the timeline up to the one the log names.
+The server stores every log of a run with a number: 1, 2, 3, and so on. To resume, the app finds the last saved completion log: a log of a type that marks the end of a task, with no missing log number before it. It tells the server to resume after that log, and skips every task of the timeline up to the one the log names.
+
+A log above a missing log number is a stranded log. The server keeps it, but it cannot serve as a resume point until every earlier missing log arrives. `getResumableRuns` accounts for this when it chooses the last saved completion log.
 
 Resuming cancels the logs that come after the resume point. The server keeps them, but they no longer count toward the run, and exports leave them out. New logs continue the numbering from the resume point.
 

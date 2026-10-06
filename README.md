@@ -14,7 +14,7 @@ timeline ──▶ TimelinePlayer ──▶ logger ───── HTTPS ──�
 - A **run** is one participant going through the experiment once. Each run has a name, usually derived from the participant. That name is unique among runs that are not canceled in the same experiment.
 - A **timeline** is the sequence of tasks of a run. A **task** is a plain object with a `type`, such as `{ type: 'trial', size: 'large' }`, and your app has one component per task type.
 - A **log** records something that happened during a run, such as an answer and its reaction time. Logs have a `type` and values, and are numbered in order.
-- A run is `running` once started, then `completed`, `canceled`, or `interrupted`. A running or interrupted run can be resumed: the participant continues after the last log the server holds.
+- A run is `running` once started, then `completed`, `canceled`, or `interrupted`. A running or interrupted run can be resumed: the participant continues after the last saved completion log that the app can use as a resume point.
 - The **host** is the researcher's account on the server. It can read every log. Participants only see their own runs.
 
 ## Packages
