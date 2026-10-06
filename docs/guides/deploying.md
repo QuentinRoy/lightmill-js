@@ -258,7 +258,17 @@ Use the actual database path if yours differs. Once the reported problem is fixe
 
 ### The app cannot find the experiment
 
-Create it with `npx log-server experiment add <name>` in `/srv/lightmill`. Match the app's experiment name.
+The client looks up an experiment by the `experimentName` passed to `startRun`. If that server has no experiment with the exact name, the client cannot start the run.
+
+First check three values: the app's `apiRoot` must reach the intended log server, its `experimentName` must match the study's name, and the server must be using the intended database. Correct a wrong address, name, or database path before creating anything.
+
+If this is a new study and the experiment has not been created yet, run from `/srv/lightmill` as the database owner:
+
+```sh
+npx log-server experiment add reaction-time --database /srv/lightmill/data.sqlite
+```
+
+Replace the name and database path with the ones your app and server use. This command creates an experiment, not participant runs. If it reports that the experiment already exists but the app still cannot find it, the command and app are likely using different servers, databases, or names; running it again will not fix that mismatch.
 
 ### The published app contacts localhost
 

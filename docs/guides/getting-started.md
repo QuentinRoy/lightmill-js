@@ -437,7 +437,15 @@ If an existing database needs migration, stop the server and [back it up](deploy
 
 ### The experiment cannot be found
 
-Run `npx log-server experiment add reaction-time` against that database. The name must match `startRun`.
+In `src/App.tsx`, the tutorial calls `startRun` with `experimentName: 'reaction-time'`. The server must already have an experiment with that exact name. Check that the browser is calling the server you started and that this server is using the intended `data.sqlite` file.
+
+If you skipped the experiment creation step, run in the app directory:
+
+```sh
+npx log-server experiment add reaction-time --database ./data.sqlite
+```
+
+Use your actual database path if you changed it. If the command says the experiment already exists, check the app's server address, experiment name, and server database path instead of creating another study. See [The app cannot find the experiment](deploying.md#the-app-cannot-find-the-experiment).
 
 ### The app cannot reach the server or keep a session
 
