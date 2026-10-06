@@ -104,6 +104,12 @@ async function start({
       'No allowed origin set. Set the ALLOWED_ORIGINS environment variable or use the --allowed-origin option to name the pages that may call this server, or use --same-site if the browser loads the page from the same site as the API.',
     );
   }
+  // Plain HTTP development uses the same flags, so this stays a warning.
+  if (sameSite && !trustProxy) {
+    log.warn(
+      'Session cookies are Secure only when the server is reached directly over HTTPS. Behind a reverse proxy that terminates TLS, pass --trust-proxy.',
+    );
+  }
   let store = await openExistingStore(dbPath);
   let app = express();
   // Browsers refuse credentialed responses that allow every origin, and any

@@ -328,7 +328,8 @@ HTTP. Use `--same-site` alone when a reverse proxy serves the page and the API
 from one origin. The CLI does not serve the page or make a separately hosted
 page share the API's origin.
 Pass `--trust-proxy` when the server runs behind a reverse proxy that
-terminates TLS (see `trustProxy` above).
+terminates TLS (see `trustProxy` above). `--same-site` without it logs a
+warning, since the cookies are then `Secure` only for direct HTTPS.
 
 The CLI stores logs and participant sessions in the same database file.
 Keep that file and the `--session-key` (or `SESSION_KEY`) stable to allow
