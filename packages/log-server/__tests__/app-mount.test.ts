@@ -25,8 +25,8 @@ describe.for(storeTypes)('createLogServer (%s)', (storeType) => {
         dataStore,
         sessionStore,
         sessionKeys: ['secret'],
-        allowCrossOrigin: false,
-        secureCookies: true,
+        cookieSite: 'same-site',
+        secureCookies: 'always',
         ...hostServerOptions,
         trustProxy,
       });
@@ -69,8 +69,8 @@ describe.for(storeTypes)('createLogServer (%s)', (storeType) => {
       dataStore,
       sessionStore,
       sessionKeys: ['secret'],
-      allowCrossOrigin: false,
-      secureCookies: false,
+      cookieSite: 'same-site',
+      secureCookies: 'never',
       ...hostServerOptions,
     });
     let app = express();
@@ -155,8 +155,8 @@ async function setup(
     dataStore,
     sessionStore,
     sessionKeys: ['secret'],
-    allowCrossOrigin: false,
-    secureCookies: false,
+    cookieSite: 'same-site',
+    secureCookies: 'never',
     ...hostServerOptions,
     trustProxy,
   });

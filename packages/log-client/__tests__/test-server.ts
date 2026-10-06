@@ -51,8 +51,8 @@ export class TestServer {
     const { middleware } = createLogServer({
       dataStore,
       sessionKeys: ['test-secret'],
-      allowCrossOrigin: false,
-      secureCookies: false,
+      cookieSite: 'same-site',
+      secureCookies: 'never',
       hostPassword: 'test-host-password',
     });
     const http = createServer(express().use(middleware));

@@ -43,8 +43,8 @@ const suite = storeTypes.map((storeType) => ({
         sessionKeys: ['secret'],
         hostPassword: 'host password',
         hostUser: 'host user',
-        allowCrossOrigin: false,
-        secureCookies: false,
+        cookieSite: 'same-site',
+        secureCookies: 'never',
       });
       let app = express().use(server.middleware);
       await use(app);
@@ -56,27 +56,69 @@ const suite = storeTypes.map((storeType) => ({
   }),
 }));
 
-vitestTest('same-origin sessions set a usable cookie on HTTP', async () => {
+async function postSession(
+  options: {
+    cookieSite: 'same-site';
+    secureCookies?: 'auto' | 'always' | 'never';
+    trustProxy?: boolean;
+  },
+  headers: Record<string, string> = {},
+) {
   let dataStore = await dataStoreCreators[storeTypes[0]]();
   let app = express().use(
     createLogServer({
       dataStore,
       sessionKeys: ['secret'],
       ...hostServerOptions,
-      allowCrossOrigin: false,
+      ...options,
     }).middleware,
   );
   let api = createClient(await listen(app));
   let response = await api
     .post('/sessions')
     .set('content-type', mediaType)
+    .set(headers)
     .send({ data: { type: 'sessions', attributes: { role: 'participant' } } })
     .expect(201);
+  return { api, setCookie: response.headers['set-cookie'] };
+}
 
-  expect(response.headers['set-cookie']).toEqual([
+vitestTest('same-site sessions set a usable cookie on HTTP', async () => {
+  let { api, setCookie } = await postSession({ cookieSite: 'same-site' });
+
+  expect(setCookie).toEqual([
     expect.stringMatching(/; HttpOnly; SameSite=Strict$/),
   ]);
   await api.get('/sessions/current').expect(200);
+});
+
+vitestTest('same-site sessions set a secure cookie over HTTPS', async () => {
+  let { setCookie } = await postSession(
+    { cookieSite: 'same-site', trustProxy: true },
+    { 'x-forwarded-proto': 'https' },
+  );
+
+  expect(setCookie).toEqual([
+    expect.stringMatching(/; HttpOnly; Secure; SameSite=Strict$/),
+  ]);
+});
+
+vitestTest('same-site sessions can force secure cookies', async () => {
+  let { setCookie } = await postSession(
+    { cookieSite: 'same-site', secureCookies: 'always', trustProxy: true },
+    { 'x-forwarded-proto': 'https' },
+  );
+  expect(setCookie).toEqual([
+    expect.stringMatching(/; HttpOnly; Secure; SameSite=Strict$/),
+  ]);
+});
+
+vitestTest('same-site sessions can force insecure cookies', async () => {
+  let { setCookie } = await postSession(
+    { cookieSite: 'same-site', secureCookies: 'never', trustProxy: true },
+    { 'x-forwarded-proto': 'https' },
+  );
+  expect(setCookie).toEqual([expect.not.stringContaining('Secure')]);
 });
 
 vitestTest('default sessions require HTTPS for a cookie', async () => {

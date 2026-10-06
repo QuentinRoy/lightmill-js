@@ -66,7 +66,7 @@ type StartParameter = {
   sessionKey: string | undefined;
   sessionMaxAgeDays: number;
   hostPassword: string | undefined;
-  sameOrigin: boolean;
+  sameSite: boolean;
   allowedOrigin: string[];
   trustProxy: boolean;
 };
@@ -76,7 +76,7 @@ async function start({
   sessionKey,
   sessionMaxAgeDays,
   hostPassword,
-  sameOrigin,
+  sameSite,
   allowedOrigin,
   trustProxy,
 }: StartParameter) {
@@ -99,9 +99,9 @@ async function start({
     throw new Error('Session max age must be a positive number of days');
   }
   let allowedOrigins = allowedOrigin.map(parseOrigin);
-  if (!sameOrigin && allowedOrigins.length === 0) {
+  if (!sameSite && allowedOrigins.length === 0) {
     throw new Error(
-      'No allowed origin set. Set the ALLOWED_ORIGINS environment variable or use the --allowed-origin option to name the pages that may call this server, or use --same-origin if the browser loads the page from the same site as the API.',
+      'No allowed origin set. Set the ALLOWED_ORIGINS environment variable or use the --allowed-origin option to name the pages that may call this server, or use --same-site if the browser loads the page from the same site as the API.',
     );
   }
   let store = await openExistingStore(dbPath);
@@ -128,7 +128,7 @@ async function start({
         sessionKeys: sessionKey.split(':'),
         hostPassword,
         trustProxy,
-        ...(sameOrigin ? { allowCrossOrigin: false } : {}),
+        ...(sameSite ? { cookieSite: 'same-site' as const } : {}),
       }).middleware,
     )
     .listen(port);
@@ -329,13 +329,13 @@ export function cli() {
               return value;
             },
           })
-          .option('same-origin', {
-            desc: 'Use HTTP cookies when the browser page is on the same site as the API (the port can differ)',
+          .option('same-site', {
+            desc: 'Use same-site cookies, for a browser page on the same site as the API (the port can differ). Cookies are Secure over HTTPS, not over HTTP',
             type: 'boolean',
             default: false,
           })
           .option('allowed-origin', {
-            desc: 'Origin of a page allowed to call the API with credentials, e.g. https://example.org. Repeatable. Required unless --same-origin is set',
+            desc: 'Origin of a page allowed to call the API with credentials, e.g. https://example.org. Repeatable. Required unless --same-site is set',
             type: 'string',
             array: true,
             default: env.ALLOWED_ORIGINS,

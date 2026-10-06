@@ -35,7 +35,7 @@ async function startServer(
       ...hostPasswordArguments,
       '--session-max-age-days',
       '7',
-      '--same-origin',
+      '--same-site',
     ],
     {
       stdio: 'pipe',

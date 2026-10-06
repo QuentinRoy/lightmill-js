@@ -202,8 +202,8 @@ export const hostPasswordArguments = [
 const baseServerOptions = {
   sessionKeys: ['secret'],
   ...hostServerOptions,
-  allowCrossOrigin: false as const,
-  secureCookies: false,
+  cookieSite: 'same-site' as const,
+  secureCookies: 'never' as const,
 };
 
 type ServerOptions = {
