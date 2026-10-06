@@ -155,8 +155,8 @@ type UseRunStateOptions<Task> = {
 };
 
 /**
- * What `TimelinePlayer` has to render. While paused or loading, the task that was
- * running when the interruption began stays; once the timeline moves on,
+ * What `TimelinePlayer` has to render. While paused or loading, the task that
+ * was running when the interruption began stays; once the timeline moves on,
  * paused or loading replaces whatever comes next.
  *
  * Throws timeline errors, and if no timeline is set while not loading.
@@ -189,7 +189,7 @@ export function useRunState<Task>({
     store?.start();
   }, [store]);
 
-  // Until a timeline is set, the run is loading.
+  // Until a timeline is set, the player is loading.
   const snapshot = React.useSyncExternalStore(
     store?.subscribe ?? noSubscribe,
     store?.getSnapshot ?? getLoadingSnapshot,
@@ -199,10 +199,11 @@ export function useRunState<Task>({
     throw snapshot.error;
   }
 
-  // onCompleted is called from an effect because effects only run while TimelinePlayer is
-  // mounted and visible. It is therefore never called after an unmount, and a
-  // completion that happens while <Activity> hides TimelinePlayer is reported once TimelinePlayer is
-  // shown again. The ref keeps StrictMode's effect rerun from calling it twice.
+  // onCompleted is called from an effect because effects only run while the
+  // component is mounted and visible. It is therefore never called after an
+  // unmount, and a completion that happens while <Activity> hides the component
+  // is reported once it is shown again. The ref keeps StrictMode's effect rerun
+  // from calling it twice.
   const completedNotifiedRef = React.useRef(false);
   const completed = snapshot.status === 'completed';
   React.useEffect(() => {

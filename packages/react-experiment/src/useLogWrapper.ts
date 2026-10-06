@@ -14,8 +14,9 @@ export function useLogWrapper<L>(onLog?: Logger<L>): {
     onLogRef.current = onLog;
   });
   const [error, setError] = React.useState<Error | null>(null);
-  // Stable for the lifetime of TimelinePlayer, so effects depending on the logger do not
-  // rerun whenever onLog changes, such as when it is an inline arrow.
+  // Stable for the lifetime of the component, so effects depending on the
+  // logger do not rerun whenever onLog changes, such as when it is an inline
+  // arrow.
   const logWrapper = React.useCallback((newLog: L) => {
     const currentOnLog = onLogRef.current;
     if (currentOnLog == null) {

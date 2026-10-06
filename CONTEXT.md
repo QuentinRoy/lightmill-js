@@ -52,3 +52,11 @@ _Avoid_: balancing, distribution
 **Condition order**:
 The sequence of conditions one run goes through, as produced by counterbalancing.
 _Avoid_: row, sequence
+
+**Timeline**:
+The sequence of tasks a participant goes through in a run, one at a time.
+_Avoid_: task list
+
+**Timeline player**:
+The part of an experiment app that shows a timeline's tasks in turn. It does not manage the run the timeline belongs to.
+_Avoid_: run

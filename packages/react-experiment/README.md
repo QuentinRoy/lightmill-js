@@ -175,8 +175,8 @@ function Experiment({
   return (
     <TimelinePlayer
       timeline={timeline}
-      // A rejected `onLog` throws in `TimelinePlayer`. The logs a pause rejects are kept
-      // by the logger, so only other errors are rethrown.
+      // A rejected `onLog` throws in `TimelinePlayer`. The logs a pause rejects
+      // are kept by the logger, so only other errors are rethrown.
       onLog={(log) =>
         logger.addLog(log).catch((error) => {
           if (logger.state.status !== 'paused') throw error;

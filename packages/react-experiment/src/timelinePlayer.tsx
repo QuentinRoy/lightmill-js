@@ -29,8 +29,8 @@ export type TimelinePlayerProps<Task extends Typed, Log> = {
 /**
  * Runs a timeline, rendering `elements.tasks` for each task in turn.
  *
- * The timeline is consumed once and cannot be rewound: remounting `TimelinePlayer`
- * (outside of StrictMode) needs a fresh timeline.
+ * The timeline is consumed once and cannot be rewound: remounting
+ * `TimelinePlayer` (outside of StrictMode) needs a fresh timeline.
  */
 // This component uses explicit return type to prevent the function from
 // returning undefined, which could indicate a state isn't being handled.
@@ -78,7 +78,7 @@ export function TimelinePlayer<const T extends RegisteredTask>({
       break;
     default: {
       let _exhaustiveCheck: never = state;
-      throw new Error('Unhandled run state');
+      throw new Error('Unhandled player state');
     }
   }
   return (
