@@ -1,5 +1,23 @@
 # Change Log
 
+## 4.0.0
+
+### Major Changes
+
+- [#400](https://github.com/QuentinRoy/lightmill-js/pull/400) [`e839348`](https://github.com/QuentinRoy/lightmill-js/commit/e839348fd81a455618cc03d914d6ff67ba571d68) - Require Node 24.12 or later. Node 22 and Node 24.0 to 24.11 are no longer supported. Node 24 is the current long-term support release, and 24.12 is the first release where Node marks its TypeScript support as stable. Upgrade Node, or stay on the previous release of this package.
+
+### Patch Changes
+
+- [#400](https://github.com/QuentinRoy/lightmill-js/pull/400) [`e839348`](https://github.com/QuentinRoy/lightmill-js/commit/e839348fd81a455618cc03d914d6ff67ba571d68) - Fix the `lightmill-convert-touchstone` command failing at startup with `The requested module 'yargs' does not provide an export named 'command'`. Its `--trials`, `--pre-blocks`, `--post-blocks`, `--pre-runs`, and `--post-runs` options now set the `trial`, `preBlock`, `postBlock`, `preRun`, and `postRun` options of `convertTouchstone`.
+
+- [#400](https://github.com/QuentinRoy/lightmill-js/pull/400) [`e839348`](https://github.com/QuentinRoy/lightmill-js/commit/e839348fd81a455618cc03d914d6ff67ba571d68) - Fix `convertTouchstone` throwing `sax.parser is not a function` or `sax.createStream is not a function` when the package runs in Node.
+
+- [#468](https://github.com/QuentinRoy/lightmill-js/pull/468) [`15286ea`](https://github.com/QuentinRoy/lightmill-js/commit/15286eac4d56e1914014d5a4a1d049f9ca0a1d7c) - Number the default practice trial ids from 1 in each run (`practice-trial-1`, ...) instead of continuing across runs, so a run's ids no longer depend on the runs before it. Runs converted with earlier versions have different practice trial ids for every run after the first.
+
+- [#400](https://github.com/QuentinRoy/lightmill-js/pull/400) [`e839348`](https://github.com/QuentinRoy/lightmill-js/commit/e839348fd81a455618cc03d914d6ff67ba571d68) - Fix `convertTouchstone` failing on a streamed Touchstone file with `XML declaration encoding ISO-8859-1 does not match detected stream encoding UTF8`, which happened as soon as `sax` 1.6 was installed. It now requires `sax` 1.5.
+
+- [#394](https://github.com/QuentinRoy/lightmill-js/pull/394) [`044b880`](https://github.com/QuentinRoy/lightmill-js/commit/044b8807b887d2cddc774364726209e535a722e9) - Fix the `DesignConfig` type importing `@lightmill/static-design`, which is not a dependency of `@lightmill/convert-touchstone`, so `convertTouchstone`'s result lost its type unless `@lightmill/static-design` was installed. `DesignConfig` now declares its `runs` itself.
+
 ## 4.0.0-beta.1
 
 ### Patch Changes

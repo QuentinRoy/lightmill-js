@@ -1,5 +1,27 @@
 # Change Log
 
+## 4.0.0
+
+### Major Changes
+
+- [#447](https://github.com/QuentinRoy/lightmill-js/pull/447) [`9af28a5`](https://github.com/QuentinRoy/lightmill-js/commit/9af28a529dd1e324d7786d44c08482a015654e6f) - Rename the `run` export to `runTimeline`, `RunParams` to `RunTimelineParams`, and `Runner` to `TimelineRunner`. A run is the server-side entity with a lifecycle, and `run()` only walks a timeline, so `run` named it wrongly. To migrate, replace `run` with `runTimeline`, `RunParams` with `RunTimelineParams`, and `Runner` with `TimelineRunner`.
+
+### Minor Changes
+
+- [#391](https://github.com/QuentinRoy/lightmill-js/pull/391) [`3d7ba85`](https://github.com/QuentinRoy/lightmill-js/commit/3d7ba85388cc0e56df5c19528f6dbf3d71549214) - `TimelineRunner` and `runTimeline` accept a timeline iterator whose `next()` returns a promise on some calls only, such as one that turns async partway through. The new `MaybeAsyncIterator` type describes it.
+
+### Patch Changes
+
+- [#451](https://github.com/QuentinRoy/lightmill-js/pull/451) [`f0bda21`](https://github.com/QuentinRoy/lightmill-js/commit/f0bda21b2542a9f9a161448eace05ee13909edb0) - Fix `TimelineRunner#cancel()` being overridden when called from `onTimelineStarted` or `onTaskCompleted`. The runner stays `canceled` and no longer starts the next task.
+
+- [#404](https://github.com/QuentinRoy/lightmill-js/pull/404) [`d67d0ab`](https://github.com/QuentinRoy/lightmill-js/commit/d67d0ab27ff1de93c7ca1a74aa320945462eb258) - Fix `TimelineRunner#cancel()` not stopping a pending async `next()`. A canceled runner no longer starts the task it resolves with, nor reports its rejection through `onError`.
+
+- [#443](https://github.com/QuentinRoy/lightmill-js/pull/443) [`e0b395a`](https://github.com/QuentinRoy/lightmill-js/commit/e0b395a5e746a359832d6cbd153758580a5a94fe) - Fix `TimelineRunner#cancel()` never calling `onTimelineCanceled`. It now calls it once, after the status changes to `canceled`.
+
+- [#392](https://github.com/QuentinRoy/lightmill-js/pull/392) [`64958f8`](https://github.com/QuentinRoy/lightmill-js/commit/64958f862fd5d38bc48670e690fbdd76b50ebf8f) - Fix `completeTask()` called from `onTaskStarted` overflowing the stack on long synchronous timelines (around 3,000 tasks). The next task now starts once `onTaskStarted` returns, so code after `completeTask()` in `onTaskStarted` runs before the next task starts instead of after the rest of the timeline. Calling `completeTask()` twice from the same `onTaskStarted` now throws instead of completing the next task, and a throwing `onTaskStarted` now sets the runner's status to `crashed`, unless it canceled the runner.
+
+- [#391](https://github.com/QuentinRoy/lightmill-js/pull/391) [`3d7ba85`](https://github.com/QuentinRoy/lightmill-js/commit/3d7ba85388cc0e56df5c19528f6dbf3d71549214) - Fix errors thrown by a sync timeline bypassing `onError`. They escaped from `start()` or `completeTask()` and left the runner `running`. They now go to `onError` and set the status to `crashed`, like errors from async timelines, and are still thrown when there is no `onError`.
+
 ## 3.1.0-beta.0
 
 ### Minor Changes
