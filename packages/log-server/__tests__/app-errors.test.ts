@@ -36,7 +36,7 @@ const bodyErrorRoutes = [
 ] as const;
 
 describe.for(storeTypes)('createLogServer Errors (%s server)', (storeType) => {
-  test('answers a session loading failure before routing and keeps serving', async () => {
+  test('answers a session loading failure before the handler and keeps serving', async () => {
     const { server, sessionStore } = await createServerContext({
       type: storeType,
     });
@@ -69,6 +69,75 @@ describe.for(storeTypes)('createLogServer Errors (%s server)', (storeType) => {
         ],
       });
     await api.get('/api/runs').expect(200, { data: [] });
+  });
+
+  test('answers a session loading failure on operations in their media type', async ({
+    expect,
+  }) => {
+    const { server, sessionStore, dataStore } = await createServerContext({
+      type: storeType,
+    });
+    const api = createClient(await listen(express().use(server.middleware)));
+    const logError = vi.spyOn(log, 'error').mockImplementation(() => {});
+    onTestFinished(() => logError.mockRestore());
+    const { experimentId } = await dataStore.withTransaction((tx) =>
+      tx.addExperiment({ experimentName: 'experiment' }),
+    );
+    await api
+      .post('/sessions')
+      .set('Content-Type', mediaType)
+      .send({ data: { type: 'sessions', attributes: { role: 'participant' } } })
+      .expect(201);
+    const run = await api
+      .post('/runs')
+      .set('Content-Type', mediaType)
+      .send({
+        data: {
+          type: 'runs',
+          attributes: { name: 'run', status: 'running' },
+          relationships: {
+            experiment: { data: { type: 'experiments', id: experimentId } },
+          },
+        },
+      })
+      .expect(201);
+    const postOperations = () =>
+      api
+        .post('/operations')
+        .set('Content-Type', atomicMediaType)
+        .send({
+          'atomic:operations': [
+            {
+              op: 'add',
+              data: {
+                type: 'logs',
+                attributes: { number: 1, logType: 'test', values: {} },
+                relationships: {
+                  run: { data: { type: 'runs', id: run.body.data.id } },
+                },
+              },
+            },
+          ],
+        });
+
+    sessionStore.get.mockImplementationOnce((_sessionId, callback) => {
+      callback(new Error('connection lost'));
+    });
+    await postOperations()
+      .expect('Content-Type', atomicContentTypeRegExp)
+      .expect(500, {
+        errors: [
+          {
+            status: 'Internal Server Error',
+            code: 'INTERNAL_SERVER_ERROR',
+            detail: 'connection lost',
+          },
+        ],
+      });
+    await expect(Array.fromAsync(dataStore.getLogs())).resolves.toEqual([]);
+    await postOperations()
+      .expect('Content-Type', atomicContentTypeRegExp)
+      .expect(200);
   });
 
   const it = test.extend<Fixture>({
