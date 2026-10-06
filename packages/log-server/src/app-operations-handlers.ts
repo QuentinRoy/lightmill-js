@@ -2,7 +2,7 @@ import { atomicMediaType } from '@lightmill/log-api/vocabulary';
 import { toNewLog } from './api.ts';
 import { getErrorResponse, getLogIntakeError } from './json-api.ts';
 import { addLogsToWritableRun } from './log-intake.ts';
-import type { PathHandlers } from './router.ts';
+import type { PathHandlers } from './request-handling.ts';
 
 const pointerTo = (index: number, path: string) =>
   `/atomic:operations/${index}/data/${path}`;

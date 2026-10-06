@@ -36,6 +36,41 @@ const bodyErrorRoutes = [
 ] as const;
 
 describe.for(storeTypes)('createLogServer Errors (%s server)', (storeType) => {
+  test('answers a session loading failure before routing and keeps serving', async () => {
+    const { server, sessionStore } = await createServerContext({
+      type: storeType,
+    });
+    const api = createClient(
+      await listen(express().use('/api', server.middleware)),
+      { basePath: '/api' },
+    );
+    const logError = vi.spyOn(log, 'error').mockImplementation(() => {});
+    onTestFinished(() => logError.mockRestore());
+
+    await api
+      .post('/api/sessions')
+      .set('Content-Type', mediaType)
+      .send({ data: { type: 'sessions', attributes: { role: 'participant' } } })
+      .expect(201);
+
+    sessionStore.get.mockImplementationOnce((_sessionId, callback) => {
+      callback(new Error('connection lost'));
+    });
+    await api
+      .get('/api/runs')
+      .expect('Content-Type', apiContentTypeRegExp)
+      .expect(500, {
+        errors: [
+          {
+            status: 'Internal Server Error',
+            code: 'INTERNAL_SERVER_ERROR',
+            detail: 'connection lost',
+          },
+        ],
+      });
+    await api.get('/api/runs').expect(200, { data: [] });
+  });
+
   const it = test.extend<Fixture>({
     api: async ({}, use) => {
       let { server } = await createServerContext({ type: storeType });

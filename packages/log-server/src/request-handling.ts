@@ -6,7 +6,7 @@ import {
 } from '@lightmill/log-api/vocabulary';
 import type { StandardSchemaV1 } from '@standard-schema/spec';
 import { parseCookie } from 'cookie';
-import * as Express from 'express';
+import express from 'express';
 import type { SessionData } from 'express-session';
 import log from 'loglevel';
 import Stream from 'node:stream';
@@ -44,7 +44,7 @@ const REQUEST_BODY_LIMIT = '1mb';
 // Each route checks the Content-Type header before parsing. Requests without
 // one have no body, but may still say `Content-Length: 0`, which the parser
 // would read as `{}`.
-const parseJsonBody = Express.json({
+const parseJsonBody = express.json({
   type: (request) => request.headers['content-type'] != null,
   limit: REQUEST_BODY_LIMIT,
 });
@@ -55,7 +55,70 @@ declare module 'express-session' {
   }
 }
 
-export function validateHandlers({
+// A dedicated app keeps query and proxy settings local and session failures
+// within reach of the final error handler.
+export function createRequestMiddleware({
+  handlers,
+  dataStore,
+  sessionMiddleware,
+  trustProxy,
+}: {
+  handlers: Handlers;
+  dataStore: DataStore;
+  sessionMiddleware: express.RequestHandler;
+  trustProxy: boolean;
+}): express.RequestHandler {
+  const app = express();
+  app.set('trust proxy', trustProxy);
+  app.set('query parser', parseQuery);
+  app.use(sessionMiddleware);
+  app.use(
+    createRouter({ handlers: validateHandlers({ handlers }), dataStore }),
+  );
+  app.use(createErrorHandler());
+  return app;
+}
+
+function parseQuery(str: string | null) {
+  if (str == null) return {};
+  // URLSearchParams decodes malformed percent-encoding into U+FFFD, which
+  // would filter on a value the client never sent.
+  for (const pair of str.split('&')) {
+    const [key = ''] = pair.split('=', 1);
+    if (!isDecodable(key)) throw new MalformedQueryError(key);
+    if (!isDecodable(pair)) {
+      throw new MalformedQueryError(
+        decodeURIComponent(key.replaceAll('+', ' ')),
+      );
+    }
+  }
+  let params = new URLSearchParams(str);
+  // No prototype, so that keys such as `__proto__` or `constructor` are
+  // plain client data.
+  let values: Record<string, string[] | string> = Object.create(null);
+  for (const [key, value] of params.entries()) {
+    let oldValue = values[key];
+    if (oldValue == null) {
+      values[key] = value;
+    } else if (Array.isArray(oldValue)) {
+      oldValue.push(value);
+    } else {
+      values[key] = [oldValue, value];
+    }
+  }
+  return values;
+}
+
+function isDecodable(component: string) {
+  try {
+    decodeURIComponent(component);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function validateHandlers({
   handlers,
 }: {
   handlers: Handlers;
@@ -122,15 +185,14 @@ export function validateHandlers({
   return result;
 }
 
-export function createRouter({
+function createRouter({
   handlers,
-  router = Express.Router(),
   dataStore,
 }: {
   handlers: HandlersWithValidation;
-  router?: Express.Router;
   dataStore: DataStore;
-}): Express.Router {
+}): express.Router {
+  const router = express.Router();
   for (const [path, methods] of unsafeEntries(handlers)) {
     const expressPath = path.replace(/{(\w+)}/g, ':$1');
     const route = router.route(expressPath);
@@ -291,8 +353,8 @@ async function processResponse({
   response,
 }: {
   result: HandlerResponse;
-  request: Express.Request;
-  response: Express.Response;
+  request: express.Request;
+  response: express.Response;
 }) {
   if ('sessionData' in result) {
     request.session.data = result.sessionData;
@@ -316,7 +378,7 @@ async function processResponse({
   response.send(result.body);
 }
 
-function hasBody(request: Express.Request) {
+function hasBody(request: express.Request) {
   const { 'content-length': length, 'transfer-encoding': encoding } =
     request.headers;
   return encoding != null || Number(length) > 0;
@@ -324,7 +386,7 @@ function hasBody(request: Express.Request) {
 
 function checkContentType(
   expectedMediaType: RouteMediaType,
-): Express.RequestHandler {
+): express.RequestHandler {
   return async (request, response, next) => {
     const contentType = request.headers['content-type'];
     const isAccepted =
@@ -355,7 +417,7 @@ function checkContentType(
 function handleWith(
   handler: Handler,
   dataStore: DataStore,
-): Express.RequestHandler {
+): express.RequestHandler {
   return async (request, response) => {
     const { headers, params, query, body, session } = request;
     const result = await handler({
@@ -380,7 +442,7 @@ function handleWith(
 // one placed right after the body parser only gets the parser's errors.
 function answerBodyErrors(
   routeMediaType: RouteMediaType,
-): Express.ErrorRequestHandler {
+): express.ErrorRequestHandler {
   return async (error: unknown, request, response, _next) => {
     const cause = toError(error);
     const bodyError = getBodyParserError(cause, REQUEST_BODY_LIMIT);
@@ -397,7 +459,7 @@ function answerBodyErrors(
 
 function answerErrors(
   routeMediaType: RouteMediaType,
-): Express.ErrorRequestHandler {
+): express.ErrorRequestHandler {
   return async (error: unknown, request, response, next) => {
     // Too late to answer: Express logs the error and closes the connection.
     if (response.headersSent) {
@@ -413,7 +475,7 @@ function answerErrors(
 }
 
 /** A query parameter whose percent-encoding is malformed. */
-export class MalformedQueryError extends Error {
+class MalformedQueryError extends Error {
   readonly parameter: string;
 
   constructor(parameter: string) {
@@ -475,7 +537,7 @@ function toError(error: unknown) {
  * Express error middleware answering what fails outside a route: the session
  * store, or Express's router itself.
  */
-export function createErrorHandler(): Express.ErrorRequestHandler {
+function createErrorHandler(): express.ErrorRequestHandler {
   return async (error: unknown, request, response, next) => {
     // Too late to answer: Express logs the error and closes the connection.
     if (response.headersSent) {

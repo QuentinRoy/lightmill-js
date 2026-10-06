@@ -1,5 +1,5 @@
 import { sessionCookieName } from '@lightmill/log-api/vocabulary';
-import express from 'express';
+import type express from 'express';
 import session from 'express-session';
 import MemorySessionStoreModule from 'memorystore';
 import { createExperimentHandlers } from './app-experiments-handlers.ts';
@@ -8,12 +8,7 @@ import { createOperationHandlers } from './app-operations-handlers.ts';
 import { createRunHandlers } from './app-runs-handlers.ts';
 import { createSessionHandlers } from './app-sessions-handlers.ts';
 import type { DataStore } from './data-store.ts';
-import {
-  createErrorHandler,
-  createRouter,
-  MalformedQueryError,
-  validateHandlers,
-} from './router.ts';
+import { createRequestMiddleware } from './request-handling.ts';
 
 const MemorySessionStore = MemorySessionStoreModule(session);
 
@@ -42,42 +37,10 @@ export function createLogServer({
   sessionMaxAge,
   trustProxy = true,
 }: CreateLogServerOptions): { middleware: express.RequestHandler } {
-  const app = express();
-
-  app.set('trust proxy', trustProxy);
-
-  app.set('query parser', (str: string | null) => {
-    if (str == null) return {};
-    // URLSearchParams decodes malformed percent-encoding into U+FFFD, which
-    // would filter on a value the client never sent.
-    for (const pair of str.split('&')) {
-      const [key = ''] = pair.split('=', 1);
-      if (!isDecodable(key)) throw new MalformedQueryError(key);
-      if (!isDecodable(pair)) {
-        throw new MalformedQueryError(
-          decodeURIComponent(key.replaceAll('+', ' ')),
-        );
-      }
-    }
-    let params = new URLSearchParams(str);
-    // No prototype, so that keys such as `__proto__` or `constructor` are
-    // plain client data.
-    let values: Record<string, string[] | string> = Object.create(null);
-    for (const [key, value] of params.entries()) {
-      let oldValue = values[key];
-      if (oldValue == null) {
-        values[key] = value;
-      } else if (Array.isArray(oldValue)) {
-        oldValue.push(value);
-      } else {
-        values[key] = [oldValue, value];
-      }
-    }
-    return values;
-  });
-
-  app.use(
-    session({
+  const middleware = createRequestMiddleware({
+    dataStore,
+    trustProxy,
+    sessionMiddleware: session({
       store: sessionStore,
       secret: sessionKeys,
       cookie: {
@@ -90,9 +53,6 @@ export function createLogServer({
       resave: false,
       saveUninitialized: false,
     }),
-  );
-
-  const handlers = validateHandlers({
     handlers: {
       ...createSessionHandlers({ hostPassword, hostUser }),
       ...createExperimentHandlers(),
@@ -102,18 +62,5 @@ export function createLogServer({
     },
   });
 
-  app.use(createRouter({ handlers, dataStore }));
-
-  app.use(createErrorHandler());
-
-  return { middleware: app };
-}
-
-function isDecodable(component: string) {
-  try {
-    decodeURIComponent(component);
-    return true;
-  } catch {
-    return false;
-  }
+  return { middleware };
 }
