@@ -13,8 +13,8 @@ import {
 } from './__fixtures__/test-utils.ts';
 
 describe.for(storeTypes)('createLogServer (%s)', (storeType) => {
-  it.for([true, false])(
-    'uses its own proxy trust setting (%s)',
+  it.for([true, false, undefined])(
+    'uses its own proxy trust setting, off by default (%s)',
     async (trustProxy) => {
       const { dataStore, sessionStore } = await createServerContext({
         type: storeType,
@@ -226,7 +226,7 @@ describe.for(storeTypes)('createLogServer mounted (%s)', (storeType) => {
   );
 
   it('prepends X-Forwarded-Prefix to the mount path', async () => {
-    let api = await setup(storeType, '/api');
+    let api = await setup(storeType, '/api', { trustProxy: true });
     const response = await api
       .post('/api/sessions')
       .set('content-type', mediaType)

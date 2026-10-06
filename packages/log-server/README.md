@@ -94,13 +94,22 @@ Common optional options:
 - `secureCookies`
 - `sessionStore`
 - `sessionMaxAge` (cookie lifetime in milliseconds)
-- `trustProxy`
+- `trustProxy` (default `false`)
 
 By default, the server uses cross-origin cookies, which require HTTPS.
 For a page and API served from the same origin over HTTP, set
 `allowCrossOrigin: false`. This also turns off secure cookies. Browsers
 reject cross-origin cookies without the `Secure` attribute, so
 `secureCookies: false` cannot be used with cross-origin cookies.
+
+`trustProxy` sets Express's `trust proxy`. When `true`, the server believes
+the `X-Forwarded-Host`, `X-Forwarded-Proto`, `X-Forwarded-Prefix` and
+`X-Forwarded-For` headers: they build the `Location` headers, `req.ip`, and
+whether a request counts as secure. Enable it only behind a reverse proxy that
+sets them, since a client reaching the server directly could forge them. A
+server behind a TLS-terminating proxy needs it, otherwise it sees plain HTTP
+requests and `express-session` drops the `Secure` session cookie, which breaks
+cross-origin sessions.
 
 ### Resuming runs after a restart
 
@@ -269,6 +278,8 @@ Pass `--same-origin` only when the browser loads the page and calls the API
 from the same origin over HTTP. This can be arranged with a reverse proxy;
 the CLI does not serve the page or make a separately hosted page share
 the API's origin.
+Pass `--trust-proxy` when the server runs behind a reverse proxy that
+terminates TLS (see `trustProxy` above).
 
 The CLI stores logs and participant sessions in the same database file.
 Keep that file and the `--session-key` (or `SESSION_KEY`) stable to allow
