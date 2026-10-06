@@ -1,7 +1,7 @@
 import { mediaType } from '@lightmill/log-api/vocabulary';
 import express from 'express';
 import request from 'supertest';
-import { describe, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { createLogServer } from '../src/app.ts';
 import { SQLiteDataStore } from '../src/sqlite-data-store.ts';
 import { listen } from './__fixtures__/test-utils.ts';
@@ -37,6 +37,9 @@ describe('createLogServer response validation', () => {
 
   it('answers 500 to responses that do not match the API when enabled', async () => {
     const api = await createHostApi({ validateResponses: true });
-    await api.get('/experiments').expect(500);
+    const response = await api.get('/experiments').expect(500);
+    expect(response.body.errors[0].detail).toMatch(
+      /^Response validation failed: \/data\/0\/attributes\/name: /,
+    );
   });
 });

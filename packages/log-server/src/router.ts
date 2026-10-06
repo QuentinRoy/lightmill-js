@@ -320,7 +320,12 @@ function validateHandler({
     if (result.issues != null) {
       throw new Error(
         `Response validation failed: ${result.issues
-          .map((i) => i.message)
+          .map((issue) => {
+            const pointer = toJsonPointer(issue.path ?? []);
+            return pointer === ''
+              ? issue.message
+              : `${pointer}: ${issue.message}`;
+          })
           .join(', ')}`,
       );
     }
