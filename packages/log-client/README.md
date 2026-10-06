@@ -43,13 +43,13 @@ A run is one participant going through the experiment once. Start a new one with
 
 Resume a run with `startRun({ runId, after })` or `startRun({ experimentName, runName, after })`. `after` is `{ number }`, the log number to resume after: the server cancels every later log, and the new logs continue from there. `getResumableRuns` finds the runs to resume and the log to resume after. [Resuming runs](../../docs/guides/resuming-runs.md) shows the whole process.
 
-End a run with one of three calls:
+Complete, interrupt, or cancel a run with one of three calls:
 
 - `completeRun()` when the participant finished.
 - `interruptRun()` when the participant stops for now and may come back. An interrupted run can be resumed.
 - `cancelRun()` when the run should not count. Its name becomes free again, and the CSV export leaves it out.
 
-Each first sends the logs not sent yet, and rejects if it can't. Once a run has ended, its logger accepts no more logs.
+Each first sends the logs not sent yet, and rejects if it can't. After any of these calls succeeds, this logger accepts no more logs. Completed and canceled runs have ended; interrupted runs can still resume through `client.startRun`, which returns a new logger.
 
 ## Logs
 
@@ -105,7 +105,7 @@ When retries run out, or the server refuses a batch for another reason, the logg
 | `sending`                              | A batch is on its way.                                                              |
 | `retrying`                             | The last attempt failed and will be retried. Has `error`, `attempt`, and `delayMs`. |
 | `paused`                               | Retries ran out. Logs are held until `retry()`. Has `error`.                        |
-| `completed`, `canceled`, `interrupted` | The run has ended.                                                                  |
+| `completed`, `canceled`, `interrupted` | This logger has stopped. An interrupted run can resume with a new logger.           |
 
 Only log batches count: retries while `flush()` checks for gaps, or while a call ends the run, only show in that call's promise.
 
@@ -156,19 +156,19 @@ Ends the session on the server. The browser can no longer find its runs.
 
 ### Logger
 
-| Member                                   | Description                                                                            |
-| ---------------------------------------- | -------------------------------------------------------------------------------------- |
-| `addLog(log)`                            | Queues a log. Resolves once it is stored. Rejects once the run is ending or has ended. |
-| `flush()`                                | Sends queued logs at once. Resolves once every log added before is stored.             |
-| `retry()`                                | Sends held logs again. Does nothing unless paused.                                     |
-| `completeRun()`                          | Flushes, then completes the run.                                                       |
-| `interruptRun({ discardInFlightLogs? })` | Flushes, or discards, then interrupts the run.                                         |
-| `cancelRun({ discardInFlightLogs? })`    | Flushes, or discards, then cancels the run.                                            |
-| `state`                                  | Delivery state. See [State](#state).                                                   |
-| `subscribe(listener)`                    | Calls `listener` on each state change. Returns an unsubscribe function.                |
-| `inFlightLogs`                           | Logs not stored yet, whether queued, on their way, or held.                            |
+| Member                                   | Description                                                                                              |
+| ---------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `addLog(log)`                            | Queues a log. Resolves once it is stored. Rejects while this logger is stopping or after it has stopped. |
+| `flush()`                                | Sends queued logs at once. Resolves once every log added before is stored.                               |
+| `retry()`                                | Sends held logs again. Does nothing unless paused.                                                       |
+| `completeRun()`                          | Flushes, then completes the run.                                                                         |
+| `interruptRun({ discardInFlightLogs? })` | Flushes, or discards, then interrupts the run.                                                           |
+| `cancelRun({ discardInFlightLogs? })`    | Flushes, or discards, then cancels the run.                                                              |
+| `state`                                  | Delivery state. See [State](#state).                                                                     |
+| `subscribe(listener)`                    | Calls `listener` on each state change. Returns an unsubscribe function.                                  |
+| `inFlightLogs`                           | Logs not stored yet, whether queued, on their way, or held.                                              |
 
-Only one call can end the run: while one is in progress, another rejects, and so does `addLog`.
+Only one call can complete, interrupt, or cancel the run at a time: while one is in progress, another rejects, and so does `addLog`.
 
 ### Types
 

@@ -244,10 +244,10 @@ function Experiment({ run }: { run: ReturnType<typeof startRun> }) {
     }
   }, [logger, timelineCompleted, state.status]);
 
-  const runEnded = ['completed', 'canceled', 'interrupted'].includes(
+  const loggerStopped = ['completed', 'canceled', 'interrupted'].includes(
     state.status,
   );
-  useConfirmBeforeUnload(!runEnded);
+  useConfirmBeforeUnload(!loggerStopped);
 
   if (error != null) throw error;
   if (state.status === 'completed') return <p>Thank you!</p>;
@@ -309,7 +309,7 @@ Here is what happens when a participant opens the page:
 4. `TimelinePlayer` shows the task components in turn. When resuming, `resumeAfterTask` skips every task up to the last one logged.
 5. Every log goes to `logger.addLog`. If the server can't be reached for a while, the logger pauses and keeps the logs. `paused` then makes `TimelinePlayer` show the `Paused` screen once the current task ends, and `retry()` sends the logs again.
 6. When the timeline ends, `TimelinePlayer` calls `onCompleted` and shows "Saving…". Once every log is stored, `completeRun` tells the server the run is complete, and the app thanks the participant.
-7. Until the run ends, `useConfirmBeforeUnload` asks the browser to confirm before the participant leaves the page.
+7. Until the logger stops, `useConfirmBeforeUnload` asks the browser to confirm before the participant leaves the page.
 8. If anything else fails, the error boundary shows a message instead of a blank page. This includes a participant who comes back after completing the experiment, or who opens it in another browser: the run name is taken, and `startRun` fails with a `RUN_EXISTS` error.
 
 ## Try it
