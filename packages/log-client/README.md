@@ -81,7 +81,7 @@ logger.addLog({ type: 'trial-end', trialId: '1', durationMs: 812 });
 
 `addLog` queues the log and returns a promise that resolves once the server has stored it. You don't have to wait for it, but catch its rejection: the logger keeps the log either way, and `completeRun()` won't complete the run until it is stored. The logger sends one batch at a time: logs added while a batch is on its way go in the next one, up to about 512 kB per batch. `requestThrottle` sets a minimum time between the starts of two batches.
 
-`flush()` sends the queued logs at once, and resolves when every log added before the call is stored. It then checks that the server has no gap in the run's logs, and rejects if one is missing.
+`flush()` sends the queued logs at once, and resolves when every log added before the call is stored. If logs were in flight when it was called, it then checks for missing log numbers at or before the last log it flushed, and rejects if one is missing. With no logs in flight, it returns immediately without checking the server.
 
 ### When the network fails
 
