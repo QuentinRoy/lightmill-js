@@ -152,7 +152,7 @@ Two pages are on the same site when they share the scheme and the registrable do
 `secureCookies` sets the `Secure` attribute:
 
 - `'auto'`, the same-site default: `Secure` over HTTPS, not over HTTP, so development over plain HTTP works. Behind a proxy that handles HTTPS, set `trustProxy` so the server sees HTTPS.
-- `'always'`: always `Secure`. The only value cross-site cookies allow, and their default.
+- `'always'`: only set the cookie when the server recognizes HTTPS, and always mark it `Secure`. The only value cross-site cookies allow, and their default. Behind a proxy, this still needs `trustProxy` and `X-Forwarded-Proto: https`.
 - `'never'`: never `Secure`.
 
 ### Cross-origin requests

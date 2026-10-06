@@ -17,7 +17,7 @@ Serve the app and the server from the same origin, behind a reverse proxy that h
 
 - `--allowed-origin` names a page origin allowed to call the server, without a path or a trailing slash. Repeat it for several origins. A page on the server's own origin needs none.
 - `--same-site` gives the session cookie `SameSite=Strict`. Without it, the cookie is `SameSite=None`, which browsers only accept over HTTPS. When the page is on another site, that cookie is a third-party cookie: Safari blocks it by default, and other browsers let people block it. Participants with those browsers can't start a run.
-- `--trust-proxy` makes the server believe the `X-Forwarded-*` headers of the proxy, so it knows requests came in over HTTPS and marks the cookie `Secure`. Only use it when every request goes through a proxy that sets these headers: a client reaching the server directly could forge them. If your proxy does not set `X-Forwarded-Proto`, use `--secure-cookies always` instead.
+- `--trust-proxy` makes the server believe the `X-Forwarded-*` headers of the proxy, so it knows requests came in over HTTPS and marks the cookie `Secure`. Only use it when every request goes through a proxy that sets these headers: a client reaching the server directly could forge them. Your proxy must send `X-Forwarded-Proto: https` for HTTPS requests. `--secure-cookies always` still requires the server to recognize HTTPS; it cannot replace that header. Without it, this mode prevents the server from setting a session cookie.
 
 `--same-site` without `--trust-proxy` logs a warning, because the cookie is then `Secure` only when the server is reached directly over HTTPS. During local development, ignore it.
 
