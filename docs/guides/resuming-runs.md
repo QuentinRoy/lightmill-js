@@ -54,7 +54,7 @@ Resuming cancels the logs that come after the resume point. The server keeps the
 
    `TimelinePlayer` starts with the task after the first one that matches. It throws when no task matches, which usually means the timeline changed.
 
-5. **Rebuild the same timeline.** The app must build exactly the same timeline as before, so that the last task logged is still in it, followed by the same tasks. Build it from the participant only. If it uses randomness, use a random number generator seeded with the participant number rather than `Math.random`.
+5. **Rebuild the same timeline.** For a fixed design, build the timeline from a stable input, such as the participant number, so the saved task id is still in it and the remaining tasks keep their order. If task order uses randomness, use a random number generator seeded with the participant number rather than `Math.random`. An adaptive design also needs its saved answer history: replay each answer as the generator skips completed tasks. See [Dynamic timelines](../../packages/react-experiment/README.md#dynamic-timelines) for an example.
 
 ## What the server needs
 

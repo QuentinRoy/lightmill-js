@@ -70,12 +70,18 @@ function* staircase() {
   let level = 5;
   for (let i = 0; i < 20; i++) {
     yield { type: 'trial', level };
-    level = Math.max(1, level + (answers.at(-1) ? 1 : -1));
+    const correct = answers[i];
+    if (typeof correct !== 'boolean') {
+      throw new Error(`Missing answer for trial ${i}`);
+    }
+    level = Math.max(1, level + (correct ? 1 : -1));
   }
 }
 ```
 
 Record each answer in `answers` before the task completes: completing it asks the generator for the next task.
+
+To resume, restore the saved answers in order before advancing the generator past completed tasks. Reading `answers[i]` replays each trial's answer; reading only the last answer would change the difficulty of skipped trials. See [Dynamic timelines](../react-experiment/README.md#dynamic-timelines) for the logging and recovery steps.
 
 The runner reads the timeline once and can't rewind it. To start over, create a new timeline and a new runner.
 
