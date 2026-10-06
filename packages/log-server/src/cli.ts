@@ -7,7 +7,6 @@ import loglevel from 'loglevel';
 import { createWriteStream, readFileSync } from 'node:fs';
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import * as url from 'node:url';
 import yargs from 'yargs';
@@ -252,7 +251,7 @@ async function exportLogs({
   let temporaryOutput = `${output}.${process.pid}.tmp`;
   try {
     await pipeline(
-      Readable.from(countedRows()),
+      countedRows(),
       csvStringifier(),
       createWriteStream(temporaryOutput),
     );
