@@ -68,7 +68,18 @@ Every function throws a `TypeError` when `conditions` is empty or has duplicates
 
 The package does not know your participants: you choose which order each one gets. Number them from 0 or 1, for example through the experiment's URL, and use that number as the index.
 
-Participants who drop out leave holes in the rotation. Replace them by giving their number to a new participant, so every order is used as often as the others.
+Participants who drop out leave holes in the rotation. Give each replacement a new participant identifier, but assign the same condition order as the participant who dropped out. Keep participant identity separate from the index used to choose an order: in the [getting started](../../docs/guides/getting-started.md) app, the participant number also names the run, so reusing it in another browser fails with `RUN_EXISTS`.
+
+For example, if participant 4 drops out and participant 12 replaces them:
+
+```ts
+const participantNumber = 12;
+const orderIndex = 4;
+const order = orders[orderIndex % orders.length];
+const runName = `participant-${participantNumber}`;
+```
+
+Store the assigned order index with the participant's identifier, so a resumed run uses the same order. A host can instead cancel the old run to free its name, but canceling also leaves its logs out of CSV exports.
 
 ## From orders to a timeline
 
