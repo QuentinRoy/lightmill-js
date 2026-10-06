@@ -67,6 +67,7 @@ type StartParameter = {
   sessionMaxAgeDays: number;
   hostPassword: string | undefined;
   sameSite: boolean;
+  secureCookies: 'auto' | 'always' | 'never' | undefined;
   allowedOrigin: string[];
   trustProxy: boolean;
 };
@@ -77,6 +78,7 @@ async function start({
   sessionMaxAgeDays,
   hostPassword,
   sameSite,
+  secureCookies,
   allowedOrigin,
   trustProxy,
 }: StartParameter) {
@@ -104,8 +106,16 @@ async function start({
       'No allowed origin set. Set the ALLOWED_ORIGINS environment variable or use the --allowed-origin option to name the pages that may call this server, or use --same-site if the browser loads the page from the same site as the API.',
     );
   }
+  // Browsers reject cross-site cookies without `Secure`, so only same-site
+  // cookies can opt out of `always`.
+  if (!sameSite && secureCookies !== undefined && secureCookies !== 'always') {
+    throw new Error(
+      `--secure-cookies ${secureCookies} requires --same-site: cross-site cookies are always Secure.`,
+    );
+  }
   // Plain HTTP development uses the same flags, so this stays a warning.
-  if (sameSite && !trustProxy) {
+  // With `never` the cookies are not Secure whatever the proxy does.
+  if (sameSite && !trustProxy && secureCookies !== 'never') {
     log.warn(
       'Session cookies are Secure only when the server is reached directly over HTTPS. Behind a reverse proxy that terminates TLS, pass --trust-proxy.',
     );
@@ -134,7 +144,9 @@ async function start({
         sessionKeys: sessionKey.split(':'),
         hostPassword,
         trustProxy,
-        ...(sameSite ? { cookieSite: 'same-site' as const } : {}),
+        ...(sameSite
+          ? { cookieSite: 'same-site' as const, secureCookies }
+          : {}),
       }).middleware,
     )
     .listen(port);
@@ -339,6 +351,21 @@ export function cli() {
             desc: 'Use same-site cookies, for a browser page on the same site as the API (the port can differ). Cookies are Secure over HTTPS, not over HTTP',
             type: 'boolean',
             default: false,
+          })
+          .option('secure-cookies', {
+            desc: 'Whether the session cookie is Secure: auto follows the request protocol (needs --trust-proxy behind a TLS-terminating proxy). Defaults to auto with --same-site, always otherwise; auto and never require --same-site',
+            type: 'string',
+            choices: ['auto', 'always', 'never'] as const,
+            // A repeated option becomes an array, which `createLogServer` would
+            // read as anything but `always`: an unintended insecure cookie.
+            coerce: (
+              value: 'auto' | 'always' | 'never' | string[] | undefined,
+            ) => {
+              if (Array.isArray(value)) {
+                throw new Error('Pass --secure-cookies only once.');
+              }
+              return value;
+            },
           })
           .option('allowed-origin', {
             desc: 'Origin of a page allowed to call the API with credentials, e.g. https://example.org. Repeatable. Required unless --same-site is set',
