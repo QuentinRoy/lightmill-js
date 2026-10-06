@@ -482,7 +482,9 @@ After a run completes, you can test again with an unused number, such as `?parti
 
 ### The saved task cannot be found
 
-Restore the original timeline or investigate the changed design. Do not silently restart the tasks under the same run.
+`No task matched resumeAfterTask` means the player cannot find the task named by the saved completion log in the rebuilt timeline. Check the saved `taskId`, the ids produced by `createTimeline` for this participant, and the comparison passed to `resumeAfterTask`.
+
+If the design or task ids changed after the run started, use the original design for that run. If `taskId` was logged incorrectly or the comparison uses the wrong field, fix that mismatch before resuming. Removing `resumeAfterTask` would display the whole timeline again while the logger continues the existing run; it does not recover the saved position. Keep the run and its data intact while investigating. [Resuming runs](resuming-runs.md#what-the-app-needs) explains the required ids and timeline state.
 
 ### Saving does not finish
 
