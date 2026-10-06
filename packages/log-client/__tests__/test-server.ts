@@ -51,6 +51,7 @@ export class TestServer {
     const { middleware } = createLogServer({
       dataStore,
       sessionKeys: ['test-secret'],
+      validateResponses: true,
       allowCrossOrigin: false,
       secureCookies: false,
     });

@@ -39,6 +39,7 @@ const suite = storeTypes.map((storeType) => ({
         dataStore: dataStore,
         sessionStore,
         sessionKeys: ['secret'],
+        validateResponses: true,
         hostPassword: 'host password',
         hostUser: 'host user',
         allowCrossOrigin: false,
@@ -60,6 +61,7 @@ vitestTest('same-origin sessions set a usable cookie on HTTP', async () => {
     createLogServer({
       dataStore,
       sessionKeys: ['secret'],
+      validateResponses: true,
       allowCrossOrigin: false,
     }).middleware,
   );
@@ -79,7 +81,11 @@ vitestTest('same-origin sessions set a usable cookie on HTTP', async () => {
 vitestTest('default sessions require HTTPS for a cookie', async () => {
   let dataStore = await dataStoreCreators[storeTypes[0]]();
   let app = express().use(
-    createLogServer({ dataStore, sessionKeys: ['secret'] }).middleware,
+    createLogServer({
+      dataStore,
+      sessionKeys: ['secret'],
+      validateResponses: true,
+    }).middleware,
   );
   let response = await request(await listen(app))
     .post('/sessions')
@@ -130,6 +136,7 @@ describe.for(suite)(
       let server = createLogServer({
         dataStore: dataStore,
         sessionKeys: ['secret'],
+        validateResponses: true,
         hostUser: 'host user',
       });
       let app = express();
