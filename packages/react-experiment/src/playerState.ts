@@ -1,7 +1,4 @@
-import {
-  type MaybeAsyncIterator,
-  Runner as TimelineRunner,
-} from '@lightmill/runner';
+import { type MaybeAsyncIterator, TimelineRunner } from '@lightmill/runner';
 import * as React from 'react';
 
 export type AnyIteratorOrIterable<Task> =
