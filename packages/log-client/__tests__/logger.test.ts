@@ -2,6 +2,7 @@ import { bypass, http, HttpResponse, passthrough } from 'msw';
 import { beforeEach, describe, expect, vi } from 'vitest';
 import { LightmillClient } from '../src/client.js';
 import type { LoggerState } from '../src/logger.js';
+import { AddLogError, FlushError } from '../src/main.js';
 import { serverTest, type TestServer } from './test-server.ts';
 import {
   advanceUntilSettled,
@@ -219,7 +220,9 @@ describe('LogClient#flush', () => {
     );
     await logger.addLog({ type: 'mock-log', val: 1 });
     void logger.addLog({ type: 'mock-log', val: 2 });
-    await expect(logger.flush()).rejects.toThrowErrorMatchingInlineSnapshot(
+    const flushPromise = logger.flush();
+    await expect(flushPromise).rejects.toBeInstanceOf(FlushError);
+    await expect(flushPromise).rejects.toThrowErrorMatchingInlineSnapshot(
       `[FlushError: Log number 1 is missing on the server after flushing. Add it if you still have it; otherwise resume the run after log number 0 (this cancels later logs).]`,
     );
   });
@@ -412,8 +415,11 @@ describe('LogClient server errors', () => {
 
   it('pauses when a single log gets a 413', async ({ logger, server }) => {
     server.msw.use(http.post(server.url('/operations'), () => respond(413)));
-    await expect(logger.addLog({ type: 'mock-log' })).rejects.toMatchObject({
+    const logPromise = logger.addLog({ type: 'mock-log' });
+    await expect(logPromise).rejects.toBeInstanceOf(AddLogError);
+    await expect(logPromise).rejects.toMatchObject({
       name: 'AddLogError',
+      logNumber: 1,
     });
     expect(logger.state).toMatchObject({ status: 'paused' });
   });
