@@ -425,7 +425,15 @@ The error boundary keeps the participant's message short and records the error i
 
 ### The database is missing or needs migrating
 
-Run `npx log-server migrate` in the app directory, using the same database path as `start`.
+Read the path in the server's startup error. The tutorial uses `data.sqlite` in the app directory; starting the CLI in another directory changes where that relative path points. Return to the app directory and check whether the intended database is there. If you set `DB_PATH` or passed `--database`, use that same path for every command.
+
+For a new tutorial database, run from the app directory:
+
+```sh
+npx log-server migrate --database ./data.sqlite
+```
+
+If an existing database needs migration, stop the server and [back it up](deploying.md#back-up-the-data) first. If an existing database is missing, find the original file before creating another one: `migrate` creates an empty database when the file does not exist. After fixing the path or migrating, run the server's start command again.
 
 ### The experiment cannot be found
 

@@ -234,7 +234,27 @@ Start with the error in the browser’s developer console or the service log. Th
 
 ### The service does not start
 
-Read `sudo journalctl -u lightmill`. Check the Node path, working directory, access to `.env` and the database, and both secrets. A missing or outdated database needs `npx log-server migrate` against the same path.
+On the server, read the startup error:
+
+```sh
+sudo journalctl -u lightmill -n 50 --no-pager
+```
+
+Use that error to choose the next step:
+
+- If systemd cannot execute Node, check `ExecStart` in the service file. Its Node path must exist and be executable by the `lightmill` account.
+- If the CLI reports a missing session key or host password, check that `WorkingDirectory` is `/srv/lightmill`, that this account can read `.env`, and that it defines `SESSION_KEY` and `HOST_PASSWORD`.
+- If the database is missing, check the path printed in the error against `DB_PATH` and any `--database` flag. For an existing study, locate its database or restore a backup. Running `migrate` at a wrong path creates an empty database; it does not recover the study's data.
+- If the error says migrations are pending, stop the service and [back up that database](#back-up-the-data), then migrate it as the account that owns it.
+- If the port is already in use, check whether another log-server process is running. Keep one process per database; a migration does not fix a port conflict.
+
+For a new database, or after backing up an existing one that needs migration, run in `/srv/lightmill`:
+
+```sh
+npx log-server migrate --database /srv/lightmill/data.sqlite
+```
+
+Use the actual database path if yours differs. Once the reported problem is fixed, restart the service with `sudo systemctl restart lightmill` and check its log again.
 
 ### The app cannot find the experiment
 
