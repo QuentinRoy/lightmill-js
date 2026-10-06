@@ -59,6 +59,25 @@ export default tseslint.config(
     rules: { 'no-console': 'error' },
   },
   {
+    files: ['packages/log-server/__tests__/**/*.ts'],
+    ignores: ['packages/log-server/__tests__/__fixtures__/test-utils.ts'],
+    rules: {
+      '@typescript-eslint/no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: 'supertest',
+              message:
+                'Use createClient from test-utils: it checks every response against the API.',
+              allowTypeImports: true,
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
     // log-client ships untranspiled to the browsers in its browserslist.
     ...compat.configs['flat/recommended'],
     files: ['packages/log-client/src/**/*.ts'],

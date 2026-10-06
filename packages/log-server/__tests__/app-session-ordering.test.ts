@@ -2,11 +2,12 @@
 import { mediaType } from '@lightmill/log-api/vocabulary';
 import express from 'express';
 import session, { type SessionData } from 'express-session';
-import request from 'supertest';
+import type request from 'supertest';
 import { test as baseTest, describe, onTestFinished, vi } from 'vitest';
 import type { DataStore } from '../src/data-store.ts';
 import { SQLiteDataStore } from '../src/sqlite-data-store.ts';
 import {
+  createClient,
   createRunRequest,
   createServerContext,
   host,
@@ -173,7 +174,7 @@ describe.for(stores)(
           dataStore,
           sessionStore,
           async newSession() {
-            const api = request.agent(app).host(host);
+            const api = createClient(app).host(host);
             await api
               .post('/sessions')
               .set('content-type', mediaType)

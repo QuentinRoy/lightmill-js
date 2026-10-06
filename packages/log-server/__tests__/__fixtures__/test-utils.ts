@@ -1,7 +1,7 @@
 /* eslint-disable no-empty-pattern */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
-import type { routes } from '@lightmill/log-api';
+import { routes, ServerErrorResponse } from '@lightmill/log-api';
 import { mediaType, type UserRole } from '@lightmill/log-api/vocabulary';
 import express from 'express';
 import { MemoryStore, Store as SessionStore } from 'express-session';
@@ -11,6 +11,7 @@ import { last } from 'remeda';
 import request from 'supertest';
 import type { Simplify, ValueOf } from 'type-fest';
 import { onTestFinished, test, vi, type Mock, type TestAPI } from 'vitest';
+import type { z } from 'zod';
 import { type HttpMethod } from '../../src/api.ts';
 import { createLogServer } from '../../src/app.ts';
 import type {
@@ -20,6 +21,7 @@ import type {
   RunId,
 } from '../../src/data-store.ts';
 import { SQLiteDataStore } from '../../src/sqlite-data-store.ts';
+import { toJsonPointer } from '../../src/utils.ts';
 
 // supertest would listen on `::` and connect to 127.0.0.1, where another process
 // may hold the same port (e.g. Steam on macOS). Binding 127.0.0.1 avoids that.
@@ -31,6 +33,71 @@ export async function listen(app: RequestListener): Promise<Server> {
   });
   await once(server, 'listening');
   return server;
+}
+
+/**
+ * A supertest agent that fails any request whose response does not match the
+ * API, on top of the test's own expectations.
+ */
+export function createClient(app: App, { basePath = '' } = {}) {
+  return request.agent(app).use((test: request.Test) => {
+    test.expect((response) => checkResponse(test, response, basePath));
+  });
+}
+
+type ResponseSchemas = Record<
+  number,
+  { content: Record<string, { schema: z.ZodType }> }
+>;
+const routeMatchers = Object.entries(routes).map(([path, methods]) => ({
+  pattern: new RegExp(`^${path.replaceAll(/\{[^/}]+\}/g, '[^/]+')}$`),
+  // Widened so a request's method and status can index it.
+  methods: methods as Record<string, { responses: ResponseSchemas }>,
+}));
+
+function checkResponse(
+  { method, url }: request.Test,
+  response: request.Response,
+  basePath: string,
+) {
+  const path = new URL(url).pathname;
+  if (!path.startsWith(basePath)) return;
+  const routePath = path.slice(basePath.length);
+  const route = routeMatchers.find(({ pattern }) => pattern.test(routePath))
+    ?.methods[method.toLowerCase()];
+  // The API declares media types without a charset, and without spaces
+  // between parameters.
+  const contentType = String(response.headers['content-type'])
+    .split(';')
+    .map((part) => part.trim())
+    .filter((part) => !/^charset=/i.test(part))
+    .join(';');
+  const schemas = [
+    route?.responses[response.status]?.content[contentType]?.schema,
+    // Any route may answer one of the server errors.
+    response.status >= 400 ? ServerErrorResponse : undefined,
+  ].filter((schema) => schema != null);
+  if (schemas.length === 0) {
+    throw new Error(
+      `${method} ${path} answered ${response.status} ${contentType}, which the API does not declare`,
+    );
+  }
+  // superagent only parses JSON bodies; the others are left as text.
+  const body = /[/+]json\b/.test(contentType) ? response.body : response.text;
+  let issues: z.core.$ZodIssue[] | undefined;
+  for (const schema of schemas) {
+    const result = schema.safeParse(body);
+    if (result.success) return;
+    // The route's own schema comes first and says the most about what is wrong.
+    issues ??= result.error.issues;
+  }
+  throw new Error(
+    `${method} ${path} answered ${response.status} with a body that does not match the API: ${(
+      issues ?? []
+    )
+      .map((issue) => `${toJsonPointer(issue.path)}: ${issue.message}`)
+      .join(', ')}`,
+  );
 }
 
 export const host = 'lightmill-test.com';
@@ -105,7 +172,6 @@ const baseServerOptions = {
   sessionKeys: ['secret'],
   allowCrossOrigin: false as const,
   secureCookies: false,
-  validateResponses: true,
 };
 
 type ServerOptions = {
@@ -261,7 +327,7 @@ async function createSessionFixtureContext<
 >({ type, role }: { type: T; role: R }) {
   let serverContext = await createServerContext({ type });
   let app = await listen(express().use(serverContext.server.middleware));
-  let api = request.agent(app).host(host);
+  let api = createClient(app).host(host);
   // This request only matters to get the cookie. After that we'll mock the session anyway.
   const response = await api
     .post('/sessions')

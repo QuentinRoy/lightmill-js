@@ -4,7 +4,7 @@ import {
   userRoles,
 } from '@lightmill/log-api/vocabulary';
 import type { Store as SessionStore } from 'express-session';
-import request from 'supertest';
+import type request from 'supertest';
 import { beforeEach, describe, expect } from 'vitest';
 import { DataStoreError } from '../src/data-store-errors.ts';
 import type { ExperimentId, RunId, RunStatus } from '../src/data-store.ts';
@@ -12,6 +12,7 @@ import { fromAsync } from '../src/utils.ts';
 import {
   apiContentTypeRegExp,
   atomicContentTypeRegExp,
+  createClient,
   createSessionTest,
   storeTypes,
   type MockedDataStore,
@@ -67,7 +68,7 @@ function createTest(storeType: StoreType) {
 
     participantApi: async ({ session }, use) => {
       const { app } = session;
-      const api = request.agent(app).host('lightmill-test.com');
+      const api = createClient(app).host('lightmill-test.com');
       await api
         .post('/sessions')
         .set('Content-Type', mediaType)
@@ -80,7 +81,7 @@ function createTest(storeType: StoreType) {
 
     hostApi: async ({ session }, use) => {
       const { app } = session;
-      const api = request.agent(app).host('lightmill-test.com');
+      const api = createClient(app).host('lightmill-test.com');
       await api
         .post('/sessions')
         .set('Content-Type', mediaType)
