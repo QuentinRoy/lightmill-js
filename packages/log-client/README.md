@@ -81,8 +81,6 @@ logger.addLog({ type: 'trial-end', trialId: '1', durationMs: 812 });
 
 `addLog` queues the log and returns a promise that resolves once the server has stored it. You don't have to wait for it, but catch its rejection: the logger keeps the log either way, and `completeRun()` won't complete the run until it is stored. The logger sends one batch at a time: logs added while a batch is on its way go in the next one, up to about 512 kB per batch. `requestThrottle` sets a minimum time between the starts of two batches.
 
-Unsaved logs live in page memory. Reloading or closing the page loses that copy; there is no automatic storage in the browser that survives leaving the page. Resuming starts after a server-saved checkpoint, so participants may repeat tasks they completed before their logs arrived. If saving fails, offer a retry and a download of `inFlightLogs`, and explain that participants should keep the page open. See the [getting started fallback](../../docs/guides/getting-started.md#wire-it-together).
-
 `flush()` sends the queued logs at once, and resolves when every log added before the call is stored. If logs were in flight when it was called, it then checks for missing log numbers at or before the last log it flushed, and rejects if one is missing. With no logs in flight, it returns immediately without checking the server.
 
 ### When the network fails
@@ -96,6 +94,12 @@ When retries run out, or the server refuses a batch for another reason, the logg
 - `logger.inFlightLogs` lists the logs not stored yet, for example to let the participant download them;
 - `logger.retry()` sends them again, with a fresh two minutes, and resolves once they are stored;
 - `flush()` and `completeRun()` reject while logs are held, and so do `cancelRun()` and `interruptRun()`, unless they get `{ discardInFlightLogs: true }`. Discarding aborts a batch on its way, but the server may have stored it already.
+
+### Unsaved logs
+
+The logger keeps the logs that haven't reached the server in the page's memory only. Reloading or closing the page loses them, and nothing stores them in the browser. A participant who resumes starts after the last log the server has, and repeats the tasks after it.
+
+So when saving fails, ask participants to keep the page open while they retry, and offer a download of `inFlightLogs` before they leave. A confirmation before unloading the page asks before leaving, but saves nothing. The [getting started app](../../docs/guides/getting-started.md#wire-it-together) does all three.
 
 ### State
 
@@ -148,7 +152,7 @@ Starts or resumes a run, and resolves with its logger. `options` is one of:
 Lists the runs the current browser session started that are running or interrupted, optionally filtered by experiment and run name. Each result is `{ run, experiment, toResumeAfter }`:
 
 - `run` is `{ id, name, status }`, `experiment` is `{ id, name }`;
-- `toResumeAfter` is the last saved log whose type is in `resumableLogTypes` and has no missing log number before it, as `{ number, log }`, or `{ number: 0, log: null }` when there is none. Logs beyond a numbering gap cannot be resume points. Pass it as `after` to `startRun`.
+- `toResumeAfter` is the run's last log whose type is in `resumableLogTypes`, as `{ number, log }`, or `{ number: 0, log: null }` when there is none. Stranded logs, which come after a missing log number, don't count. Pass it as `after` to `startRun`.
 
 Without a session, it resolves with an empty list.
 

@@ -17,7 +17,7 @@ log-server export --database ./data.sqlite > logs.csv
 
 The command reads the database directly, so it works whether the server runs or not.
 
-In an interactive terminal, `--output logs.csv` (`-o logs.csv`) writes to a file and shows progress. In scripts, use `> logs.csv` as above: the progress display needs a terminal.
+`--output logs.csv` (`-o logs.csv`) writes to a file instead, and shows progress when it runs in a terminal.
 
 ## Over HTTP
 

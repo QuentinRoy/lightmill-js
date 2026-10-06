@@ -73,25 +73,13 @@ Creates an experiment. Participants can only start runs in experiments that exis
 
 ### `log-server export`
 
-Writes the logs as CSV to the standard output. Canceled runs are left out.
+Writes the logs as CSV to the standard output, or to a file with `--output`. Canceled runs are left out.
 
-| Option                    | Description                                                   |
-| ------------------------- | ------------------------------------------------------------- |
-| `--experiment-name`, `-e` | Only export logs of this experiment.                          |
-| `--log-type`, `-t`        | Only export logs of this type.                                |
-| `--output`, `-o`          | Write the CSV to this file and show progress in the terminal. |
-
-To save a file from an interactive terminal:
-
-```sh
-npx log-server export --output logs.csv
-```
-
-For scripts, redirect standard output instead: `--output` uses terminal controls for its progress display.
-
-```sh
-npx log-server export > logs.csv
-```
+| Option                    | Description                                                                   |
+| ------------------------- | ----------------------------------------------------------------------------- |
+| `--experiment-name`, `-e` | Only export logs of this experiment.                                          |
+| `--log-type`, `-t`        | Only export logs of this type.                                                |
+| `--output`, `-o`          | Write the CSV to this file. In a terminal, it shows progress while it writes. |
 
 ## Hosts and participants
 

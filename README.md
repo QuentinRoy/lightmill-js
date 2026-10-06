@@ -14,7 +14,7 @@ timeline ──▶ TimelinePlayer ──▶ logger ───── HTTPS ──�
 - A **run** is one participant going through the experiment once. Each run has a name, usually derived from the participant. That name is unique among runs that are not canceled in the same experiment.
 - A **timeline** is the sequence of tasks of a run. A **task** is a plain object with a `type`, such as `{ type: 'trial', size: 'large' }`, and your app has one component per task type.
 - A **log** records something that happened during a run, such as an answer and its reaction time. Logs have a `type` and values, and are numbered in order.
-- A run is `running` once started, then `completed`, `canceled`, or `interrupted`. A running or interrupted run can be resumed: the participant continues after the last saved completion log that the app can use as a resume point.
+- A run is `running` once started, then `completed`, `canceled`, or `interrupted`. A running or interrupted run can be resumed: the participant continues after the last task whose log reached the server.
 - The **host** is the researcher's account on the server. It can read every log. Participants only see their own runs.
 
 ## Packages
@@ -78,6 +78,7 @@ The [getting started](docs/guides/getting-started.md) guide builds a complete ex
 2. [Deploying](docs/guides/deploying.md): put the app and the log server online.
 3. [Resuming runs](docs/guides/resuming-runs.md): let participants continue after a reload.
 4. [Exporting data](docs/guides/exporting-data.md): get the logs out, and what the CSV contains.
+5. [Troubleshooting](docs/guides/troubleshooting.md): find what's wrong when the app, the server, or saving fails.
 
 `@lightmill/log-client` supports Chrome and Edge 85, Firefox 90, and Safari 15 or later. `@lightmill/react-experiment` needs React 19.2 or later. The log server needs Node.js 24.12 or later.
 

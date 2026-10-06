@@ -193,7 +193,7 @@ function Paused({ logger }: { logger: Logger }) {
 
 `retry()` sends the held logs again. While it runs, the logger state goes back to `sending` and `TimelinePlayer` moves on; if it fails again, the state becomes `paused` once more. `download` stands for your app's file-saving function; the [getting started example](../../docs/guides/getting-started.md#wire-it-together) implements it with a `Blob` and a download link. For logs with non-JSON values, such as `bigint`, adapt the download's serialization too.
 
-Held logs live in page memory and do not survive a reload or a closed tab. Tell participants to keep the page open while retrying and to download a copy before leaving if saving still fails. An unload confirmation does not save their answers.
+Held logs are lost if the page closes: see [unsaved logs](../log-client/README.md#unsaved-logs).
 
 [Getting started](../../docs/guides/getting-started.md#wire-it-together) shows the rest: starting the run, completing it once every log is stored, and confirming before the page closes.
 
@@ -208,11 +208,7 @@ function* staircase(): Generator<{ type: 'trial'; id: string; level: number }> {
   let level = 5;
   for (let i = 0; i < 20; i++) {
     yield { type: 'trial', id: `trial-${i}`, level };
-    const correct = answers[i];
-    if (typeof correct !== 'boolean') {
-      throw new Error(`Missing answer for trial-${i}`);
-    }
-    level = Math.max(1, level + (correct ? 1 : -1));
+    level = Math.max(1, level + (answers.at(-1) ? 1 : -1));
   }
 }
 
@@ -242,31 +238,7 @@ const timeline = staircase();
 
 Record the answer before calling `onTaskCompleted`: that call asks the generator for the next task. An async generator works the same way, and `elements.loading` shows while it computes the next task.
 
-This generator reads the answer for each trial by its index. That matters when resuming: `resumeAfterTask` advances the generator through earlier tasks without mounting their components. Reading only the most recent answer would apply that answer to every skipped trial and change the difficulty.
-
-For example, on a fresh page, restore two saved answers before creating the timeline:
-
-```tsx
-answers.push(true, false);
-const resumedTimeline = staircase();
-
-<TimelinePlayer
-  timeline={resumedTimeline}
-  resumeAfterTask={(task) => task.id === 'trial-1'}
-  elements={{ tasks: { trial: <Trial /> } }}
-/>;
-```
-
-The skipped trials have levels 5 and 6; the next task, `trial-2`, has level 5, as it did in the original run. New answers are appended after the restored ones. Create a fresh answer array and generator for each run.
-
-In an app that saves data, log each completed trial's `taskId`, `correct`, and `level` with `useLogger`, before calling `onTaskCompleted`. To resume:
-
-1. Find the run and its saved completion log with `getResumableRuns`.
-2. Fetch the earlier trial logs as [JSON](../../docs/guides/exporting-data.md#as-json), with `filter[run.id]` set to this run's id and `filter[logType]=trial`. `getResumableRuns` returns only the resume point, not the answer history.
-3. Keep only logs with `number` at or below `toResumeAfter.number`, and sort them by `number`. Check that their task ids are `trial-0`, `trial-1`, and so on, with a boolean `correct` for each. Stop if the history is incomplete.
-4. Restore those answers, create the generator, and resume the run with `startRun({ runId, after: toResumeAfter })`. Pass the saved task id to `resumeAfterTask`.
-
-The generator must replay each saved answer in order. If an adaptive design depends on other state or randomness, save and restore that too.
+Resuming a generator is up to your app. `toResumeAfter.log` tells which task the run stopped after, but the generator also needs the state it had at that point, such as the current level, and `resumeAfterTask` skips tasks without mounting them.
 
 ## Sharing state between tasks
 

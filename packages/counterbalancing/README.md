@@ -68,9 +68,7 @@ Every function throws a `TypeError` when `conditions` is empty or has duplicates
 
 The package does not know your participants: you choose which order each one gets. Number them from 0 or 1, for example through the experiment's URL, and use that number as the index.
 
-Participants who drop out leave holes in the rotation. Give each replacement a new participant identifier, but assign the same condition order as the participant who dropped out. Keep participant identity separate from the index used to choose an order: in the [getting started](../../docs/guides/getting-started.md) app, the participant number also names the run, so reusing it in another browser fails with `RUN_EXISTS`.
-
-For example, if participant 4 drops out and participant 12 replaces them:
+Participants who drop out leave holes in the rotation. Fill them by giving a new participant the order of the one who dropped out. Keep the participant's identifier separate from the index that picks the order: the identifier usually names the participant's run, which can't be reused. For example, if participant 12 replaces participant 4:
 
 ```ts
 const participantNumber = 12;
@@ -79,9 +77,7 @@ const order = orders[orderIndex % orders.length];
 const runName = `participant-${participantNumber}`;
 ```
 
-Store the assigned order index with the participant's identifier, so a resumed run uses the same order. A host can instead cancel the old run to free its name, but canceling also leaves its logs out of CSV exports.
-
-The replacement's browser session must also have no ongoing run. If it still owns the dropout's unfinished run, a different participant number is not enough: the server returns `ONGOING_RUNS`. Complete or deliberately cancel that run before starting another in the same session, or use a separate session while preserving the old one. See [run-start troubleshooting](../../docs/guides/deploying.md#a-participant-number-cannot-start-a-run).
+Store the order index with the participant's identifier, so a resumed run gets the same order. If the replacement can't start a run, see [Troubleshooting](../../docs/guides/troubleshooting.md#a-participant-cannot-start-a-run).
 
 ## From orders to a timeline
 

@@ -4,15 +4,15 @@ Participants reload pages, close tabs by mistake, and lose their connection. Res
 
 ## How it works
 
-The server stores every log of a run with a number: 1, 2, 3, and so on. To resume, the app finds the last saved completion log: a log of a type that marks the end of a task, with no missing log number before it. It tells the server to resume after that log, and skips every task of the timeline up to the one the log names.
+The server stores every log of a run with a number: 1, 2, 3, and so on. Some log types mark the end of a task: these are the resumable log types. To resume, the app asks the server for the run's last log of one of these types, tells the server to resume after it, and skips every task of the timeline up to the one the log names.
 
-A log above a missing log number is a stranded log. The server keeps it, but it cannot serve as a resume point until every earlier missing log arrives. `getResumableRuns` accounts for this when it chooses the last saved completion log.
+The last log ignores stranded logs. When a log number is missing, for example because its request failed while later ones arrived, the logs above it are stranded: the server keeps them, but they don't count until every missing log before them arrives.
 
 Resuming cancels the logs that come after the resume point. The server keeps them, but they no longer count toward the run, and exports leave them out. New logs continue the numbering from the resume point.
 
 ## What the app needs
 
-1. **Log the end of each task.** Log once when each task completes, with the task's id. These are the resumable log types. A task that also logs while it runs, such as every mouse move, starts over on resume, and its earlier logs are canceled.
+1. **Log the end of each task.** Log once when each task completes, with the task's id. The types of these logs are the resumable log types. A task that also logs while it runs, such as every mouse move, starts over on resume, and its earlier logs are canceled.
 
    ```ts
    log({ taskId: task.id, size: task.size, reactionTime });
@@ -56,7 +56,7 @@ Resuming cancels the logs that come after the resume point. The server keeps the
 
    `TimelinePlayer` starts with the task after the first one that matches. It throws when no task matches, which usually means the timeline changed.
 
-5. **Rebuild the same timeline.** For a fixed design, build the timeline from a stable input, such as the participant number, so the saved task id is still in it and the remaining tasks keep their order. If task order uses randomness, use a random number generator seeded with the participant number rather than `Math.random`. An adaptive design also needs its saved answer history: replay each answer as the generator skips completed tasks. See [Dynamic timelines](../../packages/react-experiment/README.md#dynamic-timelines) for an example.
+5. **Rebuild the same timeline.** For a fixed design, build the timeline from a stable input, such as the participant number, so the saved task id is still in it and the remaining tasks keep their order. If task order uses randomness, use a random number generator seeded with the participant number rather than `Math.random`.
 
 ## What the server needs
 
@@ -68,8 +68,8 @@ The server finds a participant's runs through their session, so sessions must ou
 
 ## Limits
 
-- **Unsaved logs do not survive leaving the page.** Finishing a task does not mean its log has reached the server yet. The logger keeps unsaved logs in this page's memory; closing or reloading it loses that copy. A participant resumes after the last saved completion log and may need to repeat completed tasks. When saving fails, keep the page open, retry, and offer a download of `logger.inFlightLogs` before the participant leaves. The [getting started example](getting-started.md#wire-it-together) includes this fallback. An unload confirmation asks before leaving; it does not save logs.
-- **Runs resume in the same browser only.** The session lives in a cookie. A participant who switches browser or device, or clears their cookies, can't find their run. Starting a new run with the same name then fails with a `RUN_EXISTS` error, because the old run still owns that name. Names are unique among runs that are not canceled in the same experiment. A host can free the name by canceling the old run, which also leaves its logs out of the CSV export.
+- **Logs that haven't reached the server are lost when the page closes.** The participant then resumes after the last log the server has, and repeats the tasks after it. See [unsaved logs](../../packages/log-client/README.md#unsaved-logs).
+- **Runs resume in the same browser only.** The session lives in a cookie. A participant who switches browser or device, or clears their cookies, can't find their run. Starting a new run with the same name then fails with a `RUN_EXISTS` error, because the old run still owns that name. Names are unique among runs that are not canceled in the same experiment. A host can free the name by [canceling the old run](deploying.md#cancel-a-run), which also leaves its logs out of the CSV export.
 - **Completed runs can't resume.** A participant who opens the experiment again after completing it gets the same `RUN_EXISTS` error. Show them a message rather than an error.
 - **Interruptions go unnoticed.** When a participant closes the tab, the run stays `running` until they come back. Hosts see it as running.
 

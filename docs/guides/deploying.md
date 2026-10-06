@@ -128,7 +128,9 @@ From `my-log-server`, export the test run's logs:
 npx log-server export --experiment-name reaction-time > test-logs.csv
 ```
 
-Check that the run has status `completed` and the expected task ids. If the app cannot start a run, read the terminal running the server or your host's log viewer. [Troubleshooting](#troubleshooting) covers common causes.
+Check that the run has status `completed` and the expected task ids. If something fails, see [Troubleshooting](troubleshooting.md).
+
+The test run is part of the experiment's data. Once you are done, [cancel it](#cancel-a-run) to leave it out of CSV exports, or exclude its run name from your analysis.
 
 ## Back up the data
 
@@ -151,6 +153,26 @@ Run that backup command from the directory containing `data.sqlite`, or use the 
 5. Start the server again with the same configuration, then check its diagnostic output and test the app.
 
 Keep the database and `.env` in place. `log-server start` refuses to start while the database has pending migrations. If an upgrade fails, preserve the current database before restoring a backup; logs received after that backup are not in it.
+
+## Cancel a run
+
+Canceling a run frees its name and leaves its logs out of CSV exports. The database keeps both, and [JSON exports](exporting-data.md#as-json) still include them. Cancel a test run, or the run of a participant who lost their session, only when you want it out of your data.
+
+First [open a host session](exporting-data.md#over-http), then find the run's id:
+
+```sh
+curl --fail-with-body --cookie host-cookies.txt --globoff \
+  'https://study.example.org/api/runs?filter[experiment.name]=reaction-time&filter[name]=participant-9001'
+```
+
+Check that the response lists the intended run, and replace `123` with its `id` in both places:
+
+```sh
+curl --fail-with-body --request PATCH --cookie host-cookies.txt \
+  --header 'Content-Type: application/vnd.api+json' \
+  --data '{"data":{"type":"runs","id":"123","attributes":{"status":"canceled"}}}' \
+  https://study.example.org/api/runs/123
+```
 
 ## Other setups
 
@@ -194,105 +216,3 @@ Some options of `log-server start` have environment-variable equivalents, listed
 ### Sessions
 
 A participant's session lasts as long as its cookie: 30 days by default, or `--session-max-age-days`. The session is what lets a participant find and resume their run, so set it to cover your whole study. Sessions are stored in the database, so they survive restarts. A participant who clears their cookies, or switches browser or device, can't resume. See [Resuming runs](resuming-runs.md).
-
-## Troubleshooting
-
-Start with the error in the browser's developer console, the terminal running the server, or your host's log viewer. The sections below separate problems that need different fixes.
-
-### The server does not start
-
-Read the startup error in the terminal where you ran `npx log-server start`, or in your host's log viewer. These diagnostic messages describe the server process; participant answers are stored in SQLite and retrieved with [exports](exporting-data.md).
-
-Use that error to choose the next step:
-
-- If the host cannot run the command, check that it has the required Node version, the package is installed, and the configured working directory contains that package.
-- If the CLI reports a missing session key or host password, check the process's environment settings. If you use `.env`, it must be readable in the directory where the command starts and define `SESSION_KEY` and `HOST_PASSWORD`.
-- If the database is missing, check the path printed in the error against `DB_PATH` and any `--database` flag. For an existing study, locate its database or restore a backup. Running `migrate` at a wrong path creates an empty database; it does not recover the study's data.
-- If the error says migrations are pending, stop the server and [back up that database](#back-up-the-data), then migrate it as the account that owns it.
-- If the port is already in use, check whether another log-server process is running. Keep one process per database; a migration does not fix a port conflict.
-
-For a new database, or after backing up an existing one that needs migration, run from the server package directory:
-
-```sh
-npx log-server migrate --database ./data.sqlite
-```
-
-Use the actual database path if yours differs. Once the reported problem is fixed, start the server again through your host or with the same CLI command, and check its diagnostic output.
-
-### The app cannot find the experiment
-
-The client looks up an experiment by the `experimentName` passed to `startRun`. If that server has no experiment with the exact name, the client cannot start the run.
-
-First check three values: the app's `apiRoot` must reach the intended log server, its `experimentName` must match the study's name, and the server must be using the intended database. Correct a wrong address, name, or database path before creating anything.
-
-If this is a new study and the experiment has not been created yet, run from the server package directory, with access to its database:
-
-```sh
-npx log-server experiment add reaction-time --database ./data.sqlite
-```
-
-Replace the name and database path with the ones your app and server use. This command creates an experiment, not participant runs. If it reports that the experiment already exists but the app still cannot find it, the command and app are likely using different servers, databases, or names; running it again will not fix that mismatch.
-
-### The published app contacts localhost
-
-In the browser's developer tools, open the Network panel and inspect a request to `sessions`, `experiments`, or `runs`. If its URL starts with `http://localhost:3000`, the published app still contains the development server address. On a participant's computer, that address cannot reach your public log server.
-
-Follow [Build the app for HTTPS](#build-the-app-for-https): change the `apiRoot` value passed to `new Client` in `src/App.tsx` to your public API address, run `npm run build`, and replace the server's published `dist` files with that new build. Then reload and check that the request URL uses the public address. A page that still uses the old URL may be loading the previous build; check the files you copied and try reloading with the browser cache disabled in developer tools.
-
-If the request already uses your public domain but returns an HTML page or a `404`, check the API path. With this guide's proxy, it must include `/api`; a server hosted directly at another address may not use that prefix. Match `apiRoot` to where the API is actually served. Changing `--allowed-origin` does not fix a request sent to the wrong address.
-
-### Requests fail between different origins
-
-Open the browser's developer tools and inspect the failed request in the Network panel. Different failures need different fixes:
-
-- A connection error or timeout means the browser cannot reach that address. Check the request URL, the log-server process, and the proxy. An allowed-origin flag cannot start a stopped server or correct a wrong address.
-- A `404`, or an HTML response where JSON was expected, can mean the request reached the wrong path. Check the [API address](#the-published-app-contacts-localhost) and proxy routing.
-- If the console reports a [mixed-content error](https://developer.mozilla.org/en-US/docs/Web/Security/Defenses/Mixed_content), an HTTPS page is trying to use an HTTP resource the browser blocks. Serve the API over HTTPS and use its HTTPS address.
-- If the console reports an origin or [Cross-Origin Resource Sharing (CORS) error](https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/CORS), check the app's origin against the server's allowed origins.
-
-The origin to allow is the address of the page in the browser, including its scheme and port, without a path. For an app at `https://study.example.org/?participant=1`, that is `https://study.example.org`. Pass `--allowed-origin https://study.example.org` when starting the CLI, then restart the log-server process with the updated flags. Do not put the API address or `/api` in this option.
-
-This guide's app and API share one origin, so they need no allowed-origin flag. Separate origins on the same site still need it. If you embed `createLogServer` in your own app, the CLI flag does not apply; configure the [`cors` middleware](../../packages/log-server/README.md#cross-origin-requests) instead. Once the browser can read responses, check session cookies separately below.
-
-### The browser cannot keep a participant session
-
-The server identifies a participant by a cookie named `lightmill-session-id`. In the browser's Network panel, inspect the session requests when starting a run:
-
-1. `GET /sessions/current` can return `404` before a session exists. That is expected: the client then creates one with `POST /sessions`.
-2. `POST /sessions` should return `201` and set the cookie. If it returns an error instead, read that response and the server log first.
-3. Later requests must send the cookie back. A subsequent `GET /sessions/current` should return `200`. The Network panel can show whether the cookie was sent or blocked. It is `HttpOnly`, so `document.cookie` cannot show it.
-
-If the browser blocks the cookie, use the reason shown in its developer tools. Check that the page and API share a site when using `--same-site`; `localhost` and `127.0.0.1` do not. A cookie for an API on another site can be blocked as a third-party cookie. Move the app and API to one site rather than asking participants to weaken their browser settings.
-
-Behind a proxy that handles HTTPS, the proxy must send `X-Forwarded-Proto: https`, and the log server must use `--trust-proxy`. With `--secure-cookies always`, failing to recognize HTTPS prevents the server from setting the cookie. With `auto`, it can instead set a cookie without `Secure`, which leaves the deployment incorrectly configured even if login works. See [Cookies](../../packages/log-server/README.md#cookies).
-
-If the request sends the cookie but the server no longer recognizes the session, check whether it expired, whether the session key changed, or whether the server is now using a different database. The CLI keeps sessions in its database; an embedded server also needs a [persistent session store](../../packages/log-server/README.md#resuming-runs-after-a-restart). Creating another participant session does not give it ownership of runs from the lost session.
-
-### A participant number cannot start a run
-
-Read the error code in the browser console or the response to `POST /runs`. These two codes mean different things:
-
-- `RUN_EXISTS`: a run that is not canceled already uses this name in the experiment. A completed run cannot resume. A running or interrupted run can resume only through the session that created it; returning to the original browser helps only if that session still exists. See the [session checks above](#the-browser-cannot-keep-a-participant-session).
-- `ONGOING_RUNS`: this browser session already owns an idle, running, or interrupted run. The server allows only one ongoing run per session, even across experiments. Changing the participant number, opening a new tab, or interrupting the old run does not remove that restriction.
-
-For a new test, use an unused participant number after the browser's previous run has completed or been deliberately canceled. If an unfinished test must stay intact, keep its page open and use another browser or a separate browser profile with a fresh session and an unused number. Do not clear cookies as a recovery step: the original session is what lets you resume the old run.
-
-For a replacement participant, use a new identifier and assign the old participant's condition order. The replacement's session must also have no ongoing run. Keep the original data unless you deliberately choose to cancel that run.
-
-If a participant has lost their session, keep the original run unless you deliberately want to cancel it. Canceling frees its name but excludes its logs from CSV exports. To cancel it, first [open a host session](exporting-data.md#over-http), then request the run list as that host:
-
-```sh
-curl --fail-with-body --cookie host-cookies.txt --globoff \
-  'https://study.example.org/api/runs?filter[experiment.name]=reaction-time&filter[name]=participant-9001'
-```
-
-Read the run's `id` from the JSON response. Replace `123` in both places below with that id, after checking that you selected the intended run:
-
-```sh
-curl --fail-with-body --request PATCH --cookie host-cookies.txt \
-  --header 'Content-Type: application/vnd.api+json' \
-  --data '{"data":{"type":"runs","id":"123","attributes":{"status":"canceled"}}}' \
-  https://study.example.org/api/runs/123
-```
-
-The database keeps the canceled run and its logs. [JSON exports](exporting-data.md#as-json) can still retrieve them.

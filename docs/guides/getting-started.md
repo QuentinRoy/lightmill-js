@@ -70,7 +70,7 @@ export function createTimeline(participantNumber: number): Task[] {
 }
 ```
 
-Every task logs once, when it completes, with its id in `taskId`. That is what lets a participant resume after a reload: the server identifies the last saved completion log with no earlier log missing, and the app skips every task up to the one it names.
+Every task logs once, when it completes, with its id in `taskId`. That is what lets a participant resume after a reload: the server finds the run's last log of one of these types, and the app skips every task up to the one it names.
 
 The `declare module` block tells `@lightmill/react-experiment` about your tasks and logs, so its hooks are typed.
 
@@ -133,7 +133,7 @@ export function Trial() {
 
 Each task mounts fresh, even when the previous task used the same component, so `shownAt` starts over at every trial.
 
-`useLogger` does not wait for the server. Logs are sent in the background, in batches, and retried if the network fails. Finishing a task and saving its log are separate events: unsaved logs stay in page memory and are lost if the page closes or reloads. A resumed run may repeat those tasks. The app below offers a retry and a download before participants leave.
+`useLogger` does not wait for the server. Logs are sent in the background, in batches, and retried if the network fails. Until they reach the server, they only exist in the page, so the app below offers a retry and a download when saving fails.
 
 ## Play the tasks locally
 
@@ -407,7 +407,7 @@ class ErrorBoundary extends Component<
 Here is what happens when a participant opens the page:
 
 1. The app reads the participant number from the URL, for example `?participant=3`, and names the run after it. A run is one participant going through the experiment once.
-2. `getResumableRuns` asks the server whether this browser already started this run. If it did, `startRun` resumes it after the last saved completion log. Otherwise, `startRun` creates it.
+2. `getResumableRuns` asks the server whether this browser already started this run. If it did, `startRun` resumes it after its last log of a resumable type. Otherwise, `startRun` creates it.
 3. While this happens, `use` suspends the component and `Suspense` shows "Loading…". The promise is created once, outside of React, so React's development mode, which renders components twice, does not start two runs.
 4. `TimelinePlayer` shows the task components in turn. When resuming, `resumeAfterTask` skips every task up to the last one logged.
 5. Every log goes to `logger.addLog`. If the server can't be reached for a while, the logger pauses and keeps the logs. `paused` then makes `TimelinePlayer` show the `Paused` screen once the current task ends, and `retry()` sends the logs again.
@@ -423,77 +423,11 @@ Start the app:
 npm run dev
 ```
 
-Open <http://localhost:5173/?participant=1> and do a few trials. Reload the page: the experiment continues after the last trial whose completion log was saved. If an answer had not reached the server, that trial repeats. Finish the experiment and wait for "Thank you!", which appears only after saving and completing the run.
+Open <http://localhost:5173/?participant=1> and do a few trials. Reload the page: the experiment continues after the last trial whose log reached the server. If an answer had not reached the server, that trial repeats. Finish the experiment and wait for "Thank you!", which appears only after saving and completing the run.
 
 If the app shows the saving failure screen, keep the page open and retry. The download button saves a copy of unsaved answers for the researcher; it does not upload them or complete the run. The server has no automatic import for that file. [Resuming runs](resuming-runs.md#limits) explains the recovery limits.
 
-## Troubleshooting
-
-The error boundary keeps the participant's message short and records the error in the browser's developer console. Check that console and the terminal running the log server when setting up your study.
-
-### The database is missing or needs migrating
-
-Read the path in the server's startup error. The tutorial uses `data.sqlite` in the app directory; starting the CLI in another directory changes where that relative path points. Return to the app directory and check whether the intended database is there. If you set `DB_PATH` or passed `--database`, use that same path for every command.
-
-For a new tutorial database, run from the app directory:
-
-```sh
-npx log-server migrate --database ./data.sqlite
-```
-
-If an existing database needs migration, stop the server and [back it up](deploying.md#back-up-the-data) first. If an existing database is missing, find the original file before creating another one: `migrate` creates an empty database when the file does not exist. After fixing the path or migrating, run the server's start command again.
-
-### The experiment cannot be found
-
-In `src/App.tsx`, the tutorial calls `startRun` with `experimentName: 'reaction-time'`. The server must already have an experiment with that exact name. Check that the browser is calling the server you started and that this server is using the intended `data.sqlite` file.
-
-If you skipped the experiment creation step, run in the app directory:
-
-```sh
-npx log-server experiment add reaction-time --database ./data.sqlite
-```
-
-Use your actual database path if you changed it. If the command says the experiment already exists, check the app's server address, experiment name, and server database path instead of creating another study. See [The app cannot find the experiment](deploying.md#the-app-cannot-find-the-experiment).
-
-### The app cannot reach the server
-
-Check the two addresses printed by the terminals. Vite serves the page, normally at `http://localhost:5173`. The log server listens on another port, normally 3000, and `apiRoot` in `src/App.tsx` must point to it at `http://localhost:3000`.
-
-Keep both processes running and open the app using `localhost`. If Vite chooses another port, open that address and restart the log server with that page's origin in `--allowed-origin`. For example, if Vite prints `http://localhost:5174`, use:
-
-```sh
-npx log-server start --same-site --allowed-origin http://localhost:5174
-```
-
-The allowed origin names the page, not the log server. If a request still fails, inspect its URL and error in the browser's Network panel. [Deployment troubleshooting](deploying.md#requests-fail-between-different-origins) distinguishes connection errors, wrong paths, and origin errors.
-
-### The browser cannot keep a participant session
-
-Use `localhost` for both the page and the API, rather than mixing it with `127.0.0.1`. Those hostnames are different sites, so the tutorial's same-site cookie cannot identify the participant across them. See [The browser cannot keep a participant session](deploying.md#the-browser-cannot-keep-a-participant-session) for the request and cookie checks.
-
-### A participant number cannot start a run
-
-Check the error code in the developer console:
-
-- `RUN_EXISTS` means this experiment already has a run named `participant-<number>` that is not canceled. If it is unfinished, use its original participant link in the browser that still has its session. If it is completed, it cannot resume.
-- `ONGOING_RUNS` means this browser already owns an unfinished run, possibly under a different participant number. Return to that run's original link and finish it. Changing the number or opening another tab in the same browser will not start a separate test; interrupting a run does not free the session either.
-
-After a run completes, you can test again with an unused number, such as `?participant=2`. To test separately while keeping an unfinished run, leave its page open and use another browser or a separate browser profile with an unused number. Keep cookies for runs you want to resume. [Deployment troubleshooting](deploying.md#a-participant-number-cannot-start-a-run) explains deliberate cancellation and its effect on exports.
-
-### The saved task cannot be found
-
-`No task matched resumeAfterTask` means the player cannot find the task named by the saved completion log in the rebuilt timeline. Check the saved `taskId`, the ids produced by `createTimeline` for this participant, and the comparison passed to `resumeAfterTask`.
-
-If the design or task ids changed after the run started, use the original design for that run. If `taskId` was logged incorrectly or the comparison uses the wrong field, fix that mismatch before resuming. Removing `resumeAfterTask` would display the whole timeline again while the logger continues the existing run; it does not recover the saved position. Keep the run and its data intact while investigating. [Resuming runs](resuming-runs.md#what-the-app-needs) explains the required ids and timeline state.
-
-### Saving does not finish
-
-Keep the page open: reloading would lose any answers still in its memory. The app shows "Saving…" after the last task while it waits for two separate steps:
-
-1. `POST /operations` sends the remaining logs. Inspect that request in the Network panel. The logger retries temporary failures for up to two minutes. If it pauses, the app shows the retry and download screen. After fixing the connection or the reported server error, "Try again" resends the held logs; download a copy before leaving if saving still fails.
-2. `PATCH /runs/<id>` marks the run completed after those logs are stored. This request can also be retried, but its retries do not put the logger in the `paused` state. If it ultimately fails, the error boundary shows a message and records the error in the developer console. A refusal such as `MISSING_LOGS` needs investigation of the stored log sequence; it is not fixed by clicking the held-log retry button.
-
-Read the failed request's response and the server log to identify which step failed. If logs were already stored, a failed completion request does not erase them: [exports](exporting-data.md#the-csv-format) include ongoing runs too. Preserve the run while investigating instead of canceling it to make the error disappear.
+If something doesn't work, see [Troubleshooting](troubleshooting.md).
 
 ## Get the data
 
