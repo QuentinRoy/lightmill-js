@@ -46,3 +46,21 @@ it('creates an experiment in a new database and reports duplicate names', async 
     rmSync(directory, { recursive: true, force: true });
   }
 });
+
+it('rejects an empty experiment name without creating it', () => {
+  const directory = mkdtempSync(
+    path.join(os.tmpdir(), 'lightmill-experiment-'),
+  );
+  const database = path.join(directory, 'data.sqlite');
+  try {
+    const result = spawnSync(
+      process.execPath,
+      [cliPath, 'experiment', 'add', '', '--database', database],
+      { encoding: 'utf8' },
+    );
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('The experiment name cannot be empty.');
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
