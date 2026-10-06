@@ -77,6 +77,38 @@ Main operations:
 
 ## Failures
 
+The package exports these error classes for `instanceof` checks:
+
+- `RequestError`: a request refused by the server. It exposes the HTTP `status`,
+  `statusText`, and `headers`, plus the server's `errors` array. `code` and
+  `detail` come from the first error and may be `undefined`.
+- `AddLogError`: a queued log could not be stored or was explicitly discarded.
+  Its `logNumber` identifies the log; `cause` holds the delivery error, when
+  present. Errors before queuing, such as a serializer throwing, pass through.
+- `FlushError`: `flush()` found a missing log number on the server after
+  sending the logs. Its `message` names the missing log number and describes
+  how to recover. `completeRun()`, `cancelRun()`, and `interruptRun()` can also
+  reject with it when they flush.
+
+```ts
+import { Client, RequestError } from '@lightmill/log-client';
+
+const client = new Client({ apiRoot: 'https://example.com/api' });
+
+try {
+  await client.startRun({
+    experimentName: 'pointing-study',
+    runName: 'participant-42',
+  });
+} catch (error) {
+  if (error instanceof RequestError && error.code === 'RUN_EXISTS') {
+    console.error('You already have a run for this experiment.');
+  } else {
+    throw error;
+  }
+}
+```
+
 The logger retries a batch that fails with a network error, a timeout, a 5xx,
 a `408` or a `429` (waiting for `Retry-After`), for up to 2 minutes. A request
 times out after `requestTimeout.base` milliseconds (default `10000`) plus
