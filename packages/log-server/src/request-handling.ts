@@ -439,10 +439,32 @@ function handleWith(
       dataStore,
       protocol: request.protocol,
       host: request.host,
+      baseUrl: getBaseUrl(request),
       lockSession: (fn) => lockSession(request, whenFinished(response), fn),
     });
     await processResponse({ result, request, response });
   };
+}
+
+// Express sets `request.baseUrl` to the path the server is mounted on. A proxy
+// that strips a prefix before forwarding reports it in `X-Forwarded-Prefix`,
+// which, like `X-Forwarded-Host`, is only trusted when `trust proxy` allows it.
+function getBaseUrl(request: express.Request): string {
+  const trust: unknown = request.app.get('trust proxy fn');
+  const forwardedPrefix = request
+    .get('x-forwarded-prefix')
+    ?.split(',')[0]
+    ?.trim();
+  const prefix =
+    typeof trust === 'function' &&
+    trust(request.socket.remoteAddress, 0) &&
+    forwardedPrefix != null &&
+    // A path, not a protocol-relative URL, query, or fragment, which would
+    // make the location point away from the created resource.
+    /^\/(?!\/)[^?#\s]*$/.test(forwardedPrefix)
+      ? forwardedPrefix
+      : '';
+  return prefix.replace(/\/+$/, '') + request.baseUrl;
 }
 
 // Express sends an error to the next error middleware of the stack, so the
@@ -674,6 +696,8 @@ interface HandlerOptions<
   dataStore: DataStore;
   protocol: string;
   host: string;
+  // Path the server is publicly reachable under, without a trailing slash.
+  baseUrl: string;
   lockSession: LockSession;
 }
 
