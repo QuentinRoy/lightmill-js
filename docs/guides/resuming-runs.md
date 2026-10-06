@@ -1,6 +1,6 @@
 # Resuming runs
 
-Participants reload pages, close tabs by mistake, and lose their connection. Resuming lets them come back to their run and continue where they left off, instead of starting over or being locked out. The [getting started](getting-started.md) app resumes runs; this guide explains how it works and what it needs.
+Participants reload pages, close tabs by mistake, and lose their connection. Resuming lets them come back to their run and continue after their saved progress. The [getting started](getting-started.md) app resumes runs; this guide explains how it works and what it needs.
 
 ## How it works
 
@@ -68,6 +68,7 @@ The server finds a participant's runs through their session, so sessions must ou
 
 ## Limits
 
+- **Unsaved logs do not survive leaving the page.** Finishing a task does not mean its log has reached the server yet. The logger keeps unsaved logs in this page's memory; closing or reloading it loses that copy. A participant resumes after the last saved completion log and may need to repeat completed tasks. When saving fails, keep the page open, retry, and offer a download of `logger.inFlightLogs` before the participant leaves. The [getting started example](getting-started.md#wire-it-together) includes this fallback. An unload confirmation asks before leaving; it does not save logs.
 - **Runs resume in the same browser only.** The session lives in a cookie. A participant who switches browser or device, or clears their cookies, can't find their run. Starting a new run with the same name then fails with a `RUN_EXISTS` error, because the old run still owns that name. Names are unique among runs that are not canceled in the same experiment. A host can free the name by canceling the old run, which also leaves its logs out of the CSV export.
 - **Completed runs can't resume.** A participant who opens the experiment again after completing it gets the same `RUN_EXISTS` error. Show them a message rather than an error.
 - **Interruptions go unnoticed.** When a participant closes the tab, the run stays `running` until they come back. Hosts see it as running.

@@ -6,7 +6,7 @@ By the end, you will have:
 
 - a React app that shows the tasks one after the other,
 - a log server that stores what participants do,
-- participants who can reload the page and pick up where they left off,
+- participants who can reload the page and continue after their saved progress,
 - a CSV file with the results.
 
 You need Node.js 24.12 or later. The tutorial uses npm; any package manager works.
@@ -163,7 +163,7 @@ export function Trial() {
 
 Each task mounts fresh, even when the previous task used the same component, so `shownAt` starts over at every trial.
 
-`useLogger` does not wait for the server. Logs are sent in the background, in batches, and retried if the network fails.
+`useLogger` does not wait for the server. Logs are sent in the background, in batches, and retried if the network fails. Finishing a task and saving its log are separate events: unsaved logs stay in page memory and are lost if the page closes or reloads. A resumed run may repeat those tasks. The app below offers a retry and a download before participants leave.
 
 ## Wire it together
 
@@ -278,10 +278,30 @@ function Experiment({ run }: { run: ReturnType<typeof startRun> }) {
 function Paused({ logger }: { logger: Logger<Log> }) {
   return (
     <div>
-      <p>Your answers could not be saved. Check your connection.</p>
+      <p>
+        Your answers could not be saved. Keep this page open and check your
+        connection. Download a copy before leaving if retrying does not work.
+      </p>
       <button onClick={() => logger.retry().catch(() => {})}>Try again</button>
+      <button onClick={() => downloadUnsavedLogs(logger)}>
+        Download unsaved answers
+      </button>
     </div>
   );
+}
+
+function downloadUnsavedLogs(logger: Logger<Log>) {
+  const file = new Blob([JSON.stringify(logger.inFlightLogs, null, 2)], {
+    type: 'application/json',
+  });
+  const url = URL.createObjectURL(file);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = 'unsaved-answers.json';
+  document.body.append(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 class ErrorBoundary extends Component<
@@ -320,7 +340,9 @@ Start the app:
 npm run dev
 ```
 
-Open <http://localhost:5173/?participant=1> and do a few trials. Reload the page: the experiment continues after the last trial you completed. Finish the experiment.
+Open <http://localhost:5173/?participant=1> and do a few trials. Reload the page: the experiment continues after the last trial whose completion log was saved. If an answer had not reached the server, that trial repeats. Finish the experiment and wait for "Thank you!", which appears only after saving and completing the run.
+
+If the app shows the saving failure screen, keep the page open and retry. The download button saves a copy of unsaved answers for the researcher; it does not upload them or complete the run. The server has no automatic import for that file. [Resuming runs](resuming-runs.md#limits) explains the recovery limits.
 
 ## Get the data
 

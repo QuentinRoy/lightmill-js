@@ -2,7 +2,7 @@
 
 Send an experiment's logs from the browser to a [LightMill log server](../log-server/README.md).
 
-The client starts and resumes runs, and gives you a logger for each. The logger numbers your logs, sends them in batches, retries when the network fails, and never drops a log on its own. It works with any interface; [`@lightmill/react-experiment`](../react-experiment/README.md) connects it to React.
+The client starts and resumes runs, and gives you a logger for each. The logger numbers your logs, sends them in batches, retries when the network fails, and keeps unsaved logs for retry while the page stays open. It works with any interface; [`@lightmill/react-experiment`](../react-experiment/README.md) connects it to React.
 
 ## Install
 
@@ -81,13 +81,15 @@ logger.addLog({ type: 'trial-end', trialId: '1', durationMs: 812 });
 
 `addLog` queues the log and returns a promise that resolves once the server has stored it. You don't have to wait for it, but catch its rejection: the logger keeps the log either way, and `completeRun()` won't complete the run until it is stored. The logger sends one batch at a time: logs added while a batch is on its way go in the next one, up to about 512 kB per batch. `requestThrottle` sets a minimum time between the starts of two batches.
 
+Unsaved logs live in page memory. Reloading or closing the page loses that copy; there is no automatic storage in the browser that survives leaving the page. Resuming starts after a server-saved checkpoint, so participants may repeat tasks they completed before their logs arrived. If saving fails, offer a retry and a download of `inFlightLogs`, and explain that participants should keep the page open. See the [getting started fallback](../../docs/guides/getting-started.md#wire-it-together).
+
 `flush()` sends the queued logs at once, and resolves when every log added before the call is stored. If logs were in flight when it was called, it then checks for missing log numbers at or before the last log it flushed, and rejects if one is missing. With no logs in flight, it returns immediately without checking the server.
 
 ### When the network fails
 
 The logger sends a batch again after a network error, a timeout, a `5xx`, a `408`, or a `429` (waiting as long as `Retry-After` asks), for up to two minutes. A request times out after `requestTimeout.base` milliseconds (10,000 by default), plus `requestTimeout.perKilobyte` milliseconds per kilobyte sent (100 by default). A batch the server refuses as too large (`413`) is sent again in halves.
 
-When retries run out, or the server refuses a batch for another reason, the logger pauses. It never drops logs on its own:
+When retries run out, or the server refuses a batch for another reason, the logger pauses. While the page stays open, it keeps unsaved logs until you retry or explicitly discard them:
 
 - the `addLog` promises of the failed batch reject;
 - every other log not stored yet is held, and its `addLog` promise stays pending;

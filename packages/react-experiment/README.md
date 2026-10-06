@@ -191,7 +191,9 @@ function Paused({ logger }: { logger: Logger }) {
 }
 ```
 
-`retry()` sends the held logs again. While it runs, the logger state goes back to `sending` and `TimelinePlayer` moves on; if it fails again, the state becomes `paused` once more. `download` stands for whatever your app uses to save a file.
+`retry()` sends the held logs again. While it runs, the logger state goes back to `sending` and `TimelinePlayer` moves on; if it fails again, the state becomes `paused` once more. `download` stands for your app's file-saving function; the [getting started example](../../docs/guides/getting-started.md#wire-it-together) implements it with a `Blob` and a download link. For logs with non-JSON values, such as `bigint`, adapt the download's serialization too.
+
+Held logs live in page memory and do not survive a reload or a closed tab. Tell participants to keep the page open while retrying and to download a copy before leaving if saving still fails. An unload confirmation does not save their answers.
 
 [Getting started](../../docs/guides/getting-started.md#wire-it-together) shows the rest: starting the run, completing it once every log is stored, and confirming before the page closes.
 
