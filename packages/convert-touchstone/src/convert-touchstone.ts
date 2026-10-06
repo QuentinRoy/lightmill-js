@@ -425,9 +425,15 @@ function createTaskGetter<FArgs extends MapperArgs, T extends MinimalTask>(
 
 function createDefaultTrialMapper() {
   let lastPracticeTrialId = 0;
-  return function (trial: Trial, block: Block): MinimalTask {
+  let lastRunId: string | null = null;
+  return function (trial: Trial, block: Block, run: WithId): MinimalTask {
     let id: string;
     if (trial.practice || block.practice) {
+      // Restart the count in each run so ids do not depend on previous runs.
+      if (run.id !== lastRunId) {
+        lastRunId = run.id;
+        lastPracticeTrialId = 0;
+      }
       lastPracticeTrialId += 1;
       id = `practice-trial-${lastPracticeTrialId}`;
     } else {

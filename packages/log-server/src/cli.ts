@@ -318,8 +318,16 @@ async function addExperiment({ database, name }: AddExperimentParameter) {
 // yargs turns a repeated scalar option into an array. Like most CLIs, the last
 // occurrence wins. yargs' `duplicate-arguments-array: false` would do the same
 // but also make `--allowed-origin` keep only its last origin.
-function lastOccurrence<T>(value: T | T[] | undefined): T | undefined {
-  return Array.isArray(value) ? value.at(-1) : value;
+function lastOccurrence<T>(value: T | T[]): T {
+  if (!Array.isArray(value)) return value;
+  if (value.length === 0) throw new TypeError('Expected at least one value');
+  return value[value.length - 1] as T;
+}
+
+// yargs' `normalize` option crashes on a repeated option, so paths are
+// normalized here instead.
+function lastPath(value: string | string[]): string {
+  return path.normalize(lastOccurrence(value));
 }
 
 export function cli() {
@@ -333,33 +341,35 @@ export function cli() {
             alias: 'd',
             desc: 'Path to the database file',
             type: 'string',
-            normalize: true,
             default: dbPath,
+            coerce: lastPath,
           })
           .option('port', {
             alias: 'p',
             desc: 'Port to listen on',
             type: 'number',
             default: env.PORT,
+            coerce: lastOccurrence<number>,
           })
           .option('session-key', {
             alias: 's',
             desc: 'Secret to use for signing client cookies',
             type: 'string',
             default: env.SESSION_KEY,
+            coerce: lastOccurrence<string | undefined>,
           })
           .option('session-max-age-days', {
             desc: 'Days a browser session remains valid (default: 30)',
             type: 'number',
             default: env.SESSION_MAX_AGE_DAYS,
+            coerce: lastOccurrence<number>,
           })
           .option('host-password', {
             alias: 'w',
             desc: 'Password for the host user (required)',
             type: 'string',
             default: env.HOST_PASSWORD,
-            coerce: (value: string | string[] | undefined) =>
-              lastOccurrence(value),
+            coerce: lastOccurrence<string | undefined>,
           })
           .option('same-site', {
             desc: 'Use same-site cookies, for a browser page on the same site as the API (the port can differ). Cookies are Secure over HTTPS, not over HTTP',
@@ -370,8 +380,7 @@ export function cli() {
             desc: 'Whether the session cookie is Secure: auto follows the request protocol (needs --trust-proxy behind a TLS-terminating proxy). Defaults to auto with --same-site, always otherwise; auto and never require --same-site',
             type: 'string',
             choices: ['auto', 'always', 'never'] as const,
-            coerce: (value: SecureCookies | SecureCookies[] | undefined) =>
-              lastOccurrence(value),
+            coerce: lastOccurrence<SecureCookies | undefined>,
           })
           .option('allowed-origin', {
             desc: 'Origin of a page allowed to call the API with credentials, e.g. https://example.org. Repeatable. Required unless --same-site is set',
@@ -399,8 +408,8 @@ export function cli() {
             alias: 'd',
             desc: 'Path to the database file',
             type: 'string',
-            normalize: true,
             default: dbPath,
+            coerce: lastPath,
           })
           .strict()
           .help()
@@ -423,8 +432,8 @@ export function cli() {
                 alias: 'd',
                 desc: 'Path to the database file',
                 type: 'string',
-                normalize: true,
                 default: dbPath,
+                coerce: lastPath,
               })
               .strict()
               .help()
@@ -445,17 +454,26 @@ export function cli() {
             alias: 'o',
             desc: 'Path to the output file',
             type: 'string',
-            normalize: true,
+            coerce: (value: string | string[] | undefined) =>
+              value === undefined ? undefined : lastPath(value),
           } as const)
           .option('database', {
             alias: 'd',
             desc: 'Path to the database file',
             type: 'string',
-            normalize: true,
             default: dbPath,
+            coerce: lastPath,
           })
-          .option('logType', { alias: 't', type: 'string' })
-          .option('experimentName', { alias: 'e', type: 'string' })
+          .option('logType', {
+            alias: 't',
+            type: 'string',
+            coerce: lastOccurrence<string | undefined>,
+          })
+          .option('experimentName', {
+            alias: 'e',
+            type: 'string',
+            coerce: lastOccurrence<string | undefined>,
+          })
           .strict()
           .help()
           .alias('help', 'h');
