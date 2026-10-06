@@ -11,6 +11,10 @@ const invalidExperiments = {
   data: [{ type: 'experiments', id: '1', attributes: { name: '' } }],
 };
 
+const serviceUnavailable = {
+  errors: [{ status: 'Service Unavailable', code: 'SERVICE_UNAVAILABLE' }],
+};
+
 async function clientFor(
   path: string,
   response: express.RequestHandler,
@@ -40,16 +44,18 @@ describe('createClient', () => {
 
   it('accepts a server error on any route', async () => {
     const client = await clientFor('/experiments', (_request, response) => {
-      response
-        .status(503)
-        .type(mediaType)
-        .send({
-          errors: [
-            { status: 'Service Unavailable', code: 'SERVICE_UNAVAILABLE' },
-          ],
-        });
+      response.status(503).type(mediaType).send(serviceUnavailable);
     });
     await client.get('/experiments').expect(503);
+  });
+
+  it('rejects a server error in a media type the route does not declare', async () => {
+    const client = await clientFor('/operations', (_request, response) => {
+      response.status(503).type(mediaType).send(serviceUnavailable);
+    });
+    await expect(client.post('/operations')).rejects.toThrow(
+      `POST /operations answered 503 ${mediaType}, which the API does not declare`,
+    );
   });
 
   it('accepts a response with media type parameters the API declares', async () => {
@@ -83,12 +89,12 @@ describe('createClient', () => {
 
   it('ignores responses outside the base path', async () => {
     const client = await clientFor(
-      '/experiments',
+      '/apiary/experiments',
       (_request, response) => {
         response.status(201).send('not the API');
       },
       { basePath: '/api' },
     );
-    await client.get('/experiments').expect(201);
+    await client.get('/apiary/experiments').expect(201);
   });
 });

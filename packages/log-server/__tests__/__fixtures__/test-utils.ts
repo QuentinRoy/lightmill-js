@@ -50,10 +50,24 @@ type ResponseSchemas = Record<
   { content: Record<string, { schema: z.ZodType }> }
 >;
 const routeMatchers = Object.entries(routes).map(([path, methods]) => ({
-  pattern: new RegExp(`^${path.replaceAll(/\{[^/}]+\}/g, '[^/]+')}$`),
+  // Like Express, ignore case and a trailing slash.
+  pattern: new RegExp(`^${path.replaceAll(/\{[^/}]+\}/g, '[^/]+')}/?$`, 'i'),
   // Widened so a request's method and status can index it.
   methods: methods as Record<string, { responses: ResponseSchemas }>,
 }));
+
+function getErrorMediaTypes(
+  methods: Record<string, { responses: ResponseSchemas }>,
+) {
+  const mediaTypes = new Set(
+    Object.values(methods).flatMap(({ responses }) =>
+      Object.entries(responses)
+        .filter(([status]) => Number(status) >= 400)
+        .flatMap(([, response]) => Object.keys(response.content)),
+    ),
+  );
+  return mediaTypes.size === 0 ? new Set([mediaType]) : mediaTypes;
+}
 
 function checkResponse(
   { method, url }: request.Test,
@@ -61,10 +75,11 @@ function checkResponse(
   basePath: string,
 ) {
   const path = new URL(url).pathname;
-  if (!path.startsWith(basePath)) return;
+  if (path !== basePath && !path.startsWith(`${basePath}/`)) return;
   const routePath = path.slice(basePath.length);
-  const route = routeMatchers.find(({ pattern }) => pattern.test(routePath))
-    ?.methods[method.toLowerCase()];
+  const methods =
+    routeMatchers.find(({ pattern }) => pattern.test(routePath))?.methods ?? {};
+  const route = methods[method.toLowerCase()];
   // The API declares media types without a charset, and without spaces
   // between parameters.
   const contentType = String(response.headers['content-type'])
@@ -74,8 +89,11 @@ function checkResponse(
     .join(';');
   const schemas = [
     route?.responses[response.status]?.content[contentType]?.schema,
-    // Any route may answer one of the server errors.
-    response.status >= 400 ? ServerErrorResponse : undefined,
+    // Any route may answer one of the server errors, in the media type its
+    // path declares for errors.
+    response.status >= 400 && getErrorMediaTypes(methods).has(contentType)
+      ? ServerErrorResponse
+      : undefined,
   ].filter((schema) => schema != null);
   if (schemas.length === 0) {
     throw new Error(
