@@ -1,4 +1,4 @@
-import { mediaType, sessionCookieName } from '@lightmill/log-api/vocabulary';
+import { sessionCookieName } from '@lightmill/log-api/vocabulary';
 import express from 'express';
 import session from 'express-session';
 import MemorySessionStoreModule from 'memorystore';
@@ -11,12 +11,9 @@ import type { DataStore } from './data-store.ts';
 import {
   createErrorHandler,
   createRouter,
+  MalformedQueryError,
   validateHandlers,
 } from './router.ts';
-
-// Room for a batch of logs from log-client and its envelope, and for a single
-// large log. Not an option until someone needs one.
-const REQUEST_BODY_LIMIT = '1mb';
 
 const MemorySessionStore = MemorySessionStoreModule(session);
 
@@ -51,7 +48,18 @@ export function createLogServer({
 
   app.set('query parser', (str: string | null) => {
     if (str == null) return {};
-    let params = new URLSearchParams(decodeURIComponent(str));
+    // URLSearchParams decodes malformed percent-encoding into U+FFFD, which
+    // would filter on a value the client never sent.
+    for (const pair of str.split('&')) {
+      const [key = ''] = pair.split('=', 1);
+      if (!isDecodable(key)) throw new MalformedQueryError(key);
+      if (!isDecodable(pair)) {
+        throw new MalformedQueryError(
+          decodeURIComponent(key.replaceAll('+', ' ')),
+        );
+      }
+    }
+    let params = new URLSearchParams(str);
     let values: Record<string, string[] | string> = {};
     for (const [key, value] of params.entries()) {
       let oldValue = values[key];
@@ -65,13 +73,6 @@ export function createLogServer({
     }
     return values;
   });
-
-  app.use(
-    express.json({
-      type: [mediaType, 'application/json'],
-      limit: REQUEST_BODY_LIMIT,
-    }),
-  );
 
   app.use(
     session({
@@ -102,7 +103,16 @@ export function createLogServer({
 
   app.use(createRouter({ handlers, dataStore }));
 
-  app.use(createErrorHandler({ requestBodyLimit: REQUEST_BODY_LIMIT }));
+  app.use(createErrorHandler());
 
   return { middleware: app };
+}
+
+function isDecodable(component: string) {
+  try {
+    decodeURIComponent(component);
+    return true;
+  } catch {
+    return false;
+  }
 }
