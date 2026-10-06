@@ -1,5 +1,5 @@
 import { sessionCookieName } from '@lightmill/log-api/vocabulary';
-import express from 'express';
+import type express from 'express';
 import session from 'express-session';
 import MemorySessionStoreModule from 'memorystore';
 import { createExperimentHandlers } from './app-experiments-handlers.ts';
@@ -8,7 +8,7 @@ import { createOperationHandlers } from './app-operations-handlers.ts';
 import { createRunHandlers } from './app-runs-handlers.ts';
 import { createSessionHandlers } from './app-sessions-handlers.ts';
 import type { DataStore } from './data-store.ts';
-import { installRequestHandling } from './router.ts';
+import { createRequestMiddleware } from './router.ts';
 
 const MemorySessionStore = MemorySessionStoreModule(session);
 
@@ -37,12 +37,9 @@ export function createLogServer({
   sessionMaxAge,
   trustProxy = true,
 }: CreateLogServerOptions): { middleware: express.RequestHandler } {
-  const app = express();
-
-  app.set('trust proxy', trustProxy);
-
-  installRequestHandling(app, {
+  const middleware = createRequestMiddleware({
     dataStore,
+    trustProxy,
     sessionMiddleware: session({
       store: sessionStore,
       secret: sessionKeys,
@@ -65,5 +62,5 @@ export function createLogServer({
     },
   });
 
-  return { middleware: app };
+  return { middleware };
 }

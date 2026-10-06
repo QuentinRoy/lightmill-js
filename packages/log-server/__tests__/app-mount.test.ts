@@ -1,6 +1,6 @@
 import { atomicMediaType, mediaType } from '@lightmill/log-api/vocabulary';
 import express from 'express';
-import { describe, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { createLogServer } from '../src/app.ts';
 import {
   apiContentTypeRegExp,
@@ -12,6 +12,51 @@ import {
 } from './__fixtures__/test-utils.ts';
 
 describe.for(storeTypes)('createLogServer (%s)', (storeType) => {
+  it.for([true, false])(
+    'uses its own proxy trust setting (%s)',
+    async (trustProxy) => {
+      const { dataStore, sessionStore } = await createServerContext({
+        type: storeType,
+      });
+      const { middleware } = createLogServer({
+        dataStore,
+        sessionStore,
+        sessionKeys: ['secret'],
+        allowCrossOrigin: false,
+        secureCookies: true,
+        trustProxy,
+      });
+      const app = express();
+      app.set('trust proxy', !trustProxy);
+      app.use(middleware);
+
+      const response = await createClient(await listen(app))
+        .post('/sessions')
+        .set('Host', 'host.example.com')
+        .set('X-Forwarded-Host', 'proxy.example.com')
+        .set('X-Forwarded-Proto', 'https')
+        .set('Content-Type', mediaType)
+        .send({
+          data: { type: 'sessions', attributes: { role: 'participant' } },
+        })
+        .expect(201);
+
+      if (trustProxy) {
+        expect(response.headers.location).toBe(
+          'https://proxy.example.com/sessions/current',
+        );
+        expect(response.headers['set-cookie']).toEqual([
+          expect.stringMatching(/; HttpOnly; Secure; SameSite=Strict$/),
+        ]);
+      } else {
+        expect(response.headers.location).toBe(
+          'http://host.example.com/sessions/current',
+        );
+        expect(response.headers['set-cookie']).toBeUndefined();
+      }
+    },
+  );
+
   it('can be mounted on a sub path', async () => {
     let { dataStore, sessionStore } = await createServerContext({
       type: storeType,

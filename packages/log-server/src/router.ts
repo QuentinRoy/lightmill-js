@@ -6,7 +6,7 @@ import {
 } from '@lightmill/log-api/vocabulary';
 import type { StandardSchemaV1 } from '@standard-schema/spec';
 import { parseCookie } from 'cookie';
-import * as Express from 'express';
+import express from 'express';
 import type { SessionData } from 'express-session';
 import log from 'loglevel';
 import Stream from 'node:stream';
@@ -44,7 +44,7 @@ const REQUEST_BODY_LIMIT = '1mb';
 // Each route checks the Content-Type header before parsing. Requests without
 // one have no body, but may still say `Content-Length: 0`, which the parser
 // would read as `{}`.
-const parseJsonBody = Express.json({
+const parseJsonBody = express.json({
   type: (request) => request.headers['content-type'] != null,
   limit: REQUEST_BODY_LIMIT,
 });
@@ -55,26 +55,28 @@ declare module 'express-session' {
   }
 }
 
-// Use the dedicated app so query settings stay local and session failures
-// reach the final error handler.
-export function installRequestHandling(
-  app: Express.Application,
-  {
-    handlers,
-    dataStore,
-    sessionMiddleware,
-  }: {
-    handlers: Handlers;
-    dataStore: DataStore;
-    sessionMiddleware: Express.RequestHandler;
-  },
-): void {
+// A dedicated app keeps query and proxy settings local and session failures
+// within reach of the final error handler.
+export function createRequestMiddleware({
+  handlers,
+  dataStore,
+  sessionMiddleware,
+  trustProxy,
+}: {
+  handlers: Handlers;
+  dataStore: DataStore;
+  sessionMiddleware: express.RequestHandler;
+  trustProxy: boolean;
+}): express.RequestHandler {
+  const app = express();
+  app.set('trust proxy', trustProxy);
   app.set('query parser', parseQuery);
   app.use(sessionMiddleware);
   app.use(
     createRouter({ handlers: validateHandlers({ handlers }), dataStore }),
   );
   app.use(createErrorHandler());
+  return app;
 }
 
 function parseQuery(str: string | null) {
@@ -187,8 +189,8 @@ function createRouter({
 }: {
   handlers: HandlersWithValidation;
   dataStore: DataStore;
-}): Express.Router {
-  const router = Express.Router();
+}): express.Router {
+  const router = express.Router();
   for (const [path, methods] of unsafeEntries(handlers)) {
     const expressPath = path.replace(/{(\w+)}/g, ':$1');
     const route = router.route(expressPath);
@@ -349,8 +351,8 @@ async function processResponse({
   response,
 }: {
   result: HandlerResponse;
-  request: Express.Request;
-  response: Express.Response;
+  request: express.Request;
+  response: express.Response;
 }) {
   if ('sessionData' in result) {
     request.session.data = result.sessionData;
@@ -374,7 +376,7 @@ async function processResponse({
   response.send(result.body);
 }
 
-function hasBody(request: Express.Request) {
+function hasBody(request: express.Request) {
   const { 'content-length': length, 'transfer-encoding': encoding } =
     request.headers;
   return encoding != null || Number(length) > 0;
@@ -382,7 +384,7 @@ function hasBody(request: Express.Request) {
 
 function checkContentType(
   expectedMediaType: RouteMediaType,
-): Express.RequestHandler {
+): express.RequestHandler {
   return async (request, response, next) => {
     const contentType = request.headers['content-type'];
     const isAccepted =
@@ -413,7 +415,7 @@ function checkContentType(
 function handleWith(
   handler: Handler,
   dataStore: DataStore,
-): Express.RequestHandler {
+): express.RequestHandler {
   return async (request, response) => {
     const { headers, params, query, body, session } = request;
     const result = await handler({
@@ -438,7 +440,7 @@ function handleWith(
 // one placed right after the body parser only gets the parser's errors.
 function answerBodyErrors(
   routeMediaType: RouteMediaType,
-): Express.ErrorRequestHandler {
+): express.ErrorRequestHandler {
   return async (error: unknown, request, response, _next) => {
     const cause = toError(error);
     const bodyError = getBodyParserError(cause, REQUEST_BODY_LIMIT);
@@ -455,7 +457,7 @@ function answerBodyErrors(
 
 function answerErrors(
   routeMediaType: RouteMediaType,
-): Express.ErrorRequestHandler {
+): express.ErrorRequestHandler {
   return async (error: unknown, request, response, next) => {
     // Too late to answer: Express logs the error and closes the connection.
     if (response.headersSent) {
@@ -533,7 +535,7 @@ function toError(error: unknown) {
  * Express error middleware answering what fails outside a route: the session
  * store, or Express's router itself.
  */
-function createErrorHandler(): Express.ErrorRequestHandler {
+function createErrorHandler(): express.ErrorRequestHandler {
   return async (error: unknown, request, response, next) => {
     // Too late to answer: Express logs the error and closes the connection.
     if (response.headersSent) {
