@@ -160,7 +160,7 @@ The middleware works under any mount path, such as `/api` above.
 
 By default, the session cookie is cross-site (`SameSite=None`), which browsers only accept over HTTPS, with the `Secure` attribute. When the page is on another site, it is a third-party cookie: Safari blocks it by default, and other browsers let people block it. Prefer serving the page and the server from the same site, and set `cookieSite: 'same-site'` (`SameSite=Strict`).
 
-Two pages are on the same site when they share the scheme and the registrable domain. The port does not count: a page on `localhost:5173` can call a server on `localhost:3000`. `localhost` and `127.0.0.1` are different sites.
+Two addresses are on the same site when they share the scheme (`http` or `https`) and registrable domain (the domain someone can register, such as `example.org`). The port does not count: a page on `localhost:5173` can call a server on `localhost:3000`. `localhost` and `127.0.0.1` are different sites. [Deploying](../../docs/guides/deploying.md#choose-where-the-app-and-the-server-live) compares sites with origins, which also include the hostname and port.
 
 `secureCookies` sets the `Secure` attribute:
 
@@ -170,7 +170,7 @@ Two pages are on the same site when they share the scheme and the registrable do
 
 ### Cross-origin requests
 
-`createLogServer` sets no CORS headers. A page on another origin needs the `cors` package in front of the middleware, with an explicit list of origins and `credentials: true`: the client sends the session cookie, and browsers refuse a credentialed response that allows every origin. Expose `Retry-After` too, or browsers hide it from the page and `log-client` can't use it to pace its retries.
+`createLogServer` sets no headers that allow browser code on another origin to read its responses. A page on another origin needs the `cors` package in front of the middleware, with an explicit list of origins and `credentials: true`: the client sends the session cookie, and browsers refuse a response that allows every origin when cookies are involved. Expose `Retry-After` too, or browsers hide it from the page and `log-client` can't use it to pace its retries.
 
 ```ts
 import cors from 'cors';

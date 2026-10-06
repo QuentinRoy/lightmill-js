@@ -4,9 +4,20 @@ An online experiment has two parts: the experiment app, which is static files, a
 
 ## Choose where the app and the server live
 
-The server identifies each participant with a cookie, so where the app and the server live decides which cookies browsers accept. Two pages are on the same site when they share the scheme and the registrable domain: `https://study.example.org` and `https://api.example.org` are on the same site, `https://example.org` and `https://example.com` are not. The port does not count.
+The server identifies each participant with a cookie. Browsers check both the page's address and the server's address before allowing a request and its cookie. Two terms describe those addresses:
 
-Serve the app and the server from the same origin, behind a reverse proxy that handles HTTPS. It is the simplest setup that works in every browser.
+- An origin is the scheme (`http` or `https`), hostname, and port together. Changing any of them changes the origin.
+- A site groups addresses with the same scheme and registrable domain: the domain someone can register, such as `example.org`. Its subdomains belong to the same site, and the port does not count. `localhost` and `127.0.0.1` are different sites.
+
+| Addresses compared                                          | Same origin? | Same site? |
+| ----------------------------------------------------------- | ------------ | ---------- |
+| `http://localhost:5173` and `http://localhost:3000`         | No           | Yes        |
+| `https://study.example.org` and `https://api.example.org`   | No           | Yes        |
+| `https://study.example.org` and `https://study.example.com` | No           | No         |
+
+The allowed-origin setting decides whether browser code on another origin can read the server's response. The cookie settings decide whether the browser accepts and sends the participant's session cookie. A setup can need an allowed origin even when both addresses are on the same site.
+
+Serve the app and the server from one origin behind a reverse proxy that handles HTTPS. A reverse proxy accepts the browser's request, then forwards it to the log server. This setup avoids relying on third-party cookies.
 
 | Setup                                                                                     | `log-server start` flags                                                          |
 | ----------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
