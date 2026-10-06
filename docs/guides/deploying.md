@@ -4,14 +4,9 @@ An online experiment has two parts: the experiment app, which is static files, a
 
 ## What you need
 
-This walkthrough uses one origin, `https://study.example.org`, with the app at `/` and the API at `/api`. Replace that domain with yours. It assumes you have:
+You need an experiment app, a place to publish its static files over HTTPS, and an environment that can run Node.js 24.12 or later with a writable, persistent location for the database. Use your host's instructions to publish the app and keep the Node.js process running.
 
-- an experiment app, such as the [getting started](getting-started.md) app;
-- a Linux server using systemd, with Node.js 24.12 or later, npm, and [Caddy](https://caddyserver.com/docs/install) installed;
-- a domain pointing to that server, with ports 80 and 443 available to Caddy;
-- an unprivileged account named `lightmill` that owns `/srv/lightmill`, and a directory `/srv/my-experiment` where you can copy the app and Caddy can read it.
-
-Have the server administrator create those accounts and directories if needed. Keep port 3000 reachable only by the proxy: the server will trust its forwarded headers. Run the log-server setup commands below as the account that owns `/srv/lightmill`. systemd runs and restarts the server as a service; `systemctl` controls that service and `journalctl` reads its diagnostic output. These are systemd tools, not LightMill commands. If your host uses another process manager, use its start, stop, and log commands instead.
+The example below uses `https://study.example.org` for the app and `/api` for the log server. Replace that address with yours. It includes an optional [Caddy](https://caddyserver.com/docs/install) proxy configuration; another proxy or a host that handles HTTPS can serve the same layout.
 
 ## Choose where the app and the server live
 
@@ -32,25 +27,28 @@ Serve the app and the server from one origin behind a reverse proxy that handles
 
 ## Prepare the log server
 
-On the server, install the package in its own directory:
+In the environment where the log server will run, choose a writable directory for its package and configuration:
 
 ```sh
-cd /srv/lightmill
+mkdir my-log-server
+cd my-log-server
 npm init -y
 npm install @lightmill/log-server
 ```
 
-Create `/srv/lightmill/.env` with your own secrets:
+Set `SESSION_KEY` and `HOST_PASSWORD` through your host's environment settings, or create a `.env` file in `my-log-server`:
 
 ```sh
 SESSION_KEY=replace-with-a-long-random-string
 HOST_PASSWORD=replace-with-another-secret
-DB_PATH=/srv/lightmill/data.sqlite
+DB_PATH=./data.sqlite
 ```
 
-Generate each secret with `openssl rand -base64 32`. Keep the file on the server and out of version control; `chmod 600 .env` limits access to its owner. The package reads `.env` from its working directory. `SESSION_KEY` signs participant cookies, and `HOST_PASSWORD` protects the researcher account. [Secrets](#secrets) explains rotation.
+Use different long random values for the two secrets, for example generated with `openssl rand -base64 32`. Keep `.env` private and out of version control. The package reads it from its working directory. `SESSION_KEY` signs participant cookies, and `HOST_PASSWORD` protects the researcher account. [Secrets](#secrets) explains rotation.
 
-Still in `/srv/lightmill`, prepare the database and create the experiment:
+`DB_PATH` is the database file. This example keeps it in `my-log-server`; run the CLI commands from that directory. If your host replaces this directory during deployment, set `DB_PATH` to an absolute path in its persistent storage instead. The database contains both answers and sessions and must survive restarts and app updates. Keep it outside the directory that serves the app's public files.
+
+Still in `my-log-server`, prepare the database and create the experiment:
 
 ```sh
 npx log-server migrate
@@ -79,17 +77,13 @@ In the app directory, build the static files:
 npm run build
 ```
 
-Copy the resulting `dist` directory to `/srv/my-experiment/dist` on the server. For example, replace `deploy@your-server` with your server login:
-
-```sh
-scp -r dist deploy@your-server:/srv/my-experiment/
-```
+Publish the generated `dist` files using your host's deployment instructions. If you use the Caddy example below, set its `root` to the absolute path of that published directory.
 
 Changing the source URL after building does not change the files in `dist`; rebuild and copy them again after a change.
 
 ## Set up the reverse proxy
 
-On the server, put this site block in Caddy's configuration file, usually `/etc/caddy/Caddyfile`. It serves the built app and forwards API requests to the log server. Caddy gets and renews the HTTPS certificate.
+If you use Caddy, this site block serves the built app and forwards API requests to the log server. Replace the domain and `/path/to/my-experiment/dist` with your public domain and the absolute path of the published app. Caddy gets and renews the HTTPS certificate.
 
 ```caddyfile
 study.example.org {
@@ -99,7 +93,7 @@ study.example.org {
 		}
 	}
 	handle {
-		root * /srv/my-experiment/dist
+		root * /path/to/my-experiment/dist
 		try_files {path} /index.html
 		file_server
 	}
@@ -108,60 +102,33 @@ study.example.org {
 
 Caddy forwards the host, client address, and original protocol. `handle_path` removes `/api` before forwarding; `X-Forwarded-Prefix` tells the log server to put it back in resource links.
 
-Validate the configuration, then reload Caddy:
-
-```sh
-sudo caddy validate --config /etc/caddy/Caddyfile
-sudo systemctl reload caddy
-```
+Apply the configuration through your Caddy installation's [configuration instructions](https://caddyserver.com/docs/caddyfile). Match `localhost:3000` to the address where the log-server process listens. Keep that backend reachable only by the proxy when using `--trust-proxy`, so outside clients cannot forge its forwarded headers.
 
 If you use another proxy, have it set `X-Forwarded-For`, `X-Forwarded-Host`, and `X-Forwarded-Proto`. It must also set `X-Forwarded-Prefix` when it strips a path prefix.
 
 ## Run the server
 
-Keep the process running under a process manager so it restarts after a crash or reboot. Run one server process per database: requests from each participant are ordered within one process only.
-
-For systemd, create `/etc/systemd/system/lightmill.service`:
-
-```ini
-[Unit]
-Description=LightMill log server
-After=network.target
-
-[Service]
-User=lightmill
-WorkingDirectory=/srv/lightmill
-ExecStart=/usr/bin/node /srv/lightmill/node_modules/@lightmill/log-server/dist/cli.js start --same-site --trust-proxy
-Restart=on-failure
-
-[Install]
-WantedBy=multi-user.target
-```
-
-Replace `/usr/bin/node` with the path printed by `command -v node` on the server. Use a Node installation the `lightmill` account can execute. Change `User` if you used another account. The working directory matters: it is where the CLI reads `.env`.
-
-Start the service and arrange for it to start on reboot:
+From `my-log-server`, start the API for the same-origin HTTPS proxy example:
 
 ```sh
-sudo systemctl daemon-reload
-sudo systemctl enable --now lightmill
-sudo systemctl status lightmill
+npx log-server start --same-site --trust-proxy
 ```
 
-This runs the equivalent of `npx log-server start --same-site --trust-proxy` in `/srv/lightmill`. The same-origin app needs no allowed-origin flag. To stop the service, run `sudo systemctl stop lightmill`; systemd sends `SIGTERM`, and the server finishes requests in progress before closing the database.
+The command reads the secrets and database path from the environment and `.env` in its working directory. It listens on port 3000 unless `PORT` or `--port` changes it. The same-origin app needs no allowed-origin flag. [Other setups](#other-setups) shows the flags for different app and server addresses.
+
+Use your host's process manager or application settings to keep this command running and make its diagnostic output available. Run one server process per database: requests from each participant are ordered within one process only. When stopping the log-server process, send `SIGTERM`; it finishes requests in progress before closing the database.
 
 ## Check the deployment
 
 Open `https://study.example.org/?participant=9001` in a browser, using an unused participant number. Complete a few trials, then reload to check that saved progress resumes. Finish and wait for "Thank you!". Check it in every browser you plan to support.
 
-On the server, export the test run's logs:
+From `my-log-server`, export the test run's logs:
 
 ```sh
-cd /srv/lightmill
 npx log-server export --experiment-name reaction-time > test-logs.csv
 ```
 
-Check that the run has status `completed` and the expected task ids. If the app cannot start a run, read the server's diagnostic output. With the systemd service above, use the [`journalctl` command below](#the-service-does-not-start); if you started the CLI directly, read the terminal where it is running. [Troubleshooting](#troubleshooting) covers common causes.
+Check that the run has status `completed` and the expected task ids. If the app cannot start a run, read the terminal running the server or your host's log viewer. [Troubleshooting](#troubleshooting) covers common causes.
 
 ## Back up the data
 
@@ -173,15 +140,15 @@ sqlite3 data.sqlite ".backup 'backup.sqlite'"
 
 Copying the file with `cp` while the server writes to it can produce a broken copy.
 
-Run that backup command in `/srv/lightmill`, or use absolute database and backup paths. Copy backups to separate storage and check that you can read them. A backup includes participant sessions as well as logs; keep it private, and preserve the session key separately so restored sessions stay valid.
+Run that backup command from the directory containing `data.sqlite`, or use the database path configured in `DB_PATH`. Copy backups to separate storage and check that you can read them. A backup includes participant sessions as well as logs; keep it private, and preserve the session key separately so restored sessions stay valid.
 
 ## Upgrade
 
-1. Stop the server with `sudo systemctl stop lightmill`, and wait for it to exit.
+1. Stop the log-server process through your host or process manager, and wait for it to exit.
 2. Back up the database.
-3. In `/srv/lightmill`, install the version you want: `npm install @lightmill/log-server@<version>`.
-4. Run `npx log-server migrate --database /srv/lightmill/data.sqlite`.
-5. Start the server with `sudo systemctl start lightmill`, then check its status and logs.
+3. In `my-log-server`, install the version you want: `npm install @lightmill/log-server@<version>`.
+4. Run `npx log-server migrate` from that directory, using the same `DB_PATH` as the server. Pass `--database <path>` if needed to select that file explicitly.
+5. Start the server again with the same configuration, then check its diagnostic output and test the app.
 
 Keep the database and `.env` in place. `log-server start` refuses to start while the database has pending migrations. If an upgrade fails, preserve the current database before restoring a backup; logs received after that backup are not in it.
 
@@ -230,35 +197,27 @@ A participant's session lasts as long as its cookie: 30 days by default, or `--s
 
 ## Troubleshooting
 
-Start with the error in the browser’s developer console or the service log. The sections below separate problems that need different fixes.
+Start with the error in the browser's developer console, the terminal running the server, or your host's log viewer. The sections below separate problems that need different fixes.
 
-### The service does not start
+### The server does not start
 
-If you installed the `lightmill.service` systemd example above, run this on that server to read its startup messages and errors:
-
-```sh
-sudo journalctl -u lightmill -n 50 --no-pager
-```
-
-[`journalctl`](https://www.freedesktop.org/software/systemd/man/255/journalctl.html) reads the systemd journal, where systemd normally collects a service's console output. `-u lightmill` selects `lightmill.service`, `-n 50` selects the most recent 50 entries, and `--no-pager` prints them directly to the terminal. `sudo` gives access when your account cannot read those service logs. This command only reads logs; it does not restart or change the server.
-
-For a CLI started directly with `npx log-server start`, look in the terminal that started it. For another process manager or a managed hosting service, use its log viewer. These diagnostic messages describe the server process; participant answers are stored in SQLite and retrieved with [exports](exporting-data.md).
+Read the startup error in the terminal where you ran `npx log-server start`, or in your host's log viewer. These diagnostic messages describe the server process; participant answers are stored in SQLite and retrieved with [exports](exporting-data.md).
 
 Use that error to choose the next step:
 
-- If systemd cannot execute Node, check `ExecStart` in the service file. Its Node path must exist and be executable by the `lightmill` account.
-- If the CLI reports a missing session key or host password, check that `WorkingDirectory` is `/srv/lightmill`, that this account can read `.env`, and that it defines `SESSION_KEY` and `HOST_PASSWORD`.
+- If the host cannot run the command, check that it has the required Node version, the package is installed, and the configured working directory contains that package.
+- If the CLI reports a missing session key or host password, check the process's environment settings. If you use `.env`, it must be readable in the directory where the command starts and define `SESSION_KEY` and `HOST_PASSWORD`.
 - If the database is missing, check the path printed in the error against `DB_PATH` and any `--database` flag. For an existing study, locate its database or restore a backup. Running `migrate` at a wrong path creates an empty database; it does not recover the study's data.
-- If the error says migrations are pending, stop the service and [back up that database](#back-up-the-data), then migrate it as the account that owns it.
+- If the error says migrations are pending, stop the server and [back up that database](#back-up-the-data), then migrate it as the account that owns it.
 - If the port is already in use, check whether another log-server process is running. Keep one process per database; a migration does not fix a port conflict.
 
-For a new database, or after backing up an existing one that needs migration, run in `/srv/lightmill`:
+For a new database, or after backing up an existing one that needs migration, run from the server package directory:
 
 ```sh
-npx log-server migrate --database /srv/lightmill/data.sqlite
+npx log-server migrate --database ./data.sqlite
 ```
 
-Use the actual database path if yours differs. Once the reported problem is fixed, restart the service with `sudo systemctl restart lightmill` and check its log again.
+Use the actual database path if yours differs. Once the reported problem is fixed, start the server again through your host or with the same CLI command, and check its diagnostic output.
 
 ### The app cannot find the experiment
 
@@ -266,10 +225,10 @@ The client looks up an experiment by the `experimentName` passed to `startRun`. 
 
 First check three values: the app's `apiRoot` must reach the intended log server, its `experimentName` must match the study's name, and the server must be using the intended database. Correct a wrong address, name, or database path before creating anything.
 
-If this is a new study and the experiment has not been created yet, run from `/srv/lightmill` as the database owner:
+If this is a new study and the experiment has not been created yet, run from the server package directory, with access to its database:
 
 ```sh
-npx log-server experiment add reaction-time --database /srv/lightmill/data.sqlite
+npx log-server experiment add reaction-time --database ./data.sqlite
 ```
 
 Replace the name and database path with the ones your app and server use. This command creates an experiment, not participant runs. If it reports that the experiment already exists but the app still cannot find it, the command and app are likely using different servers, databases, or names; running it again will not fix that mismatch.
@@ -286,12 +245,12 @@ If the request already uses your public domain but returns an HTML page or a `40
 
 Open the browser's developer tools and inspect the failed request in the Network panel. Different failures need different fixes:
 
-- A connection error or timeout means the browser cannot reach that address. Check the request URL, the log-server service, and the proxy. An allowed-origin flag cannot start a stopped server or correct a wrong address.
+- A connection error or timeout means the browser cannot reach that address. Check the request URL, the log-server process, and the proxy. An allowed-origin flag cannot start a stopped server or correct a wrong address.
 - A `404`, or an HTML response where JSON was expected, can mean the request reached the wrong path. Check the [API address](#the-published-app-contacts-localhost) and proxy routing.
 - If the console reports a [mixed-content error](https://developer.mozilla.org/en-US/docs/Web/Security/Defenses/Mixed_content), an HTTPS page is trying to use an HTTP resource the browser blocks. Serve the API over HTTPS and use its HTTPS address.
 - If the console reports an origin or [Cross-Origin Resource Sharing (CORS) error](https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/CORS), check the app's origin against the server's allowed origins.
 
-The origin to allow is the address of the page in the browser, including its scheme and port, without a path. For an app at `https://study.example.org/?participant=1`, that is `https://study.example.org`. Pass `--allowed-origin https://study.example.org` when starting the CLI, then restart the service with the updated flags. Do not put the API address or `/api` in this option.
+The origin to allow is the address of the page in the browser, including its scheme and port, without a path. For an app at `https://study.example.org/?participant=1`, that is `https://study.example.org`. Pass `--allowed-origin https://study.example.org` when starting the CLI, then restart the log-server process with the updated flags. Do not put the API address or `/api` in this option.
 
 This guide's app and API share one origin, so they need no allowed-origin flag. Separate origins on the same site still need it. If you embed `createLogServer` in your own app, the CLI flag does not apply; configure the [`cors` middleware](../../packages/log-server/README.md#cross-origin-requests) instead. Once the browser can read responses, check session cookies separately below.
 
