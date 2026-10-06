@@ -57,6 +57,7 @@ type StartParameter = {
   sessionMaxAgeDays: number;
   hostPassword?: string | undefined;
   sameOrigin: boolean;
+  trustProxy: boolean;
 };
 async function start({
   database: dbPath,
@@ -65,6 +66,7 @@ async function start({
   sessionMaxAgeDays,
   hostPassword,
   sameOrigin,
+  trustProxy,
 }: StartParameter) {
   if (sessionKey == null) {
     log.error(
@@ -87,6 +89,7 @@ async function start({
         sessionMaxAge,
         sessionKeys: sessionKey.split(':'),
         hostPassword,
+        trustProxy,
         ...(sameOrigin ? { allowCrossOrigin: false } : {}),
       }).middleware,
     )
@@ -270,6 +273,11 @@ export function cli() {
           })
           .option('same-origin', {
             desc: 'Use HTTP cookies when the browser shares the API origin',
+            type: 'boolean',
+            default: false,
+          })
+          .option('trust-proxy', {
+            desc: 'Trust X-Forwarded-* headers from a reverse proxy',
             type: 'boolean',
             default: false,
           })
