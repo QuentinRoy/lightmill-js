@@ -178,8 +178,28 @@ Only one call can complete, interrupt, or cancel the run at a time: while one is
 
 ### Types
 
-`Logger`, `LoggerState`, `RequestTimeout`, and `LogValuesSerializer` are exported for TypeScript.
+`Logger`, `LoggerState`, `RequestTimeout`, and `LogValuesSerializer` are exported for TypeScript, along with the [error classes](#errors).
 
 ### Errors
 
-A request the server refuses rejects with an error that has the HTTP `status` and the server's error `code`, such as `RUN_EXISTS`. `startRun` rejects with a plain error when the experiment does not exist.
+The package exports its error classes, so you can check failures with `instanceof`:
+
+- `RequestError`: the server refused a request. It has the HTTP `status`, `statusText`, and `headers`, and the server's `errors`. `code` and `detail` come from the first error, such as `RUN_EXISTS`, and may be `undefined`.
+- `AddLogError`: a log could not be stored, or was discarded. `logNumber` is its number, and `cause` the delivery error, if any. Errors thrown before the log is queued, such as by `serializeLog`, pass through unchanged.
+- `FlushError`: `flush()` found a missing log number once its logs were sent. The message names the number and how to recover. `completeRun()`, `interruptRun()`, and `cancelRun()` can reject with it too, since they flush first.
+
+`startRun` rejects with a plain `Error` when the experiment does not exist.
+
+```ts
+import { RequestError } from '@lightmill/log-client';
+
+try {
+  await client.startRun({ experimentName: 'pointing-study', runName });
+} catch (error) {
+  if (error instanceof RequestError && error.code === 'RUN_EXISTS') {
+    showMessage('This participant has already taken part.');
+  } else {
+    throw error;
+  }
+}
+```

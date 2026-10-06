@@ -233,7 +233,7 @@ An error boundary displays a message if loading the run or playing the timeline 
 Replace the local player in `src/App.tsx` with this file. Keep `src/experiment.ts` and `src/tasks.tsx` as they are:
 
 ```tsx
-import { Client, type Logger } from '@lightmill/log-client';
+import { Client, RequestError, type Logger } from '@lightmill/log-client';
 import {
   TimelinePlayer,
   useConfirmBeforeUnload,
@@ -380,7 +380,7 @@ class ErrorBoundary extends Component<
   }
   render() {
     const { error } = this.state;
-    if (error != null && 'code' in error && error.code === 'RUN_EXISTS') {
+    if (error instanceof RequestError && error.code === 'RUN_EXISTS') {
       return (
         <p>
           This participant number has already been used. If you have not
@@ -388,7 +388,7 @@ class ErrorBoundary extends Component<
         </p>
       );
     }
-    if (error != null && 'code' in error && error.code === 'ONGOING_RUNS') {
+    if (error instanceof RequestError && error.code === 'ONGOING_RUNS') {
       return (
         <p>
           This browser has an unfinished experiment. Return to its original

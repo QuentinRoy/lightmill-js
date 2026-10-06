@@ -368,7 +368,7 @@ export class LightmillLogger<
 
 export type Logger = LightmillLogger;
 
-class AddLogError extends Error {
+export class AddLogError extends Error {
   name = 'AddLogError' as const;
   logNumber: number;
   constructor(
@@ -380,7 +380,7 @@ class AddLogError extends Error {
   }
 }
 
-class FlushError extends Error {
+export class FlushError extends Error {
   name = 'FlushError' as const;
   constructor(message: string) {
     super(message);
