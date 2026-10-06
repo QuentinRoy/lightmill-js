@@ -206,6 +206,8 @@ The complete `src/App.tsx` below adds server logging and resuming to the local p
 
 ### Start or resume a run
 
+The `apiRoot` option passed to `new Client` tells the browser where to send requests to the log server. Here it is `http://localhost:3000`, the address of the server you started. The app itself is served by Vite at `http://localhost:5173`; the two addresses have different jobs. [Deploying](deploying.md#build-the-app-for-https) explains how this address changes when the server is online.
+
 `startRun` reads the saved progress for the participant number in the URL. It returns a logger, the timeline, and the id of the last saved task. The timeline is built once for this run; rebuilding it on every render would make `TimelinePlayer` throw.
 
 The `run` promise is also created once, outside the React components. This keeps React's development mode from starting a second run when it renders a component again. Without a positive participant number, no run starts.

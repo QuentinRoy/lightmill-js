@@ -61,11 +61,17 @@ Use the same experiment name as your app. If you are moving an existing study, c
 
 ## Build the app for HTTPS
 
-On your development machine, set the client's `apiRoot` before building. In the tutorial's `src/App.tsx`, replace the localhost URL:
+`apiRoot` is the base address of the log server's API. The browser adds route paths such as `/sessions` and `/runs` to it. The tutorial sets it to `http://localhost:3000` because the log server is running on your development machine.
+
+When someone opens the published app, `localhost` refers to their own computer. Their browser needs the public address where you serve the log API instead. This guide's proxy serves it at `https://study.example.org/api`, so its session requests go to `https://study.example.org/api/sessions`.
+
+On your development machine, find `new Client<Log>` in the tutorial's `src/App.tsx` and replace its `apiRoot` value before building:
 
 ```ts
 const client = new Client<Log>({ apiRoot: 'https://study.example.org/api' });
 ```
+
+Use your domain. Include `/api` only if your server or proxy serves the API at that path; a server exposed at `https://api.example.org` uses that address without `/api`.
 
 In the app directory, build the static files:
 
@@ -236,7 +242,11 @@ Create it with `npx log-server experiment add <name>` in `/srv/lightmill`. Match
 
 ### The published app contacts localhost
 
-Change `apiRoot` in the source, rebuild, and copy the new `dist` directory. Check the request URL in the browser's Network panel.
+In the browser's developer tools, open the Network panel and inspect a request to `sessions`, `experiments`, or `runs`. If its URL starts with `http://localhost:3000`, the published app still contains the development server address. On a participant's computer, that address cannot reach your public log server.
+
+Follow [Build the app for HTTPS](#build-the-app-for-https): change the `apiRoot` value passed to `new Client` in `src/App.tsx` to your public API address, run `npm run build`, and replace the server's published `dist` files with that new build. Then reload and check that the request URL uses the public address. A page that still uses the old URL may be loading the previous build; check the files you copied and try reloading with the browser cache disabled in developer tools.
+
+If the request already uses your public domain but returns an HTML page or a `404`, check the API path. With this guide's proxy, it must include `/api`; a server hosted directly at another address may not use that prefix. Match `apiRoot` to where the API is actually served. Changing `--allowed-origin` does not fix a request sent to the wrong address.
 
 ### Requests fail between different origins
 

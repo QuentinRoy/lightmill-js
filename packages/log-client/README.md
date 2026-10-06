@@ -126,12 +126,12 @@ retryButton.onclick = () => logger.retry().catch(() => {});
 
 ### `new Client<Log>(options)`
 
-| Option            | Description                                                                                            |
-| ----------------- | ------------------------------------------------------------------------------------------------------ |
-| `apiRoot`         | URL of the log server, such as `https://study.example.org/api`.                                        |
-| `serializeLog`    | Turns a log's values into JSON. See [Logs](#logs).                                                     |
-| `requestThrottle` | Minimum time in milliseconds between the starts of two batches. Defaults to `0`. `flush()` ignores it. |
-| `requestTimeout`  | `{ base, perKilobyte }`, in milliseconds. Defaults to `{ base: 10000, perKilobyte: 100 }`.             |
+| Option            | Description                                                                                                                                                                                                                |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `apiRoot`         | Base URL where the log API is served. Routes such as `/sessions` are appended to it: `https://study.example.org/api` calls `https://study.example.org/api/sessions`. Include a path prefix only when your server uses one. |
+| `serializeLog`    | Turns a log's values into JSON. See [Logs](#logs).                                                                                                                                                                         |
+| `requestThrottle` | Minimum time in milliseconds between the starts of two batches. Defaults to `0`. `flush()` ignores it.                                                                                                                     |
+| `requestTimeout`  | `{ base, perKilobyte }`, in milliseconds. Defaults to `{ base: 10000, perKilobyte: 100 }`.                                                                                                                                 |
 
 `Log` is the union of your log types.
 
