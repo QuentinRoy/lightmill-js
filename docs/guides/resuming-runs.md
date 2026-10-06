@@ -10,7 +10,7 @@ Resuming cancels the logs that come after the resume point. The server keeps the
 
 ## What the app needs
 
-1. **Logs that mark the end of a task.** Log once when each task completes, with the task's id. These are the resumable log types. A task that also logs while it runs, such as every mouse move, starts over on resume, and its earlier logs are canceled.
+1. **Log the end of each task.** Log once when each task completes, with the task's id. These are the resumable log types. A task that also logs while it runs, such as every mouse move, starts over on resume, and its earlier logs are canceled.
 
    ```ts
    log({ taskId: task.id, size: task.size, reactionTime });
@@ -66,7 +66,7 @@ The server finds a participant's runs through their session, so sessions must ou
 
 ## Limits
 
-- **Same browser only.** The session lives in a cookie. A participant who switches browser or device, or clears their cookies, can't find their run. Starting a new run with the same name then fails with a `RUN_EXISTS` error, because run names are unique within an experiment. A host can free the name by canceling the old run, which also leaves its logs out of the CSV export.
+- **Runs resume in the same browser only.** The session lives in a cookie. A participant who switches browser or device, or clears their cookies, can't find their run. Starting a new run with the same name then fails with a `RUN_EXISTS` error, because run names are unique within an experiment. A host can free the name by canceling the old run, which also leaves its logs out of the CSV export.
 - **Completed runs can't resume.** A participant who opens the experiment again after completing it gets the same `RUN_EXISTS` error. Show them a message rather than an error.
 - **Interruptions go unnoticed.** When a participant closes the tab, the run stays `running` until they come back. Hosts see it as running.
 
