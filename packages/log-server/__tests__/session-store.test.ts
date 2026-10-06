@@ -32,7 +32,7 @@ async function openServer(options: { sessionMaxAge?: number } = {}) {
     dataStore,
     sessionStore: dataStore.getSessionStore(),
     sessionKeys: ['secret'],
-    allowCrossOrigin: false,
+    cookieSite: 'same-site',
     ...hostServerOptions,
     ...options,
   }).middleware;

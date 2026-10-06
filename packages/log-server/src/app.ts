@@ -22,8 +22,8 @@ type CreateLogServerOptions = {
   sessionMaxAge?: number | undefined;
   trustProxy?: boolean | undefined;
 } & (
-  | { allowCrossOrigin?: boolean | undefined; secureCookies?: true | undefined }
-  | { allowCrossOrigin: false; secureCookies?: boolean | undefined }
+  | { cookieSite?: 'cross-site' | undefined; secureCookies?: true | undefined }
+  | { cookieSite: 'same-site'; secureCookies?: boolean | 'auto' | undefined }
 );
 
 export function createLogServer({
@@ -31,8 +31,11 @@ export function createLogServer({
   sessionKeys,
   hostPassword,
   hostUser = 'host',
-  allowCrossOrigin = true,
-  secureCookies = allowCrossOrigin,
+  cookieSite = 'cross-site',
+  // Same-site cookies also work over plain HTTP (development), so `Secure`
+  // follows the request protocol. It relies on `trustProxy` behind a
+  // TLS-terminating proxy.
+  secureCookies = cookieSite === 'cross-site' ? true : 'auto',
   sessionStore = new MemorySessionStore({ checkPeriod: 1000 * 60 * 60 * 24 }),
   sessionMaxAge,
   trustProxy = false,
@@ -49,7 +52,7 @@ export function createLogServer({
       store: sessionStore,
       secret: sessionKeys,
       cookie: {
-        sameSite: allowCrossOrigin ? 'none' : 'strict',
+        sameSite: cookieSite === 'cross-site' ? 'none' : 'strict',
         secure: secureCookies,
         httpOnly: true,
         ...(sessionMaxAge === undefined ? {} : { maxAge: sessionMaxAge }),

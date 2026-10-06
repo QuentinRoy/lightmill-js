@@ -202,7 +202,7 @@ export const hostPasswordArguments = [
 const baseServerOptions = {
   sessionKeys: ['secret'],
   ...hostServerOptions,
-  allowCrossOrigin: false as const,
+  cookieSite: 'same-site' as const,
   secureCookies: false,
 };
 

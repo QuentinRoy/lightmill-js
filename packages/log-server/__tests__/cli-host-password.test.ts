@@ -78,7 +78,7 @@ it.for([
   { name: '--host-password', args: ['--host-password', 'secret'], env: {} },
   { name: 'HOST_PASSWORD', args: [], env: { HOST_PASSWORD: 'secret' } },
 ])('start accepts a host password from $name', ({ args, env }) => {
-  const result = start([...sessionKeyArguments, '--same-origin', ...args], env);
+  const result = start([...sessionKeyArguments, '--same-site', ...args], env);
   expect(result.status).toBe(1);
   expect(result.stderr).toContain('does not exist');
   expect(result.stderr).not.toContain('host password');

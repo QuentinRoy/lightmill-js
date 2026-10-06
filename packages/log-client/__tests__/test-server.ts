@@ -51,7 +51,7 @@ export class TestServer {
     const { middleware } = createLogServer({
       dataStore,
       sessionKeys: ['test-secret'],
-      allowCrossOrigin: false,
+      cookieSite: 'same-site',
       secureCookies: false,
       hostPassword: 'test-host-password',
     });

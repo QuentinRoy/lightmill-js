@@ -8,19 +8,37 @@ type RequiredOptions = Pick<
 >;
 type IsAllowed<T> = T extends Options ? true : false;
 
-it('allows a dynamic cross-origin setting with default cookie security', () => {
+it('allows a dynamic cookie site with default cookie security', () => {
   expectTypeOf<
-    IsAllowed<RequiredOptions & { allowCrossOrigin: boolean }>
+    IsAllowed<RequiredOptions & { cookieSite: 'same-site' | 'cross-site' }>
   >().toEqualTypeOf<true>();
 });
 
-it('rejects insecure cross-origin cookies', () => {
+it('rejects insecure cross-site cookies', () => {
   expectTypeOf<
     IsAllowed<RequiredOptions & { secureCookies: false }>
   >().toEqualTypeOf<false>();
   expectTypeOf<
     IsAllowed<
-      RequiredOptions & { allowCrossOrigin: true; secureCookies: false }
+      RequiredOptions & { cookieSite: 'cross-site'; secureCookies: false }
+    >
+  >().toEqualTypeOf<false>();
+});
+
+it('allows automatic and forced cookie security for same-site cookies', () => {
+  expectTypeOf<
+    IsAllowed<
+      RequiredOptions & { cookieSite: 'same-site'; secureCookies: 'auto' }
+    >
+  >().toEqualTypeOf<true>();
+  expectTypeOf<
+    IsAllowed<
+      RequiredOptions & { cookieSite: 'same-site'; secureCookies: false }
+    >
+  >().toEqualTypeOf<true>();
+  expectTypeOf<
+    IsAllowed<
+      RequiredOptions & { cookieSite: 'cross-site'; secureCookies: 'auto' }
     >
   >().toEqualTypeOf<false>();
 });

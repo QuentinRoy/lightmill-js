@@ -38,7 +38,7 @@ it('the packed log-server command prints its help', () => {
     [path.join(tmpDir, 'package', 'dist', 'cli.js'), 'start', '--help'],
     { encoding: 'utf8' },
   );
-  expect(startHelp).toContain('--same-origin');
+  expect(startHelp).toContain('--same-site');
   expect(startHelp).toContain('--allowed-origin');
   expect(startHelp).toContain('--trust-proxy');
 }, 30_000);

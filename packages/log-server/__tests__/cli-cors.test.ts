@@ -93,14 +93,14 @@ async function preflight(baseUrl: string, origin: string) {
 }
 
 describe('log-server start', () => {
-  it('refuses to start without an allowed origin or --same-origin', () => {
+  it('refuses to start without an allowed origin or --same-site', () => {
     const result = spawnSync(process.execPath, cliArguments(), {
       env,
       encoding: 'utf8',
     });
     expect(result.status).toBe(1);
     expect(result.stderr + result.stdout).toContain('--allowed-origin');
-    expect(result.stderr + result.stdout).toContain('--same-origin');
+    expect(result.stderr + result.stdout).toContain('--same-site');
   });
 
   it('rejects an allowed origin that browsers would never send', () => {
@@ -182,9 +182,9 @@ describe('log-server start', () => {
     );
   });
 
-  it('combines --same-origin with an allowed origin', async () => {
+  it('combines --same-site with an allowed origin', async () => {
     await withServer(
-      ['--same-origin', '--allowed-origin', 'http://localhost:5173'],
+      ['--same-site', '--allowed-origin', 'http://localhost:5173'],
       async (baseUrl) => {
         const response = await preflight(baseUrl, 'http://localhost:5173');
         expect(response.headers.get('access-control-allow-origin')).toBe(
@@ -197,8 +197,8 @@ describe('log-server start', () => {
     );
   });
 
-  it('adds no CORS headers with only --same-origin', async () => {
-    await withServer(['--same-origin'], async (baseUrl) => {
+  it('adds no CORS headers with only --same-site', async () => {
+    await withServer(['--same-site'], async (baseUrl) => {
       const response = await preflight(baseUrl, 'http://localhost:5173');
       expect(response.headers.get('access-control-allow-origin')).toBeNull();
     });
