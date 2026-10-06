@@ -40,7 +40,7 @@ study.example.org {
 }
 ```
 
-Build the app with `npm run build`, copy `dist` to `/srv/my-experiment`, and set the client's `apiRoot` to `https://study.example.org/api`. Start the server with `--same-site --trust-proxy`. `X-Forwarded-Prefix` lets the server build correct links to the resources it creates.
+Set the client's `apiRoot` to `https://study.example.org/api` before building the app with `npm run build`. Then copy the resulting `dist` directory to `/srv/my-experiment/dist`. Start the server with `--same-site --trust-proxy`. `X-Forwarded-Prefix` lets the server build correct links to the resources it creates.
 
 Any proxy works the same way: forward the requests, set `X-Forwarded-For`, `X-Forwarded-Host`, `X-Forwarded-Proto`, and `X-Forwarded-Prefix` when it strips a path prefix.
 
