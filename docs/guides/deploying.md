@@ -307,7 +307,14 @@ If the request sends the cookie but the server no longer recognizes the session,
 
 ### A participant number cannot start a run
 
-A completed run cannot resume. An unfinished run needs its original browser session. For test runs, choose a new participant number. For a replacement, keep the old data and use a new identifier with the same condition order.
+Read the error code in the browser console or the response to `POST /runs`. These two codes mean different things:
+
+- `RUN_EXISTS`: a run that is not canceled already uses this name in the experiment. A completed run cannot resume. A running or interrupted run can resume only through the session that created it; returning to the original browser helps only if that session still exists. See the [session checks above](#the-browser-cannot-keep-a-participant-session).
+- `ONGOING_RUNS`: this browser session already owns an idle, running, or interrupted run. The server allows only one ongoing run per session, even across experiments. Changing the participant number, opening a new tab, or interrupting the old run does not remove that restriction.
+
+For a new test, use an unused participant number after the browser's previous run has completed or been deliberately canceled. If an unfinished test must stay intact, keep its page open and use another browser or a separate browser profile with a fresh session and an unused number. Do not clear cookies as a recovery step: the original session is what lets you resume the old run.
+
+For a replacement participant, use a new identifier and assign the old participant's condition order. The replacement's session must also have no ongoing run. Keep the original data unless you deliberately choose to cancel that run.
 
 If a participant has lost their session, keep the original run unless you deliberately want to cancel it. Canceling frees its name but excludes its logs from CSV exports. To cancel it, first [open a host session](exporting-data.md#over-http), then request the run list as that host:
 

@@ -81,6 +81,8 @@ const runName = `participant-${participantNumber}`;
 
 Store the assigned order index with the participant's identifier, so a resumed run uses the same order. A host can instead cancel the old run to free its name, but canceling also leaves its logs out of CSV exports.
 
+The replacement's browser session must also have no ongoing run. If it still owns the dropout's unfinished run, a different participant number is not enough: the server returns `ONGOING_RUNS`. Complete or deliberately cancel that run before starting another in the same session, or use a separate session while preserving the old one. See [run-start troubleshooting](../../docs/guides/deploying.md#a-participant-number-cannot-start-a-run).
+
 ## From orders to a timeline
 
 An order is a list of conditions. Turn it into a timeline by expanding each condition into its tasks:

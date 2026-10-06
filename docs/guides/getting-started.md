@@ -388,6 +388,14 @@ class ErrorBoundary extends Component<
         </p>
       );
     }
+    if (error != null && 'code' in error && error.code === 'ONGOING_RUNS') {
+      return (
+        <p>
+          This browser has an unfinished experiment. Return to its original
+          participant link or contact the researcher.
+        </p>
+      );
+    }
     if (error != null) {
       return <p>Something went wrong. Please contact the researcher.</p>;
     }
@@ -465,7 +473,12 @@ Use `localhost` for both the page and the API, rather than mixing it with `127.0
 
 ### A participant number cannot start a run
 
-Use the original browser for an unfinished run. For a new test, choose an unused participant number. A completed run cannot resume.
+Check the error code in the developer console:
+
+- `RUN_EXISTS` means this experiment already has a run named `participant-<number>` that is not canceled. If it is unfinished, use its original participant link in the browser that still has its session. If it is completed, it cannot resume.
+- `ONGOING_RUNS` means this browser already owns an unfinished run, possibly under a different participant number. Return to that run's original link and finish it. Changing the number or opening another tab in the same browser will not start a separate test; interrupting a run does not free the session either.
+
+After a run completes, you can test again with an unused number, such as `?participant=2`. To test separately while keeping an unfinished run, leave its page open and use another browser or a separate browser profile with an unused number. Keep cookies for runs you want to resume. [Deployment troubleshooting](deploying.md#a-participant-number-cannot-start-a-run) explains deliberate cancellation and its effect on exports.
 
 ### The saved task cannot be found
 
