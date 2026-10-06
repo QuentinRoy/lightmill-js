@@ -103,8 +103,7 @@ function TrialTask() {
 Props:
 
 - `timeline`: iterator/iterable of tasks. `TimelinePlayer` consumes it once and it cannot be changed after it is set, so remounting `TimelinePlayer` needs a fresh timeline.
-- `elements.tasks`: map from task type to React element.
-  Each task mounts fresh: its state, refs, and mount effects start over, even when the previous task renders the same component. State that must outlive a task cannot live in the task component. Keep it above `TimelinePlayer`, in a component that stays mounted (`useState`, `useRef`, or context), or in a store outside React. Tasks read it and write it back, for example when they complete. A DOM element such as `<video>` is remounted with its task and cannot be shared this way. Keep an imperative object like `new Audio()` in a ref or store.
+- `elements.tasks`: map from task type to React element. Each task mounts fresh: its state, refs, and mount effects start over, even when the previous task renders the same component. State that must outlive a task cannot live in the task component. Keep it above `TimelinePlayer`, in a component that stays mounted (`useState`, `useRef`, or context), or in a store outside React. Tasks read it and write it back, for example when they complete. A DOM element such as `<video>` is remounted with its task and cannot be shared this way. Keep an imperative object like `new Audio()` in a ref or store.
 - `elements.loading`: optional element to render while `loading` is `true`, once the task that was running has ended. It wins over `elements.completed`, and loses to `elements.paused`.
 - `elements.completed`: optional completion element.
 - `elements.paused`: element to render while `paused` is `true`, once the task that was running has ended. Recommended if you set `paused`. Without it, `TimelinePlayer` throws a `LogDeliveryError`.

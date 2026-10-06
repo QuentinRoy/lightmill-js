@@ -100,10 +100,11 @@ function createPlayerStore<Task>({
     },
     onTaskStarted(task) {
       let hasBeenCompleted = false;
+      const taskKey = taskCount++;
       setSnapshot({
         status: 'task',
         task,
-        taskKey: taskCount++,
+        taskKey,
         onTaskCompleted() {
           if (hasBeenCompleted) throw new Error('Task already completed');
           runner.completeTask();
