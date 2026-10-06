@@ -280,7 +280,16 @@ If the request already uses your public domain but returns an HTML page or a `40
 
 ### Requests fail between different origins
 
-Match `--allowed-origin` to the app's full origin, including its scheme and port. Use no path or trailing slash. Same-site addresses can still be different origins.
+Open the browser's developer tools and inspect the failed request in the Network panel. Different failures need different fixes:
+
+- A connection error or timeout means the browser cannot reach that address. Check the request URL, the log-server service, and the proxy. An allowed-origin flag cannot start a stopped server or correct a wrong address.
+- A `404`, or an HTML response where JSON was expected, can mean the request reached the wrong path. Check the [API address](#the-published-app-contacts-localhost) and proxy routing.
+- If the console reports a [mixed-content error](https://developer.mozilla.org/en-US/docs/Web/Security/Defenses/Mixed_content), an HTTPS page is trying to use an HTTP resource the browser blocks. Serve the API over HTTPS and use its HTTPS address.
+- If the console reports an origin or [Cross-Origin Resource Sharing (CORS) error](https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/CORS), check the app's origin against the server's allowed origins.
+
+The origin to allow is the address of the page in the browser, including its scheme and port, without a path. For an app at `https://study.example.org/?participant=1`, that is `https://study.example.org`. Pass `--allowed-origin https://study.example.org` when starting the CLI, then restart the service with the updated flags. Do not put the API address or `/api` in this option.
+
+This guide's app and API share one origin, so they need no allowed-origin flag. Separate origins on the same site still need it. If you embed `createLogServer` in your own app, the CLI flag does not apply; configure the [`cors` middleware](../../packages/log-server/README.md#cross-origin-requests) instead. Once the browser can read responses, check session cookies separately below.
 
 ### The browser cannot keep a participant session
 

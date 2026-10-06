@@ -447,9 +447,21 @@ npx log-server experiment add reaction-time --database ./data.sqlite
 
 Use your actual database path if you changed it. If the command says the experiment already exists, check the app's server address, experiment name, and server database path instead of creating another study. See [The app cannot find the experiment](deploying.md#the-app-cannot-find-the-experiment).
 
-### The app cannot reach the server or keep a session
+### The app cannot reach the server
 
-Keep the server running, open the app on `localhost` rather than `127.0.0.1`, and match Vite's actual origin with `--allowed-origin`. See the [deployment troubleshooting](deploying.md#troubleshooting) for HTTPS and proxy setups.
+Check the two addresses printed by the terminals. Vite serves the page, normally at `http://localhost:5173`. The log server listens on another port, normally 3000, and `apiRoot` in `src/App.tsx` must point to it at `http://localhost:3000`.
+
+Keep both processes running and open the app using `localhost`. If Vite chooses another port, open that address and restart the log server with that page's origin in `--allowed-origin`. For example, if Vite prints `http://localhost:5174`, use:
+
+```sh
+npx log-server start --same-site --allowed-origin http://localhost:5174
+```
+
+The allowed origin names the page, not the log server. If a request still fails, inspect its URL and error in the browser's Network panel. [Deployment troubleshooting](deploying.md#requests-fail-between-different-origins) distinguishes connection errors, wrong paths, and origin errors.
+
+### The browser cannot keep a participant session
+
+Use `localhost` for both the page and the API, rather than mixing it with `127.0.0.1`. Those hostnames are different sites, so the tutorial's same-site cookie cannot identify the participant across them. See [The browser cannot keep a participant session](deploying.md#the-browser-cannot-keep-a-participant-session) for the request and cookie checks.
 
 ### A participant number cannot start a run
 
