@@ -488,7 +488,12 @@ If the design or task ids changed after the run started, use the original design
 
 ### Saving does not finish
 
-Check the connection and server log. If delivery pauses, retry or download the unsaved answers before leaving the page.
+Keep the page open: reloading would lose any answers still in its memory. The app shows "Saving…" after the last task while it waits for two separate steps:
+
+1. `POST /operations` sends the remaining logs. Inspect that request in the Network panel. The logger retries temporary failures for up to two minutes. If it pauses, the app shows the retry and download screen. After fixing the connection or the reported server error, "Try again" resends the held logs; download a copy before leaving if saving still fails.
+2. `PATCH /runs/<id>` marks the run completed after those logs are stored. This request can also be retried, but its retries do not put the logger in the `paused` state. If it ultimately fails, the error boundary shows a message and records the error in the developer console. A refusal such as `MISSING_LOGS` needs investigation of the stored log sequence; it is not fixed by clicking the held-log retry button.
+
+Read the failed request's response and the server log to identify which step failed. If logs were already stored, a failed completion request does not erase them: [exports](exporting-data.md#the-csv-format) include ongoing runs too. Preserve the run while investigating instead of canceling it to make the error disappear.
 
 ## Get the data
 
