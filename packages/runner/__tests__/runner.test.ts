@@ -378,4 +378,65 @@ describe('TimelineRunner', () => {
     expect(() => runner.cancel()).toThrow('already completed');
     expect(onTimelineCanceled).not.toHaveBeenCalled();
   });
+
+  it('stays canceled when canceled in onTimelineStarted', () => {
+    let onTaskStarted = vi.fn();
+    let runner: TimelineRunner<number> = new TimelineRunner<number>({
+      timeline: [1, 2],
+      onTimelineStarted: () => runner.cancel(),
+      onTaskStarted,
+    });
+    runner.start();
+    expect(runner.status).toBe('canceled');
+    expect(onTaskStarted).not.toHaveBeenCalled();
+  });
+
+  it('stays canceled when canceled in onTaskCompleted', () => {
+    let onTaskStarted = vi.fn();
+    let runner: TimelineRunner<number> = new TimelineRunner<number>({
+      timeline: [1, 2],
+      onTaskStarted,
+      onTaskCompleted: () => runner.cancel(),
+    });
+    runner.start();
+    runner.completeTask();
+    expect(runner.status).toBe('canceled');
+    expect(onTaskStarted.mock.calls).toEqual([[1]]);
+  });
+
+  it('stays canceled when canceled in onTaskCompleted called from onTaskStarted', () => {
+    let onTaskStarted = vi.fn(() => runner.completeTask());
+    let runner: TimelineRunner<number> = new TimelineRunner<number>({
+      timeline: [1, 2],
+      onTaskStarted,
+      onTaskCompleted: () => runner.cancel(),
+    });
+    runner.start();
+    expect(runner.status).toBe('canceled');
+    expect(onTaskStarted.mock.calls).toEqual([[1]]);
+  });
+
+  it('stays canceled when canceled in onTaskStarted', () => {
+    let onTaskStarted = vi.fn(() => runner.cancel());
+    let runner: TimelineRunner<number> = new TimelineRunner<number>({
+      timeline: [1, 2],
+      onTaskStarted,
+    });
+    runner.start();
+    expect(runner.status).toBe('canceled');
+    expect(onTaskStarted.mock.calls).toEqual([[1]]);
+  });
+
+  it('stays canceled and rethrows when onTaskStarted cancels then throws', () => {
+    let error = new Error('oops');
+    let runner: TimelineRunner<number> = new TimelineRunner<number>({
+      timeline: [1, 2],
+      onTaskStarted() {
+        runner.cancel();
+        throw error;
+      },
+    });
+    expect(() => runner.start()).toThrow(error);
+    expect(runner.status).toBe('canceled');
+  });
 });

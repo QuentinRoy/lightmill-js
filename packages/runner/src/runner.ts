@@ -73,6 +73,7 @@ export class TimelineRunner<Task> {
     }
     this.#status = 'running';
     this.onTimelineStarted?.();
+    if (this.status === 'canceled') return this;
     this.#toNext();
     return this;
   }
@@ -97,6 +98,7 @@ export class TimelineRunner<Task> {
       throw new Error('Task already completed');
     }
     this.onTaskCompleted?.(this.#currentTask);
+    if (this.status === 'canceled') return this;
     // Advancing from inside onTaskStarted would recurse once per task and
     // overflow the stack on long sync timelines, so #toNext loops instead.
     if (this.#taskStartedCall === 'active') {
@@ -178,7 +180,8 @@ export class TimelineRunner<Task> {
       this.onTaskStarted?.(this.#currentTask);
     } catch (error) {
       this.#endTaskStartedCall();
-      this.#status = 'crashed';
+      // A cancel() from the callback must not be overwritten.
+      if (this.status !== 'canceled') this.#status = 'crashed';
       throw error;
     }
     return (
