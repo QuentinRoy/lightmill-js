@@ -198,6 +198,14 @@ export function getStrict<
   return array[n];
 }
 
+/**
+ * The one definition of a usable host password, shared by every entry point so
+ * none of them can start a server that lets anyone open a host session.
+ */
+export function isValidHostPassword(value: unknown): value is string {
+  return typeof value === 'string' && value !== '';
+}
+
 export function decodeBase64(content: string): string {
   try {
     return Buffer.from(content, 'base64').toString('utf8');

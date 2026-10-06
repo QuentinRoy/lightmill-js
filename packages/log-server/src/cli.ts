@@ -14,6 +14,7 @@ import { z } from 'zod';
 import { csvExportStream } from './csv-export.ts';
 import { DataStoreError } from './data-store-errors.ts';
 import { createLogServer, SQLiteDataStore } from './index.ts';
+import { isValidHostPassword } from './utils.ts';
 
 // Constants and setup
 // -------------------
@@ -76,7 +77,7 @@ async function start({
   }
   // A host session reads every log and cancels any run, so the server never
   // starts without a way to protect it.
-  if (hostPassword == null || hostPassword === '') {
+  if (!isValidHostPassword(hostPassword)) {
     log.error(
       'No host password set. Set the HOST_PASSWORD environment variable or use the --host-password option.',
     );
