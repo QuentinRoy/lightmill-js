@@ -239,7 +239,7 @@ describe.for(storeTypes)('createLogServer mounted (%s)', (storeType) => {
     );
   });
 
-  it.for(['public', '//other.example'])(
+  it.for(['public', '//other.example', '/public?x', '/public#x'])(
     'ignores the malformed X-Forwarded-Prefix %j',
     async (prefix) => {
       let api = await setup(storeType, '');

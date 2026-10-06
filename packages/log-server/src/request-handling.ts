@@ -451,8 +451,10 @@ function getBaseUrl(request: express.Request): string {
   const prefix =
     typeof trust === 'function' &&
     trust(request.socket.remoteAddress, 0) &&
-    forwardedPrefix?.startsWith('/') &&
-    !forwardedPrefix.startsWith('//')
+    forwardedPrefix != null &&
+    // A path, not a protocol-relative URL, query, or fragment, which would
+    // make the location point away from the created resource.
+    /^\/(?!\/)[^?#\s]*$/.test(forwardedPrefix)
       ? forwardedPrefix
       : '';
   return prefix.replace(/\/+$/, '') + request.baseUrl;
