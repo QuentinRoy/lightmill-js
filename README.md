@@ -62,15 +62,21 @@ const timeline = [
   { type: 'question', id: 'q2' },
 ];
 
-// `logger` comes from @lightmill/log-client.
-<TimelinePlayer
-  timeline={timeline}
-  onLog={(log) => logger.addLog(log)}
-  elements={{ tasks: { question: <Question /> } }}
-/>;
+export function App() {
+  return (
+    <TimelinePlayer
+      timeline={timeline}
+      onLog={async (log) => console.log(log)}
+      elements={{
+        tasks: { question: <Question /> },
+        completed: <p>Thank you!</p>,
+      }}
+    />
+  );
+}
 ```
 
-The [getting started](docs/guides/getting-started.md) guide builds a complete experiment around this.
+Here `onLog` only prints each log. With `@lightmill/log-client`, it sends them to your log server instead: the [getting started](docs/guides/getting-started.md) guide builds a complete experiment around this.
 
 ## Guides
 

@@ -58,6 +58,25 @@ Resuming cancels the logs that come after the resume point. The server keeps the
 
 5. **Rebuild the same timeline.** For a fixed design, build the timeline from a stable input, such as the participant number, so the saved task id is still in it and the remaining tasks keep their order. If task order uses randomness, use a random number generator seeded with the participant number rather than `Math.random`.
 
+## Avoid losing progress
+
+Resuming recovers a run, but the logs that hadn't reached the server are lost, and the participant repeats their tasks. So ask the browser to confirm before the page closes or reloads, from the start of the run until it ends: a reload is risky whenever logs are on their way, not only when saving fails.
+
+With React, use `useConfirmBeforeUnload` from `@lightmill/react-experiment`, as the [getting started app](getting-started.md#show-errors-and-confirm-before-leaving) does. Without React, listen to `beforeunload`:
+
+```ts
+function confirmBeforeUnload(event: BeforeUnloadEvent) {
+  event.preventDefault();
+  event.returnValue = '';
+}
+addEventListener('beforeunload', confirmBeforeUnload);
+
+// Once the run has ended:
+removeEventListener('beforeunload', confirmBeforeUnload);
+```
+
+The confirmation saves nothing, and browsers don't always show it: they skip it until the participant has interacted with the page, and some mobile browsers never show it. It makes accidental reloads rarer, not impossible.
+
 ## What the server needs
 
 The server finds a participant's runs through their session, so sessions must outlive the interruption:
@@ -68,7 +87,7 @@ The server finds a participant's runs through their session, so sessions must ou
 
 ## Limits
 
-- **Logs that haven't reached the server are lost when the page closes.** The participant then resumes after the last log the server has, and repeats the tasks after it. See [unsaved logs](../../packages/log-client/README.md#unsaved-logs).
+- **Logs that haven't reached the server are lost when the page closes.** The participant then resumes after the last log the server has, and repeats the tasks after it. See [Avoid losing progress](#avoid-losing-progress).
 - **Runs resume in the same browser only.** The session lives in a cookie. A participant who switches browser or device, or clears their cookies, can't find their run. Starting a new run with the same name then fails with a `RUN_EXISTS` error, because the old run still owns that name. Names are unique among runs that are not canceled in the same experiment. A host can free the name by [canceling the old run](deploying.md#cancel-a-run), which also leaves its logs out of the CSV export.
 - **Completed runs can't resume.** A participant who opens the experiment again after completing it gets the same `RUN_EXISTS` error. Show them a message rather than an error.
 - **Interruptions go unnoticed.** When a participant closes the tab, the run stays `running` until they come back. Hosts see it as running.

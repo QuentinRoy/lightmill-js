@@ -54,13 +54,9 @@ A task is any object with a `type`. `elements.tasks` maps each type to the eleme
 Declare your task and log types once, and every hook gets them:
 
 ```ts
-type Task =
-  | { type: 'question'; id: string; text: string }
-  | { type: 'rating'; id: string; scale: number };
+type Task = { type: 'question'; id: string; text: string };
 
-type Log =
-  | { type: 'answer'; taskId: string; answer: boolean }
-  | { type: 'rating'; taskId: string; value: number };
+type Log = { type: 'answer'; taskId: string; answer: boolean };
 
 declare module '@lightmill/react-experiment' {
   interface RegisterExperiment {
@@ -70,13 +66,25 @@ declare module '@lightmill/react-experiment' {
 }
 ```
 
-`useTask('question')` then returns a task of type `{ type: 'question'; id: string; text: string }`, and `TimelinePlayer` requires an element for every task type. Without this declaration, tasks and logs are any object with a `type`, and their other properties are `unknown`.
+With several types of tasks or logs, make `Task` or `Log` a union. `useTask('question')` then returns a task of type `{ type: 'question'; id: string; text: string }`, and `TimelinePlayer` requires an element for every task type. Without this declaration, tasks and logs are any object with a `type`, and their other properties are `unknown`.
 
 ## Logging
 
-Give `TimelinePlayer` an `onLog` function, and log from task components with `useLogger`:
+Give `TimelinePlayer` an `onLog` function, and log from task components with `useLogger`. This example uses the `Task` and `Log` types declared above:
 
 ```tsx
+import type { Logger } from '@lightmill/log-client';
+import {
+  TimelinePlayer,
+  useLogger,
+  useTask,
+} from '@lightmill/react-experiment';
+
+const timeline: Task[] = [
+  { type: 'question', id: 'q1', text: 'Is the sky blue?' },
+  { type: 'question', id: 'q2', text: 'Is grass blue?' },
+];
+
 function Question() {
   const { task, onTaskCompleted } = useTask('question');
   const log = useLogger('answer');
@@ -92,14 +100,18 @@ function Question() {
   );
 }
 
-<TimelinePlayer
-  timeline={timeline}
-  onLog={(log) => logger.addLog(log)}
-  elements={{ tasks: { question: <Question /> } }}
-/>;
+export function Experiment({ logger }: { logger: Logger<Log> }) {
+  return (
+    <TimelinePlayer
+      timeline={timeline}
+      onLog={(log) => logger.addLog(log)}
+      elements={{ tasks: { question: <Question /> } }}
+    />
+  );
+}
 ```
 
-`logger` is a logger from `@lightmill/log-client`, but `onLog` can send logs anywhere: it receives each log, and returns a promise. The function `useLogger` returns does not wait for that promise, so a task can log and complete at once. If the promise rejects, `TimelinePlayer` throws a [`LogDeliveryError`](#logdeliveryerror) on its next render.
+`logger` is a logger from `@lightmill/log-client`, created for the same `Log` type: without the declaration above, logs have `unknown` values, which `logger.addLog` doesn't accept. `onLog` can send logs anywhere, though: it receives each log, and returns a promise. The function `useLogger` returns does not wait for that promise, so a task can log and complete at once. If the promise rejects, `TimelinePlayer` throws a [`LogDeliveryError`](#logdeliveryerror) on its next render.
 
 ## API
 
@@ -159,6 +171,10 @@ function Experiment({
   timeline: Task[];
 }) {
   const state = useSyncExternalStore(logger.subscribe, () => logger.state);
+  // Leaving before the run ends loses the logs not saved yet.
+  useConfirmBeforeUnload(
+    !['completed', 'canceled', 'interrupted'].includes(state.status),
+  );
   return (
     <TimelinePlayer
       timeline={timeline}
@@ -230,10 +246,14 @@ function Trial() {
 // Created once: a new timeline on every render would throw.
 const timeline = staircase();
 
-<TimelinePlayer
-  timeline={timeline}
-  elements={{ tasks: { trial: <Trial /> } }}
-/>;
+export function App() {
+  return (
+    <TimelinePlayer
+      timeline={timeline}
+      elements={{ tasks: { trial: <Trial /> } }}
+    />
+  );
+}
 ```
 
 Record the answer before calling `onTaskCompleted`: that call asks the generator for the next task. An async generator works the same way, and `elements.loading` shows while it computes the next task.

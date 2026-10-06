@@ -99,7 +99,9 @@ When retries run out, or the server refuses a batch for another reason, the logg
 
 The logger keeps the logs that haven't reached the server in the page's memory only. Reloading or closing the page loses them, and nothing stores them in the browser. A participant who resumes starts after the last log the server has, and repeats the tasks after it.
 
-So when saving fails, ask participants to keep the page open while they retry, and offer a download of `inFlightLogs` before they leave. A confirmation before unloading the page asks before leaving, but saves nothing. The [getting started app](../../docs/guides/getting-started.md#wire-it-together) does all three.
+So, while the run is ongoing, ask the browser to confirm before the page closes or reloads, with `useConfirmBeforeUnload` from `@lightmill/react-experiment` or a `beforeunload` listener. It saves nothing, and browsers don't always show it. See [Avoid losing progress](../../docs/guides/resuming-runs.md#avoid-losing-progress).
+
+When saving fails, also ask participants to keep the page open while they retry, and offer a download of `inFlightLogs` before they leave. The [getting started app](../../docs/guides/getting-started.md#wire-it-together) does all three.
 
 ### State
 
