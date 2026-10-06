@@ -149,6 +149,35 @@ describe.for(storeTypes)('createLogServer Errors (%s server)', (storeType) => {
       });
   });
 
+  it.for(['__proto__', 'constructor', 'toString'])(
+    'rejects the query key "%s" as an unknown parameter',
+    async (key, { api, expect }) => {
+      await api
+        .post('/sessions')
+        .set('Content-Type', mediaType)
+        .send({
+          data: { type: 'sessions', attributes: { role: 'participant' } },
+        })
+        .expect(201);
+      for (let query of [`${key}=x`, `${key}=x&${key}=y`]) {
+        let response = await api
+          .get(`/experiments?${query}`)
+          .expect('Content-Type', apiContentTypeRegExp)
+          .expect(400);
+        // Only the submitted key is reported, with no key or value the client
+        // did not send.
+        expect(response.body.errors).toEqual([
+          {
+            status: 'Bad Request',
+            code: 'INVALID_REQUEST_QUERY',
+            detail: `Unrecognized key: "${key}"`,
+            source: { parameter: '' },
+          },
+        ]);
+      }
+    },
+  );
+
   // The agent has no cookie yet, so it sends the header as is: once it has
   // one, it would rewrite this header through its cookie jar.
   it('ignores cookies it cannot parse', async ({ api }) => {
