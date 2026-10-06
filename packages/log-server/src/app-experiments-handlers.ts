@@ -8,7 +8,14 @@ import type { PathHandlers } from './request-handling.ts';
 
 export const createExperimentHandlers = (): PathHandlers<'/experiments'> => ({
   '/experiments': {
-    async post({ body, dataStore: store, sessionData, protocol, host }) {
+    async post({
+      body,
+      dataStore: store,
+      sessionData,
+      protocol,
+      host,
+      baseUrl,
+    }) {
       if (sessionData.role !== 'host') {
         return getErrorResponse({
           status: 'Forbidden',
@@ -26,7 +33,7 @@ export const createExperimentHandlers = (): PathHandlers<'/experiments'> => ({
           status: 201,
           body: { data: { id: experimentId.toString(), type: 'experiments' } },
           headers: {
-            location: `${protocol + '://' + host}/experiments/${experimentId}`,
+            location: `${protocol + '://' + host + baseUrl}/experiments/${experimentId}`,
           },
         };
       } catch (error) {

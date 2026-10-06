@@ -37,7 +37,14 @@ export const createRunHandlers = (): PathHandlers<'/runs'> => ({
         body: await getRunsDocument(store, filter, parameters.query.include),
       };
     },
-    async post({ dataStore: store, lockSession, body, protocol, host }) {
+    async post({
+      dataStore: store,
+      lockSession,
+      body,
+      protocol,
+      host,
+      baseUrl,
+    }) {
       const { status, name } = body.data.attributes;
       const { id: experimentId } = body.data.relationships.experiment.data;
       return lockSession(async ({ sessionData, save }) => {
@@ -67,7 +74,8 @@ export const createRunHandlers = (): PathHandlers<'/runs'> => ({
             status: 201,
             body: { data: { id: run.runId, type: 'runs' } },
             headers: {
-              location: `${protocol + '://' + host}/runs/${run.runId}` as const,
+              location:
+                `${protocol + '://' + host + baseUrl}/runs/${run.runId}` as const,
             },
           };
         } catch (e) {

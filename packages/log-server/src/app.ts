@@ -19,7 +19,6 @@ type CreateLogServerOptions = {
   sessionKeys: string[];
   sessionStore?: session.Store;
   sessionMaxAge?: number | undefined;
-  baseUrl?: string;
   trustProxy?: boolean | undefined;
 } & (
   | { allowCrossOrigin?: boolean | undefined; secureCookies?: true | undefined }
