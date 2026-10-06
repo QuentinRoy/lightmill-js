@@ -8,6 +8,7 @@ import { createWriteStream, readFileSync } from 'node:fs';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { Readable } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
 import * as url from 'node:url';
 import yargs from 'yargs';
 import { z } from 'zod';
@@ -227,9 +228,7 @@ async function exportLogs({
   let filter = { logType, experimentName };
   let store = await openExistingStore(database);
   if (output === undefined) {
-    csvExportStream(store, filter)
-      .pipe(process.stdout)
-      .on('error', handleError);
+    await pipeline(csvExportStream(store, filter), process.stdout);
     return;
   }
   let startDate = new Date();
@@ -248,24 +247,31 @@ async function exportLogs({
       yield row;
     }
   }
-  Readable.from(countedRows())
-    .pipe(csvStringifier())
-    .pipe(createWriteStream(output))
-    .on('error', handleError)
-    .on('finish', () => {
-      if (showProgress) {
-        process.stdout.clearLine(0);
-        process.stdout.cursorTo(0);
-      }
-      let durationInSeconds = (Date.now() - startDate.getTime()) / 1000;
-      process.stdout.write(
-        `${logCount.toLocaleString(
-          'en',
-        )} logs exported in ${durationInSeconds.toLocaleString(
-          'en',
-        )} seconds.\n`,
-      );
-    });
+  // Written to a temporary file first so a failed export neither truncates
+  // an existing file nor leaves a partial one that looks like a smaller export.
+  let temporaryOutput = `${output}.${process.pid}.tmp`;
+  try {
+    await pipeline(
+      Readable.from(countedRows()),
+      csvStringifier(),
+      createWriteStream(temporaryOutput),
+    );
+    await fs.rename(temporaryOutput, output);
+  } catch (error) {
+    await fs.rm(temporaryOutput, { force: true });
+    throw error;
+  } finally {
+    if (showProgress) {
+      process.stdout.clearLine(0);
+      process.stdout.cursorTo(0);
+    }
+  }
+  let durationInSeconds = (Date.now() - startDate.getTime()) / 1000;
+  process.stdout.write(
+    `${logCount.toLocaleString(
+      'en',
+    )} logs exported in ${durationInSeconds.toLocaleString('en')} seconds.\n`,
+  );
 }
 
 type MigrateDatabaseParameter = { database: string };

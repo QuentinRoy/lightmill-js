@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import * as url from 'node:url';
@@ -112,6 +112,29 @@ it('reports 0 logs when there is nothing to export', async () => {
     expect(result.stderr).toBe('');
     expect(result.status).toBe(0);
     expect(result.stdout).toMatch(/^0 logs exported in /);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+it('reports a write failure and leaves no temporary file behind', async () => {
+  const directory = mkdtempSync(path.join(os.tmpdir(), 'lightmill-export-'));
+  const database = path.join(directory, 'data.sqlite');
+  const output = path.join(directory, 'missing', 'logs.csv');
+
+  try {
+    await SQLiteDataStore.migrateDatabase(database);
+
+    const result = spawnSync(
+      process.execPath,
+      [cliPath, 'export', '--database', database, '--output', output],
+      { encoding: 'utf8' },
+    );
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('ENOENT');
+    expect(result.stdout).not.toContain('logs exported');
+    expect(readdirSync(directory)).toEqual(['data.sqlite']);
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
