@@ -34,7 +34,7 @@ export function createLogServer({
   secureCookies = allowCrossOrigin,
   sessionStore = new MemorySessionStore({ checkPeriod: 1000 * 60 * 60 * 24 }),
   sessionMaxAge,
-  trustProxy = true,
+  trustProxy = false,
 }: CreateLogServerOptions): { middleware: express.RequestHandler } {
   const middleware = createRequestMiddleware({
     dataStore,
