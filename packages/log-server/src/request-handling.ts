@@ -93,7 +93,9 @@ function parseQuery(str: string | null) {
     }
   }
   let params = new URLSearchParams(str);
-  let values: Record<string, string[] | string> = {};
+  // No prototype, so that keys such as `__proto__` or `constructor` are
+  // plain client data.
+  let values: Record<string, string[] | string> = Object.create(null);
   for (const [key, value] of params.entries()) {
     let oldValue = values[key];
     if (oldValue == null) {
