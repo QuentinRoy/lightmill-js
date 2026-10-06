@@ -171,6 +171,10 @@ function Experiment({
   timeline: Task[];
 }) {
   const state = useSyncExternalStore(logger.subscribe, () => logger.state);
+  // Leaving before the run ends loses the logs not saved yet.
+  useConfirmBeforeUnload(
+    !['completed', 'canceled', 'interrupted'].includes(state.status),
+  );
   return (
     <TimelinePlayer
       timeline={timeline}
