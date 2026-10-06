@@ -107,7 +107,7 @@ async function start({
   // Plain HTTP development uses the same flags, so this stays a warning.
   if (sameSite && !trustProxy) {
     log.warn(
-      'Session cookies are Secure only when the server itself is reached over HTTPS. Behind a reverse proxy that terminates TLS, pass --trust-proxy, or the cookies will not be Secure.',
+      'Session cookies are Secure only when the server is reached directly over HTTPS. Behind a reverse proxy that terminates TLS, pass --trust-proxy.',
     );
   }
   let store = await openExistingStore(dbPath);

@@ -19,6 +19,13 @@ afterEach(() => {
 // The database does not exist, so `start` exits right after the checks that
 // precede opening it, which is where the warning belongs.
 function start(args: string[]) {
+  // The CLI also reads these from the environment.
+  const {
+    HOST_PASSWORD: _hostPassword,
+    SESSION_KEY: _sessionKey,
+    LOG_LEVEL: _logLevel,
+    ...inheritedEnv
+  } = process.env;
   return spawnSync(
     process.execPath,
     [
@@ -37,6 +44,7 @@ function start(args: string[]) {
       encoding: 'utf8',
       // An empty directory keeps a developer's `.env` file out of the run.
       cwd: directory,
+      env: inheritedEnv,
     },
   );
 }
@@ -48,10 +56,12 @@ it('start warns when --same-site runs without --trust-proxy', () => {
 
 it('start does not warn about --trust-proxy when it is set', () => {
   let result = start(['--same-site', '--trust-proxy']);
+  expect(result.stderr).toContain('does not exist');
   expect(result.stderr).not.toContain('--trust-proxy');
 });
 
 it('start does not warn about --trust-proxy without --same-site', () => {
   let result = start(['--allowed-origin', 'https://example.org']);
+  expect(result.stderr).toContain('does not exist');
   expect(result.stderr).not.toContain('--trust-proxy');
 });
