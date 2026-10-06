@@ -233,17 +233,25 @@ async function exportLogs({
   }
   let startDate = new Date();
   let logCount = 0;
-  process.stdout.write(`${logCount.toLocaleString('en')} logs exported...`);
+  let isHeader = true;
+  // cursorTo and clearLine only exist on a TTY.
+  let showProgress = process.stdout.isTTY;
+  let progress = () => `${logCount.toLocaleString('en')} logs exported...`;
+  if (showProgress) process.stdout.write(progress());
   stream
     .pipe(
       new Transform({
         writableObjectMode: true,
         transform(chunk, _encoding, callback) {
-          process.stdout.cursorTo(0);
+          if (isHeader) {
+            isHeader = false;
+            return callback(null, chunk);
+          }
           logCount += 1;
-          process.stdout.write(
-            `${logCount.toLocaleString('en')} logs exported...`,
-          );
+          if (showProgress) {
+            process.stdout.cursorTo(0);
+            process.stdout.write(progress());
+          }
           callback(null, chunk);
         },
       }),
@@ -251,8 +259,10 @@ async function exportLogs({
     .pipe(createWriteStream(output))
     .on('error', handleError)
     .on('finish', () => {
-      process.stdout.clearLine(0);
-      process.stdout.cursorTo(0);
+      if (showProgress) {
+        process.stdout.clearLine(0);
+        process.stdout.cursorTo(0);
+      }
       let durationInSeconds = (Date.now() - startDate.getTime()) / 1000;
       process.stdout.write(
         `${logCount.toLocaleString(

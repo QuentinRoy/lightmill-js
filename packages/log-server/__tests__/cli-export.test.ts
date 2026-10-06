@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import * as url from 'node:url';
@@ -41,6 +41,45 @@ it('exports only logs with the requested type', async () => {
     expect(result.stderr).toBe('');
     expect(result.stdout).toContain('included');
     expect(result.stdout).not.toContain('excluded');
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+it('exports to a file when the standard output is not a terminal', async () => {
+  const directory = mkdtempSync(path.join(os.tmpdir(), 'lightmill-export-'));
+  const database = path.join(directory, 'data.sqlite');
+  const output = path.join(directory, 'logs.csv');
+
+  try {
+    await SQLiteDataStore.migrateDatabase(database);
+    const store = await SQLiteDataStore.open(database);
+    try {
+      await store.withTransaction(async (tx) => {
+        const { experimentId } = await tx.addExperiment({
+          experimentName: 'test experiment',
+        });
+        const { runId } = await tx.addRun({ experimentId });
+        await tx.setRunStatus(runId, 'running');
+        await tx.addLogs(runId, [
+          { type: 'a', number: 1, values: { value: 'one' } },
+          { type: 'a', number: 2, values: { value: 'two' } },
+        ]);
+      });
+    } finally {
+      await store.close();
+    }
+
+    const result = spawnSync(
+      process.execPath,
+      [cliPath, 'export', '--database', database, '--output', output],
+      { encoding: 'utf8' },
+    );
+
+    expect(result.stderr).toBe('');
+    expect(result.status).toBe(0);
+    expect(result.stdout).toMatch(/^2 logs exported in /);
+    expect(readFileSync(output, 'utf8')).toContain('two');
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
