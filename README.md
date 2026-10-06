@@ -26,7 +26,7 @@ timeline ──▶ TimelinePlayer ──▶ logger ───── HTTPS ──�
 | Send logs from the browser                        | [`@lightmill/log-client`](packages/log-client/README.md)                 |
 | Store logs and export them                        | [`@lightmill/log-server`](packages/log-server/README.md)                 |
 | Order conditions across participants              | [`@lightmill/counterbalancing`](packages/counterbalancing/README.md)     |
-| Turn a Touchstone design into timelines           | [`@lightmill/convert-touchstone`](packages/convert-touchstone/README.md) |
+| Turn a Touchstone 1 design into timelines         | [`@lightmill/convert-touchstone`](packages/convert-touchstone/README.md) |
 | Write another client or server for the log server | [`@lightmill/log-api`](packages/log-api/README.md)                       |
 
 A typical React experiment uses `react-experiment` and `log-client` in the app, and `log-server` on the server. Each package also works on its own: `TimelinePlayer` doesn't need a server, and `log-client` works with any interface.
