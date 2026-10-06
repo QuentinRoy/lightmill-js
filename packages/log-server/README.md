@@ -99,7 +99,7 @@ Common optional options:
 
 - `hostUser` (default `host`)
 - `cookieSite` (`'cross-site'` by default, or `'same-site'`)
-- `secureCookies` (`boolean`)
+- `secureCookies` (`'auto'`, `'always'` or `'never'`)
 - `sessionStore`
 - `sessionMaxAge` (cookie lifetime in milliseconds)
 - `trustProxy` (default `false`)
@@ -110,10 +110,10 @@ require HTTPS. For a page and API on the same site, set
 page on `localhost:5173` can call an API on `localhost:3000`, but `localhost`
 and `127.0.0.1` are different sites. Same-site cookies are `Secure` over HTTPS
 and not over HTTP, so development over plain HTTP works. Behind a reverse proxy
-that terminates TLS, set `trustProxy` so the server sees HTTPS. Set
-`secureCookies` to `true` or `false` to force either. Browsers reject
-cross-site cookies without `Secure`, so only `true` is allowed with
-`cookieSite: 'cross-site'`.
+that terminates TLS, set `trustProxy` so the server sees HTTPS. That is
+`secureCookies: 'auto'`, the same-site default; set `'always'` or `'never'` to
+force either. Browsers reject cross-site cookies without `Secure`, so
+`cookieSite: 'cross-site'` only allows `'always'`, its default.
 
 `createLogServer` sets no CORS headers. A page on another origin needs the
 `cors` package in front of it, with an explicit list of origins and

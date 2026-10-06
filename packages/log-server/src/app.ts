@@ -13,6 +13,8 @@ import { isValidHostPassword } from './utils.ts';
 
 const MemorySessionStore = MemorySessionStoreModule(session);
 
+type SecureCookies = 'auto' | 'always' | 'never';
+
 type CreateLogServerOptions = {
   dataStore: DataStore;
   hostUser?: string | undefined;
@@ -22,8 +24,11 @@ type CreateLogServerOptions = {
   sessionMaxAge?: number | undefined;
   trustProxy?: boolean | undefined;
 } & (
-  | { cookieSite?: 'cross-site' | undefined; secureCookies?: true | undefined }
-  | { cookieSite: 'same-site'; secureCookies?: boolean | undefined }
+  | {
+      cookieSite?: 'cross-site' | undefined;
+      secureCookies?: 'always' | undefined;
+    }
+  | { cookieSite: 'same-site'; secureCookies?: SecureCookies | undefined }
 );
 
 export function createLogServer({
@@ -32,7 +37,7 @@ export function createLogServer({
   hostPassword,
   hostUser = 'host',
   cookieSite = 'cross-site',
-  secureCookies,
+  secureCookies = cookieSite === 'same-site' ? 'auto' : 'always',
   sessionStore = new MemorySessionStore({ checkPeriod: 1000 * 60 * 60 * 24 }),
   sessionMaxAge,
   trustProxy = false,
@@ -50,10 +55,10 @@ export function createLogServer({
       secret: sessionKeys,
       cookie: {
         sameSite: cookieSite === 'cross-site' ? 'none' : 'strict',
-        // Same-site cookies also work over plain HTTP (development), so unless
-        // forced, `Secure` follows the request protocol. Behind a
+        // Same-site cookies also work over plain HTTP (development), so by
+        // default `Secure` follows the request protocol. Behind a
         // TLS-terminating proxy, that relies on `trustProxy`.
-        secure: secureCookies ?? (cookieSite === 'same-site' ? 'auto' : true),
+        secure: secureCookies === 'auto' ? 'auto' : secureCookies === 'always',
         httpOnly: true,
         ...(sessionMaxAge === undefined ? {} : { maxAge: sessionMaxAge }),
       },

@@ -44,7 +44,7 @@ const suite = storeTypes.map((storeType) => ({
         hostPassword: 'host password',
         hostUser: 'host user',
         cookieSite: 'same-site',
-        secureCookies: false,
+        secureCookies: 'never',
       });
       let app = express().use(server.middleware);
       await use(app);
@@ -59,7 +59,7 @@ const suite = storeTypes.map((storeType) => ({
 async function postSession(
   options: {
     cookieSite: 'same-site';
-    secureCookies?: boolean;
+    secureCookies?: 'auto' | 'always' | 'never';
     trustProxy?: boolean;
   },
   headers: Record<string, string> = {},
@@ -105,7 +105,7 @@ vitestTest('same-site sessions set a secure cookie over HTTPS', async () => {
 
 vitestTest('same-site sessions can force secure cookies', async () => {
   let { setCookie } = await postSession(
-    { cookieSite: 'same-site', secureCookies: true, trustProxy: true },
+    { cookieSite: 'same-site', secureCookies: 'always', trustProxy: true },
     { 'x-forwarded-proto': 'https' },
   );
   expect(setCookie).toEqual([
@@ -115,7 +115,7 @@ vitestTest('same-site sessions can force secure cookies', async () => {
 
 vitestTest('same-site sessions can force insecure cookies', async () => {
   let { setCookie } = await postSession(
-    { cookieSite: 'same-site', secureCookies: false, trustProxy: true },
+    { cookieSite: 'same-site', secureCookies: 'never', trustProxy: true },
     { 'x-forwarded-proto': 'https' },
   );
   expect(setCookie).toEqual([expect.not.stringContaining('Secure')]);

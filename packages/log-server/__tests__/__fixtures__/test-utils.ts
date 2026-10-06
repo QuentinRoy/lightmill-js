@@ -203,7 +203,7 @@ const baseServerOptions = {
   sessionKeys: ['secret'],
   ...hostServerOptions,
   cookieSite: 'same-site' as const,
-  secureCookies: false,
+  secureCookies: 'never' as const,
 };
 
 type ServerOptions = {

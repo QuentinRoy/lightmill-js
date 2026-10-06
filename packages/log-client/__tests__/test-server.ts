@@ -52,7 +52,7 @@ export class TestServer {
       dataStore,
       sessionKeys: ['test-secret'],
       cookieSite: 'same-site',
-      secureCookies: false,
+      secureCookies: 'never',
       hostPassword: 'test-host-password',
     });
     const http = createServer(express().use(middleware));

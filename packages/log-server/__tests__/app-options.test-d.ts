@@ -16,26 +16,39 @@ it('allows a dynamic cookie site with default cookie security', () => {
 
 it('rejects insecure cross-site cookies', () => {
   expectTypeOf<
-    IsAllowed<RequiredOptions & { secureCookies: false }>
+    IsAllowed<RequiredOptions & { secureCookies: 'never' }>
   >().toEqualTypeOf<false>();
   expectTypeOf<
     IsAllowed<
-      RequiredOptions & { cookieSite: 'cross-site'; secureCookies: false }
+      RequiredOptions & { cookieSite: 'cross-site'; secureCookies: 'never' }
     >
   >().toEqualTypeOf<false>();
 });
 
-it('allows forced cookie security for same-site cookies', () => {
+it('allows any cookie security for same-site cookies', () => {
   expectTypeOf<
     IsAllowed<
-      RequiredOptions & { cookieSite: 'same-site'; secureCookies: true }
+      RequiredOptions & { cookieSite: 'same-site'; secureCookies: 'auto' }
     >
   >().toEqualTypeOf<true>();
   expectTypeOf<
     IsAllowed<
-      RequiredOptions & { cookieSite: 'same-site'; secureCookies: false }
+      RequiredOptions & { cookieSite: 'same-site'; secureCookies: 'always' }
     >
   >().toEqualTypeOf<true>();
+  expectTypeOf<
+    IsAllowed<
+      RequiredOptions & { cookieSite: 'same-site'; secureCookies: 'never' }
+    >
+  >().toEqualTypeOf<true>();
+});
+
+it('rejects automatic cookie security for cross-site cookies', () => {
+  expectTypeOf<
+    IsAllowed<
+      RequiredOptions & { cookieSite: 'cross-site'; secureCookies: 'auto' }
+    >
+  >().toEqualTypeOf<false>();
 });
 
 it('requires a host password', () => {

@@ -26,7 +26,7 @@ describe.for(storeTypes)('createLogServer (%s)', (storeType) => {
         sessionStore,
         sessionKeys: ['secret'],
         cookieSite: 'same-site',
-        secureCookies: true,
+        secureCookies: 'always',
         ...hostServerOptions,
         trustProxy,
       });
@@ -70,7 +70,7 @@ describe.for(storeTypes)('createLogServer (%s)', (storeType) => {
       sessionStore,
       sessionKeys: ['secret'],
       cookieSite: 'same-site',
-      secureCookies: false,
+      secureCookies: 'never',
       ...hostServerOptions,
     });
     let app = express();
@@ -156,7 +156,7 @@ async function setup(
     sessionStore,
     sessionKeys: ['secret'],
     cookieSite: 'same-site',
-    secureCookies: false,
+    secureCookies: 'never',
     ...hostServerOptions,
     trustProxy,
   });
