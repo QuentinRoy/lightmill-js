@@ -15,7 +15,9 @@ export function useTask(
 ): UseTaskResult<RegisteredTask> {
   const state = React.useContext(taskContext);
   if (state == null) {
-    throw new Error('No task found. Is this component rendered in a <Run />?');
+    throw new Error(
+      'No task found. Is this component rendered in a <TimelinePlayer />?',
+    );
   }
   if (type != null && state.task.type !== type) {
     throw new Error(

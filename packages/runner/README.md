@@ -4,8 +4,8 @@ Run timeline-based experiments with sync or async iterators.
 
 This package provides two public APIs:
 
-1. `run(...)`: convenience function that executes an entire timeline.
-2. `Runner`: class API (`TimelineRunner`) for fine-grained lifecycle control.
+1. `runTimeline(...)`: convenience function that executes an entire timeline.
+2. `TimelineRunner`: class API for fine-grained lifecycle control.
 
 ## Install
 
@@ -15,12 +15,12 @@ npm install @lightmill/runner
 
 ## Usage
 
-### `run(...)`
+### `runTimeline(...)`
 
 ```ts
-import { run } from '@lightmill/runner';
+import { runTimeline } from '@lightmill/runner';
 
-await run({
+await runTimeline({
   timeline: [{ id: 't1' }, { id: 't2' }],
   runTask: async (task) => {
     console.log(task.id);
@@ -28,12 +28,12 @@ await run({
 });
 ```
 
-### `Runner`
+### `TimelineRunner`
 
 ```ts
-import { Runner } from '@lightmill/runner';
+import { TimelineRunner } from '@lightmill/runner';
 
-const runner = new Runner({
+const runner = new TimelineRunner({
   timeline: [{ id: 't1' }, { id: 't2' }],
   onTaskStarted(task) {
     console.log('task started', task.id);
@@ -46,7 +46,7 @@ runner.start();
 
 ## API Reference
 
-### `run(params)`
+### `runTimeline(params)`
 
 Parameters:
 
@@ -59,7 +59,7 @@ Returns:
 
 - `Promise<void>` resolved when timeline completes.
 
-### `class Runner<Task>`
+### `class TimelineRunner<Task>`
 
 Lifecycle callbacks in constructor options:
 

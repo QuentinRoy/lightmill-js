@@ -1,9 +1,9 @@
 import * as React from 'react';
 import type { RegisteredLog, RegisteredTask } from './config.js';
-import type { RunTaskState } from './runState.js';
+import type { PlayerTaskState } from './playerState.js';
 
 export const taskContext =
-  React.createContext<RunTaskState<RegisteredTask> | null>(null);
+  React.createContext<PlayerTaskState<RegisteredTask> | null>(null);
 
 export const noLoggerSymbol = Symbol('no logger');
 

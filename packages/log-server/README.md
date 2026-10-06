@@ -97,10 +97,28 @@ Common optional options:
 - `trustProxy` (default `false`)
 
 By default, the server uses cross-origin cookies, which require HTTPS.
-For a page and API served from the same origin over HTTP, set
+For a page and API served from the same site over HTTP, set
 `allowCrossOrigin: false`. This also turns off secure cookies. Browsers
 reject cross-origin cookies without the `Secure` attribute, so
 `secureCookies: false` cannot be used with cross-origin cookies.
+
+`createLogServer` sets no CORS headers. A page on another origin needs the
+`cors` package in front of it, with an explicit list of origins and
+`credentials: true`: the client sends the session cookie, and browsers refuse
+a credentialed response that allows every origin. Expose `Retry-After` too,
+or browsers hide it from the page and `log-client` cannot use it to pace its
+retries.
+
+```ts
+app.use(
+  cors({
+    origin: ['https://example.org'],
+    credentials: true,
+    exposedHeaders: ['Retry-After'],
+  }),
+);
+app.use(middleware);
+```
 
 `trustProxy` sets Express's `trust proxy`. When `true`, the server believes
 the `X-Forwarded-Host`, `X-Forwarded-Proto`, `X-Forwarded-Prefix` and
@@ -274,10 +292,27 @@ need nothing more.
 
 This package also provides a `log-server` binary via package `bin` output.
 The `start` command serves only the API and uses the HTTPS defaults.
-Pass `--same-origin` only when the browser loads the page and calls the API
-from the same origin over HTTP. This can be arranged with a reverse proxy;
-the CLI does not serve the page or make a separately hosted page share
-the API's origin.
+A page on another origin can only call it if the server names that page.
+Pass `--allowed-origin <origin>` once per page, or set `ALLOWED_ORIGINS` to a
+comma-separated list, for example `https://example.org`. The server then
+answers those origins with credentials allowed, and no others. Without an
+allowed origin or `--same-origin`, `start` exits with an error. It rejects
+`*` and any value with a path or trailing slash, because browsers never send
+those.
+
+Cookies need HTTPS unless the page and the API are on the same site. For
+development over HTTP, pass `--same-origin` and `--allowed-origin`:
+
+```sh
+log-server start --same-origin --allowed-origin http://localhost:5173
+```
+
+Despite its name, `--same-origin` covers any page on the same site, so a page
+on `localhost:5173` can call an API on `localhost:3000`: the port does not
+count. `localhost` and `127.0.0.1` are different sites. Use `--same-origin`
+alone when a reverse proxy serves the page and the API from one origin. The
+CLI does not serve the page or make a separately hosted page share the API's
+origin.
 Pass `--trust-proxy` when the server runs behind a reverse proxy that
 terminates TLS (see `trustProxy` above).
 

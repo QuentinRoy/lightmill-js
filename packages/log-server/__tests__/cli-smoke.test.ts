@@ -39,5 +39,6 @@ it('the packed log-server command prints its help', () => {
     { encoding: 'utf8' },
   );
   expect(startHelp).toContain('--same-origin');
+  expect(startHelp).toContain('--allowed-origin');
   expect(startHelp).toContain('--trust-proxy');
 }, 30_000);
