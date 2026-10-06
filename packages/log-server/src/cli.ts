@@ -234,15 +234,21 @@ async function exportLogs({
   let logCount = 0;
   // cursorTo and clearLine only exist on a TTY.
   let showProgress = process.stdout.isTTY;
-  let progress = () => `${logCount.toLocaleString('en')} logs exported...`;
-  if (showProgress) process.stdout.write(progress());
-  async function* countedRows() {
+  let renderProgress = () => {
+    if (!showProgress) return;
+    process.stdout.cursorTo(0);
+    process.stdout.write(`${logCount.toLocaleString('en')} logs exported...`);
+  };
+  let clearProgress = () => {
+    if (!showProgress) return;
+    process.stdout.clearLine(0);
+    process.stdout.cursorTo(0);
+  };
+  renderProgress();
+  async function* rowsWithProgress() {
     for await (let row of csvRows(store, filter)) {
       logCount += 1;
-      if (showProgress) {
-        process.stdout.cursorTo(0);
-        process.stdout.write(progress());
-      }
+      renderProgress();
       yield row;
     }
   }
@@ -251,7 +257,7 @@ async function exportLogs({
   let temporaryOutput = `${output}.${process.pid}.tmp`;
   try {
     await pipeline(
-      countedRows(),
+      rowsWithProgress(),
       csvStringifier(),
       createWriteStream(temporaryOutput),
     );
@@ -260,10 +266,7 @@ async function exportLogs({
     await fs.rm(temporaryOutput, { force: true });
     throw error;
   } finally {
-    if (showProgress) {
-      process.stdout.clearLine(0);
-      process.stdout.cursorTo(0);
-    }
+    clearProgress();
   }
   let durationInSeconds = (Date.now() - startDate.getTime()) / 1000;
   process.stdout.write(
