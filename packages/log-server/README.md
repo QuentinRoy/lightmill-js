@@ -329,7 +329,8 @@ from one origin. The CLI does not serve the page or make a separately hosted
 page share the API's origin.
 Pass `--trust-proxy` when the server runs behind a reverse proxy that
 terminates TLS (see `trustProxy` above). `--same-site` without it logs a
-warning, since the cookies are then `Secure` only for direct HTTPS.
+warning, since the cookies are then `Secure` only for direct HTTPS, unless
+`--secure-cookies never` is set.
 `--secure-cookies <auto|always|never>` sets the `Secure` attribute like
 `secureCookies` above: `auto` (the `--same-site` default) follows the request
 protocol, `always` forces it, `never` drops it. Without `--same-site`, cookies
