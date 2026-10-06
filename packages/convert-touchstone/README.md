@@ -1,8 +1,8 @@
 # @lightmill/convert-touchstone
 
-Turn an experiment design made with the [Touchstone design platform](https://github.com/jdfekete/touchstone-platforms/tree/master/design-platform) into LightMill timelines, one per run.
+Turn an experiment design made with the original [Touchstone design platform](https://github.com/jdfekete/touchstone-platforms/tree/master/design-platform) into LightMill timelines, one per run.
 
-Touchstone is a tool to design experiments: their factors, blocks, trials, and the counterbalanced order of each participant. It exports them as XML. This package converts that XML into timelines that [`@lightmill/react-experiment`](../react-experiment/README.md) or [`@lightmill/runner`](../runner/README.md) can play. If you don't use Touchstone, write your timelines in code instead, with [`@lightmill/counterbalancing`](../counterbalancing/README.md) to order conditions.
+Touchstone is a tool to design experiments: their factors, blocks, trials, and the counterbalanced order of each participant. It exports them as XML. This package reads that Touchstone 1 XML. Designs from [Touchstone 2](https://touchstone2.org) use another format, which it doesn't support yet. This package converts that XML into timelines that [`@lightmill/react-experiment`](../react-experiment/README.md) or [`@lightmill/runner`](../runner/README.md) can play. If you don't use Touchstone, write your timelines in code instead, with [`@lightmill/counterbalancing`](../counterbalancing/README.md) to order conditions.
 
 ## Install
 
