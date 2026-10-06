@@ -293,7 +293,17 @@ This guide's app and API share one origin, so they need no allowed-origin flag. 
 
 ### The browser cannot keep a participant session
 
-Check that the browser receives the `lightmill-session-id` cookie. Behind an HTTPS proxy, use `--trust-proxy` and forward `X-Forwarded-Proto: https`. Cross-site apps can also fail because the browser blocks third-party cookies.
+The server identifies a participant by a cookie named `lightmill-session-id`. In the browser's Network panel, inspect the session requests when starting a run:
+
+1. `GET /sessions/current` can return `404` before a session exists. That is expected: the client then creates one with `POST /sessions`.
+2. `POST /sessions` should return `201` and set the cookie. If it returns an error instead, read that response and the server log first.
+3. Later requests must send the cookie back. A subsequent `GET /sessions/current` should return `200`. The Network panel can show whether the cookie was sent or blocked. It is `HttpOnly`, so `document.cookie` cannot show it.
+
+If the browser blocks the cookie, use the reason shown in its developer tools. Check that the page and API share a site when using `--same-site`; `localhost` and `127.0.0.1` do not. A cookie for an API on another site can be blocked as a third-party cookie. Move the app and API to one site rather than asking participants to weaken their browser settings.
+
+Behind a proxy that handles HTTPS, the proxy must send `X-Forwarded-Proto: https`, and the log server must use `--trust-proxy`. With `--secure-cookies always`, failing to recognize HTTPS prevents the server from setting the cookie. With `auto`, it can instead set a cookie without `Secure`, which leaves the deployment incorrectly configured even if login works. See [Cookies](../../packages/log-server/README.md#cookies).
+
+If the request sends the cookie but the server no longer recognizes the session, check whether it expired, whether the session key changed, or whether the server is now using a different database. The CLI keeps sessions in its database; an embedded server also needs a [persistent session store](../../packages/log-server/README.md#resuming-runs-after-a-restart). Creating another participant session does not give it ownership of runs from the lost session.
 
 ### A participant number cannot start a run
 
