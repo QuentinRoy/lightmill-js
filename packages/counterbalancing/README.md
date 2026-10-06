@@ -28,16 +28,18 @@ const orders = latinSquare(['mouse', 'touch', 'pen'], { balanced: true });
 const order = orders[participantNumber % orders.length];
 ```
 
+With three conditions, `balanced: true` doubles the orders. With an even number of conditions, `latinSquare` is balanced without the option.
+
 Every function returns a list of orders. Give participant `i` the order `orders[i % orders.length]`. Counterbalancing is complete when the number of participants is a multiple of `orders.length`.
 
 ## Strategies
 
-| Function                                       | Orders  | What it guarantees                                                                                                                                                                          |
-| ---------------------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `latinSquare(conditions)`                      | n       | Each condition appears once at every position.                                                                                                                                              |
-| `latinSquare(conditions, { balanced: true })`  | n or 2n | Also, each condition comes right before every other condition equally often. With an even number of conditions, the square is balanced anyway; with an odd number, this doubles the orders. |
-| `permutations(conditions)`                     | n!      | Every possible order, once.                                                                                                                                                                 |
-| `randomOrders(conditions, { count, random? })` | `count` | Independent random orders. Nothing is guaranteed, but no order is favored.                                                                                                                  |
+| Function                                       | Orders                 | What it guarantees                                                                                                                                                              |
+| ---------------------------------------------- | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `latinSquare(conditions)`                      | n                      | Each condition appears once at every position. With an even number of conditions, the square is also balanced: each condition comes right before every other one equally often. |
+| `latinSquare(conditions, { balanced: true })`  | n, or 2n when n is odd | Balanced for any number of conditions. The option only changes the result when n is odd and above 1: it adds the reversed orders.                                               |
+| `permutations(conditions)`                     | n!                     | Every possible order, once.                                                                                                                                                     |
+| `randomOrders(conditions, { count, random? })` | `count`                | Independent random orders. Nothing is guaranteed, but no order is favored.                                                                                                      |
 
 `n` is the number of conditions.
 
