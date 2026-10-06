@@ -17,6 +17,8 @@ log-server export --database ./data.sqlite > logs.csv
 
 The command reads the database directly, so it works whether the server runs or not.
 
+In an interactive terminal, `--output logs.csv` (`-o logs.csv`) writes to a file and shows progress. In scripts, use `> logs.csv` as above: the progress display needs a terminal.
+
 ## Over HTTP
 
 A host can download the same CSV from a running server. Open a host session with the host password, then request `GET /logs`:
