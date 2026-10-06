@@ -59,7 +59,14 @@ export const createLogHandlers = (): PathHandlers<'/logs'> => ({
       };
     },
 
-    async post({ dataStore: store, body, sessionData, protocol, host }) {
+    async post({
+      dataStore: store,
+      body,
+      sessionData,
+      protocol,
+      host,
+      baseUrl,
+    }) {
       let outcome = await addLogsToWritableRun(
         store,
         sessionData,
@@ -76,7 +83,7 @@ export const createLogHandlers = (): PathHandlers<'/logs'> => ({
         // Nothing was created for a duplicate log (a resend).
         status: created ? 201 : 200,
         headers: {
-          location: `${protocol + '://' + host}/logs/${insertedLogId}`,
+          location: `${protocol + '://' + host + baseUrl}/logs/${insertedLogId}`,
         },
         body: { data: { id: insertedLogId, type: 'logs' } },
       };
