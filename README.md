@@ -1,6 +1,6 @@
 # LightMill
 
-LightMill helps you build web experiments, such as HCI or psychology studies, and collect their data on your own server. You write each part of the experiment as a task, list the tasks in a timeline, and LightMill shows them in turn, sends what participants do to a log server, and exports it as CSV.
+LightMill helps you build web experiments, such as human-computer interaction or psychology studies, and collect their data on your own server. You write each part of the experiment as a task, list the tasks in a timeline, and LightMill shows them in turn, sends what participants do to a log server, and exports it as CSV.
 
 ## How it fits together
 
