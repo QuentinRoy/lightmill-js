@@ -1,0 +1,218 @@
+# Deploying
+
+An online experiment has two parts: the experiment app, which is static files, and the log server, a Node.js process with a SQLite database. This guide covers putting both online with the standalone `log-server` command. If you embed the server in your own Express app instead, the same choices apply through the [`createLogServer` options](../../packages/log-server/README.md#createlogserveroptions).
+
+## What you need
+
+You need an experiment app, a place to publish its static files over HTTPS, and an environment that can run Node.js 24.12 or later with a writable, persistent location for the database. Use your host's instructions to publish the app and keep the Node.js process running.
+
+The example below uses `https://study.example.org` for the app and `/api` for the log server. Replace that address with yours. It includes an optional [Caddy](https://caddyserver.com/docs/install) proxy configuration; another proxy or a host that handles HTTPS can serve the same layout.
+
+## Choose where the app and the server live
+
+The server identifies each participant with a cookie. Browsers check both the page's address and the server's address before allowing a request and its cookie. Two terms describe those addresses:
+
+- An origin is the scheme (`http` or `https`), hostname, and port together. Changing any of them changes the origin.
+- A site groups addresses with the same scheme and registrable domain: the domain someone can register, such as `example.org`. Its subdomains belong to the same site, and the port does not count. `localhost` and `127.0.0.1` are different sites.
+
+| Addresses compared                                          | Same origin? | Same site? |
+| ----------------------------------------------------------- | ------------ | ---------- |
+| `http://localhost:5173` and `http://localhost:3000`         | No           | Yes        |
+| `https://study.example.org` and `https://api.example.org`   | No           | Yes        |
+| `https://study.example.org` and `https://study.example.com` | No           | No         |
+
+The allowed-origin setting decides whether browser code on another origin can read the server's response. The cookie settings decide whether the browser accepts and sends the participant's session cookie. A setup can need an allowed origin even when both addresses are on the same site.
+
+Serve the app and the server from one origin behind a reverse proxy that handles HTTPS. A reverse proxy accepts the browser's request, then forwards it to the log server. This setup avoids relying on third-party cookies.
+
+## Prepare the log server
+
+In the environment where the log server will run, choose a writable directory for its package and configuration:
+
+```sh
+mkdir my-log-server
+cd my-log-server
+npm init -y
+npm install @lightmill/log-server
+```
+
+Set `SESSION_KEY` and `HOST_PASSWORD` through your host's environment settings, or create a `.env` file in `my-log-server`:
+
+```sh
+SESSION_KEY=replace-with-a-long-random-string
+HOST_PASSWORD=replace-with-another-secret
+DB_PATH=./data.sqlite
+```
+
+Use different long random values for the two secrets, for example generated with `openssl rand -base64 32`. Keep `.env` private and out of version control. The package reads it from its working directory. `SESSION_KEY` signs participant cookies, and `HOST_PASSWORD` protects the researcher account. [Secrets](#secrets) explains rotation.
+
+`DB_PATH` is the database file. This example keeps it in `my-log-server`; run the CLI commands from that directory. If your host replaces this directory during deployment, set `DB_PATH` to an absolute path in its persistent storage instead. The database contains both answers and sessions and must survive restarts and app updates. Keep it outside the directory that serves the app's public files.
+
+Still in `my-log-server`, prepare the database and create the experiment:
+
+```sh
+npx log-server migrate
+npx log-server experiment add reaction-time
+```
+
+Use the same experiment name as your app. If you are moving an existing study, copy its database with the server stopped and preserve its session key, rather than creating an empty database.
+
+## Build the app for HTTPS
+
+`apiRoot` is the base address of the log server's API. The browser adds route paths such as `/sessions` and `/runs` to it. The tutorial sets it to `http://localhost:3000` because the log server is running on your development machine.
+
+When someone opens the published app, `localhost` refers to their own computer. Their browser needs the public address where you serve the log API instead. This guide's proxy serves it at `https://study.example.org/api`, so its session requests go to `https://study.example.org/api/sessions`.
+
+On your development machine, find `new Client<Log>` in the tutorial's `src/App.tsx` and replace its `apiRoot` value before building:
+
+```ts
+const client = new Client<Log>({ apiRoot: 'https://study.example.org/api' });
+```
+
+Use your domain. Include `/api` only if your server or proxy serves the API at that path; a server exposed at `https://api.example.org` uses that address without `/api`.
+
+In the app directory, build the static files:
+
+```sh
+npm run build
+```
+
+Publish the generated `dist` files using your host's deployment instructions. If you use the Caddy example below, set its `root` to the absolute path of that published directory.
+
+Changing the source URL after building does not change the files in `dist`; rebuild and copy them again after a change.
+
+## Set up the reverse proxy
+
+If you use Caddy, this site block serves the built app and forwards API requests to the log server. Replace the domain and `/path/to/my-experiment/dist` with your public domain and the absolute path of the published app. Caddy gets and renews the HTTPS certificate.
+
+```caddyfile
+study.example.org {
+	handle_path /api/* {
+		reverse_proxy localhost:3000 {
+			header_up X-Forwarded-Prefix /api
+		}
+	}
+	handle {
+		root * /path/to/my-experiment/dist
+		try_files {path} /index.html
+		file_server
+	}
+}
+```
+
+Caddy forwards the host, client address, and original protocol. `handle_path` removes `/api` before forwarding; `X-Forwarded-Prefix` tells the log server to put it back in resource links.
+
+Apply the configuration through your Caddy installation's [configuration instructions](https://caddyserver.com/docs/caddyfile). Match `localhost:3000` to the address where the log-server process listens. Keep that backend reachable only by the proxy when using `--trust-proxy`, so outside clients cannot forge its forwarded headers.
+
+If you use another proxy, have it set `X-Forwarded-For`, `X-Forwarded-Host`, and `X-Forwarded-Proto`. It must also set `X-Forwarded-Prefix` when it strips a path prefix.
+
+## Run the server
+
+From `my-log-server`, start the API for the same-origin HTTPS proxy example:
+
+```sh
+npx log-server start --same-site --trust-proxy
+```
+
+The command reads the secrets and database path from the environment and `.env` in its working directory. It listens on port 3000 unless `PORT` or `--port` changes it. The same-origin app needs no allowed-origin flag. [Other setups](#other-setups) shows the flags for different app and server addresses.
+
+Use your host's process manager or application settings to keep this command running and make its diagnostic output available. Run one server process per database: requests from each participant are ordered within one process only. When stopping the log-server process, send `SIGTERM`; it finishes requests in progress before closing the database.
+
+## Check the deployment
+
+Open `https://study.example.org/?participant=9001` in a browser, using an unused participant number. Complete a few trials, then reload to check that saved progress resumes. Finish and wait for "Thank you!". Check it in every browser you plan to support.
+
+From `my-log-server`, export the test run's logs:
+
+```sh
+npx log-server export --experiment-name reaction-time > test-logs.csv
+```
+
+Check that the run has status `completed` and the expected task ids. If something fails, see [Troubleshooting](troubleshooting.md).
+
+The test run is part of the experiment's data. Once you are done, [cancel it](#cancel-a-run) to leave it out of CSV exports, or exclude its run name from your analysis.
+
+## Back up the data
+
+The database is a single file. Back it up while the server runs with the `sqlite3` command line tool:
+
+```sh
+sqlite3 data.sqlite ".backup 'backup.sqlite'"
+```
+
+Copying the file with `cp` while the server writes to it can produce a broken copy.
+
+Run that backup command from the directory containing `data.sqlite`, or use the database path configured in `DB_PATH`. Copy backups to separate storage and check that you can read them. A backup includes participant sessions as well as logs; keep it private, and preserve the session key separately so restored sessions stay valid.
+
+## Upgrade
+
+1. Stop the log-server process through your host or process manager, and wait for it to exit.
+2. Back up the database.
+3. In `my-log-server`, install the version you want: `npm install @lightmill/log-server@<version>`.
+4. Run `npx log-server migrate` from that directory, using the same `DB_PATH` as the server. Pass `--database <path>` if needed to select that file explicitly.
+5. Start the server again with the same configuration, then check its diagnostic output and test the app.
+
+Keep the database and `.env` in place. `log-server start` refuses to start while the database has pending migrations. If an upgrade fails, preserve the current database before restoring a backup; logs received after that backup are not in it.
+
+## Cancel a run
+
+Canceling a run frees its name and leaves its logs out of CSV exports. The database keeps both, and [JSON exports](exporting-data.md#as-json) still include them. Cancel a test run, or the run of a participant who lost their session, only when you want it out of your data.
+
+First [open a host session](exporting-data.md#over-http), then find the run's id:
+
+```sh
+curl --fail-with-body --cookie host-cookies.txt --globoff \
+  'https://study.example.org/api/runs?filter[experiment.name]=reaction-time&filter[name]=participant-9001'
+```
+
+Check that the response lists the intended run, and replace `123` with its `id` in both places:
+
+```sh
+curl --fail-with-body --request PATCH --cookie host-cookies.txt \
+  --header 'Content-Type: application/vnd.api+json' \
+  --data '{"data":{"type":"runs","id":"123","attributes":{"status":"canceled"}}}' \
+  https://study.example.org/api/runs/123
+```
+
+## Other setups
+
+The examples below change the start flags for other app and server addresses:
+
+| Setup                                                                                     | `log-server start` flags                                                          |
+| ----------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| Local development over HTTP                                                               | `--same-site --allowed-origin http://localhost:5173`                              |
+| One origin behind an HTTPS proxy (recommended)                                            | `--same-site --trust-proxy`                                                       |
+| Different origins on the same site, for example `study.example.org` and `api.example.org` | `--same-site --allowed-origin https://study.example.org --trust-proxy`            |
+| Different sites (not recommended)                                                         | `--allowed-origin https://study.example.com`, plus `--trust-proxy` behind a proxy |
+
+- `--allowed-origin` names a page origin allowed to call the server, without a path or a trailing slash. Repeat it for several origins. A page on the server's own origin needs none.
+- `--same-site` gives the session cookie `SameSite=Strict`. Without it, the cookie is `SameSite=None`, which browsers only accept over HTTPS. When the page is on another site, that cookie is a third-party cookie: Safari blocks it by default, and other browsers let people block it. Participants with those browsers can't start a run.
+- `--trust-proxy` makes the server believe the `X-Forwarded-*` headers of the proxy, so it knows requests came in over HTTPS and marks the cookie `Secure`. Only use it when every request goes through a proxy that sets these headers: a client reaching the server directly could forge them. Your proxy must send `X-Forwarded-Proto: https` for HTTPS requests. `--secure-cookies always` still requires the server to recognize HTTPS; it cannot replace that header. Without it, this mode prevents the server from setting a session cookie.
+
+`--same-site` without `--trust-proxy` logs a warning, because the cookie is then `Secure` only when the server is reached directly over HTTPS. During local development, ignore it.
+
+## Server options
+
+Some options of `log-server start` have environment-variable equivalents, listed below. The server reads them from the environment and from a `.env` file in the directory it starts from. `--same-site`, `--trust-proxy`, and `--secure-cookies` have no environment-variable equivalents; pass them on the command line.
+
+| Option                   | Environment variable   | Default         |
+| ------------------------ | ---------------------- | --------------- |
+| `--database`, `-d`       | `DB_PATH`              | `./data.sqlite` |
+| `--port`, `-p`           | `PORT`                 | `3000`          |
+| `--session-key`, `-s`    | `SESSION_KEY`          | required        |
+| `--host-password`, `-w`  | `HOST_PASSWORD`        | required        |
+| `--allowed-origin`       | `ALLOWED_ORIGINS`      | none            |
+| `--session-max-age-days` | `SESSION_MAX_AGE_DAYS` | `30`            |
+|                          | `LOG_LEVEL`            | `info`          |
+
+`ALLOWED_ORIGINS` is a comma-separated list. `LOG_LEVEL` is one of `trace`, `debug`, `info`, `warn`, or `error`.
+
+### Secrets
+
+`SESSION_KEY` signs the session cookies. Use a long random string, for example from `openssl rand -base64 32`, and keep it stable: changing it signs every participant out, and they can't resume their runs. To replace it without signing anyone out, put the new key first and keep the old one after a colon (`SESSION_KEY=new-key:old-key`). The server signs with the first key and accepts all of them. Remove the old one once its cookies have expired.
+
+`HOST_PASSWORD` protects the host account (user `host`). A host reads every experiment, run, and log, creates experiments, and cancels any run. Only send it over HTTPS.
+
+### Sessions
+
+A participant's session lasts as long as its cookie: 30 days by default, or `--session-max-age-days`. The session is what lets a participant find and resume their run, so set it to cover your whole study. Sessions are stored in the database, so they survive restarts. A participant who clears their cookies, or switches browser or device, can't resume. See [Resuming runs](resuming-runs.md).
