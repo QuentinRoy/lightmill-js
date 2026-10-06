@@ -1,13 +1,8 @@
 # @lightmill/log-api
 
-Shared API contract for Lightmill logging endpoints.
+The HTTP API of the [LightMill log server](../log-server/README.md), as an OpenAPI document and Zod schemas.
 
-This package exposes:
-
-1. `openAPI`: generated OpenAPI document object.
-2. `routes`: route-level request/response schemas.
-3. JSON:API server error schemas from `server-errors`.
-4. `openapi.yaml` export for tooling/code generation.
+You don't need this package to run an experiment: [`@lightmill/log-client`](../log-client/README.md) and `@lightmill/log-server` use it for you. Use it to write another client or server, to validate requests and responses, or to generate types or code from the OpenAPI document.
 
 ## Install
 
@@ -15,49 +10,53 @@ This package exposes:
 npm install @lightmill/log-api
 ```
 
-## Usage
+## The API
 
-### JavaScript/TypeScript
+The API follows [JSON:API](https://jsonapi.org), with the `application/vnd.api+json` media type. Its resources are sessions, experiments, runs, and logs. [`@lightmill/log-server`](../log-server/README.md#http-api) lists the routes and who can call them.
 
-```ts
-import { openAPI, routes } from '@lightmill/log-api';
+- A session is a cookie, `lightmill-session-id`. `POST /sessions` opens one; a host session also needs HTTP Basic authentication.
+- `POST /operations` adds a batch of logs to a run with the [Atomic Operations](https://jsonapi.org/ext/atomic/) extension. Each operation is an `add` of one log, and the request uses the `application/vnd.api+json;ext="https://jsonapi.org/ext/atomic"` media type.
+- Sending a log the server already holds, with the same number, type, and values, succeeds without storing it again, with `200` instead of `201`. A resent request is therefore safe. The same number with other content is a conflict, `409 LOG_NUMBER_EXISTS`.
+- Errors are JSON:API error documents. Each error has a `status`, a `code` such as `RUN_EXISTS`, and a `detail` for people.
 
-console.log(openAPI.info.title);
-console.log(Object.keys(routes));
-```
-
-### OpenAPI file export
-
-```ts
-import specPath from '@lightmill/log-api/openapi.yaml';
-```
-
-Or via CLI tools:
-
-```sh
-openapi-typescript node_modules/@lightmill/log-api/dist/openapi.yaml --output ./types.ts
-```
-
-## API Reference
+## Exports
 
 ### `openAPI`
 
-OpenAPI 3.1 document object generated from route schemas.
+The OpenAPI 3.1 document of the API, as an object.
+
+### `@lightmill/log-api/openapi.yaml`
+
+The same document as a YAML file, for tools that read files, such as `openapi-typescript`:
+
+```sh
+npx openapi-typescript node_modules/@lightmill/log-api/dist/openapi.yaml --output ./api.ts
+```
+
+In Node.js, `import.meta.resolve('@lightmill/log-api/openapi.yaml')` returns its URL.
 
 ### `routes`
 
-Map of route definitions keyed by path and method. Useful for server integration and type-safe handler validation.
+The Zod schemas of every route, keyed by path, then by method, in the shape of OpenAPI operations:
 
-### Re-exported error schemas
+```ts
+import { routes } from '@lightmill/log-api';
 
-The package root re-exports `server-errors` members such as:
+const schema =
+  routes['/logs'].post.request.body.content['application/vnd.api+json'].schema;
+const result = schema.safeParse(requestBody);
+```
 
-- `RequestValidationErrorResponse`
-- `NotFoundErrorResponse`
-- `InternalServerErrorResponse`
-- `MethodNotAllowedErrorResponse`
-- `UnsupportedMediaTypeErrorResponse`
-- `SessionRequiredErrorResponse`
-- `ServerErrorResponse`
+### Error schemas
 
-These schemas are useful when validating server responses and documenting errors consistently.
+The Zod schemas of the error documents every route can answer: `RequestValidationErrorResponse`, `SessionRequiredErrorResponse`, `NotFoundErrorResponse`, `MethodNotAllowedErrorResponse`, `UnsupportedMediaTypeErrorResponse`, `RequestBodyTooLargeErrorResponse`, `InternalServerErrorResponse`, `ServiceUnavailableErrorResponse`, and `ServerErrorResponse`.
+
+### `@lightmill/log-api/vocabulary`
+
+The constants the client and the server share, without loading Zod:
+
+- `mediaType` and `atomicMediaType`, the two media types;
+- `sessionCookieName`;
+- `runStatuses` (`idle`, `running`, `completed`, `interrupted`, `canceled`) and the `RunStatus` type;
+- `userRoles` (`host`, `participant`) and the `UserRole` type;
+- `httpStatuses`, the status codes the API uses, with their names.

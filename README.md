@@ -1,78 +1,90 @@
 # LightMill
 
-LightMill is a TypeScript monorepo for building, running, and logging user
-experiments.
+LightMill helps you build web experiments, such as HCI or psychology studies, and collect their data on your own server. You write each part of the experiment as a task, list the tasks in a timeline, and LightMill shows them in turn, sends what participants do to a log server, and exports it as CSV.
 
-It is organized as small focused packages that can be used independently or as
-a full stack:
+## How it fits together
 
-1. Design generation.
-2. Timeline execution.
-3. React rendering helpers.
-4. Logging API contract, client, and server.
+```txt
+participant's browser                                      your server
+timeline ──▶ TimelinePlayer ──▶ logger ───── HTTPS ─────▶ log server ──▶ SQLite ──▶ CSV
+(tasks)      (shows tasks)      (sends logs)
+```
+
+- An **experiment** is a study, created once on the server.
+- A **run** is one participant going through the experiment once. Each run has a name, usually derived from the participant, and is unique within its experiment.
+- A **timeline** is the sequence of tasks of a run. A **task** is a plain object with a `type`, such as `{ type: 'trial', size: 'large' }`, and your app has one component per task type.
+- A **log** records something that happened during a run, such as an answer and its reaction time. Logs have a `type` and values, and are numbered in order.
+- A run is `running` once started, then `completed`, `canceled`, or `interrupted`. A running or interrupted run can be resumed: the participant continues after the last log the server holds.
+- The **host** is the researcher's account on the server. It can read every log. Participants only see their own runs.
 
 ## Packages
 
-| Package                         | Description                                                            | README                                                                         |
-| ------------------------------- | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
-| `@lightmill/convert-touchstone` | Convert TouchStone XML to an experiment design.                        | [packages/convert-touchstone/README.md](packages/convert-touchstone/README.md) |
-| `@lightmill/counterbalancing`   | Generate condition orders to counterbalance runs.                      | [packages/counterbalancing/README.md](packages/counterbalancing/README.md)     |
-| `@lightmill/runner`             | Execute timeline iterators with lifecycle callbacks.                   | [packages/runner/README.md](packages/runner/README.md)                         |
-| `@lightmill/react-experiment`   | React `TimelinePlayer` component and hooks for task execution/logging. | [packages/react-experiment/README.md](packages/react-experiment/README.md)     |
-| `@lightmill/log-api`            | Shared API contract and OpenAPI artifacts for logging.                 | [packages/log-api/README.md](packages/log-api/README.md)                       |
-| `@lightmill/log-client`         | Browser/client SDK for sessions, resumable runs, and logs.             | [packages/log-client/README.md](packages/log-client/README.md)                 |
-| `@lightmill/log-server`         | Express middleware and SQLite datastore for logs.                      | [packages/log-server/README.md](packages/log-server/README.md)                 |
+| You want to                                       | Use                                                                      |
+| ------------------------------------------------- | ------------------------------------------------------------------------ |
+| Show tasks with React                             | [`@lightmill/react-experiment`](packages/react-experiment/README.md)     |
+| Show tasks without React                          | [`@lightmill/runner`](packages/runner/README.md)                         |
+| Send logs from the browser                        | [`@lightmill/log-client`](packages/log-client/README.md)                 |
+| Store logs and export them                        | [`@lightmill/log-server`](packages/log-server/README.md)                 |
+| Order conditions across participants              | [`@lightmill/counterbalancing`](packages/counterbalancing/README.md)     |
+| Turn a Touchstone design into timelines           | [`@lightmill/convert-touchstone`](packages/convert-touchstone/README.md) |
+| Write another client or server for the log server | [`@lightmill/log-api`](packages/log-api/README.md)                       |
 
-## Quick Start
+A typical React experiment uses `react-experiment` and `log-client` in the app, and `log-server` on the server. Each package also works on its own: `TimelinePlayer` doesn't need a server, and `log-client` works with any interface.
 
-### Requirements
+## A taste
 
-- Node.js 24.12 or later
-- pnpm 12+
+A task component reads its task, logs what happened, and says when it is done:
 
-### Install dependencies
+```tsx
+import {
+  TimelinePlayer,
+  useLogger,
+  useTask,
+} from '@lightmill/react-experiment';
 
-```sh
-pnpm install
+function Question() {
+  const { task, onTaskCompleted } = useTask('question');
+  const log = useLogger('answer');
+  return (
+    <button
+      onClick={() => {
+        log({ taskId: task.id, answer: 'yes' });
+        onTaskCompleted();
+      }}
+    >
+      Yes
+    </button>
+  );
+}
+
+const timeline = [
+  { type: 'question', id: 'q1' },
+  { type: 'question', id: 'q2' },
+];
+
+// `logger` comes from @lightmill/log-client.
+<TimelinePlayer
+  timeline={timeline}
+  onLog={(log) => logger.addLog(log)}
+  elements={{ tasks: { question: <Question /> } }}
+/>;
 ```
 
-### Build all packages
+The [getting started](docs/guides/getting-started.md) guide builds a complete experiment around this.
 
-```sh
-pnpm -r run build
-```
+## Guides
 
-### Run tests
+1. [Getting started](docs/guides/getting-started.md): build a complete experiment, from the first task to the CSV file.
+2. [Deploying](docs/guides/deploying.md): put the app and the log server online.
+3. [Resuming runs](docs/guides/resuming-runs.md): let participants continue after a reload.
+4. [Exporting data](docs/guides/exporting-data.md): get the logs out, and what the CSV contains.
 
-Tests import the built packages and generated types, so build first.
+`@lightmill/log-client` supports Chrome and Edge 85, Firefox 90, and Safari 15 or later. `@lightmill/react-experiment` needs React 19.2 or later. The log server needs Node.js 24.12 or later.
 
-```sh
-pnpm -r run test
-```
+## Contributing
 
-## Typical Stack
+See [CONTRIBUTING.md](CONTRIBUTING.md).
 
-Common integration flow:
+## License
 
-1. Convert a design with `@lightmill/convert-touchstone`, or define its timelines directly, using `@lightmill/counterbalancing` to order conditions.
-2. Execute tasks with `@lightmill/runner` or `@lightmill/react-experiment`.
-3. Persist logs through `@lightmill/log-client` + `@lightmill/log-server`.
-4. Use `@lightmill/log-api` as source of truth for API schemas and types.
-
-## Repository Layout
-
-```txt
-packages/
-	convert-touchstone/
-	runner/
-	react-experiment/
-	log-api/
-	log-client/
-	log-server/
-```
-
-## Development Notes
-
-- Each package has its own `tsconfig`, test setup, and changelog.
-- Public package entrypoints are defined through each package `exports` field.
-- API-related packages (`log-api`, `log-client`, `log-server`) follow JSON:API media type conventions.
+MIT
