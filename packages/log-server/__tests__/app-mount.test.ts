@@ -5,10 +5,11 @@ import { createLogServer } from '../src/app.ts';
 import {
   apiContentTypeRegExp,
   atomicContentTypeRegExp,
+  authenticateAsHost,
   createClient,
   createServerContext,
   host,
-  hostCredentials,
+  hostServerOptions,
   listen,
   storeTypes,
 } from './__fixtures__/test-utils.ts';
@@ -26,8 +27,7 @@ describe.for(storeTypes)('createLogServer (%s)', (storeType) => {
         sessionKeys: ['secret'],
         allowCrossOrigin: false,
         secureCookies: true,
-        hostUser: hostCredentials.user,
-        hostPassword: hostCredentials.password,
+        ...hostServerOptions,
         trustProxy,
       });
       const app = express();
@@ -71,8 +71,7 @@ describe.for(storeTypes)('createLogServer (%s)', (storeType) => {
       sessionKeys: ['secret'],
       allowCrossOrigin: false,
       secureCookies: false,
-      hostUser: hostCredentials.user,
-      hostPassword: hostCredentials.password,
+      ...hostServerOptions,
     });
     let app = express();
     app.set('query parser', false);
@@ -158,8 +157,7 @@ async function setup(
     sessionKeys: ['secret'],
     allowCrossOrigin: false,
     secureCookies: false,
-    hostUser: hostCredentials.user,
-    hostPassword: hostCredentials.password,
+    ...hostServerOptions,
     trustProxy,
   });
   let app = express();
@@ -173,7 +171,7 @@ describe.for(storeTypes)('createLogServer mounted (%s)', (storeType) => {
     let api = await setup(storeType, '/api');
     await api
       .post('/sessions')
-      .auth(hostCredentials.user, hostCredentials.password, { type: 'basic' })
+      .use(authenticateAsHost)
       .set('content-type', mediaType)
       .send({ data: { type: 'sessions', attributes: { role: 'host' } } })
       .expect(404, {});
@@ -186,9 +184,7 @@ describe.for(storeTypes)('createLogServer mounted (%s)', (storeType) => {
       const post = (path: string, body: object) =>
         api
           .post(mount + path)
-          .auth(hostCredentials.user, hostCredentials.password, {
-            type: 'basic',
-          })
+          .use(authenticateAsHost)
           .set('content-type', mediaType)
           .send(body)
           .expect(201);
@@ -240,7 +236,7 @@ describe.for(storeTypes)('createLogServer mounted (%s)', (storeType) => {
     let api = await setup(storeType, '/api', { trustProxy: true });
     const response = await api
       .post('/api/sessions')
-      .auth(hostCredentials.user, hostCredentials.password, { type: 'basic' })
+      .use(authenticateAsHost)
       .set('content-type', mediaType)
       .set('x-forwarded-prefix', '/public/')
       .set('x-forwarded-proto', 'https')
@@ -257,7 +253,7 @@ describe.for(storeTypes)('createLogServer mounted (%s)', (storeType) => {
       let api = await setup(storeType, '');
       const response = await api
         .post('/sessions')
-        .auth(hostCredentials.user, hostCredentials.password, { type: 'basic' })
+        .use(authenticateAsHost)
         .set('content-type', mediaType)
         .set('x-forwarded-prefix', prefix)
         .send({ data: { type: 'sessions', attributes: { role: 'host' } } })
@@ -270,7 +266,7 @@ describe.for(storeTypes)('createLogServer mounted (%s)', (storeType) => {
     let api = await setup(storeType, '', { trustProxy: false });
     const response = await api
       .post('/sessions')
-      .auth(hostCredentials.user, hostCredentials.password, { type: 'basic' })
+      .use(authenticateAsHost)
       .set('content-type', mediaType)
       .set('x-forwarded-prefix', '/public')
       .send({ data: { type: 'sessions', attributes: { role: 'host' } } })

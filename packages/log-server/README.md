@@ -36,8 +36,8 @@ app.listen(3000);
 
 A host session reads every experiment, run, and log, including the CSV export
 from `GET /logs`, creates experiments, and cancels any run. `hostPassword` is
-required so that only people who know it can open one: the server refuses to
-start without it.
+required so that only people who know it can open one: `createLogServer`
+throws without it, and `log-server start` exits.
 
 ## Create an experiment before the first run
 
@@ -75,9 +75,9 @@ send `POST /experiments` with the session cookie and this body:
 ```
 
 Set the `Content-Type` header to `application/vnd.api+json`. A host session
-uses `role: "host"`; a participant session cannot create experiments. Authenticate
-with HTTP Basic authentication as `hostUser` (default `host`) and
-`hostPassword` when creating the host session.
+uses `role: "host"`; a participant session cannot create experiments. Create the
+host session with HTTP Basic authentication, using `hostUser` (default `host`)
+and `hostPassword`.
 
 A host session reads every run, but only the session that created a run adds
 logs to it or changes it. A host may still cancel any run.

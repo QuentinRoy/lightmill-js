@@ -16,7 +16,6 @@ afterEach(() => {
 });
 
 function start(args: string[], env: Record<string, string> = {}) {
-  // An empty directory keeps a developer's `.env` file out of the run.
   const { HOST_PASSWORD: _, ...inheritedEnv } = process.env;
   return spawnSync(
     process.execPath,
@@ -31,7 +30,12 @@ function start(args: string[], env: Record<string, string> = {}) {
       'test-session-key',
       ...args,
     ],
-    { encoding: 'utf8', cwd: directory, env: { ...inheritedEnv, ...env } },
+    {
+      encoding: 'utf8',
+      // An empty directory keeps a developer's `.env` file out of the run.
+      cwd: directory,
+      env: { ...inheritedEnv, ...env },
+    },
   );
 }
 

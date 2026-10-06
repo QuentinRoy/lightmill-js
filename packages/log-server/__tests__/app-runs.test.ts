@@ -10,11 +10,11 @@ import { fromAsync } from '../src/utils.ts';
 import {
   addRunToSession,
   apiContentTypeRegExp,
+  authenticateAsHost,
   createClient,
   createRunRequest,
   createServerContext,
   host,
-  hostCredentials,
   listen,
   storeTypes,
   type MockedDataStore,
@@ -45,9 +45,7 @@ const suite = storeTypes
         const api = createClient(await listen(app)).host(host);
         await api
           .post('/sessions')
-          .auth(hostCredentials.user, hostCredentials.password, {
-            type: 'basic',
-          })
+          .use(authenticateAsHost)
           .set('content-type', mediaType)
           .send({
             data: { type: 'sessions', attributes: { role: sessionType } },

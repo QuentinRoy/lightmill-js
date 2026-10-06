@@ -187,11 +187,17 @@ export const atomicContentTypeRegExp =
   /^application\/vnd\.api\+json(;\s*charset=[^\s;]+)?;\s*ext="https:\/\/jsonapi\.org\/ext\/atomic"/;
 
 export const hostCredentials = { user: 'host', password: 'host-password' };
+export const hostServerOptions = {
+  hostUser: hostCredentials.user,
+  hostPassword: hostCredentials.password,
+};
+/** Authenticates a request as the host. */
+export const authenticateAsHost = (req: request.Test) =>
+  req.auth(hostCredentials.user, hostCredentials.password);
 
 const baseServerOptions = {
   sessionKeys: ['secret'],
-  hostUser: hostCredentials.user,
-  hostPassword: hostCredentials.password,
+  ...hostServerOptions,
   allowCrossOrigin: false as const,
   secureCookies: false,
 };
@@ -353,7 +359,7 @@ async function createSessionFixtureContext<
   // This request only matters to get the cookie. After that we'll mock the session anyway.
   const response = await api
     .post('/sessions')
-    .auth(hostCredentials.user, hostCredentials.password, { type: 'basic' })
+    .use(authenticateAsHost)
     .set('Content-Type', mediaType)
     .send({ data: { type: 'sessions', attributes: { role } } })
     .expect(201);
