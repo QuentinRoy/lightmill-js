@@ -7,11 +7,11 @@ import loglevel from 'loglevel';
 import { createWriteStream, readFileSync } from 'node:fs';
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { Transform } from 'node:stream';
+import { Readable } from 'node:stream';
 import * as url from 'node:url';
 import yargs from 'yargs';
 import { z } from 'zod';
-import { csvExportStream } from './csv-export.ts';
+import { csvExportStream, csvRows, csvStringifier } from './csv-export.ts';
 import { DataStoreError } from './data-store-errors.ts';
 import { createLogServer, SQLiteDataStore } from './index.ts';
 import { isValidHostPassword } from './utils.ts';
@@ -226,33 +226,37 @@ async function exportLogs({
 }: ExportLogsParameter) {
   let filter = { logType, experimentName };
   let store = await openExistingStore(database);
-  let stream = csvExportStream(store, filter);
   if (output === undefined) {
-    stream.pipe(process.stdout).on('error', handleError);
+    csvExportStream(store, filter)
+      .pipe(process.stdout)
+      .on('error', handleError);
     return;
   }
   let startDate = new Date();
   let logCount = 0;
-  process.stdout.write(`${logCount.toLocaleString('en')} logs exported...`);
-  stream
-    .pipe(
-      new Transform({
-        writableObjectMode: true,
-        transform(chunk, _encoding, callback) {
-          process.stdout.cursorTo(0);
-          logCount += 1;
-          process.stdout.write(
-            `${logCount.toLocaleString('en')} logs exported...`,
-          );
-          callback(null, chunk);
-        },
-      }),
-    )
+  // cursorTo and clearLine only exist on a TTY.
+  let showProgress = process.stdout.isTTY;
+  let progress = () => `${logCount.toLocaleString('en')} logs exported...`;
+  if (showProgress) process.stdout.write(progress());
+  async function* countedRows() {
+    for await (let row of csvRows(store, filter)) {
+      logCount += 1;
+      if (showProgress) {
+        process.stdout.cursorTo(0);
+        process.stdout.write(progress());
+      }
+      yield row;
+    }
+  }
+  Readable.from(countedRows())
+    .pipe(csvStringifier())
     .pipe(createWriteStream(output))
     .on('error', handleError)
     .on('finish', () => {
-      process.stdout.clearLine(0);
-      process.stdout.cursorTo(0);
+      if (showProgress) {
+        process.stdout.clearLine(0);
+        process.stdout.cursorTo(0);
+      }
       let durationInSeconds = (Date.now() - startDate.getTime()) / 1000;
       process.stdout.write(
         `${logCount.toLocaleString(
@@ -306,8 +310,16 @@ async function addExperiment({ database, name }: AddExperimentParameter) {
 // yargs turns a repeated scalar option into an array. Like most CLIs, the last
 // occurrence wins. yargs' `duplicate-arguments-array: false` would do the same
 // but also make `--allowed-origin` keep only its last origin.
-function lastOccurrence<T>(value: T | T[] | undefined): T | undefined {
-  return Array.isArray(value) ? value.at(-1) : value;
+function lastOccurrence<T>(value: T | T[]): T {
+  if (!Array.isArray(value)) return value;
+  if (value.length === 0) throw new TypeError('Expected at least one value');
+  return value[value.length - 1] as T;
+}
+
+// yargs' `normalize` option crashes on a repeated option, so paths are
+// normalized here instead.
+function lastPath(value: string | string[]): string {
+  return path.normalize(lastOccurrence(value));
 }
 
 export function cli() {
@@ -321,33 +333,35 @@ export function cli() {
             alias: 'd',
             desc: 'Path to the database file',
             type: 'string',
-            normalize: true,
             default: dbPath,
+            coerce: lastPath,
           })
           .option('port', {
             alias: 'p',
             desc: 'Port to listen on',
             type: 'number',
             default: env.PORT,
+            coerce: lastOccurrence<number>,
           })
           .option('session-key', {
             alias: 's',
             desc: 'Secret to use for signing client cookies',
             type: 'string',
             default: env.SESSION_KEY,
+            coerce: lastOccurrence<string | undefined>,
           })
           .option('session-max-age-days', {
             desc: 'Days a browser session remains valid (default: 30)',
             type: 'number',
             default: env.SESSION_MAX_AGE_DAYS,
+            coerce: lastOccurrence<number>,
           })
           .option('host-password', {
             alias: 'w',
             desc: 'Password for the host user (required)',
             type: 'string',
             default: env.HOST_PASSWORD,
-            coerce: (value: string | string[] | undefined) =>
-              lastOccurrence(value),
+            coerce: lastOccurrence<string | undefined>,
           })
           .option('same-site', {
             desc: 'Use same-site cookies, for a browser page on the same site as the API (the port can differ). Cookies are Secure over HTTPS, not over HTTP',
@@ -358,8 +372,7 @@ export function cli() {
             desc: 'Whether the session cookie is Secure: auto follows the request protocol (needs --trust-proxy behind a TLS-terminating proxy). Defaults to auto with --same-site, always otherwise; auto and never require --same-site',
             type: 'string',
             choices: ['auto', 'always', 'never'] as const,
-            coerce: (value: SecureCookies | SecureCookies[] | undefined) =>
-              lastOccurrence(value),
+            coerce: lastOccurrence<SecureCookies | undefined>,
           })
           .option('allowed-origin', {
             desc: 'Origin of a page allowed to call the API with credentials, e.g. https://example.org. Repeatable. Required unless --same-site is set',
@@ -387,8 +400,8 @@ export function cli() {
             alias: 'd',
             desc: 'Path to the database file',
             type: 'string',
-            normalize: true,
             default: dbPath,
+            coerce: lastPath,
           })
           .strict()
           .help()
@@ -411,8 +424,8 @@ export function cli() {
                 alias: 'd',
                 desc: 'Path to the database file',
                 type: 'string',
-                normalize: true,
                 default: dbPath,
+                coerce: lastPath,
               })
               .strict()
               .help()
@@ -433,17 +446,26 @@ export function cli() {
             alias: 'o',
             desc: 'Path to the output file',
             type: 'string',
-            normalize: true,
+            coerce: (value: string | string[] | undefined) =>
+              value === undefined ? undefined : lastPath(value),
           } as const)
           .option('database', {
             alias: 'd',
             desc: 'Path to the database file',
             type: 'string',
-            normalize: true,
             default: dbPath,
+            coerce: lastPath,
           })
-          .option('logType', { alias: 't', type: 'string' })
-          .option('experimentName', { alias: 'e', type: 'string' })
+          .option('logType', {
+            alias: 't',
+            type: 'string',
+            coerce: lastOccurrence<string | undefined>,
+          })
+          .option('experimentName', {
+            alias: 'e',
+            type: 'string',
+            coerce: lastOccurrence<string | undefined>,
+          })
           .strict()
           .help()
           .alias('help', 'h');

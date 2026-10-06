@@ -1,5 +1,5 @@
 import { stringify } from 'csv';
-import { pipeline, Readable } from 'node:stream';
+import { pipeline, Readable, type Transform } from 'node:stream';
 import { mapKeys, pickBy, pipe } from 'remeda';
 import type { AllFilter } from './data-filters.ts';
 import type { DataStore, Log } from './data-store.ts';
@@ -17,60 +17,66 @@ export function csvExportStream(
   store: DataStore,
   filter: Omit<AllFilter, 'runStatus'> = {},
 ): Readable {
+  return pipeline(csvRows(store, filter), csvStringifier(), () => {
+    // Nothing to do here.
+  });
+}
+
+// One row per log, so counting them counts logs, not CSV lines.
+export async function* csvRows(
+  store: DataStore,
+  filter: Omit<AllFilter, 'runStatus'> = {},
+) {
   const filterWithValidRun = { ...filter, runStatus: '-canceled' } as const;
-  return pipeline(
-    async function* () {
-      let valueColumns = await store.getLogValueNames(filterWithValidRun);
-      let logColumnFilter = (columnName: keyof Log) =>
-        !valueColumns.includes(columnName) &&
-        (filter?.logType == null ||
-          Array.isArray(filter.logType) ||
-          columnName !== 'type') &&
-        (filter?.experimentName == null ||
-          Array.isArray(filter.experimentName) ||
-          columnName !== 'experimentName') &&
-        (filter?.runName == null ||
-          Array.isArray(filter.runName) ||
-          columnName !== 'runName') &&
-        csvLogColumns.includes(columnName);
-      let columns = [
-        ...csvLogColumns
-          .filter(logColumnFilter)
-          .map((c) => renamedLogColumns[c] ?? c),
-        ...valueColumns,
-      ];
-      let baseLog: Record<string, undefined> = {};
-      // We need to set all columns to undefined to make sure they are included
-      // in the CSV even if they are empty.
-      for (let column of columns) {
-        baseLog[column] = undefined;
-      }
-      for await (let log of store.getLogs(filterWithValidRun)) {
-        // Note: the type of this appears to be completely incorrect, but it
-        // does not matter since it is immediately piped to stringify anyway.
-        yield withSnakeCaseProps({
-          ...baseLog,
-          ...pipe(
-            log,
-            pickBy((_v, k) => logColumnFilter(k)),
-            mapKeys((key) => renamedLogColumns[key] ?? key),
-          ),
-          ...log.values,
-        });
-      }
+  let valueColumns = await store.getLogValueNames(filterWithValidRun);
+  let logColumnFilter = (columnName: keyof Log) =>
+    !valueColumns.includes(columnName) &&
+    (filter?.logType == null ||
+      Array.isArray(filter.logType) ||
+      columnName !== 'type') &&
+    (filter?.experimentName == null ||
+      Array.isArray(filter.experimentName) ||
+      columnName !== 'experimentName') &&
+    (filter?.runName == null ||
+      Array.isArray(filter.runName) ||
+      columnName !== 'runName') &&
+    csvLogColumns.includes(columnName);
+  let columns = [
+    ...csvLogColumns
+      .filter(logColumnFilter)
+      .map((c) => renamedLogColumns[c] ?? c),
+    ...valueColumns,
+  ];
+  let baseLog: Record<string, undefined> = {};
+  // We need to set all columns to undefined to make sure they are included
+  // in the CSV even if they are empty.
+  for (let column of columns) {
+    baseLog[column] = undefined;
+  }
+  for await (let log of store.getLogs(filterWithValidRun)) {
+    // Note: the type of this appears to be completely incorrect, but it
+    // does not matter since it is immediately piped to stringify anyway.
+    yield withSnakeCaseProps({
+      ...baseLog,
+      ...pipe(
+        log,
+        pickBy((_v, k) => logColumnFilter(k)),
+        mapKeys((key) => renamedLogColumns[key] ?? key),
+      ),
+      ...log.values,
+    });
+  }
+}
+
+export function csvStringifier(): Transform {
+  return stringify({
+    header: true,
+    cast: {
+      date: (value) => value.toISOString(),
+      number: (value) => value.toString(),
+      object: (value) => JSON.stringify(value),
+      bigint: (value) => value.toString(),
+      boolean: (value) => (value ? 'true' : 'false'),
     },
-    stringify({
-      header: true,
-      cast: {
-        date: (value) => value.toISOString(),
-        number: (value) => value.toString(),
-        object: (value) => JSON.stringify(value),
-        bigint: (value) => value.toString(),
-        boolean: (value) => (value ? 'true' : 'false'),
-      },
-    }),
-    () => {
-      // Nothing to do here.
-    },
-  );
+  });
 }
