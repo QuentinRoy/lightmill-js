@@ -61,6 +61,7 @@ vitestTest('same-origin sessions set a usable cookie on HTTP', async () => {
     createLogServer({
       dataStore,
       sessionKeys: ['secret'],
+      hostPassword: 'host password',
       allowCrossOrigin: false,
     }).middleware,
   );
@@ -80,7 +81,11 @@ vitestTest('same-origin sessions set a usable cookie on HTTP', async () => {
 vitestTest('default sessions require HTTPS for a cookie', async () => {
   let dataStore = await dataStoreCreators[storeTypes[0]]();
   let app = express().use(
-    createLogServer({ dataStore, sessionKeys: ['secret'] }).middleware,
+    createLogServer({
+      dataStore,
+      sessionKeys: ['secret'],
+      hostPassword: 'host password',
+    }).middleware,
   );
   let response = await createClient(await listen(app))
     .post('/sessions')
@@ -125,31 +130,19 @@ describe.for(suite)(
         .expect(400);
     });
 
-    it('always creates a host role if there are no host passwords set on the server', async ({
-      dataStore,
-    }) => {
-      let server = createLogServer({
-        dataStore: dataStore,
-        sessionKeys: ['secret'],
-        hostUser: 'host user',
-      });
-      let app = express();
-      app.use(server.middleware);
-      let api = createClient(await listen(app));
-      await api
-        .post('/sessions')
-        .set('content-type', mediaType)
-        .send({ data: { type: 'sessions', attributes: { role: 'host' } } })
-        .expect(201, {
-          data: {
-            type: 'sessions',
-            id: 'current',
-            attributes: { role: 'host' },
-            relationships: { runs: { data: [] } },
-          },
-        })
-        .expect('Content-Type', apiContentTypeRegExp);
-    });
+    it.for([undefined, ''])(
+      'refuses to create a server with the host password %j',
+      async (hostPassword, { dataStore }) => {
+        expect(() =>
+          createLogServer({
+            dataStore,
+            sessionKeys: ['secret'],
+            // @ts-expect-error The type requires a password, but JavaScript callers can omit it.
+            hostPassword,
+          }),
+        ).toThrow(TypeError);
+      },
+    );
 
     it('creates a host session if the provided password is correct', async ({
       api,

@@ -2,7 +2,10 @@ import { expectTypeOf, it } from 'vitest';
 import { createLogServer } from '../src/app.ts';
 
 type Options = Parameters<typeof createLogServer>[0];
-type RequiredOptions = Pick<Options, 'dataStore' | 'sessionKeys'>;
+type RequiredOptions = Pick<
+  Options,
+  'dataStore' | 'sessionKeys' | 'hostPassword'
+>;
 type IsAllowed<T> = T extends Options ? true : false;
 
 it('allows a dynamic cross-origin setting with default cookie security', () => {
@@ -19,5 +22,11 @@ it('rejects insecure cross-origin cookies', () => {
     IsAllowed<
       RequiredOptions & { allowCrossOrigin: true; secureCookies: false }
     >
+  >().toEqualTypeOf<false>();
+});
+
+it('requires a host password', () => {
+  expectTypeOf<
+    IsAllowed<Pick<Options, 'dataStore' | 'sessionKeys'>>
   >().toEqualTypeOf<false>();
 });

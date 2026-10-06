@@ -29,6 +29,7 @@ async function openServer(options: { sessionMaxAge?: number } = {}) {
     sessionStore: dataStore.getSessionStore(),
     sessionKeys: ['secret'],
     allowCrossOrigin: false,
+    hostPassword: 'host password',
     ...options,
   }).middleware;
   const server = await listen(express().use(middleware));

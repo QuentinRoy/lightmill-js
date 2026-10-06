@@ -2,10 +2,7 @@ import { getErrorResponse, getSessionDocument } from './json-api.ts';
 import type { PathHandlers } from './request-handling.ts';
 import { checkBasicAuth } from './utils.ts';
 
-type SessionHandlerOptions = {
-  hostUser: string;
-  hostPassword?: string | undefined;
-};
+type SessionHandlerOptions = { hostUser: string; hostPassword: string };
 export const createSessionHandlers = ({
   hostPassword,
   hostUser,
@@ -23,11 +20,7 @@ export const createSessionHandlers = ({
       const { role: requestedRole = 'participant' } =
         body.data?.attributes ?? {};
 
-      if (
-        requestedRole === 'host' &&
-        hostPassword != null &&
-        headers.authorization == null
-      ) {
+      if (requestedRole === 'host' && headers.authorization == null) {
         return getErrorResponse({
           status: 'Forbidden',
           code: 'MISSING_CREDENTIALS',
@@ -39,7 +32,6 @@ export const createSessionHandlers = ({
 
       if (
         requestedRole === 'host' &&
-        hostPassword != null &&
         !checkBasicAuth(headers.authorization, hostUser, hostPassword)
       ) {
         return getErrorResponse({

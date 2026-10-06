@@ -31,6 +31,8 @@ async function startServer(
       '0',
       '--session-key',
       'test-session-key',
+      '--host-password',
+      'test-host-password',
       '--session-max-age-days',
       '7',
       '--same-origin',

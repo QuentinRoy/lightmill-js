@@ -55,7 +55,7 @@ type StartParameter = {
   port: number;
   sessionKey: string | undefined;
   sessionMaxAgeDays: number;
-  hostPassword?: string | undefined;
+  hostPassword: string | undefined;
   sameOrigin: boolean;
   trustProxy: boolean;
 };
@@ -71,6 +71,14 @@ async function start({
   if (sessionKey == null) {
     log.error(
       'No session key set. Set the SESSION_KEY environment variable or use the --session-key option.',
+    );
+    process.exit(1);
+  }
+  // A host session reads every log and cancels any run, so the server never
+  // starts without a way to protect it.
+  if (hostPassword == null || hostPassword === '') {
+    log.error(
+      'No host password set. Set the HOST_PASSWORD environment variable or use the --host-password option.',
     );
     process.exit(1);
   }
@@ -267,7 +275,7 @@ export function cli() {
           })
           .option('host-password', {
             alias: 'w',
-            desc: 'Password for the host user',
+            desc: 'Password for the host user (required)',
             type: 'string',
             default: env.HOST_PASSWORD,
           })

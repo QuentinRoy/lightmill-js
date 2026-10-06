@@ -53,6 +53,7 @@ export class TestServer {
       sessionKeys: ['test-secret'],
       allowCrossOrigin: false,
       secureCookies: false,
+      hostPassword: 'test-host-password',
     });
     const http = createServer(express().use(middleware));
     // Not `localhost`, which may resolve to an address another process holds.

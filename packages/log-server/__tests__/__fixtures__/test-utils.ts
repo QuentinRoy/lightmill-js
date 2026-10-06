@@ -186,8 +186,12 @@ export const apiContentTypeRegExp = new RegExp(
 export const atomicContentTypeRegExp =
   /^application\/vnd\.api\+json(;\s*charset=[^\s;]+)?;\s*ext="https:\/\/jsonapi\.org\/ext\/atomic"/;
 
+export const hostCredentials = { user: 'host', password: 'host-password' };
+
 const baseServerOptions = {
   sessionKeys: ['secret'],
+  hostUser: hostCredentials.user,
+  hostPassword: hostCredentials.password,
   allowCrossOrigin: false as const,
   secureCookies: false,
 };
@@ -349,6 +353,7 @@ async function createSessionFixtureContext<
   // This request only matters to get the cookie. After that we'll mock the session anyway.
   const response = await api
     .post('/sessions')
+    .auth(hostCredentials.user, hostCredentials.password, { type: 'basic' })
     .set('Content-Type', mediaType)
     .send({ data: { type: 'sessions', attributes: { role } } })
     .expect(201);

@@ -27,11 +27,17 @@ const dataStore = await SQLiteDataStore.open('./lightmill.db');
 const { middleware } = createLogServer({
   dataStore,
   sessionKeys: ['replace-with-a-secure-secret'],
+  hostPassword: 'replace-with-a-secure-password',
 });
 
 app.use('/api', middleware);
 app.listen(3000);
 ```
+
+A host session reads every experiment, run, and log, including the CSV export
+from `GET /logs`, creates experiments, and cancels any run. `hostPassword` is
+required so that only people who know it can open one: the server refuses to
+start without it.
 
 ## Create an experiment before the first run
 
@@ -69,9 +75,9 @@ send `POST /experiments` with the session cookie and this body:
 ```
 
 Set the `Content-Type` header to `application/vnd.api+json`. A host session
-uses `role: "host"`; a participant session cannot create experiments. If
-`hostPassword` is set, authenticate as `hostUser` (default `host`) when
-creating the host session.
+uses `role: "host"`; a participant session cannot create experiments. Authenticate
+with HTTP Basic authentication as `hostUser` (default `host`) and
+`hostPassword` when creating the host session.
 
 A host session reads every run, but only the session that created a run adds
 logs to it or changes it. A host may still cancel any run.
@@ -86,10 +92,12 @@ Required options:
 
 - `dataStore`: datastore implementation.
 - `sessionKeys`: session secret keys.
+- `hostPassword`: password of the host user. It must not be empty:
+  `createLogServer` throws a `TypeError` otherwise.
 
 Common optional options:
 
-- `hostUser`, `hostPassword`
+- `hostUser` (default `host`)
 - `allowCrossOrigin`
 - `secureCookies`
 - `sessionStore`
@@ -195,6 +203,7 @@ createLogServer({
   dataStore,
   sessionStore: dataStore.getSessionStore(),
   sessionKeys: ['replace-with-a-secure-secret'],
+  hostPassword: 'replace-with-a-secure-password',
 });
 ```
 
@@ -286,8 +295,12 @@ Keep that file and the `--session-key` (or `SESSION_KEY`) stable to allow
 resumption after a restart. For example:
 
 ```sh
-log-server start --database ./data.sqlite --session-key your-secret --session-max-age-days 30
+log-server start --database ./data.sqlite --session-key your-secret --host-password your-password --session-max-age-days 30
 ```
+
+`start` exits with an error if it has no host password. Set it with
+`--host-password` or the `HOST_PASSWORD` environment variable. The host user
+is `host`.
 
 `start` exits with an error if the database is missing or has pending
 migrations. After upgrading, back up the database file, then run

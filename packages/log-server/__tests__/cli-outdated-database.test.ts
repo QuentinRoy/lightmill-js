@@ -8,7 +8,15 @@ import { describe, expect, it } from 'vitest';
 const cliPath = url.fileURLToPath(new URL('../src/cli.ts', import.meta.url));
 
 const commands = {
-  start: ['start', '--port', '0', '--session-key', 'test-session-key'],
+  start: [
+    'start',
+    '--port',
+    '0',
+    '--session-key',
+    'test-session-key',
+    '--host-password',
+    'test-host-password',
+  ],
   export: ['export'],
 };
 

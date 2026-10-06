@@ -14,6 +14,7 @@ import {
   createRunRequest,
   createServerContext,
   host,
+  hostCredentials,
   listen,
   storeTypes,
   type MockedDataStore,
@@ -44,6 +45,9 @@ const suite = storeTypes
         const api = createClient(await listen(app)).host(host);
         await api
           .post('/sessions')
+          .auth(hostCredentials.user, hostCredentials.password, {
+            type: 'basic',
+          })
           .set('content-type', mediaType)
           .send({
             data: { type: 'sessions', attributes: { role: sessionType } },
