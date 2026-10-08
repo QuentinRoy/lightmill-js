@@ -3,7 +3,9 @@ import type { TestServer } from '@lightmill/test-server';
 import { act, render, type RenderResult } from '@testing-library/react';
 import { http, HttpResponse, passthrough } from 'msw';
 import * as React from 'react';
+import type { RunLogger } from '../src/logClient.js';
 import { Run, useLogger, useTask } from '../src/main.js';
+import { getRunStore } from '../src/runStore.js';
 
 export function TrialTask() {
   const { task, onTaskCompleted } = useTask('trial');
@@ -109,4 +111,19 @@ export function failRequest(
       ),
     ),
   );
+}
+
+/**
+ * The logger of the ongoing run that `run(client)` plays. Only once its first
+ * task is shown.
+ */
+export function loggerOf(client: Client): RunLogger {
+  const state = getRunStore({
+    client,
+    experimentName: 'exp',
+    runName: 'run-1',
+    resumableLogTypes: ['trial-done'],
+  }).getSnapshot();
+  if (state.status !== 'ready') throw new Error('The run is not ready');
+  return state.logger;
 }

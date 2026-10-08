@@ -313,7 +313,10 @@ function ReadyPlayer({
           await logger.addLog(log);
         } catch (error) {
           // A log still held is recoverable: the paused slot handles it.
-          if (!logger.inFlightLogs.includes(log)) throw error;
+          if (logger.inFlightLogs.includes(log)) return;
+          // Crashing the store here, rather than rejecting, hands the error
+          // slot the rejection itself instead of the player's wrapper.
+          store.crash(error);
         }
       }}
     />

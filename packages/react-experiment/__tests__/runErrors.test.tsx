@@ -4,11 +4,17 @@ import userEventPackage from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import * as React from 'react';
 import { expect, vi } from 'vitest';
-import { useLogger, useRunError } from '../src/main.js';
+import {
+  LogDeliveryError,
+  useLogger,
+  useRunError,
+  useTask,
+} from '../src/main.js';
 import {
   failDelivery,
   failRequest,
   isUnloadPrevented,
+  loggerOf,
   newClient,
   renderAsync,
   run,
@@ -340,6 +346,38 @@ describe('Run when the run crashes', () => {
       expect(await screen.findByText(/unexpected error/)).toBeVisible();
       expect(screen.getByRole('group')).toHaveTextContent('Cannot complete');
       expect(screen.queryByText('The end')).not.toBeInTheDocument();
+    },
+  );
+
+  serverTest(
+    'gives elements.error the rejection of addLog unchanged',
+    async ({ server }) => {
+      await server.addExperiment('exp');
+      const client = newClient(server);
+      let seen: unknown;
+      function Custom() {
+        seen = useRunError().error;
+        return <p>Custom error</p>;
+      }
+      const user = userEvent.setup();
+      await renderAsync(
+        run(client, {
+          elements: { tasks: { trial: <TrialTask /> }, error: <Custom /> },
+        }),
+      );
+      await screen.findByRole('button', { name: 'Done a' });
+      // The logger refuses every log, and none of them is held.
+      await loggerOf(client).interruptRun();
+
+      await user.click(screen.getByRole('button', { name: 'Done a' }));
+
+      expect(await screen.findByText('Custom error')).toBeVisible();
+      expect(seen).not.toBeInstanceOf(LogDeliveryError);
+      expect(seen).toEqual(
+        expect.objectContaining({
+          message: expect.stringContaining('Can only add logs'),
+        }),
+      );
     },
   );
 
