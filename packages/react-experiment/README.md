@@ -49,6 +49,8 @@ A task is any object with a `type`. `elements.tasks` maps each type to the eleme
 
 [Getting started](../../docs/guides/getting-started.md) builds a complete experiment, with logging and resuming.
 
+To send logs to a server and resume interrupted runs, use [`Run`](#run) instead of `TimelinePlayer`.
+
 ## Typing tasks and logs
 
 Declare your task and log types once, and every hook gets them:
@@ -115,6 +117,37 @@ export function Experiment({ logger }: { logger: Logger<Log> }) {
 
 ## API
 
+### `Run`
+
+Runs one run of an experiment with a [`@lightmill/log-client`](../log-client/README.md) client: it starts or resumes the run, plays the timeline, sends the logs from `useLogger`, and completes the run once every log is stored. It is your app's main component, so keep it mounted until the run ends. [Getting started](../../docs/guides/getting-started.md#wire-it-together) shows a complete app.
+
+```tsx
+<Run
+  client={client}
+  experimentName="my-experiment"
+  runName={participantId}
+  resumableLogTypes={['answer']}
+  timeline={({ resumeLog }) => buildTimeline(resumeLog)}
+  elements={{ tasks: { question: <Question /> } }}
+/>
+```
+
+- `client`: a log-client `Client`. Create it once: a new client is a new run. `Run` imports nothing from log-client, it only needs a client with the right methods.
+- `experimentName` and `runName`: identify the run on the server. `Run` looks up an ongoing run with the same names, asks the participant to resume it, and starts a new run when there is none. Changing either (or the client) switches to another run.
+- `resumableLogTypes`: the log types that mark a completed task. `Run` resumes after the last log of one of these types.
+- `timeline`: a function that builds the timeline, or `null` while your app loads it. `Run` calls it once per run, with `resumeLog`: the last resumable log, or `null` for a new run or when none was logged yet. See [Resuming a dynamic timeline](#resuming-a-dynamic-timeline).
+- `elements`: `tasks`, plus a screen for each state, all optional and with a small default: `loading` (also shown while the run is saved, so keep its text neutral), `resume`, `paused`, `error` and `completed`.
+
+`Run` asks the browser to confirm before the page unloads until the run ends. While logs can't be delivered, it shows `elements.paused`. If the run can't start or crashes, it shows `elements.error`, interrupts the run so a reload offers to resume it, and keeps the logs it holds recoverable.
+
+Three hooks write your own screens. They only work in the elements of `Run`:
+
+- `useResumeRun()`, for `elements.resume`, returns `{ resume, run, lastLog }`.
+- `useLogDelivery()` returns `{ error, inFlightLogs, retry }`: why delivery is paused, the logs the server has not stored, and a function that sends them again. It never rejects and does nothing outside a pause. It also works in `elements.error`.
+- `useRunError()`, for `elements.error`, returns `{ error }`, the value that was thrown.
+
+[Write your own screens](../../docs/guides/getting-started.md#write-your-own-screens) gives the code of every default.
+
 ### `TimelinePlayer`
 
 What to show:
@@ -148,7 +181,7 @@ Re-exported from [`@lightmill/runner`](../runner/README.md). Returns a timeline 
 />
 ```
 
-It replaces the `resumeAfterTask` prop of `TimelinePlayer`, which still works but is deprecated and will be removed in a future major version.
+`TimelinePlayer`'s `resumeAfterTask` prop does the same but is deprecated, and will be removed in a future major version.
 
 ### `useTask(type?)`
 
@@ -221,11 +254,11 @@ function Paused({ logger }: { logger: Logger }) {
 }
 ```
 
-`retry()` sends the held logs again. While it runs, the logger state goes back to `sending` and `TimelinePlayer` moves on; if it fails again, the state becomes `paused` once more. `download` stands for your app's file-saving function; the [getting started example](../../docs/guides/getting-started.md#wire-it-together) implements it with a `Blob` and a download link. For logs with non-JSON values, such as `bigint`, adapt the download's serialization too.
+`retry()` sends the held logs again. While it runs, the logger state goes back to `sending` and `TimelinePlayer` moves on; if it fails again, the state becomes `paused` once more. `download` stands for your app's file-saving function; the [getting started guide](../../docs/guides/getting-started.md#paused) implements it with a download link. For logs with non-JSON values, such as `bigint`, adapt the download's serialization too.
 
 Held logs are lost if the page closes: see [unsaved logs](../log-client/README.md#unsaved-logs).
 
-[Getting started](../../docs/guides/getting-started.md#wire-it-together) shows the rest: starting the run, completing it once every log is stored, and confirming before the page closes.
+[`Run`](#run) does all of this for you, and starts the run, completes it once every log is stored, and confirms before the page closes.
 
 ## Dynamic timelines
 
@@ -234,11 +267,17 @@ A timeline can be a generator, which computes each task when the previous one co
 ```tsx
 const answers: boolean[] = [];
 
-function* staircase(): Generator<{ type: 'trial'; id: string; level: number }> {
-  let level = 5;
-  for (let i = 0; i < 20; i++) {
-    yield { type: 'trial', id: `trial-${i}`, level };
-    level = Math.max(1, level + (answers.at(-1) ? 1 : -1));
+const nextLevel = (level: number, correct: boolean) =>
+  Math.max(1, level + (correct ? 1 : -1));
+
+function* staircase(
+  firstTrial = 0,
+  firstLevel = 5,
+): Generator<{ type: 'trial'; id: string; trial: number; level: number }> {
+  let level = firstLevel;
+  for (let trial = firstTrial; trial < 20; trial++) {
+    yield { type: 'trial', id: `trial-${trial}`, trial, level };
+    level = nextLevel(level, answers.at(-1) === true);
   }
 }
 
@@ -272,7 +311,41 @@ export function App() {
 
 Record the answer before calling `onTaskCompleted`: that call asks the generator for the next task. An async generator works the same way, and `elements.loading` shows while it computes the next task.
 
-`resumeAfter` replays a generator without mounting any task, so the generator does not get the answers the participant gave. Resuming a generator is up to your app: log the state it needs, such as the next level, and start a new generator from it.
+## Resuming a dynamic timeline
+
+`resumeAfter` replays a generator without mounting any task, so the generator does not get the answers the participant gave, and can't reproduce the task where they stopped. Instead, log the state the generator needs when each trial completes, and build a new generator from the last log. `Run` hands it to the `timeline` function as `resumeLog`:
+
+```tsx
+function Trial() {
+  const { task, onTaskCompleted } = useTask('trial');
+  const log = useLogger('trial-done');
+  const answer = (correct: boolean) => {
+    answers.push(correct);
+    log({
+      taskId: task.id,
+      trial: task.trial,
+      nextLevel: nextLevel(task.level, correct),
+    });
+    onTaskCompleted();
+  };
+  // ...
+}
+
+<Run
+  client={client}
+  experimentName="staircase"
+  runName={participantId}
+  resumableLogTypes={['trial-done']}
+  timeline={({ resumeLog }) =>
+    resumeLog == null
+      ? staircase()
+      : staircase(resumeLog.trial + 1, resumeLog.nextLevel)
+  }
+  elements={{ tasks: { trial: <Trial /> } }}
+/>;
+```
+
+The example registers its types as in [Typing tasks and logs](#typing-tasks-and-logs): a `trial` task with `trial` and `level` numbers, and a `trial-done` log with `taskId`, `trial` and `nextLevel`. A resumable log must mark a completed task: `Run` resumes after the last `trial-done`, so the trial in progress is played again. For a fixed list of tasks, `resumeAfter(tasks, (task) => task.id === resumeLog.taskId)` is enough. See [Resuming runs](../../docs/guides/resuming-runs.md).
 
 ## Sharing state between tasks
 
