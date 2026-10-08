@@ -301,6 +301,20 @@ function ReadyPlayer({
     store.completeRun().catch(store.crash);
   }, [store, timelineCompleted, idle]);
 
+  // Nothing else ends the run once the timeline is done, so the participant
+  // would wait on the loading element forever.
+  const { status } = loggerState;
+  React.useEffect(() => {
+    if (
+      timelineCompleted &&
+      (status === 'interrupted' || status === 'canceled')
+    ) {
+      store.crash(
+        new Error(`The run was ${status} before the app could complete it.`),
+      );
+    }
+  }, [store, timelineCompleted, status]);
+
   return (
     <StorePlayer
       store={playerStore}

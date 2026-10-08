@@ -382,6 +382,31 @@ describe('Run when the run crashes', () => {
   );
 
   serverTest(
+    'shows the error slot when the run ends before the timeline completes it',
+    async ({ server }) => {
+      await server.addExperiment('exp');
+      const client = newClient(server);
+      function SilentTask() {
+        const { onTaskCompleted } = useTask();
+        return <button onClick={onTaskCompleted}>Next</button>;
+      }
+      const user = userEvent.setup();
+      await renderAsync(
+        run(client, { elements: { tasks: { trial: <SilentTask /> } } }),
+      );
+      await screen.findByRole('button', { name: 'Next' });
+      await loggerOf(client).interruptRun();
+
+      await user.click(screen.getByRole('button', { name: 'Next' }));
+      await user.click(await screen.findByRole('button', { name: 'Next' }));
+
+      expect(await screen.findByText(/unexpected error/)).toBeVisible();
+      expect(screen.getByRole('group')).toHaveTextContent(/interrupted/);
+      expect(screen.queryByText('Loading…')).not.toBeInTheDocument();
+    },
+  );
+
+  serverTest(
     'keeps the error slot and the held logs when Run is remounted before the run is interrupted',
     async ({ server }) => {
       await server.addExperiment('exp');
