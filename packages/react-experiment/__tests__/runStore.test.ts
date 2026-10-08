@@ -123,8 +123,11 @@ describe('run store', () => {
             { runName: 'run-1', runStatus: 'interrupted' },
           ]);
         });
-        // The logger ended: a reload gets another store.
-        expect(getRunStore(id)).not.toBe(store);
+        // The server stores the interrupt before the client's logger hears of
+        // it, so the store is replaced a moment later.
+        await vi.waitFor(() => {
+          expect(getRunStore(id)).not.toBe(store);
+        });
       },
     );
 
