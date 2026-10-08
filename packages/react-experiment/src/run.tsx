@@ -1,5 +1,6 @@
 import * as React from 'react';
 import type { RegisteredLog, RegisteredTask } from './config.js';
+import { DefaultPaused } from './defaultPaused.js';
 import type { RunClient, RunLogger } from './logClient.js';
 import type { PlayerStore } from './playerState.js';
 import {
@@ -9,6 +10,7 @@ import {
 } from './runStore.js';
 import { StorePlayer, type TimelinePlayerElements } from './timelinePlayer.js';
 import { useConfirmBeforeUnload } from './useConfirmBeforeUnload.js';
+import { LogDeliveryProvider } from './useLogDelivery.js';
 
 export type RunElements = TimelinePlayerElements<RegisteredTask>;
 
@@ -29,6 +31,7 @@ export type RunProps = {
 
 const defaultLoading = <p>Loading…</p>;
 const defaultCompleted = <p>Thank you, the experiment is complete.</p>;
+const defaultPaused = <DefaultPaused />;
 
 /**
  * Runs one run of an experiment: starts it, plays its timeline, logs to the
@@ -74,6 +77,7 @@ export function Run({
             ...elements,
             loading,
             completed: elements.completed ?? defaultCompleted,
+            paused: elements.paused ?? defaultPaused,
           }}
         />
       );
@@ -154,12 +158,22 @@ function RunPlayer({
   }, [store, timelineCompleted, idle]);
 
   return (
-    <StorePlayer
-      store={playerStore}
-      elements={elements}
-      // The run is saved until it is completed on the server.
-      loading={timelineCompleted && loggerState.status !== 'completed'}
-      onLog={(log) => logger.addLog(log)}
-    />
+    <LogDeliveryProvider logger={logger}>
+      <StorePlayer
+        store={playerStore}
+        elements={elements}
+        paused={loggerState.status === 'paused'}
+        // The run is saved until it is completed on the server.
+        loading={timelineCompleted && loggerState.status !== 'completed'}
+        onLog={async (log) => {
+          try {
+            await logger.addLog(log);
+          } catch (error) {
+            // A log still held is recoverable: the paused slot handles it.
+            if (!logger.inFlightLogs.includes(log)) throw error;
+          }
+        }}
+      />
+    </LogDeliveryProvider>
   );
 }

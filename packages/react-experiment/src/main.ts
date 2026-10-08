@@ -7,5 +7,6 @@ export {
   type TimelinePlayerElements,
 } from './timelinePlayer.tsx';
 export { useConfirmBeforeUnload } from './useConfirmBeforeUnload.ts';
+export { useLogDelivery, type LogDelivery } from './useLogDelivery.tsx';
 export { useLogger } from './useLogger.ts';
 export { useTask } from './useTask.ts';
