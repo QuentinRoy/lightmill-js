@@ -1,5 +1,11 @@
 # @lightmill/log-server
 
+## 5.0.1
+
+### Patch Changes
+
+- [#484](https://github.com/QuentinRoy/lightmill-js/pull/484) [`8bbda2d`](https://github.com/QuentinRoy/lightmill-js/commit/8bbda2d98b0dc96c7336d90b48b56aaf5d512531) - Answer unexpected server errors with a fixed `detail` instead of the error's own message, which could expose SQL, table names, or file paths. The message stays in the server log.
+
 ## 5.0.0
 
 ### Major Changes

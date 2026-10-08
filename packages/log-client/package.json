@@ -1,6 +1,6 @@
 {
   "name": "@lightmill/log-client",
-  "version": "5.0.0",
+  "version": "5.0.1",
   "description": "Client for LightMill's log server.",
   "license": "MIT",
   "repository": {
