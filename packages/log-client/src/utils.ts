@@ -11,32 +11,24 @@ export class RequestError extends Error {
     response: Response;
     error: string | { errors: ErrorResource[] };
   }) {
+    const { response, error } = fetchResponse;
     // HTTP/2 has no reason phrase, so statusText is empty there.
-    const statusText =
-      fetchResponse.response.statusText ||
-      `HTTP ${fetchResponse.response.status}`;
-    super(
-      typeof fetchResponse.error === 'string'
-        ? fetchResponse.error !== ''
-          ? fetchResponse.error
-          : statusText
-        : (fetchResponse.error.errors?.[0].detail ??
-            fetchResponse.error.errors?.[0].code ??
-            fetchResponse.error.errors?.[0].status ??
-            statusText),
-    );
-    if (typeof fetchResponse.error === 'string') {
-      let error: ErrorResource = { status: statusText };
-      if (fetchResponse.error !== '') {
-        error.detail = fetchResponse.error;
-      }
-      this.#errors = [error];
-    } else {
-      this.#errors = fetchResponse.error.errors;
-    }
-    this.#status = fetchResponse.response.status;
-    this.#statusText = fetchResponse.response.statusText;
-    this.#headers = fetchResponse.response.headers;
+    const statusText = response.statusText || `HTTP ${response.status}`;
+    // A body without errors (e.g. from a proxy) gets the same status-based
+    // error as a failed response without a body, so `detail` and `code` stay
+    // readable.
+    const errors =
+      typeof error === 'string'
+        ? error !== ''
+          ? [{ status: statusText, detail: error }]
+          : []
+        : (error.errors ?? []);
+    const first = errors[0] ?? { status: statusText };
+    super(first.detail ?? first.code ?? first.status);
+    this.#errors = errors.length > 0 ? errors : [first];
+    this.#status = response.status;
+    this.#statusText = response.statusText;
+    this.#headers = response.headers;
   }
 
   get headers() {
