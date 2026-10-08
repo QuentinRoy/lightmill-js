@@ -19,6 +19,11 @@ export type TimelinePlayerElements<T extends Typed> = {
 type TimelinePlayerParameter<Task extends { type: string }, Log> = {
   onCompleted?: () => void;
   onLog?: Logger<Log>;
+  /**
+   * @deprecated Wrap the timeline with `resumeAfter` instead. This prop will
+   * be removed in a future major version.
+   */
+  resumeAfterTask?: (task: Task) => boolean;
 } & (
   | { timeline: AnyIteratorOrIterable<Task>; loading?: boolean }
   | { timeline?: AnyIteratorOrIterable<Task> | null; loading: true }

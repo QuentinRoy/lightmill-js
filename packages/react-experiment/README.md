@@ -148,7 +148,7 @@ Re-exported from [`@lightmill/runner`](../runner/README.md). Returns a timeline 
 />
 ```
 
-It replaces the `resumeAfterTask` prop, which `TimelinePlayer` no longer has.
+It replaces the `resumeAfterTask` prop of `TimelinePlayer`, which still works but is deprecated and will be removed in a future major version.
 
 ### `useTask(type?)`
 
