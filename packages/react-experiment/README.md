@@ -152,7 +152,7 @@ Three hooks write your own screens. They only work in the elements of `Run`:
 
 What to show:
 
-- `timeline`: the tasks, as an array, an iterable, an iterator, or their async versions. `TimelinePlayer` reads it once and can't rewind it, so it can't change once set: create it once, outside of rendering, not in the JSX. Remounting `TimelinePlayer` needs a new timeline. See [Dynamic timelines](#dynamic-timelines).
+- `timeline`: the tasks, as an array, an iterable, an iterator, or their async versions. `TimelinePlayer` reads it once and can't rewind it, so it can't change once set: create it once, outside of rendering, not in the JSX. A remounted `TimelinePlayer` given the same iterator continues where it was: see [Remounting](#remounting). See also [Dynamic timelines](#dynamic-timelines).
 - `elements.tasks`: the element to show for each task type. A task with a type missing here throws.
 - `elements.loading`: shown while the next task is loading, such as while an async timeline computes it, and while `loading` is `true`.
 - `elements.completed`: shown once the timeline is over. Defaults to nothing.
@@ -354,3 +354,13 @@ Each task mounts fresh, so state that must outlive a task can't live in the task
 ## StrictMode
 
 `TimelinePlayer` works in `StrictMode` and inside `<Activity>`: it reads the timeline once, whatever React does with effects. When `<Activity>` hides `TimelinePlayer` as the timeline completes, `onCompleted` is called once it is shown again.
+
+## Remounting
+
+An iterator (a generator, a `resumeAfter` result, `array.values()`, an async iterator) is consumed once, so `TimelinePlayer` remembers where it is in it for as long as the iterator lives. When `TimelinePlayer` unmounts and mounts again with the same iterator, it shows what the previous one showed: the task in progress, which starts afresh since its component state is lost, `elements.loading` while the next task loads, or `elements.completed` once the timeline is over, without playing it again. If the timeline ended with an error, `TimelinePlayer` throws that error again. Give it a new iterator to start over.
+
+Unmounting does not stop the timeline: if it is waiting for the next task, the task is there when `TimelinePlayer` mounts again.
+
+`resumeAfterTask` is only read the first time `TimelinePlayer` sees an iterator. Wrap the timeline with `resumeAfter` instead.
+
+Anything that is not an iterator, such as an array or a `Set`, can be iterated again: each mount plays it from the start.

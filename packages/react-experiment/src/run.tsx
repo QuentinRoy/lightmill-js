@@ -1,9 +1,9 @@
+import type { MaybeAsyncIterator } from '@lightmill/runner';
 import * as React from 'react';
 import type { RegisteredLog, RegisteredTask } from './config.js';
 import { DefaultError } from './defaultError.js';
 import { DefaultPaused } from './defaultPaused.js';
 import { isLive, type RunClient, type RunLogger } from './logClient.js';
-import type { PlayerStore } from './playerState.js';
 import {
   getRunStore,
   isSameRun,
@@ -13,7 +13,10 @@ import {
   type RunStoreParams,
   type TimelineBuilder,
 } from './runStore.js';
-import { StorePlayer, type TimelinePlayerElements } from './timelinePlayer.js';
+import {
+  TimelinePlayer,
+  type TimelinePlayerElements,
+} from './timelinePlayer.js';
 import { useConfirmBeforeUnload } from './useConfirmBeforeUnload.js';
 import { LogDeliveryProvider } from './useLogDelivery.js';
 import { resumeRunContext, useResumeRun } from './useResumeRun.js';
@@ -122,6 +125,7 @@ export function Run({
           <RunPlayer
             store={store}
             logger={state.logger}
+            timelineExhausted={state.timelineExhausted}
             build={timeline}
             loading={loading}
             elements={elements}
@@ -246,23 +250,26 @@ function UnloadGuard({
 function RunPlayer({
   store,
   logger,
+  timelineExhausted,
   build,
   loading,
   elements,
 }: {
   store: RunStore;
   logger: RunLogger;
+  timelineExhausted: boolean;
   build: TimelineBuilder | null;
   loading: React.ReactElement;
   elements: RunElements;
 }): React.JSX.Element {
-  const playerStore = store.getPlayerStore(build);
-  if (playerStore == null) return loading;
+  const timeline = store.getTimeline(build);
+  if (timeline == null) return loading;
   return (
     <ReadyPlayer
       store={store}
       logger={logger}
-      playerStore={playerStore}
+      timeline={timeline}
+      timelineExhausted={timelineExhausted}
       elements={{
         ...elements,
         loading,
@@ -276,52 +283,52 @@ function RunPlayer({
 function ReadyPlayer({
   store,
   logger,
-  playerStore,
+  timeline,
+  timelineExhausted,
   elements,
 }: {
   store: RunStore;
   logger: RunLogger;
-  playerStore: PlayerStore<RegisteredTask>;
+  timeline: MaybeAsyncIterator<RegisteredTask>;
+  timelineExhausted: boolean;
   elements: RunElements;
 }): React.JSX.Element | null {
   const loggerState = React.useSyncExternalStore(
     logger.subscribe,
     () => logger.state,
   );
-  const timelineCompleted = React.useSyncExternalStore(
-    playerStore.subscribe,
-    () => playerStore.getSnapshot().status === 'completed',
-  );
-
   // Completing the run flushes the logger, which rejects while delivery is
   // paused. Waiting for idle avoids that rejection.
   const idle = loggerState.status === 'idle';
   React.useEffect(() => {
-    if (!timelineCompleted || !idle) return;
+    if (!timelineExhausted || !idle) return;
     store.completeRun().catch(store.crash);
-  }, [store, timelineCompleted, idle]);
+  }, [store, timelineExhausted, idle]);
 
   // Nothing else ends the run once the timeline is done, so the participant
   // would wait on the loading element forever.
   const { status } = loggerState;
   React.useEffect(() => {
     if (
-      timelineCompleted &&
+      timelineExhausted &&
       (status === 'interrupted' || status === 'canceled')
     ) {
       store.crash(
         new Error(`The run was ${status} before the app could complete it.`),
       );
     }
-  }, [store, timelineCompleted, status]);
+  }, [store, timelineExhausted, status]);
 
   return (
-    <StorePlayer
-      store={playerStore}
+    <TimelinePlayer
+      timeline={timeline}
       elements={elements}
       paused={loggerState.status === 'paused'}
-      // The run is saved until it is completed on the server.
-      loading={timelineCompleted && loggerState.status !== 'completed'}
+      // The run is saved until it is completed on the server. The run store
+      // says when the timeline is exhausted, rather than the player: a player
+      // remounted after that would otherwise show the completed element until
+      // it reports the completion.
+      loading={timelineExhausted && loggerState.status !== 'completed'}
       onLog={async (log) => {
         try {
           await logger.addLog(log);

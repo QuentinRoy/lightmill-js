@@ -1,3 +1,4 @@
+import type { MaybeAsyncIterator } from '@lightmill/runner';
 import type { RegisteredLog, RegisteredTask } from './config.js';
 import {
   hasEnded,
@@ -7,11 +8,7 @@ import {
   type RunInfo,
   type RunLogger,
 } from './logClient.js';
-import {
-  createPlayerStore,
-  type AnyIteratorOrIterable,
-  type PlayerStore,
-} from './playerState.js';
+import type { AnyIteratorOrIterable } from './playerState.js';
 
 export type RunState =
   | { status: 'looking-up' }
@@ -29,6 +26,8 @@ export type RunState =
       logger: RunLogger;
       // The last resumable log, or null for a new run.
       resumeLog: ResumeLog | null;
+      // The timeline ran out of tasks. The run is not completed yet.
+      timelineExhausted: boolean;
     }
   | {
       status: 'error';
@@ -47,13 +46,15 @@ export type RunStore = {
   subscribe: (listener: () => void) => () => void;
   getSnapshot: () => RunState;
   /**
-   * The store of the timeline that `build` makes once the run is ready.
-   * Returns null until then, or while `build` is null. The first builder
-   * seen when the run is ready is the one used.
+   * The timeline that `build` makes once the run is ready, as an iterator
+   * that is the same object at every call: the player keeps its place in it
+   * across remounts. Returns null until then, or while `build` is null. The
+   * first builder seen when the run is ready is the one used. Once the
+   * iterator is exhausted, the state's `timelineExhausted` is true.
    */
-  getPlayerStore: (
+  getTimeline: (
     build: TimelineBuilder | null,
-  ) => PlayerStore<RegisteredTask> | null;
+  ) => MaybeAsyncIterator<RegisteredTask> | null;
   /**
    * Resumes the run found by the lookup. Calling it again, or when no run
    * awaits confirmation, does nothing.
@@ -127,7 +128,7 @@ function createRunStore(
   const listeners = new Set<() => void>();
   let state: RunState = { status: 'looking-up' };
   let started = false;
-  let playerStore: PlayerStore<RegisteredTask> | null = null;
+  let timeline: MaybeAsyncIterator<RegisteredTask> | null = null;
   let completion: Promise<void> | null = null;
   // The builder runs once even when it throws.
   let builderFailure: { error: unknown } | null = null;
@@ -181,7 +182,7 @@ function createRunStore(
         evict();
       }
     });
-    setState({ status: 'ready', logger, resumeLog });
+    setState({ status: 'ready', logger, resumeLog, timelineExhausted: false });
   }
 
   function fail(error: unknown) {
@@ -219,6 +220,13 @@ function createRunStore(
     );
   }
 
+  // The run store knows the timeline is over before the player renders it as
+  // completed, and keeps knowing after the player is remounted.
+  function exhaustTimeline() {
+    if (state.status !== 'ready' || state.timelineExhausted) return;
+    setState({ ...state, timelineExhausted: true });
+  }
+
   return {
     id: storeCount++,
     subscribe(listener) {
@@ -239,19 +247,20 @@ function createRunStore(
       setState({ status: 'starting' });
       begin(client.startRun({ runId: run.id, after }), lastLog).catch(fail);
     },
-    getPlayerStore(build) {
-      if (playerStore != null) return playerStore;
+    getTimeline(build) {
+      if (timeline != null) return timeline;
       if (builderFailure != null) throw builderFailure.error;
       if (state.status !== 'ready' || build == null) return null;
       try {
-        playerStore = createPlayerStore({
-          timeline: build({ resumeLog: state.resumeLog }),
-        });
+        timeline = toIterator(
+          build({ resumeLog: state.resumeLog }),
+          exhaustTimeline,
+        );
       } catch (error) {
         builderFailure = { error };
         throw error;
       }
-      return playerStore;
+      return timeline;
     },
     crash(error) {
       if (state.status !== 'ready') return;
@@ -266,6 +275,30 @@ function createRunStore(
       }
       completion ??= state.logger.completeRun();
       return completion;
+    },
+  };
+}
+
+// Reads the timeline once, so that remounted players share the iterator, and
+// reports when it runs out.
+function toIterator(
+  timeline: AnyIteratorOrIterable<RegisteredTask>,
+  onExhausted: () => void,
+): MaybeAsyncIterator<RegisteredTask> {
+  const iterator =
+    Symbol.iterator in timeline
+      ? timeline[Symbol.iterator]()
+      : Symbol.asyncIterator in timeline
+        ? timeline[Symbol.asyncIterator]()
+        : timeline;
+  const check = (result: IteratorResult<RegisteredTask>) => {
+    if (result.done) onExhausted();
+    return result;
+  };
+  return {
+    next() {
+      const result = iterator.next();
+      return 'then' in result ? result.then(check) : check(result);
     },
   };
 }

@@ -85,6 +85,38 @@ describe('Run', () => {
   );
 
   serverTest(
+    'never shows the completed slot when remounted while the run is being completed',
+    async ({ server }) => {
+      await server.addExperiment('exp');
+      const client = newClient(server);
+      const release = holdRunCompletion(server);
+      const user = userEvent.setup();
+      const first = await renderAsync(run(client, {}));
+      await user.click(await screen.findByRole('button', { name: 'Done a' }));
+      await user.click(await screen.findByRole('button', { name: 'Done b' }));
+      expect(await screen.findByText('Loading…')).toBeInTheDocument();
+      first.unmount();
+
+      const rendered = vi.fn();
+      function Completed() {
+        rendered();
+        return <p>The end</p>;
+      }
+      await renderAsync(
+        run(client, { elements: { ...elements, completed: <Completed /> } }),
+      );
+      expect(await screen.findByText('Loading…')).toBeInTheDocument();
+      expect(rendered).not.toHaveBeenCalled();
+
+      release();
+      expect(await screen.findByText('The end')).toBeInTheDocument();
+      await expect(server.storedRuns()).resolves.toEqual([
+        { runName: 'run-1', runStatus: 'completed' },
+      ]);
+    },
+  );
+
+  serverTest(
     'switches to another run when the run name changes',
     async ({ server }) => {
       await server.addExperiment('exp');

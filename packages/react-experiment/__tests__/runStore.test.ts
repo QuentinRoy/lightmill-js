@@ -273,17 +273,89 @@ describe('run store', () => {
       store.subscribe(() => {});
       const build = vi.fn(() => [{ type: 'trial' }]);
 
-      expect(store.getPlayerStore(build)).toBeNull();
+      expect(store.getTimeline(build)).toBeNull();
       await whenStatus(store, 'ready');
-      expect(store.getPlayerStore(null)).toBeNull();
-      const playerStore = store.getPlayerStore(build);
+      expect(store.getTimeline(null)).toBeNull();
+      const timeline = store.getTimeline(build);
 
-      expect(playerStore).not.toBeNull();
-      expect(store.getPlayerStore(build)).toBe(playerStore);
-      expect(store.getPlayerStore(() => [])).toBe(playerStore);
+      expect(timeline).not.toBeNull();
+      expect(store.getTimeline(build)).toBe(timeline);
+      expect(store.getTimeline(() => [])).toBe(timeline);
       expect(build).toHaveBeenCalledExactlyOnceWith({ resumeLog: null });
     },
   );
+
+  serverTest(
+    'reads the built timeline once, however it is iterable',
+    async ({ server }) => {
+      await server.addExperiment('exp');
+      const store = getRunStore(identity(server));
+      store.subscribe(() => {});
+      await whenStatus(store, 'ready');
+      const tasks = [{ type: 'trial' }, { type: 'trial' }];
+      const getIterator = vi.fn(() => tasks.values());
+      const timeline = store.getTimeline(() => ({
+        [Symbol.iterator]: getIterator,
+      }));
+      if (timeline == null) throw new Error('No timeline');
+
+      expect(timeline.next()).toEqual({ done: false, value: tasks[0] });
+      expect(timeline.next()).toEqual({ done: false, value: tasks[1] });
+      expect(getIterator).toHaveBeenCalledOnce();
+    },
+  );
+
+  describe('timeline exhaustion', () => {
+    async function readyStore(server: TestServer) {
+      await server.addExperiment('exp');
+      const store = getRunStore(identity(server));
+      store.subscribe(() => {});
+      await whenStatus(store, 'ready');
+      return store;
+    }
+    const isExhausted = (store: RunStore) => {
+      const state = store.getSnapshot();
+      return state.status === 'ready' && state.timelineExhausted;
+    };
+
+    serverTest(
+      'is reported once a sync timeline runs out',
+      async ({ server }) => {
+        const store = await readyStore(server);
+        const listener = vi.fn();
+        store.subscribe(listener);
+        const timeline = store.getTimeline(() => [{ type: 'trial' }]);
+        if (timeline == null) throw new Error('No timeline');
+
+        timeline.next();
+        expect(isExhausted(store)).toBe(false);
+        timeline.next();
+        timeline.next();
+
+        expect(isExhausted(store)).toBe(true);
+        expect(listener).toHaveBeenCalledOnce();
+      },
+    );
+
+    serverTest(
+      'is reported when an async timeline resolves as done',
+      async ({ server }) => {
+        const store = await readyStore(server);
+        const timeline = store.getTimeline(async function* () {
+          yield { type: 'trial' };
+        });
+        if (timeline == null) throw new Error('No timeline');
+
+        await timeline.next();
+        expect(isExhausted(store)).toBe(false);
+        const done = timeline.next();
+        expect(isExhausted(store)).toBe(false);
+        await done;
+
+        expect(isExhausted(store)).toBe(true);
+      },
+    );
+  });
 
   describe('with an ongoing run', () => {
     // Starts a run with one stored log, then forgets about its logger, as a
@@ -344,7 +416,7 @@ describe('run store', () => {
 
         expect(server.requestCount('PATCH', /^\/runs\//)).toBe(1);
         const build = vi.fn(() => [{ type: 'trial' }]);
-        store.getPlayerStore(build);
+        store.getTimeline(build);
         expect(build).toHaveBeenCalledExactlyOnceWith({
           resumeLog: expect.objectContaining({
             type: 'trial-done',

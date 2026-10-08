@@ -33,7 +33,7 @@ type StoreSnapshot<Task> =
   | Exclude<PlayerState<Task>, { status: 'paused' }>
   | { status: 'error'; error: Error };
 
-export type PlayerStore<Task> = {
+type PlayerStore<Task> = {
   timeline: AnyIteratorOrIterable<Task>;
   subscribe: (listener: () => void) => () => void;
   getSnapshot: () => StoreSnapshot<Task>;
@@ -46,7 +46,7 @@ const loadingSnapshot = { status: 'loading' } as const;
 // The timeline iterator is one-shot and the runner cannot be rewound, so the
 // store lives as long as the timeline, not as long as an effect: unsubscribing
 // (as StrictMode and <Activity> do) must not cancel it.
-export function createPlayerStore<Task>({
+function createPlayerStore<Task>({
   timeline,
   resumeAfterTask,
 }: {
@@ -113,14 +113,39 @@ export function createPlayerStore<Task>({
   };
 }
 
+// Stores of iterators, which a new runner could not read from the start: a
+// remounted player picks up the store where the previous one left it. Anything
+// else can be iterated again, so each mount builds its own.
+const iteratorStores = new WeakMap<object, PlayerStore<unknown>>();
+
+function getPlayerStore<Task>({
+  timeline,
+  resumeAfterTask,
+}: {
+  timeline: AnyIteratorOrIterable<Task>;
+  resumeAfterTask?: (task: Task) => boolean;
+}): PlayerStore<Task> {
+  if (
+    typeof timeline !== 'object' ||
+    !('next' in timeline) ||
+    typeof timeline.next !== 'function'
+  ) {
+    return createPlayerStore({ timeline, resumeAfterTask });
+  }
+  const cached = iteratorStores.get(timeline);
+  // A timeline is a single object of a single task type, so the store found
+  // under it has the Task type it was created with.
+  if (cached != null) return cached as PlayerStore<Task>;
+  const store = createPlayerStore({ timeline, resumeAfterTask });
+  iteratorStores.set(timeline, store);
+  return store;
+}
+
 const getLoadingSnapshot = () => loadingSnapshot;
 
 type UsePlayerStateOptions<Task> = {
   timeline?: AnyIteratorOrIterable<Task> | null;
   resumeAfterTask?: (task: Task) => boolean;
-  // A store created elsewhere, which then owns the timeline's lifetime.
-  // Exclusive with `timeline`.
-  store?: PlayerStore<Task>;
   onCompleted?: () => void;
   paused: boolean;
   loading: boolean;
@@ -136,7 +161,6 @@ type UsePlayerStateOptions<Task> = {
 export function usePlayerState<Task>({
   timeline,
   resumeAfterTask,
-  store: givenStore,
   onCompleted,
   paused,
   loading,
@@ -151,12 +175,12 @@ export function usePlayerState<Task>({
   const storeRef = React.useRef<PlayerStore<Task> | null>(null);
   if (storeRef.current == null) {
     if (timeline != null) {
-      storeRef.current = createPlayerStore({ timeline, resumeAfterTask });
+      storeRef.current = getPlayerStore({ timeline, resumeAfterTask });
     }
   } else if (storeRef.current.timeline !== timeline) {
     throw new Error('Timeline cannot be changed once set');
   }
-  const store = givenStore ?? storeRef.current;
+  const store = storeRef.current;
 
   React.useEffect(() => {
     store?.start();
@@ -191,7 +215,7 @@ export function usePlayerState<Task>({
     snapshot.status === 'task' ? snapshot.taskKey : null,
   );
 
-  if (!loading && timeline == null && givenStore == null) {
+  if (!loading && timeline == null) {
     throw new Error('Timeline must be set when loading is false');
   }
   if (interrupted && !holdsRunningTask) {
