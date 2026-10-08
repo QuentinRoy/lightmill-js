@@ -4,6 +4,7 @@ import {
   TimelineRunner,
 } from '@lightmill/runner';
 import * as React from 'react';
+import { noSubscribe } from './utils.js';
 
 // MaybeAsyncIterator is what resumeAfter returns.
 export type AnyIteratorOrIterable<Task> =
@@ -112,7 +113,6 @@ export function createPlayerStore<Task>({
   };
 }
 
-const noSubscribe = () => () => {};
 const getLoadingSnapshot = () => loadingSnapshot;
 
 type UsePlayerStateOptions<Task> = {

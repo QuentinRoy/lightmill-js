@@ -2,12 +2,15 @@ import * as React from 'react';
 import type { RegisteredLog, RegisteredTask } from './config.js';
 import { DefaultError } from './defaultError.js';
 import { DefaultPaused } from './defaultPaused.js';
-import type { RunClient, RunLogger } from './logClient.js';
+import { isLive, type RunClient, type RunLogger } from './logClient.js';
 import type { PlayerStore } from './playerState.js';
 import {
   getRunStore,
+  isSameRun,
+  type RunIdentity,
   type RunState,
   type RunStore,
+  type RunStoreParams,
   type TimelineBuilder,
 } from './runStore.js';
 import { StorePlayer, type TimelinePlayerElements } from './timelinePlayer.js';
@@ -15,6 +18,7 @@ import { useConfirmBeforeUnload } from './useConfirmBeforeUnload.js';
 import { LogDeliveryProvider } from './useLogDelivery.js';
 import { resumeRunContext, useResumeRun } from './useResumeRun.js';
 import { runErrorContext } from './useRunError.js';
+import { noSubscribe } from './utils.js';
 
 export type RunElements = TimelinePlayerElements<RegisteredTask> & {
   /** Asks the participant to resume an ongoing run. See `useResumeRun`. */
@@ -147,26 +151,17 @@ export function Run({
 // The store of the current identity, kept for as long as the identity holds
 // even if the store was evicted since: a finished run must not be looked up
 // and started again by the next render.
-function useRunStore(identity: Parameters<typeof getRunStore>[0]): RunStore {
-  const ref = React.useRef<{
-    client: RunClient;
-    experimentName: string;
-    runName: string;
-    store: RunStore;
-  } | null>(null);
-  const { client, experimentName, runName } = identity;
-  if (
-    ref.current == null ||
-    ref.current.client !== client ||
-    ref.current.experimentName !== experimentName ||
-    ref.current.runName !== runName
-  ) {
-    ref.current = {
-      client,
-      experimentName,
-      runName,
-      store: getRunStore(identity),
-    };
+function useRunStore(params: RunStoreParams): RunStore {
+  const ref = React.useRef<{ identity: RunIdentity; store: RunStore } | null>(
+    null,
+  );
+  const identity = {
+    client: params.client,
+    experimentName: params.experimentName,
+    runName: params.runName,
+  };
+  if (ref.current == null || !isSameRun(ref.current.identity, identity)) {
+    ref.current = { identity, store: getRunStore(params) };
   }
   return ref.current.store;
 }
@@ -242,15 +237,10 @@ function UnloadGuard({
   crashed: boolean;
 }): null {
   const subscribe = logger?.subscribe ?? noSubscribe;
-  const live = React.useSyncExternalStore(subscribe, () => {
-    const status = logger?.state.status;
-    return (
-      status === 'idle' ||
-      status === 'sending' ||
-      status === 'retrying' ||
-      status === 'paused'
-    );
-  });
+  const live = React.useSyncExternalStore(
+    subscribe,
+    () => logger != null && isLive(logger.state),
+  );
   const held = React.useSyncExternalStore(
     subscribe,
     () => logger != null && logger.inFlightLogs.length > 0,
@@ -258,8 +248,6 @@ function UnloadGuard({
   useConfirmBeforeUnload(live && (!crashed || held));
   return null;
 }
-
-const noSubscribe = () => () => {};
 
 function RunPlayer({
   store,

@@ -1,6 +1,7 @@
 import * as React from 'react';
 import type { RegisteredLog } from './config.js';
 import type { RunLogger } from './logClient.js';
+import { noSubscribe } from './utils.js';
 
 // null is a run without a logger, such as one that could not start.
 // undefined is no run at all.
@@ -35,7 +36,6 @@ export type LogDelivery = {
   retry: () => Promise<void>;
 };
 
-const noSubscribe = () => () => {};
 // One retry per logger, so its identity holds across components and mounts.
 const retries = new WeakMap<RunLogger, () => Promise<void>>();
 const retryNothing = () => Promise.resolve();

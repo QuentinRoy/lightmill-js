@@ -1,5 +1,12 @@
 import type { RegisteredLog, RegisteredTask } from './config.js';
-import type { ResumeLog, RunClient, RunLogger } from './logClient.js';
+import {
+  hasEnded,
+  isLive,
+  type ResumeLog,
+  type RunClient,
+  type RunInfo,
+  type RunLogger,
+} from './logClient.js';
 import {
   createPlayerStore,
   type AnyIteratorOrIterable,
@@ -10,7 +17,7 @@ export type RunState =
   | { status: 'looking-up' }
   | {
       status: 'awaiting-confirmation';
-      run: { id: string; name: string | null; status: string };
+      run: RunInfo;
       // The last resumable log, or null at resume number 0.
       lastLog: ResumeLog | null;
       // What the client needs to resume after `lastLog`.
@@ -66,9 +73,20 @@ export type RunIdentity = {
   client: RunClient;
   experimentName: string;
   runName: string;
+};
+
+export type RunStoreParams = RunIdentity & {
   // Only read when the store is created.
   resumableLogTypes: Array<RegisteredLog['type']>;
 };
+
+export function isSameRun(a: RunIdentity, b: RunIdentity): boolean {
+  return (
+    a.client === b.client &&
+    a.experimentName === b.experimentName &&
+    a.runName === b.runName
+  );
+}
 
 const stores = new WeakMap<RunClient, Map<string, RunStore>>();
 let storeCount = 0;
@@ -77,8 +95,8 @@ let storeCount = 0;
  * The store of a run, shared by every `Run` of the same client, experiment
  * name and run name. Idempotent, so it is safe to call while rendering.
  */
-export function getRunStore(identity: RunIdentity): RunStore {
-  const { client, experimentName, runName } = identity;
+export function getRunStore(params: RunStoreParams): RunStore {
+  const { client, experimentName, runName } = params;
   let clientStores = stores.get(client);
   if (clientStores == null) {
     clientStores = new Map();
@@ -88,7 +106,7 @@ export function getRunStore(identity: RunIdentity): RunStore {
   let store = clientStores.get(key);
   if (store == null) {
     const clientStoresRef = clientStores;
-    store = createRunStore(identity, () => {
+    store = createRunStore(params, () => {
       if (clientStoresRef.get(key) === store) clientStoresRef.delete(key);
     });
     clientStores.set(key, store);
@@ -100,7 +118,7 @@ export function getRunStore(identity: RunIdentity): RunStore {
 // forgotten when StrictMode or a remount unsubscribes the component, so
 // unsubscribing cancels nothing.
 function createRunStore(
-  { client, experimentName, runName, resumableLogTypes }: RunIdentity,
+  { client, experimentName, runName, resumableLogTypes }: RunStoreParams,
   evict: () => void,
 ): RunStore {
   const listeners = new Set<() => void>();
@@ -151,13 +169,7 @@ function createRunStore(
       if (loggerState.status === 'idle' && logger === crashedLogger) {
         interrupt(logger);
       }
-      if (
-        loggerState.status === 'completed' ||
-        loggerState.status === 'canceled' ||
-        loggerState.status === 'interrupted'
-      ) {
-        evict();
-      }
+      if (hasEnded(loggerState)) evict();
     });
     setState({ status: 'ready', logger, resumeLog });
   }
@@ -170,15 +182,7 @@ function createRunStore(
   // Never throws and never replaces the error that crashed the run: the
   // failure is logged, and the logger being live, the held logs stay in it.
   function interrupt(logger: RunLogger) {
-    const { status } = logger.state;
-    if (
-      interrupting ||
-      (status !== 'idle' &&
-        status !== 'sending' &&
-        status !== 'retrying' &&
-        status !== 'paused')
-    )
-      return;
+    if (interrupting || !isLive(logger.state)) return;
     interrupting = true;
     logger
       .interruptRun()

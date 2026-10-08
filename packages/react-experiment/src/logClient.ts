@@ -9,6 +9,22 @@ export type LoggerState =
   | Readonly<{ status: 'retrying' | 'paused'; error: Error }>
   | Readonly<{ status: 'completed' | 'canceled' | 'interrupted' }>;
 
+export function hasEnded(state: LoggerState): boolean {
+  return (
+    state.status === 'completed' ||
+    state.status === 'canceled' ||
+    state.status === 'interrupted'
+  );
+}
+
+/** Whether the logger can still deliver logs. */
+export function isLive(state: LoggerState): boolean {
+  return !hasEnded(state);
+}
+
+/** A run as the server describes it. */
+export type RunInfo = { id: string; name: string | null; status: string };
+
 export interface RunLogger<Log extends { type: string } = RegisteredLog> {
   addLog(log: Log): Promise<void>;
   readonly state: LoggerState;
@@ -39,7 +55,7 @@ export interface RunClient<Log extends { type: string } = RegisteredLog> {
     resumableLogTypes: Array<Log['type']>;
   }): Promise<
     Array<{
-      run: { id: string; name: string | null; status: string };
+      run: RunInfo;
       toResumeAfter:
         { number: 0; log: null } | { number: number; log: ResumeLog<Log> };
     }>

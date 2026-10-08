@@ -1,10 +1,10 @@
 import * as React from 'react';
-import type { ResumeLog } from './logClient.js';
+import type { ResumeLog, RunInfo } from './logClient.js';
 
 export type ResumeRun = {
   /** Resumes the run. Calling it more than once does nothing. */
   resume: () => void;
-  run: { id: string; name: string | null; status: string };
+  run: RunInfo;
   /** The last resumable log, or `null` when none was logged yet. */
   lastLog: ResumeLog | null;
 };
