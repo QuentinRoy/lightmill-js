@@ -1,12 +1,12 @@
 import { serverTest, type TestServer } from '@lightmill/test-server';
 import { act, screen } from '@testing-library/react';
 import userEventPackage from '@testing-library/user-event';
-import { http, passthrough } from 'msw';
 import * as React from 'react';
 import { expect, vi } from 'vitest';
 import { Run, resumeAfter, useLogDelivery, useResumeRun } from '../src/main.js';
 import {
   elements,
+  holdRunCompletion,
   isUnloadPrevented,
   newClient,
   renderAsync,
@@ -16,19 +16,6 @@ import {
 
 // @ts-expect-error - userEventPackage is not typed correctly
 const userEvent: typeof userEventPackage.default = userEventPackage;
-
-// Holds the request ending the run until `release` is called.
-function holdRunCompletion(server: TestServer) {
-  let release!: () => void;
-  const released = new Promise<void>((resolve) => (release = resolve));
-  server.msw.use(
-    http.patch(`${server.apiRoot}/runs/:id`, async () => {
-      await released;
-      return passthrough();
-    }),
-  );
-  return release;
-}
 
 describe('Run', () => {
   serverTest(
@@ -123,6 +110,67 @@ describe('Run', () => {
           { runName: 'run-2', runStatus: 'running' },
         ]),
       );
+    },
+  );
+
+  serverTest(
+    'builds the timeline once under StrictMode',
+    async ({ server }) => {
+      await server.addExperiment('exp');
+      const build = vi.fn(timeline);
+      await renderAsync(
+        <React.StrictMode>
+          {run(newClient(server), { timeline: build })}
+        </React.StrictMode>,
+      );
+
+      await screen.findByRole('button', { name: 'Done a' });
+      expect(build).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  serverTest(
+    'switches to another run when the experiment name changes',
+    async ({ server }) => {
+      await server.addExperiment('exp');
+      await server.addExperiment('other');
+      const client = newClient(server);
+      const user = userEvent.setup();
+      const { rerender } = await renderAsync(run(client, {}));
+      await user.click(await screen.findByRole('button', { name: 'Done a' }));
+      await user.click(await screen.findByRole('button', { name: 'Done b' }));
+      expect(await screen.findByText('The end')).toBeInTheDocument();
+
+      await act(async () => {
+        rerender(run(client, { experimentName: 'other' }));
+      });
+
+      expect(
+        await screen.findByRole('button', { name: 'Done a' }),
+      ).toBeInTheDocument();
+      await expect(server.storedRuns()).resolves.toHaveLength(2);
+    },
+  );
+
+  serverTest(
+    'switches to another run when the client changes',
+    async ({ server }) => {
+      await server.addExperiment('exp');
+      const user = userEvent.setup();
+      const { rerender } = await renderAsync(run(newClient(server), {}));
+      await user.click(await screen.findByRole('button', { name: 'Done a' }));
+      await user.click(await screen.findByRole('button', { name: 'Done b' }));
+      expect(await screen.findByText('The end')).toBeInTheDocument();
+
+      // Another client is another session: it does not own the first run.
+      await act(async () => {
+        rerender(run(newClient(server), {}));
+      });
+
+      expect(
+        await screen.findByText(/A session with this name already exists/),
+      ).toBeVisible();
+      expect(screen.queryByText('The end')).not.toBeInTheDocument();
     },
   );
 

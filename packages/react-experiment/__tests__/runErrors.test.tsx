@@ -13,6 +13,7 @@ import {
 import {
   failDelivery,
   failRequest,
+  holdRunCompletion,
   isUnloadPrevented,
   loggerOf,
   newClient,
@@ -403,6 +404,29 @@ describe('Run when the run crashes', () => {
       expect(await screen.findByText(/unexpected error/)).toBeVisible();
       expect(screen.getByRole('group')).toHaveTextContent(/interrupted/);
       expect(screen.queryByText('Loading…')).not.toBeInTheDocument();
+    },
+  );
+
+  serverTest(
+    'interrupts the run even if Run is unmounted before the interrupt ends',
+    async ({ server }) => {
+      await server.addExperiment('exp');
+      const release = holdRunCompletion(server);
+      const user = userEvent.setup();
+      const page = await renderAsync(
+        run(newClient(server), { elements: crashingElements }),
+      );
+      await user.click(await screen.findByRole('button', { name: 'Crash' }));
+      await screen.findByText(/unexpected error/);
+
+      page.unmount();
+      release();
+
+      await vi.waitFor(async () => {
+        await expect(server.storedRuns()).resolves.toEqual([
+          { runName: 'run-1', runStatus: 'interrupted' },
+        ]);
+      });
     },
   );
 

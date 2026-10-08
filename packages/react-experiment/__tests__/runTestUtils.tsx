@@ -127,3 +127,16 @@ export function loggerOf(client: Client): RunLogger {
   if (state.status !== 'ready') throw new Error('The run is not ready');
   return state.logger;
 }
+
+// Holds the request ending the run until `release` is called.
+export function holdRunCompletion(server: TestServer) {
+  let release!: () => void;
+  const released = new Promise<void>((resolve) => (release = resolve));
+  server.msw.use(
+    http.patch(`${server.apiRoot}/runs/:id`, async () => {
+      await released;
+      return passthrough();
+    }),
+  );
+  return release;
+}
