@@ -11,7 +11,7 @@ export function TrialTask() {
   return (
     <button
       onClick={() => {
-        addLog({ taskId: task.id });
+        addLog({ taskId: task.id, level: task.level });
         onTaskCompleted();
       }}
     >
@@ -24,6 +24,11 @@ export const timeline = () => [
   { type: 'trial', id: 'a' },
   { type: 'trial', id: 'b' },
 ];
+
+export const elements = {
+  tasks: { trial: <TrialTask /> },
+  completed: <p>The end</p>,
+};
 
 export function newClient(server: TestServer): Client {
   return new Client({ apiRoot: server.apiRoot });
@@ -40,7 +45,7 @@ export function run(
       runName="run-1"
       resumableLogTypes={['trial-done']}
       timeline={timeline}
-      elements={{ tasks: { trial: <TrialTask /> }, completed: <p>The end</p> }}
+      elements={elements}
       {...props}
     />
   );
@@ -87,4 +92,21 @@ export function failDelivery(server: TestServer, status = 503) {
       failingStatus = null;
     },
   };
+}
+
+/** Makes the server answer the matching request with a 400 and `detail`. */
+export function failRequest(
+  server: TestServer,
+  method: 'patch' | 'post',
+  path: string,
+  detail = 'Refused',
+) {
+  server.msw.use(
+    http[method](`${server.apiRoot}${path}`, () =>
+      HttpResponse.json(
+        { errors: [{ status: '400', detail }] },
+        { status: 400 },
+      ),
+    ),
+  );
 }

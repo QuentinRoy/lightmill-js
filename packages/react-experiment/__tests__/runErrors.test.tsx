@@ -7,6 +7,7 @@ import { expect, vi } from 'vitest';
 import { useLogger, useRunError } from '../src/main.js';
 import {
   failDelivery,
+  failRequest,
   isUnloadPrevented,
   newClient,
   renderAsync,
@@ -51,22 +52,6 @@ class AppBoundary extends React.Component<
       <p>App boundary: {this.state.error.message}</p>
     );
   }
-}
-
-function failRequest(
-  server: Parameters<typeof failDelivery>[0],
-  method: 'patch' | 'post',
-  path: string,
-  detail: string,
-) {
-  server.msw.use(
-    http[method](`${server.apiRoot}${path}`, () =>
-      HttpResponse.json(
-        { errors: [{ status: '400', detail }] },
-        { status: 400 },
-      ),
-    ),
-  );
 }
 
 const genericSentence =

@@ -1,72 +1,21 @@
-import { Client } from '@lightmill/log-client';
 import { serverTest, type TestServer } from '@lightmill/test-server';
-import { act, render, screen } from '@testing-library/react';
+import { act, screen } from '@testing-library/react';
 import userEventPackage from '@testing-library/user-event';
 import { http, passthrough } from 'msw';
 import * as React from 'react';
 import { expect, vi } from 'vitest';
+import { Run, resumeAfter, useResumeRun } from '../src/main.js';
 import {
-  Run,
-  resumeAfter,
-  useLogger,
-  useResumeRun,
-  useTask,
-} from '../src/main.js';
-import { isUnloadPrevented } from './runTestUtils.js';
+  elements,
+  isUnloadPrevented,
+  newClient,
+  renderAsync,
+  run,
+  timeline,
+} from './runTestUtils.js';
 
 // @ts-expect-error - userEventPackage is not typed correctly
 const userEvent: typeof userEventPackage.default = userEventPackage;
-
-type Trial = { type: 'trial'; id: string; level?: number };
-
-function TrialTask() {
-  const { task, onTaskCompleted } = useTask('trial');
-  const addLog = useLogger('trial-done');
-  return (
-    <button
-      onClick={() => {
-        addLog({ taskId: task.id, level: task.level });
-        onTaskCompleted();
-      }}
-    >
-      Done {String(task.id)}
-    </button>
-  );
-}
-
-const elements = { tasks: { trial: <TrialTask /> }, completed: <p>The end</p> };
-
-const timeline = () =>
-  [
-    { type: 'trial', id: 'a' },
-    { type: 'trial', id: 'b' },
-  ] satisfies Trial[];
-
-function newClient(server: TestServer) {
-  return new Client({ apiRoot: server.apiRoot });
-}
-
-function run(client: Client, props: Partial<React.ComponentProps<typeof Run>>) {
-  return (
-    <Run
-      client={client}
-      experimentName="exp"
-      runName="run-1"
-      resumableLogTypes={['trial-done']}
-      timeline={timeline}
-      elements={elements}
-      {...props}
-    />
-  );
-}
-
-async function renderAsync(ui: React.ReactElement) {
-  let result!: ReturnType<typeof render>;
-  await act(async () => {
-    result = render(ui);
-  });
-  return result;
-}
 
 // Holds the request ending the run until `release` is called.
 function holdRunCompletion(server: TestServer) {

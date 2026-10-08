@@ -3,7 +3,7 @@ import { serverTest, type TestServer } from '@lightmill/test-server';
 import { http, HttpResponse } from 'msw';
 import { expect, vi } from 'vitest';
 import { getRunStore, type RunStore } from '../src/runStore.js';
-import { failDelivery } from './runTestUtils.js';
+import { failDelivery, failRequest } from './runTestUtils.js';
 
 function identity(
   server: TestServer,
@@ -16,17 +16,6 @@ function identity(
     resumableLogTypes: ['trial-done'],
     ...overrides,
   };
-}
-
-function failRequest(server: TestServer, method: 'patch', path: string) {
-  server.msw.use(
-    http[method](`${server.apiRoot}${path}`, () =>
-      HttpResponse.json(
-        { errors: [{ status: '400', detail: 'Refused' }] },
-        { status: 400 },
-      ),
-    ),
-  );
 }
 
 function whenStatus(store: RunStore, status: string) {
