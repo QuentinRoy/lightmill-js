@@ -11,18 +11,22 @@ export class RequestError extends Error {
     response: Response;
     error: string | { errors: ErrorResource[] };
   }) {
+    // HTTP/2 has no reason phrase, so statusText is empty there.
+    const statusText =
+      fetchResponse.response.statusText ||
+      `HTTP ${fetchResponse.response.status}`;
     super(
       typeof fetchResponse.error === 'string'
         ? fetchResponse.error !== ''
           ? fetchResponse.error
-          : fetchResponse.response.statusText
+          : statusText
         : (fetchResponse.error.errors?.[0].detail ??
             fetchResponse.error.errors?.[0].code ??
             fetchResponse.error.errors?.[0].status ??
-            fetchResponse.response.statusText),
+            statusText),
     );
     if (typeof fetchResponse.error === 'string') {
-      let error: ErrorResource = { status: fetchResponse.response.statusText };
+      let error: ErrorResource = { status: statusText };
       if (fetchResponse.error !== '') {
         error.detail = fetchResponse.error;
       }
