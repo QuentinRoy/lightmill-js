@@ -183,12 +183,13 @@ export const sessionRequiredError = {
   detail: 'A session is required. Post to /sessions to create one.',
 } as const;
 
-export const getInternalServerError = (error: Error) =>
-  ({
-    status: 'Internal Server Error',
-    code: 'INTERNAL_SERVER_ERROR',
-    detail: error.message,
-  }) as const satisfies ErrorOf<typeof LogApi.InternalServerErrorResponse>;
+// The error's own message is for the server log: library messages can name
+// tables, SQL, or file paths.
+export const internalServerError = {
+  status: 'Internal Server Error',
+  code: 'INTERNAL_SERVER_ERROR',
+  detail: 'The server hit an unexpected error.',
+} as const satisfies ErrorOf<typeof LogApi.InternalServerErrorResponse>;
 
 // Body-parser errors are the client's: answering them with a 500 would make
 // log-client retry a request that can never succeed.

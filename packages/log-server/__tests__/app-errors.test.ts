@@ -65,7 +65,7 @@ describe.for(storeTypes)('createLogServer Errors (%s server)', (storeType) => {
           {
             status: 'Internal Server Error',
             code: 'INTERNAL_SERVER_ERROR',
-            detail: 'connection lost',
+            detail: 'The server hit an unexpected error.',
           },
         ],
       });
@@ -131,7 +131,7 @@ describe.for(storeTypes)('createLogServer Errors (%s server)', (storeType) => {
           {
             status: 'Internal Server Error',
             code: 'INTERNAL_SERVER_ERROR',
-            detail: 'connection lost',
+            detail: 'The server hit an unexpected error.',
           },
         ],
       });
@@ -810,7 +810,7 @@ describe.for(storeTypes)(
             {
               status: 'Internal Server Error',
               code: 'INTERNAL_SERVER_ERROR',
-              detail: 'boom',
+              detail: 'The server hit an unexpected error.',
             },
           ],
         });
@@ -903,7 +903,7 @@ describe.for(storeTypes)(
             {
               status: 'Internal Server Error',
               code: 'INTERNAL_SERVER_ERROR',
-              detail: 'boom',
+              detail: 'The server hit an unexpected error.',
             },
           ],
         });

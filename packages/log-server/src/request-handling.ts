@@ -18,8 +18,8 @@ import type { DataStore, RunId } from './data-store.ts';
 import {
   getBodyParserError,
   getErrorResponse,
-  getInternalServerError,
   getRequestMediaType,
+  internalServerError,
   isContentType,
   sessionRequiredError,
   type RouteMediaType,
@@ -556,7 +556,7 @@ function getHandlerErrorResponse(
 
 function logServerError(error: Error) {
   log.error(error);
-  return getInternalServerError(error);
+  return internalServerError;
 }
 
 function toError(error: unknown) {
