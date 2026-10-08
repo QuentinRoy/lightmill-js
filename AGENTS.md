@@ -12,7 +12,7 @@ GitHub issues track human-facing work; beads (`bd`) hold shared execution state.
 
 ### Domain docs
 
-Single-context: root [`CONTEXT.md`](CONTEXT.md) + [`docs/adr/`](docs/adr/). See [`docs/agents/domain.md`](docs/agents/domain.md).
+Single-context: root [`GLOSSARY.md`](GLOSSARY.md) + [`docs/adr/`](docs/adr/). See [`docs/agents/domain.md`](docs/agents/domain.md).
 
 ### Prose
 

@@ -33,12 +33,12 @@ packages/
 docs/
   guides/               user guides
   adr/                  architecture decisions
-CONTEXT.md              glossary of domain terms
+GLOSSARY.md             glossary of domain terms
 ```
 
 Each package has its own `README.md`, `CHANGELOG.md`, tests, and TypeScript configuration. Public entry points are the `exports` of each `package.json`.
 
-Use the terms of [`CONTEXT.md`](CONTEXT.md) in code and docs, and record decisions that are hard to reverse in [`docs/adr/`](docs/adr/).
+Use the terms of [`GLOSSARY.md`](GLOSSARY.md) in code and docs, and record decisions that are hard to reverse in [`docs/adr/`](docs/adr/).
 
 ## Changesets
 
