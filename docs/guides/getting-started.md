@@ -208,7 +208,7 @@ The complete `src/App.tsx` below adds server logging and resuming to the local p
 
 The `apiRoot` option passed to `new Client` tells the browser where to send requests to the log server. Here it is `http://localhost:3000`, the address of the server you started. The app itself is served by Vite at `http://localhost:5173`; the two addresses have different jobs. [Deploying](deploying.md#build-the-app-for-https) explains how this address changes when the server is online.
 
-`startRun` reads the saved progress for the participant number in the URL. It returns a logger, the timeline, and the id of the last saved task. The timeline is built once for this run; rebuilding it on every render would make `TimelinePlayer` throw.
+`startRun` reads the saved progress for the participant number in the URL. It returns a logger and the timeline, which `resumeAfter` starts after the last saved task when the run is resumed. The timeline is built once for this run; rebuilding it on every render would make `TimelinePlayer` throw.
 
 The `run` promise is also created once, outside the React components. This keeps React's development mode from starting a second run when it renders a component again. Without a positive participant number, no run starts.
 
@@ -235,6 +235,7 @@ Replace the local player in `src/App.tsx` with this file. Keep `src/experiment.t
 ```tsx
 import { Client, RequestError, type Logger } from '@lightmill/log-client';
 import {
+  resumeAfter,
   TimelinePlayer,
   useConfirmBeforeUnload,
 } from '@lightmill/react-experiment';
@@ -247,7 +248,7 @@ import {
   useSyncExternalStore,
   type ReactNode,
 } from 'react';
-import { createTimeline, type Log, type Task } from './experiment.ts';
+import { createTimeline, type Log } from './experiment.ts';
 import { Intro, Trial } from './tasks.tsx';
 
 const client = new Client<Log>({ apiRoot: 'http://localhost:3000' });
@@ -267,10 +268,14 @@ async function startRun(participantNumber: number) {
           runId: resumable.run.id,
           after: resumable.toResumeAfter,
         });
+  const timeline = createTimeline(participantNumber);
+  const lastTaskId = resumable?.toResumeAfter.log?.taskId;
   return {
     logger,
-    timeline: createTimeline(participantNumber),
-    lastTaskId: resumable?.toResumeAfter.log?.taskId,
+    timeline:
+      lastTaskId == null
+        ? timeline
+        : resumeAfter(timeline, (task) => task.id === lastTaskId),
   };
 }
 
@@ -294,7 +299,7 @@ export default function App() {
 }
 
 function Experiment({ run }: { run: ReturnType<typeof startRun> }) {
-  const { logger, timeline, lastTaskId } = use(run);
+  const { logger, timeline } = use(run);
   const state = useSyncExternalStore(logger.subscribe, () => logger.state);
   const [timelineCompleted, setTimelineCompleted] = useState(false);
   const [error, setError] = useState<Error | null>(null);
@@ -317,9 +322,6 @@ function Experiment({ run }: { run: ReturnType<typeof startRun> }) {
   return (
     <TimelinePlayer
       timeline={timeline}
-      resumeAfterTask={
-        lastTaskId == null ? undefined : (task: Task) => task.id === lastTaskId
-      }
       // A rejected onLog throws in TimelinePlayer. The logger keeps the logs a
       // pause rejects, so only other errors are rethrown.
       onLog={(log) =>
@@ -409,7 +411,7 @@ Here is what happens when a participant opens the page:
 1. The app reads the participant number from the URL, for example `?participant=3`, and names the run after it. A run is one participant going through the experiment once.
 2. `getResumableRuns` asks the server whether this browser already started this run. If it did, `startRun` resumes it after its last log of a resumable type. Otherwise, `startRun` creates it.
 3. While this happens, `use` suspends the component and `Suspense` shows "Loading…". The promise is created once, outside of React, so React's development mode, which renders components twice, does not start two runs.
-4. `TimelinePlayer` shows the task components in turn. When resuming, `resumeAfterTask` skips every task up to the last one logged.
+4. `TimelinePlayer` shows the task components in turn. When resuming, `resumeAfter` has already skipped every task up to the last one logged.
 5. Every log goes to `logger.addLog`. If the server can't be reached for a while, the logger pauses and keeps the logs. `paused` then makes `TimelinePlayer` show the `Paused` screen once the current task ends, and `retry()` sends the logs again.
 6. When the timeline ends, `TimelinePlayer` calls `onCompleted` and shows "Saving…". Once every log is stored, `completeRun` tells the server the run is complete, and the app thanks the participant.
 7. Until the logger stops, `useConfirmBeforeUnload` asks the browser to confirm before the participant leaves the page.

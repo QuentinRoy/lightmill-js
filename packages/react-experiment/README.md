@@ -134,7 +134,21 @@ What happens:
 
 - `onLog(log)`: receives every log from `useLogger`, and returns a promise.
 - `onCompleted()`: called once when the timeline is over, while `TimelinePlayer` is mounted.
-- `resumeAfterTask(task)`: returns `true` for the last task completed before. `TimelinePlayer` skips every task up to the first one it matches, and starts with the next. It throws when no task matches. See [Resuming runs](../../docs/guides/resuming-runs.md).
+
+### `resumeAfter(timeline, predicate)`
+
+Re-exported from [`@lightmill/runner`](../runner/README.md). Returns a timeline that starts after the first task for which `predicate(task)` returns `true`, the last task completed before. It throws when no task matches. Create the result once, like any other timeline. See [Resuming runs](../../docs/guides/resuming-runs.md).
+
+`resumeAfter` replays the timeline up to the matching task, so `predicate` must be pure.
+
+```tsx
+<TimelinePlayer
+  timeline={resumeAfter(tasks, (task) => task.id === lastTaskId)}
+  // ...
+/>
+```
+
+It replaces the `resumeAfterTask` prop, which `TimelinePlayer` no longer has.
 
 ### `useTask(type?)`
 
@@ -258,7 +272,7 @@ export function App() {
 
 Record the answer before calling `onTaskCompleted`: that call asks the generator for the next task. An async generator works the same way, and `elements.loading` shows while it computes the next task.
 
-Resuming a generator is up to your app. `toResumeAfter.log` tells which task the run stopped after, but the generator also needs the state it had at that point, such as the current level, and `resumeAfterTask` skips tasks without mounting them.
+`resumeAfter` replays a generator without mounting any task, so the generator does not get the answers the participant gave. Resuming a generator is up to your app: log the state it needs, such as the next level, and start a new generator from it.
 
 ## Sharing state between tasks
 

@@ -1,8 +1,13 @@
 import { type MaybeAsyncIterator, TimelineRunner } from '@lightmill/runner';
 import * as React from 'react';
 
+// MaybeAsyncIterator is what resumeAfter returns.
 export type AnyIteratorOrIterable<Task> =
-  AsyncIterator<Task> | AsyncIterable<Task> | Iterator<Task> | Iterable<Task>;
+  | AsyncIterator<Task>
+  | AsyncIterable<Task>
+  | Iterator<Task>
+  | Iterable<Task>
+  | MaybeAsyncIterator<Task>;
 
 export type PlayerTaskState<Task> = {
   status: 'task';
@@ -31,45 +36,6 @@ type PlayerStore<Task> = {
   start: () => void;
 };
 
-// Skips every task up to and including the first one matching resumeAfterTask.
-// It stays synchronous for as long as the timeline is, so resuming a
-// synchronous timeline never shows the loading state. Skipping in a loop
-// rather than completing each task from the runner's onTaskStarted also
-// avoids a recursion that overflows the stack on long timelines.
-function skipThrough<Task>(
-  timeline: AnyIteratorOrIterable<Task>,
-  resumeAfterTask: (task: Task) => boolean,
-): MaybeAsyncIterator<Task> {
-  const iterator: MaybeAsyncIterator<Task> =
-    Symbol.iterator in timeline
-      ? timeline[Symbol.iterator]()
-      : Symbol.asyncIterator in timeline
-        ? timeline[Symbol.asyncIterator]()
-        : timeline;
-  let skipped = false;
-  const skip = (
-    result: IteratorResult<Task>,
-  ): IteratorResult<Task> | Promise<IteratorResult<Task>> => {
-    while (!result.done) {
-      if (resumeAfterTask(result.value)) {
-        skipped = true;
-        return iterator.next();
-      }
-      const next = iterator.next();
-      if ('then' in next) return next.then(skip);
-      result = next;
-    }
-    throw new Error('No task matched resumeAfterTask');
-  };
-  return {
-    next() {
-      if (skipped) return iterator.next();
-      const first = iterator.next();
-      return 'then' in first ? first.then(skip) : skip(first);
-    },
-  };
-}
-
 const loadingSnapshot = { status: 'loading' } as const;
 
 // The timeline iterator is one-shot and the runner cannot be rewound, so the
@@ -77,10 +43,8 @@ const loadingSnapshot = { status: 'loading' } as const;
 // (as StrictMode and <Activity> do) must not cancel it.
 function createPlayerStore<Task>({
   timeline,
-  resumeAfterTask,
 }: {
   timeline: AnyIteratorOrIterable<Task>;
-  resumeAfterTask?: (task: Task) => boolean;
 }): PlayerStore<Task> {
   const listeners = new Set<() => void>();
   let snapshot: StoreSnapshot<Task> = loadingSnapshot;
@@ -91,10 +55,7 @@ function createPlayerStore<Task>({
     listeners.forEach((listener) => listener());
   };
   const runner = new TimelineRunner<Task>({
-    timeline:
-      resumeAfterTask == null
-        ? timeline
-        : skipThrough(timeline, resumeAfterTask),
+    timeline,
     onLoading() {
       setSnapshot({ status: 'loading' });
     },
@@ -147,7 +108,6 @@ const getLoadingSnapshot = () => loadingSnapshot;
 
 type UsePlayerStateOptions<Task> = {
   timeline?: AnyIteratorOrIterable<Task> | null;
-  resumeAfterTask?: (task: Task) => boolean;
   onCompleted?: () => void;
   paused: boolean;
   loading: boolean;
@@ -162,7 +122,6 @@ type UsePlayerStateOptions<Task> = {
  */
 export function usePlayerState<Task>({
   timeline,
-  resumeAfterTask,
   onCompleted,
   paused,
   loading,
@@ -177,7 +136,7 @@ export function usePlayerState<Task>({
   const storeRef = React.useRef<PlayerStore<Task> | null>(null);
   if (storeRef.current == null) {
     if (timeline != null) {
-      storeRef.current = createPlayerStore({ timeline, resumeAfterTask });
+      storeRef.current = createPlayerStore({ timeline });
     }
   } else if (storeRef.current.timeline !== timeline) {
     throw new Error('Timeline cannot be changed once set');

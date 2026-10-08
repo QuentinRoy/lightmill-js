@@ -15,7 +15,6 @@ export type TimelinePlayerElements<T extends Typed> = {
 type TimelinePlayerParameter<Task extends { type: string }, Log> = {
   onCompleted?: () => void;
   onLog?: Logger<Log>;
-  resumeAfterTask?: (task: Task) => boolean;
 } & (
   | { timeline: AnyIteratorOrIterable<Task>; loading?: boolean }
   | { timeline?: AnyIteratorOrIterable<Task> | null; loading: true }

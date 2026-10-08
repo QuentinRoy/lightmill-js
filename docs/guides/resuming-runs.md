@@ -19,6 +19,8 @@ Resuming cancels the logs that come after the resume point. The server keeps the
    onTaskCompleted();
    ```
 
+   A resumable log must mark a completed task. Also log the state the app needs to resume, such as the next level of a staircase or the trial index: the server only gives back the logs.
+
 2. **Find the run.** `getResumableRuns` lists the runs this browser started that are running or interrupted. Filter by experiment and run name:
 
    ```ts
@@ -42,19 +44,21 @@ Resuming cancels the logs that come after the resume point. The server keeps the
 
    With `{ number: 0 }`, the run starts over from the beginning, and every log it had is canceled.
 
-4. **Skip the tasks already done.** Give `TimelinePlayer` a `resumeAfterTask` function that returns `true` for the last completed task:
+4. **Skip the tasks already done.** Wrap the timeline with `resumeAfter`, which starts after the first task the predicate matches. Pass it the last completed task:
 
    ```tsx
-   <TimelinePlayer
-     timeline={timeline}
-     resumeAfterTask={
-       lastTaskId == null ? undefined : (task) => task.id === lastTaskId
-     }
-     // ...
-   />
+   import { resumeAfter, TimelinePlayer } from '@lightmill/react-experiment';
+
+   // Create it once: TimelinePlayer throws if its timeline changes.
+   const resumedTimeline =
+     lastTaskId == null
+       ? timeline
+       : resumeAfter(timeline, (task) => task.id === lastTaskId);
+
+   <TimelinePlayer timeline={resumedTimeline} /* ... */ />;
    ```
 
-   `TimelinePlayer` starts with the task after the first one that matches. It throws when no task matches, which usually means the timeline changed.
+   The timeline is replayed up to the matching task, so the predicate must be pure. `resumeAfter` throws when no task matches, which usually means the timeline changed.
 
 5. **Rebuild the same timeline.** For a fixed design, build the timeline from a stable input, such as the participant number, so the saved task id is still in it and the remaining tasks keep their order. If task order uses randomness, use a random number generator seeded with the participant number rather than `Math.random`.
 
@@ -94,18 +98,18 @@ The server finds a participant's runs through their session, so sessions must ou
 
 ## Without React
 
-Steps 1 to 3 and 5 are the same. Instead of `resumeAfterTask`, skip the tasks yourself: drop every task up to and including the last one logged before you give the timeline to `@lightmill/runner`.
+Steps 1 to 3 and 5 are the same. Skip the tasks with `resumeAfter` from `@lightmill/runner` before you run the timeline:
 
 ```ts
-let start = 0;
-if (lastTaskId != null) {
-  const index = timeline.findIndex((task) => task.id === lastTaskId);
-  if (index === -1) {
-    throw new Error(`Saved task ${lastTaskId} is missing from the timeline`);
-  }
-  start = index + 1;
-}
-await runTimeline({ timeline: timeline.slice(start), runTask });
+import { resumeAfter, runTimeline } from '@lightmill/runner';
+
+await runTimeline({
+  timeline:
+    lastTaskId == null
+      ? timeline
+      : resumeAfter(timeline, (task) => task.id === lastTaskId),
+  runTask,
+});
 ```
 
-With no saved task id, the whole timeline runs. If a saved id is missing from the timeline, stop and investigate the changed design instead of silently repeating every task.
+With no saved task id, the whole timeline runs. If a saved id is missing from the timeline, `resumeAfter` throws: investigate the changed design instead of silently repeating every task.
