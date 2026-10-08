@@ -58,7 +58,8 @@ For a GitHub issue, use `gh issue view <n> --comments`. For a bead, use `bd show
 This policy is the tracker configuration for the installed engineering skills. Use its routing and completion rules when their generic templates describe a tracker operation. Apply triage labels only when `docs/agents/triage-labels.md` defines them; this policy is sufficient setup when that optional file is absent.
 
 - **/to-spec**: publish the human-facing spec under the publishing rules above.
-- **/to-tickets**: publish the approved decomposition as child beads under its root epic, with native blocking edges. Publishing leaves the source GitHub issue intact and open; root bead metadata follows the decomposition rules. Delivered work follows the closure sequence above.
+- **/to-tickets**: publish the approved decomposition as child beads under its root epic, with native blocking edges, not as GitHub sub-issues. Publishing leaves the source GitHub issue intact and open; root bead metadata follows the decomposition rules. Delivered work follows the closure sequence above.
+- **/implement-spec**: the spec is the GitHub issue and its tickets are the root epic's child beads. Implementers claim their bead; the draft PR says `Fixes #<n>` for the spec issue. Close beads and the epic under the closure sequence above.
 - **/handoff**: record unfinished execution state in the bead specified by this policy. The skill's temporary handoff document points to that bead and other existing artifacts. A context-only handoff may use the temporary document alone.
 - **/wayfinder**: use the operations below. Reconcile remaining scope before reviewing epic completion, even when the generic skill closes a ticket earlier in its sequence.
 
