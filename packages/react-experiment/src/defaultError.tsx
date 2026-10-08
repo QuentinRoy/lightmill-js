@@ -8,8 +8,8 @@ const maxCauses = 5;
 // Duck-typed: the error is whatever was thrown, and react-experiment does not
 // import log-client's error classes.
 function getProperty(error: unknown, key: string): unknown {
-  return typeof error === 'object' && error != null && key in error
-    ? (error as Record<string, unknown>)[key]
+  return typeof error === 'object' && error != null
+    ? Reflect.get(error, key)
     : undefined;
 }
 
