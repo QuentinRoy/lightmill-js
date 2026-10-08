@@ -4,6 +4,7 @@ import userEventPackage from '@testing-library/user-event';
 import * as React from 'react';
 import {
   LogDeliveryError,
+  resumeAfter,
   TimelinePlayer,
   type TimelinePlayerElements,
   useLogger,
@@ -114,11 +115,10 @@ describe('TimelinePlayer', () => {
     expect(screen.getByRole('textbox')).toHaveValue('');
   });
 
-  it('starts after the task matched by resumeAfterTask', async () => {
+  it('starts after the task matched by resumeAfter', async () => {
     const user = userEvent.setup();
     render(
       <TimelinePlayer
-        resumeAfterTask={(task: Task) => task.type === 'B' && task.b === 21}
         elements={{
           tasks: {
             A: <Task type="A" dataProp="a" />,
@@ -126,13 +126,16 @@ describe('TimelinePlayer', () => {
           },
           completed: <div data-testid="end" />,
         }}
-        timeline={[
-          { type: 'A', a: 'hello' },
-          { type: 'B', b: 42 },
-          { type: 'B', b: 21 },
-          { type: 'B', b: 12 },
-          { type: 'A', a: 'world' },
-        ]}
+        timeline={resumeAfter(
+          [
+            { type: 'A', a: 'hello' },
+            { type: 'B', b: 42 },
+            { type: 'B', b: 21 },
+            { type: 'B', b: 12 },
+            { type: 'A', a: 'world' },
+          ] as Task[],
+          (task) => task.type === 'B' && task.b === 21,
+        )}
       />,
     );
 
@@ -145,20 +148,22 @@ describe('TimelinePlayer', () => {
     expect(screen.getByTestId('end')).toBeInTheDocument();
   });
 
-  it('starts after the first task if resumeAfterTask matches it', async () => {
+  it('starts after the first task if resumeAfter matches it', async () => {
     render(
       <TimelinePlayer
-        resumeAfterTask={(task: Task) => task.type === 'B'}
         elements={{
           tasks: {
             A: <Task type="A" dataProp="a" />,
             B: <Task type="B" dataProp="b" />,
           },
         }}
-        timeline={[
-          { type: 'B', b: 42 },
-          { type: 'A', a: 'hello' },
-        ]}
+        timeline={resumeAfter(
+          [
+            { type: 'B', b: 42 },
+            { type: 'A', a: 'hello' },
+          ] as Task[],
+          (task) => task.type === 'B',
+        )}
       />,
     );
 
@@ -166,11 +171,10 @@ describe('TimelinePlayer', () => {
     expect(screen.getByTestId('data')).toHaveTextContent('hello');
   });
 
-  it('resumes an async timeline after the task matched by resumeAfterTask', async () => {
+  it('resumes an async timeline after the task matched by resumeAfter', async () => {
     const user = userEvent.setup();
     render(
       <TimelinePlayer
-        resumeAfterTask={(task: Task) => task.type === 'B' && task.b === 21}
         elements={{
           tasks: {
             A: <Task type="A" dataProp="a" />,
@@ -179,12 +183,15 @@ describe('TimelinePlayer', () => {
           loading: <div data-testid="loading" />,
           completed: <div data-testid="end" />,
         }}
-        timeline={asyncTaskGen(5, [
-          { type: 'A', a: 'hello' },
-          { type: 'B', b: 42 },
-          { type: 'B', b: 21 },
-          { type: 'B', b: 12 },
-        ])}
+        timeline={resumeAfter(
+          asyncTaskGen(5, [
+            { type: 'A', a: 'hello' },
+            { type: 'B', b: 42 },
+            { type: 'B', b: 21 },
+            { type: 'B', b: 12 },
+          ]),
+          (task) => task.type === 'B' && task.b === 21,
+        )}
       />,
     );
 
@@ -392,13 +399,12 @@ describe('TimelinePlayer', () => {
     spy.mockRestore();
   });
 
-  it('throws if no task matches resumeAfterTask', async () => {
+  it('throws if no task matches resumeAfter', async () => {
     const spy = vi.spyOn(console, 'error');
     spy.mockImplementation(() => {});
     expect(() => {
       render(
         <TimelinePlayer
-          resumeAfterTask={(task: Task) => task.type === 'B' && task.b === 0}
           elements={{
             tasks: {
               A: <Task type="A" dataProp="a" />,
@@ -406,41 +412,46 @@ describe('TimelinePlayer', () => {
             },
             completed: <div data-testid="end" />,
           }}
-          timeline={[
-            { type: 'A', a: 'hello' },
-            { type: 'B', b: 42 },
-            { type: 'B', b: 21 },
-            { type: 'B', b: 12 },
-            { type: 'A', a: 'world' },
-          ]}
+          timeline={resumeAfter(
+            [
+              { type: 'A', a: 'hello' },
+              { type: 'B', b: 42 },
+              { type: 'B', b: 21 },
+              { type: 'B', b: 12 },
+              { type: 'A', a: 'world' },
+            ] as Task[],
+            (task) => task.type === 'B' && task.b === 0,
+          )}
         />,
       );
-    }).toThrow('No task matched resumeAfterTask');
+    }).toThrow('No task matched');
     spy.mockRestore();
   });
 
-  it('throws if no task of an async timeline matches resumeAfterTask', async () => {
+  it('throws if no task of an async timeline matches resumeAfter', async () => {
     const spy = vi.spyOn(console, 'error');
     spy.mockImplementation(() => {});
     render(
       <ErrorBoundary>
         <TimelinePlayer
-          resumeAfterTask={(task: Task) => task.type === 'B' && task.b === 0}
           elements={{
             tasks: {
               A: <Task type="A" dataProp="a" />,
               B: <Task type="B" dataProp="b" />,
             },
           }}
-          timeline={asyncTaskGen(5, [
-            { type: 'A', a: 'hello' },
-            { type: 'B', b: 42 },
-          ])}
+          timeline={resumeAfter(
+            asyncTaskGen(5, [
+              { type: 'A', a: 'hello' },
+              { type: 'B', b: 42 },
+            ]),
+            (task) => task.type === 'B' && task.b === 0,
+          )}
         />
       </ErrorBoundary>,
     );
     expect(await screen.findByTestId('error')).toHaveTextContent(
-      'No task matched resumeAfterTask',
+      'No task matched',
     );
     spy.mockRestore();
   });
@@ -579,11 +590,17 @@ describe('TimelinePlayer', () => {
       { name: 'async', gen: asyncGen, resume: false },
       { name: 'async', gen: asyncGen, resume: true },
     ])(
-      'renders every task once, in order ($name timeline, resumeAfterTask: $resume)',
+      'renders every task once, in order ($name timeline, resumeAfter: $resume)',
       async ({ gen, resume }) => {
         const user = userEvent.setup();
         const pulled: string[] = [];
         const onCompleted = vi.fn();
+        const timeline = resume
+          ? resumeAfter(
+              gen(pulled),
+              (task) => task.type === 'A' && task.a === 'one',
+            )
+          : gen(pulled);
         render(
           <React.StrictMode>
             <TimelinePlayer
@@ -592,12 +609,7 @@ describe('TimelinePlayer', () => {
                 loading: <div data-testid="loading" />,
                 completed: <div data-testid="end" />,
               }}
-              timeline={gen(pulled)}
-              resumeAfterTask={
-                resume
-                  ? (task: Task) => task.type === 'A' && task.a === 'one'
-                  : undefined
-              }
+              timeline={timeline}
               onCompleted={onCompleted}
             />
           </React.StrictMode>,

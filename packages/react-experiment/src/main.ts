@@ -1,3 +1,4 @@
+export { resumeAfter } from '@lightmill/runner';
 export { type RegisterExperiment } from './config.ts';
 export { LogDeliveryError } from './errors.ts';
 export {

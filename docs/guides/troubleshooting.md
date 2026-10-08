@@ -95,9 +95,9 @@ To free a run name, a host can [cancel the run](deploying.md#cancel-a-run). Its 
 
 ## The saved task cannot be found
 
-`No task matched resumeAfterTask` means the task named by the run's last log is missing from the rebuilt timeline. Compare the saved `taskId`, the ids the timeline has for this participant, and the comparison in `resumeAfterTask`.
+`No task matched the resumeAfter predicate` means the task named by the run's last log is missing from the rebuilt timeline. Compare the saved `taskId`, the ids the timeline has for this participant, and the comparison in the `resumeAfter` predicate.
 
-If the design or the task ids changed after the run started, use the original design for that run. If `taskId` was logged wrong, or the comparison reads the wrong field, fix that first. Removing `resumeAfterTask` would replay the whole timeline while the logger continues the existing run. Keep the run and its data while you investigate. [Resuming runs](resuming-runs.md#what-the-app-needs) explains what resuming needs.
+If the design or the task ids changed after the run started, use the original design for that run. If `taskId` was logged wrong, or the comparison reads the wrong field, fix that first. Removing `resumeAfter` would replay the whole timeline while the logger continues the existing run. Keep the run and its data while you investigate. [Resuming runs](resuming-runs.md#what-the-app-needs) explains what resuming needs.
 
 ## Saving does not finish
 
