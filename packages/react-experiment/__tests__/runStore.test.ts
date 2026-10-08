@@ -3,6 +3,7 @@ import { serverTest, type TestServer } from '@lightmill/test-server';
 import { http, HttpResponse } from 'msw';
 import { expect, vi } from 'vitest';
 import { getRunStore, type RunStore } from '../src/runStore.js';
+import { failDelivery } from './runTestUtils.js';
 
 function identity(
   server: TestServer,
@@ -15,6 +16,17 @@ function identity(
     resumableLogTypes: ['trial-done'],
     ...overrides,
   };
+}
+
+function failRequest(server: TestServer, method: 'patch', path: string) {
+  server.msw.use(
+    http[method](`${server.apiRoot}${path}`, () =>
+      HttpResponse.json(
+        { errors: [{ status: '400', detail: 'Refused' }] },
+        { status: 400 },
+      ),
+    ),
+  );
 }
 
 function whenStatus(store: RunStore, status: string) {
@@ -89,6 +101,105 @@ describe('run store', () => {
       expect(getRunStore(id)).not.toBe(store);
     },
   );
+
+  describe('when the run crashes', () => {
+    async function readyStore(server: TestServer) {
+      await server.addExperiment('exp');
+      const id = identity(server);
+      const store = getRunStore(id);
+      store.subscribe(() => {});
+      await whenStatus(store, 'ready');
+      return { id, store };
+    }
+
+    beforeEach(() => {
+      vi.spyOn(console, 'warn').mockImplementation(() => {});
+    });
+
+    serverTest(
+      'keeps the first error, and interrupts the run until its logger ends',
+      async ({ server }) => {
+        const { id, store } = await readyStore(server);
+        const first = new Error('First');
+
+        store.crash(first);
+        store.crash(new Error('Second'));
+
+        expect(store.getSnapshot()).toMatchObject({
+          status: 'error',
+          error: first,
+        });
+        await vi.waitFor(async () => {
+          await expect(server.storedRuns()).resolves.toEqual([
+            { runName: 'run-1', runStatus: 'interrupted' },
+          ]);
+        });
+        // The logger ended: a reload gets another store.
+        expect(getRunStore(id)).not.toBe(store);
+      },
+    );
+
+    serverTest(
+      'is not replaced while its logger is live',
+      async ({ server }) => {
+        const { id, store } = await readyStore(server);
+        failRequest(server, 'patch', '/runs/:id');
+
+        store.crash(new Error('Crash'));
+        await vi.waitFor(() => {
+          expect(console.warn).toHaveBeenCalled();
+        });
+
+        expect(getRunStore(id)).toBe(store);
+      },
+    );
+
+    serverTest(
+      'tries to interrupt again when the logger goes idle after a failed flush',
+      async ({ server }) => {
+        const { store } = await readyStore(server);
+        const state = store.getSnapshot();
+        if (state.status !== 'ready') throw new Error('Not ready');
+        const { logger } = state;
+        const fault = failDelivery(server);
+        void logger.addLog({ type: 'trial-done', taskId: 'a' }).catch(() => {});
+        await vi.waitFor(() => {
+          expect(logger.state.status).toBe('paused');
+        });
+
+        store.crash(new Error('Crash'));
+        await vi.waitFor(() => {
+          expect(console.warn).toHaveBeenCalledTimes(1);
+        });
+        expect(logger.state.status).toBe('paused');
+        await expect(server.storedRuns()).resolves.toEqual([
+          { runName: 'run-1', runStatus: 'running' },
+        ]);
+
+        fault.clear();
+        await logger.retry();
+
+        await vi.waitFor(async () => {
+          await expect(server.storedRuns()).resolves.toEqual([
+            { runName: 'run-1', runStatus: 'interrupted' },
+          ]);
+        });
+        await expect(server.storedLogs()).resolves.toHaveLength(1);
+      },
+    );
+
+    serverTest(
+      'ignores a crash before the run is ready',
+      async ({ server }) => {
+        await server.addExperiment('exp');
+        const store = getRunStore(identity(server));
+
+        store.crash(new Error('Too early'));
+
+        expect(store.getSnapshot().status).toBe('looking-up');
+      },
+    );
+  });
 
   serverTest(
     'builds the timeline once, when the run is ready and a builder is given',

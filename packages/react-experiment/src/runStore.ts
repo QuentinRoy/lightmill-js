@@ -23,7 +23,12 @@ export type RunState =
       // The last resumable log, or null for a new run.
       resumeLog: ResumeLog | null;
     }
-  | { status: 'error'; error: unknown };
+  | {
+      status: 'error';
+      error: unknown;
+      // Set when the run crashed after it started: its logs may be held.
+      logger: RunLogger | null;
+    };
 
 export type TimelineBuilder = (args: {
   resumeLog: ResumeLog | null;
@@ -49,6 +54,12 @@ export type RunStore = {
   resume: () => void;
   /** Completes the run. Calling it again returns the first call's promise. */
   completeRun: () => Promise<void>;
+  /**
+   * Fails a ready run and interrupts it, so a reload lands on the resume
+   * prompt. The first failure wins. If the interrupt cannot flush the held
+   * logs, it is tried again each time the logger goes idle.
+   */
+  crash: (error: unknown) => void;
 };
 
 export type RunIdentity = {
@@ -97,6 +108,10 @@ function createRunStore(
   let started = false;
   let playerStore: PlayerStore<RegisteredTask> | null = null;
   let completion: Promise<void> | null = null;
+  // The builder runs once even when it throws.
+  let builderFailure: { error: unknown } | null = null;
+  let crashedLogger: RunLogger | null = null;
+  let interrupting = false;
 
   const setState = (next: RunState) => {
     state = next;
@@ -133,6 +148,9 @@ function createRunStore(
   ) {
     const logger = await loggerPromise;
     logger.subscribe((loggerState) => {
+      if (loggerState.status === 'idle' && logger === crashedLogger) {
+        interrupt(logger);
+      }
       if (
         loggerState.status === 'completed' ||
         loggerState.status === 'canceled' ||
@@ -146,7 +164,35 @@ function createRunStore(
 
   function fail(error: unknown) {
     evict();
-    setState({ status: 'error', error });
+    setState({ status: 'error', error, logger: null });
+  }
+
+  // Never throws and never replaces the error that crashed the run: the
+  // failure is logged, and the logger being live, the held logs stay in it.
+  function interrupt(logger: RunLogger) {
+    const { status } = logger.state;
+    if (
+      interrupting ||
+      (status !== 'idle' &&
+        status !== 'sending' &&
+        status !== 'retrying' &&
+        status !== 'paused')
+    )
+      return;
+    interrupting = true;
+    logger
+      .interruptRun()
+      .catch((interruptError: unknown) => {
+        // The error slot shows the crash; nothing else can show this.
+        // eslint-disable-next-line no-console
+        console.warn(
+          'Could not interrupt the run after it crashed',
+          interruptError,
+        );
+      })
+      .finally(() => {
+        interrupting = false;
+      });
   }
 
   return {
@@ -171,11 +217,24 @@ function createRunStore(
     },
     getPlayerStore(build) {
       if (playerStore != null) return playerStore;
+      if (builderFailure != null) throw builderFailure.error;
       if (state.status !== 'ready' || build == null) return null;
-      playerStore = createPlayerStore({
-        timeline: build({ resumeLog: state.resumeLog }),
-      });
+      try {
+        playerStore = createPlayerStore({
+          timeline: build({ resumeLog: state.resumeLog }),
+        });
+      } catch (error) {
+        builderFailure = { error };
+        throw error;
+      }
       return playerStore;
+    },
+    crash(error) {
+      if (state.status !== 'ready') return;
+      const { logger } = state;
+      crashedLogger = logger;
+      setState({ status: 'error', error, logger });
+      interrupt(logger);
     },
     completeRun() {
       if (state.status !== 'ready') {

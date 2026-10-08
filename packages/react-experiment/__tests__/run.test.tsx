@@ -12,6 +12,7 @@ import {
   useResumeRun,
   useTask,
 } from '../src/main.js';
+import { isUnloadPrevented } from './runTestUtils.js';
 
 // @ts-expect-error - userEventPackage is not typed correctly
 const userEvent: typeof userEventPackage.default = userEventPackage;
@@ -65,12 +66,6 @@ async function renderAsync(ui: React.ReactElement) {
     result = render(ui);
   });
   return result;
-}
-
-function isUnloadPrevented() {
-  const event = new Event('beforeunload', { cancelable: true });
-  globalThis.dispatchEvent(event);
-  return event.defaultPrevented;
 }
 
 // Holds the request ending the run until `release` is called.

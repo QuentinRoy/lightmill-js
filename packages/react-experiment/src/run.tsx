@@ -1,5 +1,6 @@
 import * as React from 'react';
 import type { RegisteredLog, RegisteredTask } from './config.js';
+import { DefaultError } from './defaultError.js';
 import { DefaultPaused } from './defaultPaused.js';
 import type { RunClient, RunLogger } from './logClient.js';
 import type { PlayerStore } from './playerState.js';
@@ -13,10 +14,17 @@ import { StorePlayer, type TimelinePlayerElements } from './timelinePlayer.js';
 import { useConfirmBeforeUnload } from './useConfirmBeforeUnload.js';
 import { LogDeliveryProvider } from './useLogDelivery.js';
 import { resumeRunContext, useResumeRun } from './useResumeRun.js';
+import { runErrorContext } from './useRunError.js';
 
 export type RunElements = TimelinePlayerElements<RegisteredTask> & {
   /** Asks the participant to resume an ongoing run. See `useResumeRun`. */
   resume?: React.ReactElement;
+  /**
+   * Shown when the run cannot start or crashes. Read the thrown value with
+   * `useRunError`. It renders outside of `Run`'s error boundary: what it
+   * throws reaches the app's.
+   */
+  error?: React.ReactElement;
 };
 
 export type RunProps = {
@@ -50,6 +58,7 @@ function DefaultResume() {
 const defaultResume = <DefaultResume />;
 const defaultCompleted = <p>Thank you, the experiment is complete.</p>;
 const defaultPaused = <DefaultPaused />;
+const defaultError = <DefaultError />;
 
 /**
  * Runs one run of an experiment: starts it, plays its timeline, logs to the
@@ -75,42 +84,64 @@ export function Run({
     store.getSnapshot,
   );
   const loading = elements.loading ?? defaultLoading;
+  let content: React.ReactNode;
   switch (state.status) {
     case 'looking-up':
     case 'starting':
-      return loading;
+      content = loading;
+      break;
     case 'awaiting-confirmation':
-      return (
+      content = (
         <ResumeProvider store={store} state={state}>
           {elements.resume ?? defaultResume}
         </ResumeProvider>
       );
+      break;
     case 'error':
-      throw state.error;
-    case 'ready': {
-      const playerStore = store.getPlayerStore(timeline);
-      if (playerStore == null) return loading;
-      return (
-        <RunPlayer
-          // Another store is another run: its player starts afresh.
-          key={store.id}
-          store={store}
-          logger={state.logger}
-          playerStore={playerStore}
-          elements={{
-            ...elements,
-            loading,
-            completed: elements.completed ?? defaultCompleted,
-            paused: elements.paused ?? defaultPaused,
-          }}
-        />
+      content = (
+        <LogDeliveryProvider logger={state.logger}>
+          <ErrorProvider
+            error={state.error}
+            experimentName={experimentName}
+            runName={runName}
+          >
+            {elements.error ?? defaultError}
+          </ErrorProvider>
+        </LogDeliveryProvider>
       );
-    }
+      break;
+    case 'ready':
+      content = (
+        // Another store is another run: its player starts afresh.
+        <CrashBoundary key={store.id} onCrash={store.crash}>
+          <RunPlayer
+            store={store}
+            logger={state.logger}
+            build={timeline}
+            loading={loading}
+            elements={elements}
+          />
+        </CrashBoundary>
+      );
+      break;
     default: {
       const _exhaustiveCheck: never = state;
       throw new Error('Unhandled run state');
     }
   }
+  return (
+    <>
+      <UnloadGuard
+        logger={
+          state.status === 'ready' || state.status === 'error'
+            ? state.logger
+            : null
+        }
+        crashed={state.status === 'error'}
+      />
+      {content}
+    </>
+  );
 }
 
 // The store of the current identity, kept for as long as the identity holds
@@ -160,7 +191,107 @@ function ResumeProvider({
   );
 }
 
+function ErrorProvider({
+  error,
+  experimentName,
+  runName,
+  children,
+}: {
+  error: unknown;
+  experimentName: string;
+  runName: string;
+  children: React.ReactNode;
+}) {
+  const value = React.useMemo(
+    () => ({ error, experimentName, runName }),
+    [error, experimentName, runName],
+  );
+  return (
+    <runErrorContext.Provider value={value}>
+      {children}
+    </runErrorContext.Provider>
+  );
+}
+
+// Catches what the player throws: a task bug, a throwing builder, a binding
+// error. The store then moves to its error state, so `Run` renders the error
+// slot outside of this boundary.
+class CrashBoundary extends React.Component<
+  { onCrash: (error: unknown) => void; children: React.ReactNode },
+  { crashed: boolean }
+> {
+  state = { crashed: false };
+  static getDerivedStateFromError() {
+    return { crashed: true };
+  }
+  componentDidCatch(error: unknown) {
+    this.props.onCrash(error);
+  }
+  render() {
+    return this.state.crashed ? null : this.props.children;
+  }
+}
+
+// Asks the browser to confirm before unloading while the logger is live. After
+// a crash, only while logs are held: nothing else is lost by leaving.
+function UnloadGuard({
+  logger,
+  crashed,
+}: {
+  logger: RunLogger | null;
+  crashed: boolean;
+}): null {
+  const subscribe = logger?.subscribe ?? noSubscribe;
+  const live = React.useSyncExternalStore(subscribe, () => {
+    const status = logger?.state.status;
+    return (
+      status === 'idle' ||
+      status === 'sending' ||
+      status === 'retrying' ||
+      status === 'paused'
+    );
+  });
+  const held = React.useSyncExternalStore(
+    subscribe,
+    () => logger != null && logger.inFlightLogs.length > 0,
+  );
+  useConfirmBeforeUnload(live && (!crashed || held));
+  return null;
+}
+
+const noSubscribe = () => () => {};
+
 function RunPlayer({
+  store,
+  logger,
+  build,
+  loading,
+  elements,
+}: {
+  store: RunStore;
+  logger: RunLogger;
+  build: TimelineBuilder | null;
+  loading: React.ReactElement;
+  elements: RunElements;
+}): React.JSX.Element {
+  const playerStore = store.getPlayerStore(build);
+  if (playerStore == null) return loading;
+  return (
+    <ReadyPlayer
+      store={store}
+      logger={logger}
+      playerStore={playerStore}
+      elements={{
+        ...elements,
+        loading,
+        completed: elements.completed ?? defaultCompleted,
+        paused: elements.paused ?? defaultPaused,
+      }}
+    />
+  );
+}
+
+function ReadyPlayer({
   store,
   logger,
   playerStore,
@@ -179,26 +310,13 @@ function RunPlayer({
     playerStore.subscribe,
     () => playerStore.getSnapshot().status === 'completed',
   );
-  const [completionFailure, setCompletionFailure] = React.useState<{
-    error: unknown;
-  } | null>(null);
-  if (completionFailure != null) throw completionFailure.error;
-
-  useConfirmBeforeUnload(
-    loggerState.status === 'idle' ||
-      loggerState.status === 'sending' ||
-      loggerState.status === 'retrying' ||
-      loggerState.status === 'paused',
-  );
 
   // Completing the run flushes the logger, which rejects while delivery is
   // paused. Waiting for idle avoids that rejection.
   const idle = loggerState.status === 'idle';
   React.useEffect(() => {
     if (!timelineCompleted || !idle) return;
-    store.completeRun().catch((error: unknown) => {
-      setCompletionFailure({ error });
-    });
+    store.completeRun().catch(store.crash);
   }, [store, timelineCompleted, idle]);
 
   return (

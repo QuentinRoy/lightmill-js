@@ -133,7 +133,7 @@ describe('Run when delivery is paused', () => {
   );
 
   serverTest(
-    'sends a rejection of a log that is not held to the error boundary',
+    'sends a rejection of a log that is not held to the error slot',
     async ({ server }) => {
       await server.addExperiment('exp');
       const logger = {
@@ -142,33 +142,19 @@ describe('Run when delivery is paused', () => {
         subscribe: () => () => {},
         addLog: () => Promise.reject(new Error('Unknown log')),
         completeRun: () => Promise.resolve(),
+        interruptRun: () => Promise.resolve(),
       } as unknown as RunLogger;
       const client: RunClient = {
         getResumableRuns: () => Promise.resolve([]),
         startRun: () => Promise.resolve(logger),
       };
-      class Boundary extends React.Component<
-        { children: React.ReactNode },
-        { error: Error | null }
-      > {
-        state: { error: Error | null } = { error: null };
-        static getDerivedStateFromError(error: Error) {
-          return { error };
-        }
-        render() {
-          return this.state.error == null ? (
-            this.props.children
-          ) : (
-            <p>Crashed: {this.state.error.message}</p>
-          );
-        }
-      }
       const user = userEvent.setup();
       vi.spyOn(console, 'error').mockImplementation(() => {});
-      await renderAsync(<Boundary>{run(client as never)}</Boundary>);
+      await renderAsync(run(client as never));
       await user.click(await screen.findByRole('button', { name: 'Done a' }));
 
-      expect(await screen.findByText(/Crashed: .*Unknown log/)).toBeVisible();
+      expect(await screen.findByText(/unexpected error/)).toBeVisible();
+      expect(screen.getByRole('group')).toHaveTextContent('Unknown log');
     },
   );
 });

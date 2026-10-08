@@ -56,6 +56,12 @@ export async function renderAsync(
   return result;
 }
 
+export function isUnloadPrevented() {
+  const event = new Event('beforeunload', { cancelable: true });
+  globalThis.dispatchEvent(event);
+  return event.defaultPrevented;
+}
+
 /**
  * Makes the server refuse every log until `clear` is called. `failWith`
  * changes the status of the refusals, so a test can tell errors apart.
