@@ -18,10 +18,6 @@ Single-context: root [`GLOSSARY.md`](GLOSSARY.md) + [`docs/adr/`](docs/adr/). Se
 
 Use /prose when writing code comments, commit messages, pull requests, READMEs, documentation, or changesets. Keep prose clear, precise, and as concise as possible.
 
-### Changesets
-
-Use /changeset when deciding whether a change needs a changeset, or when adding, editing, or deleting one.
-
 ## Code
 
 ### Comments
@@ -39,6 +35,7 @@ Data loss is the worst failure. Every path that can drop data a caller handed ov
 ## Finishing
 
 1. Run `pnpm build-all`. Typecheck and log-client's tests read the built packages, log-server's `dist` included, so a stale build checks old code.
-2. Hand off once `pnpm lint`, `pnpm typecheck`, and `pnpm test` all pass.
+2. Invoke /changeset. It decides whether the change needs a changeset, and every changeset is added, edited, or deleted through it.
+3. Hand off once `pnpm lint`, `pnpm typecheck`, and `pnpm test` all pass.
 
 A pull request that implements an issue says `Fixes #N` in its body. Leave merging to the maintainer. For work tracked in beads, follow the [completion rules](docs/agents/issue-tracker.md#closing-beads).

@@ -39,7 +39,7 @@ Reopen an affected bead (`bd reopen <id>`) when its deliverable needs more work,
 - A ticket blocked by a dependency still shows `○ open` in `bd list`; `bd ready`, `bd blocked` and `bd graph <id>` show blocking.
 - `.beads/PRIME.md` replaces the default `bd prime` workflow with a pointer to this policy. Persistent memories are still injected. Keep tracker policy here and CLI operations in /beads.
 - `AGENTS.md` has no bd-generated section on purpose: hooks in `.claude/settings.json` and `.codex/hooks.json` load the custom prime text. So `bd setup codex --check` warns, and `bd setup codex` / `bd setup claude` re-add a section to `AGENTS.md` / create `CLAUDE.md`; after running them, remove what they added and keep only the hook changes.
-- `bd comment <id> "..."` adds a comment; `bd comments <id>` lists them.
+- `bd comment <id> "..."` adds a comment; `bd comments <id>` lists them. Comments are append-only, so a decision's final answer goes in the close reason, and a correction is `bd reopen <id>` followed by `bd close <id> --reason "..."`.
 
 ## When a skill says "publish to the issue tracker"
 
@@ -65,11 +65,12 @@ This policy is the tracker configuration for the installed engineering skills. U
 
 ## Wayfinding operations
 
-Used by `/wayfinder`. The human-facing **map** is a GitHub issue; a linked root bead coordinates one **child** bead per decision ticket.
+Used by `/wayfinder`. The **map** is a root bead with one **child** bead per decision ticket. Beads are for agents, so the map has no GitHub issue; the human-facing record is the spec it leads to.
 
-- **Map**: a GitHub issue labelled `wayfinder:map`, holding the `Destination`, `Notes`, `Decisions so far`, `Not yet specified`, and `Out of scope` sections. Edit it with `gh issue edit <n> --body-file <file>`. Create or reuse its linked root epic under the decomposition rules above; its completion criterion is the map's Destination, including resolution of all in-scope fog.
+- **Map**: a root bead labelled `wayfinder:map`, whose description holds the `Destination`, `Notes`, `Decisions so far`, `Not yet specified`, and `Out of scope` sections. Edit it with `bd update <root-id> --body-file <file>`. Link a GitHub issue it serves with `--external-ref gh-<n>`. Its completion criterion is the map's Destination, including resolution of all in-scope fog.
 - **Child ticket**: `bd create "<title>" --parent <root-id> -t task -l wayfinder:<type> --no-inherit-labels`, where `<type>` is `research`/`prototype`/`grilling`/`task`. The body is the `## Question`.
 - **Blocking**: `bd dep add <blocked-id> <blocker-id>`. A ticket is unblocked when every blocker is closed.
 - **Frontier**: the root's unassigned children (`bd children <root-id>`) that appear in `bd ready`; first by id wins.
 - **Claim**: `bd update <id> --claim`, the session's first write.
-- **Resolve**: record the answer with `bd comment <id> "<answer>"`, update the GitHub map's named pointers and remaining scope, and create any newly surfaced children. Then close the ticket under the completion rules above. Review the root only after the map reflects the result and remaining scope.
+- **Resolve**: update the map's named pointers and remaining scope, create any newly surfaced children, then close the ticket under the completion rules above with the answer as its close reason (`bd close <id> --reason "<answer>"`). Review the root only after the map reflects the result and remaining scope.
+- **Asking**: define each internal term when a question first uses it, and describe what a user or participant sees before the mechanism behind it.

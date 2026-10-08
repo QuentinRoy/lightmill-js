@@ -15,6 +15,8 @@ export default tseslint.config(
       'packages/**/dist/*',
       '**/coverage',
       '**/*.snap',
+      // Each agent worktree is a full checkout with its own eslint config.
+      '.claude/worktrees/**',
     ],
   },
   js.configs.recommended,
@@ -42,6 +44,12 @@ export default tseslint.config(
           varsIgnorePattern: '^_',
           ignoreRestSiblings: true,
         },
+      ],
+      // The ponytail agent plugin tags its shortcuts this way; plain comments
+      // explaining why are the convention here.
+      'no-warning-comments': [
+        'error',
+        { terms: ['ponytail:'], location: 'anywhere' },
       ],
       'class-methods-use-this': 'off',
       'prefer-const': 'off',
