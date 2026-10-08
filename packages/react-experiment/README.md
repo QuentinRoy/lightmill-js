@@ -363,6 +363,6 @@ Unmounting does not stop the timeline: if it is waiting for the next task, the t
 
 `resumeAfterTask` is only read the first time `TimelinePlayer` sees an iterator. Wrap the timeline with `resumeAfter` instead.
 
-Anything that is not an iterator, such as an array or a `Set`, can be iterated again: each mount plays it from the start. In other words, an iterator is one pass through the tasks and `TimelinePlayer` continues it, while an array is a source of passes and each mount takes a new one.
+Anything that is not an iterator, such as an array or a `Set`, can be iterated again, so `TimelinePlayer` plays it from the start on every mount. An iterator is one pass through the tasks, and `TimelinePlayer` continues it. An array is a source of passes, and each mount takes a new one.
 
-`Run` makes exactly one pass per run, whatever your timeline builder returns, because a run has one logger and restarting would log the same tasks twice. A remounted `Run` always continues.
+`Run` works differently. It calls your timeline builder once per run, not on every mount, and plays what it returns once, even if it returns an array. A remounted `Run` continues where it was and does not call the builder again. A run has one logger, and playing the tasks again would log them twice. The builder runs again only for a new run: when you change the client, the experiment name or the run name, or after the previous run ended.
