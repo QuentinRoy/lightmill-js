@@ -2,7 +2,11 @@ import * as React from 'react';
 import type { RegisteredLog, RegisteredTask, Typed } from './config.js';
 import { loggerContext, noLoggerSymbol, taskContext } from './contexts.js';
 import { LogDeliveryError } from './errors.js';
-import { type AnyIteratorOrIterable, usePlayerState } from './playerState.js';
+import {
+  type AnyIteratorOrIterable,
+  type PlayerStore,
+  usePlayerState,
+} from './playerState.js';
 import { type Logger, useLogWrapper } from './useLogWrapper.js';
 
 export type TimelinePlayerElements<T extends Typed> = {
@@ -33,13 +37,45 @@ export type TimelinePlayerProps<Task extends Typed, Log> = {
  */
 // This component uses explicit return type to prevent the function from
 // returning undefined, which could indicate a state isn't being handled.
-export function TimelinePlayer<const T extends RegisteredTask>({
+export function TimelinePlayer<const T extends RegisteredTask>(
+  props: TimelinePlayerProps<T, RegisteredLog>,
+): React.JSX.Element | null {
+  return usePlayerElement(props);
+}
+
+/**
+ * `TimelinePlayer` for a timeline that lives in a store created elsewhere.
+ * The package does not export it: `Run` is its only user.
+ */
+export function StorePlayer<const T extends RegisteredTask>({
+  store,
+  ...props
+}: {
+  store: PlayerStore<T>;
+  elements: TimelinePlayerElements<T>;
+  paused?: boolean;
+  loading?: boolean;
+  onLog?: Logger<RegisteredLog>;
+  onCompleted?: () => void;
+}): React.JSX.Element | null {
+  return usePlayerElement({ ...props, store });
+}
+
+function usePlayerElement<const T extends RegisteredTask>({
   elements,
   paused = false,
   onLog,
   loading = false,
   ...playerParameter
-}: TimelinePlayerProps<T, RegisteredLog>): React.JSX.Element | null {
+}: {
+  elements: TimelinePlayerElements<T>;
+  paused?: boolean;
+  loading?: boolean;
+  onLog?: Logger<RegisteredLog>;
+  onCompleted?: () => void;
+  timeline?: AnyIteratorOrIterable<T> | null;
+  store?: PlayerStore<T>;
+}): React.JSX.Element | null {
   const { onLog: logWrapper, error: logError } = useLogWrapper(onLog);
   const state = usePlayerState({ ...playerParameter, paused, loading });
   if (logError != null) {

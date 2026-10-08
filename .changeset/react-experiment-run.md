@@ -1,0 +1,5 @@
+---
+'@lightmill/react-experiment': minor
+---
+
+Add `Run`, a component that runs one experiment run for you. Pass it a `@lightmill/log-client` client, the experiment and run names, the log types it can resume after, a timeline builder, and your task components in `elements`. `Run` starts the run, plays the timeline, sends the logs from `useLogger` to the server, and completes the run once every log is stored. It asks the browser to confirm before the page unloads until the run ends. Its loading and completed screens have defaults, which `elements.loading` and `elements.completed` replace. React Strict Mode and remounts never start a run twice. `@lightmill/react-experiment` does not import `@lightmill/log-client` at runtime.

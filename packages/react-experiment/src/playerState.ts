@@ -28,7 +28,7 @@ type StoreSnapshot<Task> =
   | Exclude<PlayerState<Task>, { status: 'paused' }>
   | { status: 'error'; error: Error };
 
-type PlayerStore<Task> = {
+export type PlayerStore<Task> = {
   timeline: AnyIteratorOrIterable<Task>;
   subscribe: (listener: () => void) => () => void;
   getSnapshot: () => StoreSnapshot<Task>;
@@ -41,7 +41,7 @@ const loadingSnapshot = { status: 'loading' } as const;
 // The timeline iterator is one-shot and the runner cannot be rewound, so the
 // store lives as long as the timeline, not as long as an effect: unsubscribing
 // (as StrictMode and <Activity> do) must not cancel it.
-function createPlayerStore<Task>({
+export function createPlayerStore<Task>({
   timeline,
 }: {
   timeline: AnyIteratorOrIterable<Task>;
@@ -108,6 +108,9 @@ const getLoadingSnapshot = () => loadingSnapshot;
 
 type UsePlayerStateOptions<Task> = {
   timeline?: AnyIteratorOrIterable<Task> | null;
+  // A store created elsewhere, which then owns the timeline's lifetime.
+  // Exclusive with `timeline`.
+  store?: PlayerStore<Task>;
   onCompleted?: () => void;
   paused: boolean;
   loading: boolean;
@@ -122,6 +125,7 @@ type UsePlayerStateOptions<Task> = {
  */
 export function usePlayerState<Task>({
   timeline,
+  store: givenStore,
   onCompleted,
   paused,
   loading,
@@ -141,7 +145,7 @@ export function usePlayerState<Task>({
   } else if (storeRef.current.timeline !== timeline) {
     throw new Error('Timeline cannot be changed once set');
   }
-  const store = storeRef.current;
+  const store = givenStore ?? storeRef.current;
 
   React.useEffect(() => {
     store?.start();
@@ -176,7 +180,7 @@ export function usePlayerState<Task>({
     snapshot.status === 'task' ? snapshot.taskKey : null,
   );
 
-  if (!loading && timeline == null) {
+  if (!loading && timeline == null && givenStore == null) {
     throw new Error('Timeline must be set when loading is false');
   }
   if (interrupted && !holdsRunningTask) {
