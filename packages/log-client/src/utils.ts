@@ -12,16 +12,18 @@ export class RequestError extends Error {
     error: string | { errors: ErrorResource[] };
   }) {
     const { response, error } = fetchResponse;
+    // HTTP/2 has no reason phrase, so statusText is empty there.
+    const statusText = response.statusText || `HTTP ${response.status}`;
     // A body without errors (e.g. from a proxy) gets the same status-based
     // error as a failed response without a body, so `detail` and `code` stay
     // readable.
     const errors =
       typeof error === 'string'
         ? error !== ''
-          ? [{ status: response.statusText, detail: error }]
+          ? [{ status: statusText, detail: error }]
           : []
         : (error.errors ?? []);
-    const first = errors[0] ?? { status: response.statusText };
+    const first = errors[0] ?? { status: statusText };
     super(first.detail ?? first.code ?? first.status);
     this.#errors = errors.length > 0 ? errors : [first];
     this.#status = response.status;
