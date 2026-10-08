@@ -1,4 +1,8 @@
-import { type MaybeAsyncIterator, TimelineRunner } from '@lightmill/runner';
+import {
+  type MaybeAsyncIterator,
+  resumeAfter,
+  TimelineRunner,
+} from '@lightmill/runner';
 import * as React from 'react';
 
 // MaybeAsyncIterator is what resumeAfter returns.
@@ -43,8 +47,10 @@ const loadingSnapshot = { status: 'loading' } as const;
 // (as StrictMode and <Activity> do) must not cancel it.
 export function createPlayerStore<Task>({
   timeline,
+  resumeAfterTask,
 }: {
   timeline: AnyIteratorOrIterable<Task>;
+  resumeAfterTask?: (task: Task) => boolean;
 }): PlayerStore<Task> {
   const listeners = new Set<() => void>();
   let snapshot: StoreSnapshot<Task> = loadingSnapshot;
@@ -55,7 +61,10 @@ export function createPlayerStore<Task>({
     listeners.forEach((listener) => listener());
   };
   const runner = new TimelineRunner<Task>({
-    timeline,
+    timeline:
+      resumeAfterTask == null
+        ? timeline
+        : resumeAfter(timeline, resumeAfterTask),
     onLoading() {
       setSnapshot({ status: 'loading' });
     },
@@ -108,6 +117,7 @@ const getLoadingSnapshot = () => loadingSnapshot;
 
 type UsePlayerStateOptions<Task> = {
   timeline?: AnyIteratorOrIterable<Task> | null;
+  resumeAfterTask?: (task: Task) => boolean;
   // A store created elsewhere, which then owns the timeline's lifetime.
   // Exclusive with `timeline`.
   store?: PlayerStore<Task>;
@@ -125,6 +135,7 @@ type UsePlayerStateOptions<Task> = {
  */
 export function usePlayerState<Task>({
   timeline,
+  resumeAfterTask,
   store: givenStore,
   onCompleted,
   paused,
@@ -140,7 +151,7 @@ export function usePlayerState<Task>({
   const storeRef = React.useRef<PlayerStore<Task> | null>(null);
   if (storeRef.current == null) {
     if (timeline != null) {
-      storeRef.current = createPlayerStore({ timeline });
+      storeRef.current = createPlayerStore({ timeline, resumeAfterTask });
     }
   } else if (storeRef.current.timeline !== timeline) {
     throw new Error('Timeline cannot be changed once set');

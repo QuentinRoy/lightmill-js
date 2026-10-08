@@ -148,6 +148,33 @@ describe('TimelinePlayer', () => {
     expect(screen.getByTestId('end')).toBeInTheDocument();
   });
 
+  it('still supports the deprecated resumeAfterTask prop', async () => {
+    const user = userEvent.setup();
+    render(
+      <TimelinePlayer
+        elements={{
+          tasks: {
+            A: <Task type="A" dataProp="a" />,
+            B: <Task type="B" dataProp="b" />,
+          },
+          completed: <div data-testid="end" />,
+        }}
+        timeline={
+          [
+            { type: 'A', a: 'hello' },
+            { type: 'B', b: 42 },
+            { type: 'A', a: 'world' },
+          ] as Task[]
+        }
+        resumeAfterTask={(task) => task.type === 'B' && task.b === 42}
+      />,
+    );
+
+    expect(screen.getByTestId('data')).toHaveTextContent('world');
+    await user.click(screen.getByRole('button'));
+    expect(screen.getByTestId('end')).toBeInTheDocument();
+  });
+
   it('starts after the first task if resumeAfter matches it', async () => {
     render(
       <TimelinePlayer
