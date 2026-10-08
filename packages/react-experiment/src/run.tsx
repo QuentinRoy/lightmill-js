@@ -88,6 +88,9 @@ export function Run({
     store.getSnapshot,
   );
   const loading = elements.loading ?? defaultLoading;
+  // There is no logger before the run starts or when it fails to.
+  const logger =
+    state.status === 'ready' || state.status === 'error' ? state.logger : null;
   let content: React.ReactNode;
   switch (state.status) {
     case 'looking-up':
@@ -103,15 +106,13 @@ export function Run({
       break;
     case 'error':
       content = (
-        <LogDeliveryProvider logger={state.logger}>
-          <ErrorProvider
-            error={state.error}
-            experimentName={experimentName}
-            runName={runName}
-          >
-            {elements.error ?? defaultError}
-          </ErrorProvider>
-        </LogDeliveryProvider>
+        <ErrorProvider
+          error={state.error}
+          experimentName={experimentName}
+          runName={runName}
+        >
+          {elements.error ?? defaultError}
+        </ErrorProvider>
       );
       break;
     case 'ready':
@@ -135,15 +136,8 @@ export function Run({
   }
   return (
     <>
-      <UnloadGuard
-        logger={
-          state.status === 'ready' || state.status === 'error'
-            ? state.logger
-            : null
-        }
-        crashed={state.status === 'error'}
-      />
-      {content}
+      <UnloadGuard logger={logger} crashed={state.status === 'error'} />
+      <LogDeliveryProvider logger={logger}>{content}</LogDeliveryProvider>
     </>
   );
 }
@@ -308,22 +302,20 @@ function ReadyPlayer({
   }, [store, timelineCompleted, idle]);
 
   return (
-    <LogDeliveryProvider logger={logger}>
-      <StorePlayer
-        store={playerStore}
-        elements={elements}
-        paused={loggerState.status === 'paused'}
-        // The run is saved until it is completed on the server.
-        loading={timelineCompleted && loggerState.status !== 'completed'}
-        onLog={async (log) => {
-          try {
-            await logger.addLog(log);
-          } catch (error) {
-            // A log still held is recoverable: the paused slot handles it.
-            if (!logger.inFlightLogs.includes(log)) throw error;
-          }
-        }}
-      />
-    </LogDeliveryProvider>
+    <StorePlayer
+      store={playerStore}
+      elements={elements}
+      paused={loggerState.status === 'paused'}
+      // The run is saved until it is completed on the server.
+      loading={timelineCompleted && loggerState.status !== 'completed'}
+      onLog={async (log) => {
+        try {
+          await logger.addLog(log);
+        } catch (error) {
+          // A log still held is recoverable: the paused slot handles it.
+          if (!logger.inFlightLogs.includes(log)) throw error;
+        }
+      }}
+    />
   );
 }

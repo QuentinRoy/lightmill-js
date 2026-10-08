@@ -4,7 +4,7 @@ import userEventPackage from '@testing-library/user-event';
 import { http, passthrough } from 'msw';
 import * as React from 'react';
 import { expect, vi } from 'vitest';
-import { Run, resumeAfter, useResumeRun } from '../src/main.js';
+import { Run, resumeAfter, useLogDelivery, useResumeRun } from '../src/main.js';
 import {
   elements,
   isUnloadPrevented,
@@ -158,6 +158,25 @@ describe('Run', () => {
     },
   );
 
+  serverTest(
+    'lets elements.loading read the log delivery while the run starts',
+    async ({ server }) => {
+      await server.addExperiment('exp');
+      function Loading() {
+        const { inFlightLogs } = useLogDelivery();
+        return <p>Starting with {inFlightLogs.length} logs held</p>;
+      }
+      await renderAsync(
+        run(newClient(server), {
+          elements: { ...elements, loading: <Loading /> },
+        }),
+      );
+
+      expect(screen.getByText('Starting with 0 logs held')).toBeVisible();
+      await screen.findByRole('button', { name: 'Done a' });
+    },
+  );
+
   describe('resuming', () => {
     const resumableTimeline = ({
       resumeLog,
@@ -255,6 +274,28 @@ describe('Run', () => {
         expect(
           await screen.findByRole('button', { name: 'Done b' }),
         ).toBeInTheDocument();
+      },
+    );
+
+    serverTest(
+      'lets elements.resume read the log delivery',
+      async ({ server }) => {
+        await server.addExperiment('exp');
+        await leaveRunAfterFirstTask(server);
+        function CustomResume() {
+          const { inFlightLogs } = useLogDelivery();
+          return <p>Resume with {inFlightLogs.length} logs held</p>;
+        }
+        await renderAsync(
+          run(newClient(server), {
+            timeline: resumableTimeline,
+            elements: { ...elements, resume: <CustomResume /> },
+          }),
+        );
+
+        expect(
+          await screen.findByText('Resume with 0 logs held'),
+        ).toBeVisible();
       },
     );
 
