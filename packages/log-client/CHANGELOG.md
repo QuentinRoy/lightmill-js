@@ -1,5 +1,13 @@
 # @lightmill/log-client
 
+## 5.0.1
+
+### Patch Changes
+
+- [#487](https://github.com/QuentinRoy/lightmill-js/pull/487) [`79ccde0`](https://github.com/QuentinRoy/lightmill-js/commit/79ccde07d464e0d256bc3bfe8381424d737b7158) - Fix a failed request throwing an unrelated `TypeError` instead of a `RequestError` when the response body has an empty `errors` array, as a proxy in front of the server can send. The `RequestError` now keeps the response `status` and `headers`, uses the status text as its message, and lists a single error with that status in `errors`.
+
+- [#488](https://github.com/QuentinRoy/lightmill-js/pull/488) [`8fb29cf`](https://github.com/QuentinRoy/lightmill-js/commit/8fb29cf7e7e5999ba5f7970d4aa0156e5c7613b5) - Give `RequestError` the message `HTTP <status>` when the response has neither a body nor a status text, as with HTTP/2 responses, instead of an empty message.
+
 ## 5.0.0
 
 ### Major Changes
