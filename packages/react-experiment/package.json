@@ -29,6 +29,8 @@
     "@lightmill/runner": "workspace:*"
   },
   "devDependencies": {
+    "@lightmill/log-client": "workspace:*",
+    "@lightmill/test-server": "workspace:*",
     "@testing-library/dom": "^10.4.2",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.3",
@@ -37,6 +39,7 @@
     "@vitejs/plugin-react": "^6.1.1",
     "cross-env": "^10.1.0",
     "jsdom": "^29.1.1",
+    "msw": "^3.0.2",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "type-fest": "^5.10.0",

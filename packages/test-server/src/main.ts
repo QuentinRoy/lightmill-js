@@ -5,7 +5,14 @@ import { once } from 'node:events';
 import { createServer, type Server } from 'node:http';
 import { CookieJar } from 'tough-cookie';
 import { test, vi } from 'vitest';
-import { parseOperations } from './test-utils.ts';
+
+type Operation = {
+  data: { attributes: { number: number; values: Record<string, unknown> } };
+};
+
+export function parseOperations(body: string): Operation[] {
+  return JSON.parse(body)['atomic:operations'];
+}
 
 /**
  * A real log server on an in-memory database, listening on a free local port.

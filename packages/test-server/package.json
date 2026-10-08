@@ -1,0 +1,24 @@
+{
+  "name": "@lightmill/test-server",
+  "version": "0.0.0",
+  "description": "A real log server for the tests of the other packages.",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "exports": "./src/main.ts",
+  "dependencies": {
+    "@lightmill/log-server": "workspace:*",
+    "express": "^5.2.1",
+    "msw": "^3.0.2",
+    "tough-cookie": "^6.0.1",
+    "vitest": "catalog:"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "catalog:",
+    "typescript": "catalog:"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  }
+}

@@ -1,9 +1,9 @@
+import { serverTest } from '@lightmill/test-server';
 import { bypass, http, HttpResponse, passthrough } from 'msw';
 import { describe, expect } from 'vitest';
 import { LightmillClient } from '../src/client.js';
 import { LightmillLogger } from '../src/logger.js';
 import { RequestError } from '../src/main.js';
-import { serverTest } from './test-server.ts';
 
 const experimentName = 'test-experiment';
 const otherExperimentName = 'other-experiment';

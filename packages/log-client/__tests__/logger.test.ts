@@ -1,9 +1,9 @@
+import { serverTest, type TestServer } from '@lightmill/test-server';
 import { bypass, http, HttpResponse, passthrough } from 'msw';
 import { beforeEach, describe, expect, vi } from 'vitest';
 import { LightmillClient } from '../src/client.js';
 import type { LoggerState } from '../src/logger.js';
 import { AddLogError, FlushError } from '../src/main.js';
-import { serverTest, type TestServer } from './test-server.ts';
 import {
   advanceUntilSettled,
   DeferManager,
