@@ -88,6 +88,9 @@ export function isSameRun(a: RunIdentity, b: RunIdentity): boolean {
   );
 }
 
+const maxInterruptRetries = 5;
+const interruptRetryDelayMs = 1000;
+
 const stores = new WeakMap<RunClient, Map<string, RunStore>>();
 let storeCount = 0;
 
@@ -130,6 +133,9 @@ function createRunStore(
   let builderFailure: { error: unknown } | null = null;
   let crashedLogger: RunLogger | null = null;
   let interrupting = false;
+  // Failed interrupts since the logger last went idle.
+  let interruptFailures = 0;
+  let interruptTimer: ReturnType<typeof setTimeout> | undefined;
 
   const setState = (next: RunState) => {
     state = next;
@@ -167,9 +173,13 @@ function createRunStore(
     const logger = await loggerPromise;
     logger.subscribe((loggerState) => {
       if (loggerState.status === 'idle' && logger === crashedLogger) {
+        interruptFailures = 0;
         interrupt(logger);
       }
-      if (hasEnded(loggerState)) evict();
+      if (hasEnded(loggerState)) {
+        clearTimeout(interruptTimer);
+        evict();
+      }
     });
     setState({ status: 'ready', logger, resumeLog });
   }
@@ -181,22 +191,32 @@ function createRunStore(
 
   // Never throws and never replaces the error that crashed the run: the
   // failure is logged, and the logger being live, the held logs stay in it.
+  // The logger may not change state again after a failure (a refused request,
+  // an idle event that came while interrupting), so a failure schedules
+  // another try, with a growing delay and a limit.
   function interrupt(logger: RunLogger) {
     if (interrupting || !isLive(logger.state)) return;
+    clearTimeout(interruptTimer);
     interrupting = true;
-    logger
-      .interruptRun()
-      .catch((interruptError: unknown) => {
+    logger.interruptRun().then(
+      () => {
+        interrupting = false;
+      },
+      (interruptError: unknown) => {
+        interrupting = false;
         // The error slot shows the crash; nothing else can show this.
         // eslint-disable-next-line no-console
         console.warn(
           'Could not interrupt the run after it crashed',
           interruptError,
         );
-      })
-      .finally(() => {
-        interrupting = false;
-      });
+        if (interruptFailures >= maxInterruptRetries) return;
+        interruptTimer = setTimeout(
+          () => interrupt(logger),
+          interruptRetryDelayMs * 2 ** interruptFailures++,
+        );
+      },
+    );
   }
 
   return {

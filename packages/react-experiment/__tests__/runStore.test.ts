@@ -1,6 +1,6 @@
 import { Client } from '@lightmill/log-client';
 import { serverTest, type TestServer } from '@lightmill/test-server';
-import { http, HttpResponse } from 'msw';
+import { http, HttpResponse, passthrough } from 'msw';
 import { expect, vi } from 'vitest';
 import { getRunStore, type RunStore } from '../src/runStore.js';
 import { failDelivery, failRequest } from './runTestUtils.js';
@@ -175,6 +175,81 @@ describe('run store', () => {
         });
         await expect(server.storedLogs()).resolves.toHaveLength(1);
       },
+    );
+
+    serverTest(
+      'tries to interrupt again after the request ending the run failed',
+      async ({ server }) => {
+        const { store } = await readyStore(server);
+        server.msw.use(
+          http.patch(
+            `${server.apiRoot}/runs/:id`,
+            () =>
+              HttpResponse.json(
+                { errors: [{ status: '400', detail: 'Refused' }] },
+                { status: 400 },
+              ),
+            { once: true },
+          ),
+        );
+
+        store.crash(new Error('Crash'));
+
+        await vi.waitFor(
+          async () => {
+            await expect(server.storedRuns()).resolves.toEqual([
+              { runName: 'run-1', runStatus: 'interrupted' },
+            ]);
+          },
+          { timeout: 5000 },
+        );
+        expect(console.warn).toHaveBeenCalledTimes(1);
+      },
+      10000,
+    );
+
+    serverTest(
+      'tries to interrupt again when the logger went idle during an interrupt that then failed',
+      async ({ server }) => {
+        const { store } = await readyStore(server);
+        const state = store.getSnapshot();
+        if (state.status !== 'ready') throw new Error('Not ready');
+        const { logger } = state;
+        let deliver!: () => void;
+        const delivering = new Promise<void>((resolve) => (deliver = resolve));
+        server.msw.use(
+          http.post(`${server.apiRoot}/operations`, async () => {
+            await delivering;
+            return passthrough();
+          }),
+          http.patch(
+            `${server.apiRoot}/runs/:id`,
+            () =>
+              HttpResponse.json(
+                { errors: [{ status: '400', detail: 'Refused' }] },
+                { status: 400 },
+              ),
+            { once: true },
+          ),
+        );
+        void logger.addLog({ type: 'trial-done', taskId: 'a' });
+
+        // The interrupt waits for the log. The logger goes idle once it is
+        // stored, then the request ending the run is refused.
+        store.crash(new Error('Crash'));
+        deliver();
+
+        await vi.waitFor(
+          async () => {
+            await expect(server.storedRuns()).resolves.toEqual([
+              { runName: 'run-1', runStatus: 'interrupted' },
+            ]);
+          },
+          { timeout: 5000 },
+        );
+        await expect(server.storedLogs()).resolves.toHaveLength(1);
+      },
+      10000,
     );
 
     serverTest(
