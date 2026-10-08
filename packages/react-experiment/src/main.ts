@@ -9,4 +9,5 @@ export {
 export { useConfirmBeforeUnload } from './useConfirmBeforeUnload.ts';
 export { useLogDelivery, type LogDelivery } from './useLogDelivery.tsx';
 export { useLogger } from './useLogger.ts';
+export { useResumeRun, type ResumeRun } from './useResumeRun.ts';
 export { useTask } from './useTask.ts';

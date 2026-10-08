@@ -20,7 +20,11 @@ it('accepts a log-client Client and Logger', () => {
     const runLogger: RunLogger<RegisteredLog> = logger;
     const typedRunClient: RunClient<TypedLog> = typedClient;
     const typedRunLogger: RunLogger<TypedLog> = typedLogger;
-    return [runClient, runLogger, typedRunClient, typedRunLogger];
+    // Method parameters are compared bivariantly, so this also checks that
+    // every option Run passes is one the real client accepts.
+    const startRun = (options: Parameters<RunClient['startRun']>[0]) =>
+      client.startRun(options);
+    return [runClient, runLogger, typedRunClient, typedRunLogger, startRun];
   };
   void check;
 });

@@ -1,5 +1,6 @@
 import { Client } from '@lightmill/log-client';
 import { serverTest, type TestServer } from '@lightmill/test-server';
+import { http, HttpResponse } from 'msw';
 import { expect, vi } from 'vitest';
 import { getRunStore, type RunStore } from '../src/runStore.js';
 
@@ -108,4 +109,93 @@ describe('run store', () => {
       expect(build).toHaveBeenCalledExactlyOnceWith({ resumeLog: null });
     },
   );
+
+  describe('with an ongoing run', () => {
+    // Starts a run with one stored log, then forgets about its logger, as a
+    // reload does.
+    async function leaveRun(server: TestServer, runName = 'run-1') {
+      const client = new Client({ apiRoot: server.apiRoot });
+      const logger = await client.startRun({ experimentName: 'exp', runName });
+      await logger.addLog({ type: 'trial-done', taskId: 'a' });
+    }
+
+    serverTest(
+      'waits for confirmation, with the run and its last resumable log',
+      async ({ server }) => {
+        await server.addExperiment('exp');
+        await leaveRun(server);
+        const store = getRunStore(identity(server));
+        store.subscribe(() => {});
+
+        await whenStatus(store, 'awaiting-confirmation');
+
+        expect(store.getSnapshot()).toMatchObject({
+          run: { name: 'run-1', status: 'running' },
+          lastLog: { type: 'trial-done', taskId: 'a' },
+        });
+        expect(server.requestCount('PATCH', /^\/runs\//)).toBe(0);
+      },
+    );
+
+    serverTest(
+      'has no last log when nothing resumable was logged',
+      async ({ server }) => {
+        await server.addExperiment('exp');
+        await leaveRun(server);
+        const store = getRunStore(
+          identity(server, { resumableLogTypes: ['other-type'] }),
+        );
+        store.subscribe(() => {});
+
+        await whenStatus(store, 'awaiting-confirmation');
+
+        expect(store.getSnapshot()).toMatchObject({ lastLog: null });
+      },
+    );
+
+    serverTest(
+      'resumes once however often resume is called, then builds with the last log',
+      async ({ server }) => {
+        await server.addExperiment('exp');
+        await leaveRun(server);
+        const store = getRunStore(identity(server));
+        store.subscribe(() => {});
+        await whenStatus(store, 'awaiting-confirmation');
+
+        store.resume();
+        store.resume();
+        await whenStatus(store, 'ready');
+        store.resume();
+
+        expect(server.requestCount('PATCH', /^\/runs\//)).toBe(1);
+        const build = vi.fn(() => [{ type: 'trial' }]);
+        store.getPlayerStore(build);
+        expect(build).toHaveBeenCalledExactlyOnceWith({
+          resumeLog: expect.objectContaining({
+            type: 'trial-done',
+            taskId: 'a',
+          }),
+        });
+      },
+    );
+
+    serverTest('is replaced after resuming failed', async ({ server }) => {
+      await server.addExperiment('exp');
+      await leaveRun(server);
+      const id = identity(server);
+      const store = getRunStore(id);
+      store.subscribe(() => {});
+      await whenStatus(store, 'awaiting-confirmation');
+      server.msw.use(
+        http.patch(`${server.apiRoot}/runs/:id`, () =>
+          HttpResponse.json({ errors: [{ status: '500' }] }, { status: 500 }),
+        ),
+      );
+
+      store.resume();
+      await whenStatus(store, 'error');
+
+      expect(getRunStore(id)).not.toBe(store);
+    });
+  });
 });
