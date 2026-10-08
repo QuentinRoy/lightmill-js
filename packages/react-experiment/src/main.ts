@@ -8,4 +8,5 @@ export {
 } from './timelinePlayer.tsx';
 export { useConfirmBeforeUnload } from './useConfirmBeforeUnload.ts';
 export { useLogger } from './useLogger.ts';
+export { useResumeRun, type ResumeRun } from './useResumeRun.ts';
 export { useTask } from './useTask.ts';

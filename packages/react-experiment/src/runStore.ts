@@ -8,6 +8,14 @@ import {
 
 export type RunState =
   | { status: 'looking-up' }
+  | {
+      status: 'awaiting-confirmation';
+      run: { id: string; name: string | null; status: string };
+      // The last resumable log, or null at resume number 0.
+      lastLog: ResumeLog | null;
+      // What the client needs to resume after `lastLog`.
+      after: { number: number };
+    }
   | { status: 'starting' }
   | {
       status: 'ready';
@@ -34,6 +42,11 @@ export type RunStore = {
   getPlayerStore: (
     build: TimelineBuilder | null,
   ) => PlayerStore<RegisteredTask> | null;
+  /**
+   * Resumes the run found by the lookup. Calling it again, or when no run
+   * awaits confirmation, does nothing.
+   */
+  resume: () => void;
   /** Completes the run. Calling it again returns the first call's promise. */
   completeRun: () => Promise<void>;
 };
@@ -90,32 +103,50 @@ function createRunStore(
     listeners.forEach((listener) => listener());
   };
 
+  // Looks the run up and, when there is none, starts a new one.
   async function start() {
     try {
-      const runs = await client.getResumableRuns({
+      const [found] = await client.getResumableRuns({
         experimentName,
         runName,
         resumableLogTypes,
       });
-      if (runs.length > 0) {
-        throw new Error('Resuming a run is not supported yet.');
+      if (found != null) {
+        setState({
+          status: 'awaiting-confirmation',
+          run: found.run,
+          lastLog: found.toResumeAfter.log,
+          after: { number: found.toResumeAfter.number },
+        });
+        return;
       }
       setState({ status: 'starting' });
-      const logger = await client.startRun({ experimentName, runName });
-      logger.subscribe((loggerState) => {
-        if (
-          loggerState.status === 'completed' ||
-          loggerState.status === 'canceled' ||
-          loggerState.status === 'interrupted'
-        ) {
-          evict();
-        }
-      });
-      setState({ status: 'ready', logger, resumeLog: null });
+      await begin(client.startRun({ experimentName, runName }), null);
     } catch (error) {
-      evict();
-      setState({ status: 'error', error });
+      fail(error);
     }
+  }
+
+  async function begin(
+    loggerPromise: Promise<RunLogger>,
+    resumeLog: ResumeLog | null,
+  ) {
+    const logger = await loggerPromise;
+    logger.subscribe((loggerState) => {
+      if (
+        loggerState.status === 'completed' ||
+        loggerState.status === 'canceled' ||
+        loggerState.status === 'interrupted'
+      ) {
+        evict();
+      }
+    });
+    setState({ status: 'ready', logger, resumeLog });
+  }
+
+  function fail(error: unknown) {
+    evict();
+    setState({ status: 'error', error });
   }
 
   return {
@@ -131,6 +162,13 @@ function createRunStore(
       };
     },
     getSnapshot: () => state,
+    resume() {
+      // Moving to `starting` right away is what makes a second call a no-op.
+      if (state.status !== 'awaiting-confirmation') return;
+      const { run, lastLog, after } = state;
+      setState({ status: 'starting' });
+      begin(client.startRun({ runId: run.id, after }), lastLog).catch(fail);
+    },
     getPlayerStore(build) {
       if (playerStore != null) return playerStore;
       if (state.status !== 'ready' || build == null) return null;

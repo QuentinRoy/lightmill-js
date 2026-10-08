@@ -5,12 +5,18 @@ import userEventPackage from '@testing-library/user-event';
 import { http, passthrough } from 'msw';
 import * as React from 'react';
 import { expect, vi } from 'vitest';
-import { Run, useLogger, useTask } from '../src/main.js';
+import {
+  Run,
+  resumeAfter,
+  useLogger,
+  useResumeRun,
+  useTask,
+} from '../src/main.js';
 
 // @ts-expect-error - userEventPackage is not typed correctly
 const userEvent: typeof userEventPackage.default = userEventPackage;
 
-type Trial = { type: 'trial'; id: string };
+type Trial = { type: 'trial'; id: string; level?: number };
 
 function TrialTask() {
   const { task, onTaskCompleted } = useTask('trial');
@@ -18,7 +24,7 @@ function TrialTask() {
   return (
     <button
       onClick={() => {
-        addLog({ taskId: task.id });
+        addLog({ taskId: task.id, level: task.level });
         onTaskCompleted();
       }}
     >
@@ -207,4 +213,187 @@ describe('Run', () => {
       expect(await screen.findByText(/thank you/i)).toBeInTheDocument();
     },
   );
+
+  describe('resuming', () => {
+    const resumableTimeline = ({
+      resumeLog,
+    }: {
+      resumeLog: Record<string, unknown> | null;
+    }) =>
+      resumeLog == null
+        ? timeline()
+        : resumeAfter(timeline(), (task) => task.id === resumeLog.taskId);
+
+    // Plays the first task of a run, waits until its log is stored, then
+    // drops the page, like a reload does.
+    async function leaveRunAfterFirstTask(
+      server: TestServer,
+      props: Partial<React.ComponentProps<typeof Run>> = {},
+    ) {
+      const user = userEvent.setup();
+      const page = await renderAsync(run(newClient(server), props));
+      await user.click(await screen.findByRole('button', { name: 'Done a' }));
+      await vi.waitFor(async () => {
+        expect(await server.storedLogs()).toHaveLength(1);
+      });
+      page.unmount();
+    }
+
+    serverTest(
+      'asks before resuming, then continues after the last completed task',
+      async ({ server }) => {
+        await server.addExperiment('exp');
+        await leaveRunAfterFirstTask(server);
+        const user = userEvent.setup();
+        await renderAsync(
+          run(newClient(server), { timeline: resumableTimeline }),
+        );
+
+        await user.click(await screen.findByRole('button', { name: 'Resume' }));
+        await user.click(await screen.findByRole('button', { name: 'Done b' }));
+
+        expect(await screen.findByText('The end')).toBeInTheDocument();
+        await expect(server.storedRuns()).resolves.toEqual([
+          { runName: 'run-1', runStatus: 'completed' },
+        ]);
+        await expect(server.storedLogs()).resolves.toMatchObject([
+          { number: 1, values: { taskId: 'a' } },
+          { number: 2, values: { taskId: 'b' } },
+        ]);
+        expect(server.requestCount('POST', '/runs')).toBe(1);
+      },
+    );
+
+    serverTest(
+      'does not play anything until the participant confirms',
+      async ({ server }) => {
+        await server.addExperiment('exp');
+        await leaveRunAfterFirstTask(server);
+        const build = vi.fn(resumableTimeline);
+        await renderAsync(run(newClient(server), { timeline: build }));
+
+        expect(
+          await screen.findByRole('button', { name: 'Resume' }),
+        ).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /Done/ })).toBeNull();
+        expect(build).not.toHaveBeenCalled();
+        expect(server.requestCount('PATCH', /^\/runs\//)).toBe(0);
+      },
+    );
+
+    serverTest(
+      'renders elements.resume with useResumeRun',
+      async ({ server }) => {
+        await server.addExperiment('exp');
+        await leaveRunAfterFirstTask(server);
+        function CustomResume() {
+          const { resume, run, lastLog } = useResumeRun();
+          return (
+            <button onClick={resume}>
+              Continue {run.name} ({run.status}) after {String(lastLog?.taskId)}
+            </button>
+          );
+        }
+        const user = userEvent.setup();
+        await renderAsync(
+          run(newClient(server), {
+            timeline: resumableTimeline,
+            elements: { ...elements, resume: <CustomResume /> },
+          }),
+        );
+
+        await user.click(
+          await screen.findByRole('button', {
+            name: 'Continue run-1 (running) after a',
+          }),
+        );
+
+        expect(
+          await screen.findByRole('button', { name: 'Done b' }),
+        ).toBeInTheDocument();
+      },
+    );
+
+    serverTest(
+      'shows the prompt at resume number 0 and builds with a null resume log',
+      async ({ server }) => {
+        await server.addExperiment('exp');
+        const user = userEvent.setup();
+        const first = await renderAsync(run(newClient(server), {}));
+        await screen.findByRole('button', { name: 'Done a' });
+        first.unmount();
+        const build = vi.fn(resumableTimeline);
+        await renderAsync(run(newClient(server), { timeline: build }));
+
+        await user.click(await screen.findByRole('button', { name: 'Resume' }));
+
+        expect(
+          await screen.findByRole('button', { name: 'Done a' }),
+        ).toBeInTheDocument();
+        expect(build).toHaveBeenCalledExactlyOnceWith({ resumeLog: null });
+      },
+    );
+
+    serverTest(
+      'gives the builder the state that was logged',
+      async ({ server }) => {
+        await server.addExperiment('exp');
+        // A staircase: the next level depends on the logged one.
+        const staircase = ({
+          resumeLog,
+        }: {
+          resumeLog: Record<string, unknown> | null;
+        }) => {
+          const next = resumeLog == null ? 1 : Number(resumeLog.level) + 1;
+          return [next, next + 1].map((level) => ({
+            type: 'trial',
+            id: `level-${level}`,
+            level,
+          }));
+        };
+        const user = userEvent.setup();
+        const first = await renderAsync(
+          run(newClient(server), { timeline: staircase }),
+        );
+        await user.click(
+          await screen.findByRole('button', { name: 'Done level-1' }),
+        );
+        await vi.waitFor(async () => {
+          expect(await server.storedLogs()).toHaveLength(1);
+        });
+        first.unmount();
+        await renderAsync(run(newClient(server), { timeline: staircase }));
+
+        await user.click(await screen.findByRole('button', { name: 'Resume' }));
+
+        expect(
+          await screen.findByRole('button', { name: 'Done level-2' }),
+        ).toBeInTheDocument();
+      },
+    );
+
+    serverTest(
+      'sends one resume request when the participant double-clicks or StrictMode renders twice',
+      async ({ server }) => {
+        await server.addExperiment('exp');
+        await leaveRunAfterFirstTask(server);
+        const user = userEvent.setup();
+        await renderAsync(
+          <React.StrictMode>
+            {run(newClient(server), { timeline: resumableTimeline })}
+          </React.StrictMode>,
+        );
+
+        await user.dblClick(
+          await screen.findByRole('button', { name: 'Resume' }),
+        );
+
+        expect(
+          await screen.findByRole('button', { name: 'Done b' }),
+        ).toBeInTheDocument();
+        expect(server.requestCount('PATCH', /^\/runs\//)).toBe(1);
+        expect(server.requestCount('GET', '/runs')).toBe(1);
+      },
+    );
+  });
 });

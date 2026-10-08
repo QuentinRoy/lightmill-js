@@ -44,8 +44,10 @@ export interface RunClient<Log extends { type: string } = RegisteredLog> {
         { number: 0; log: null } | { number: number; log: ResumeLog<Log> };
     }>
   >;
-  startRun(options: {
-    experimentName: string;
-    runName: string;
-  }): Promise<RunLogger<Log>>;
+  startRun(
+    options:
+      | { experimentName: string; runName: string }
+      // `after` is what getResumableRuns returns as `toResumeAfter`.
+      | { runId: string; after: { number: number } },
+  ): Promise<RunLogger<Log>>;
 }

@@ -4,13 +4,18 @@ import type { RunClient, RunLogger } from './logClient.js';
 import type { PlayerStore } from './playerState.js';
 import {
   getRunStore,
+  type RunState,
   type RunStore,
   type TimelineBuilder,
 } from './runStore.js';
 import { StorePlayer, type TimelinePlayerElements } from './timelinePlayer.js';
 import { useConfirmBeforeUnload } from './useConfirmBeforeUnload.js';
+import { resumeRunContext, useResumeRun } from './useResumeRun.js';
 
-export type RunElements = TimelinePlayerElements<RegisteredTask>;
+export type RunElements = TimelinePlayerElements<RegisteredTask> & {
+  /** Asks the participant to resume an ongoing run. See `useResumeRun`. */
+  resume?: React.ReactElement;
+};
 
 export type RunProps = {
   /** Create it once: a new client is a new run. */
@@ -21,13 +26,26 @@ export type RunProps = {
   resumableLogTypes: Array<RegisteredLog['type']>;
   /**
    * Builds the timeline, once per run. `null` while the app loads it.
-   * `resumeLog` is the last resumable log, or `null` for a new run.
+   * `resumeLog` is the last resumable log, or `null` for a new run or when
+   * none was logged yet.
    */
   timeline: TimelineBuilder | null;
   elements: RunElements;
 };
 
 const defaultLoading = <p>Loading…</p>;
+function DefaultResume() {
+  const { resume } = useResumeRun();
+  return (
+    <>
+      <p>You have a session in progress.</p>
+      <button type="button" onClick={resume}>
+        Resume
+      </button>
+    </>
+  );
+}
+const defaultResume = <DefaultResume />;
 const defaultCompleted = <p>Thank you, the experiment is complete.</p>;
 
 /**
@@ -58,6 +76,12 @@ export function Run({
     case 'looking-up':
     case 'starting':
       return loading;
+    case 'awaiting-confirmation':
+      return (
+        <ResumeProvider store={store} state={state}>
+          {elements.resume ?? defaultResume}
+        </ResumeProvider>
+      );
     case 'error':
       throw state.error;
     case 'ready': {
@@ -110,6 +134,26 @@ function useRunStore(identity: Parameters<typeof getRunStore>[0]): RunStore {
     };
   }
   return ref.current.store;
+}
+
+function ResumeProvider({
+  store,
+  state,
+  children,
+}: {
+  store: RunStore;
+  state: Extract<RunState, { status: 'awaiting-confirmation' }>;
+  children: React.ReactNode;
+}) {
+  const value = React.useMemo(
+    () => ({ resume: store.resume, run: state.run, lastLog: state.lastLog }),
+    [store, state],
+  );
+  return (
+    <resumeRunContext.Provider value={value}>
+      {children}
+    </resumeRunContext.Provider>
+  );
 }
 
 function RunPlayer({
