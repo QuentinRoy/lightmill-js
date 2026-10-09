@@ -371,7 +371,7 @@ exports[`SQLiteStore#getLogs (selectQueryLimit: 2) > filters logs of a particula
 ]
 `;
 
-exports[`SQLiteStore#getLogs (selectQueryLimit: 2) > ignores missing logs 1`] = `
+exports[`SQLiteStore#getLogs (selectQueryLimit: 2) > leaves out stranded logs 1`] = `
 [
   {
     "experimentId": "1",
@@ -461,62 +461,6 @@ exports[`SQLiteStore#getLogs (selectQueryLimit: 2) > ignores missing logs 1`] = 
       "foo": true,
       "x": 20,
       "y": 2,
-    },
-  },
-  {
-    "experimentId": "2",
-    "experimentName": "experiment-2",
-    "logId": "7",
-    "number": 11,
-    "runId": "3",
-    "runName": "run1",
-    "runStatus": "running",
-    "type": "log1",
-    "values": {
-      "msg": "hello",
-      "recipient": "Anna",
-    },
-  },
-  {
-    "experimentId": "2",
-    "experimentName": "experiment-2",
-    "logId": "9",
-    "number": 22,
-    "runId": "3",
-    "runName": "run1",
-    "runStatus": "running",
-    "type": "log1",
-    "values": {
-      "msg": "hello",
-      "recipient": "Anna",
-    },
-  },
-  {
-    "experimentId": "2",
-    "experimentName": "experiment-2",
-    "logId": "8",
-    "number": 33,
-    "runId": "3",
-    "runName": "run1",
-    "runStatus": "running",
-    "type": "log1",
-    "values": {
-      "msg": "bonjour",
-      "recipient": "Jo",
-    },
-  },
-  {
-    "experimentId": "2",
-    "experimentName": "experiment-2",
-    "logId": "10",
-    "number": 44,
-    "runId": "3",
-    "runName": "run1",
-    "runStatus": "running",
-    "type": "log1",
-    "values": {
-      "msg": "bonjour",
-      "recipient": "Jo",
     },
   },
 ]
@@ -1068,7 +1012,7 @@ exports[`SQLiteStore#getLogs (selectQueryLimit: 10000) > filters logs of a parti
 ]
 `;
 
-exports[`SQLiteStore#getLogs (selectQueryLimit: 10000) > ignores missing logs 1`] = `
+exports[`SQLiteStore#getLogs (selectQueryLimit: 10000) > leaves out stranded logs 1`] = `
 [
   {
     "experimentId": "1",
@@ -1158,62 +1102,6 @@ exports[`SQLiteStore#getLogs (selectQueryLimit: 10000) > ignores missing logs 1`
       "foo": true,
       "x": 20,
       "y": 2,
-    },
-  },
-  {
-    "experimentId": "2",
-    "experimentName": "experiment-2",
-    "logId": "7",
-    "number": 11,
-    "runId": "3",
-    "runName": "run1",
-    "runStatus": "running",
-    "type": "log1",
-    "values": {
-      "msg": "hello",
-      "recipient": "Anna",
-    },
-  },
-  {
-    "experimentId": "2",
-    "experimentName": "experiment-2",
-    "logId": "9",
-    "number": 22,
-    "runId": "3",
-    "runName": "run1",
-    "runStatus": "running",
-    "type": "log1",
-    "values": {
-      "msg": "hello",
-      "recipient": "Anna",
-    },
-  },
-  {
-    "experimentId": "2",
-    "experimentName": "experiment-2",
-    "logId": "8",
-    "number": 33,
-    "runId": "3",
-    "runName": "run1",
-    "runStatus": "running",
-    "type": "log1",
-    "values": {
-      "msg": "bonjour",
-      "recipient": "Jo",
-    },
-  },
-  {
-    "experimentId": "2",
-    "experimentName": "experiment-2",
-    "logId": "10",
-    "number": 44,
-    "runId": "3",
-    "runName": "run1",
-    "runStatus": "running",
-    "type": "log1",
-    "values": {
-      "msg": "bonjour",
-      "recipient": "Jo",
     },
   },
 ]

@@ -508,7 +508,7 @@ describe.for([{ queryLimit: 10000 }, { queryLimit: 2 }])(
       await expect(fromAsync(store.getLogs())).resolves.toMatchSnapshot();
     });
 
-    it('ignores missing logs', async ({
+    it('leaves out stranded logs', async ({
       expect,
       context: { e2run1, store },
     }) => {
