@@ -15,6 +15,10 @@ export type TimelinePlayerElements<T extends Typed> = {
 type TimelinePlayerParameter<Task extends { type: string }, Log> = {
   onCompleted?: () => void;
   onLog?: Logger<Log>;
+  /**
+   * @deprecated Wrap the timeline with `resumeAfter` instead. This prop will
+   * be removed in a future major version.
+   */
   resumeAfterTask?: (task: Task) => boolean;
 } & (
   | { timeline: AnyIteratorOrIterable<Task>; loading?: boolean }
@@ -29,8 +33,10 @@ export type TimelinePlayerProps<Task extends Typed, Log> = {
 /**
  * Runs a timeline, rendering `elements.tasks` for each task in turn.
  *
- * The timeline is consumed once and cannot be rewound: remounting
- * `TimelinePlayer` (outside of StrictMode) needs a fresh timeline.
+ * An iterator (a generator, a `resumeAfter` result...) is consumed once and
+ * cannot be rewound, so it keeps its place when `TimelinePlayer` is remounted:
+ * the task in progress is shown again, afresh. Anything else (an array, a Set)
+ * starts over at each mount.
  */
 // This component uses explicit return type to prevent the function from
 // returning undefined, which could indicate a state isn't being handled.

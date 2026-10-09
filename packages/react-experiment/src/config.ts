@@ -19,7 +19,7 @@ export type RegisteredTask = RegisterExperiment extends { task: infer T }
   : AnyTask;
 
 export interface AnyLog extends Typed {
-  [key: PropertyKey]: unknown;
+  [key: string]: unknown;
 }
 
 export type RegisteredLog = RegisterExperiment extends { log: infer L }

@@ -11,3 +11,5 @@ export function promisy<T>(
   }
   return () => Promise.resolve(t);
 }
+
+export const noSubscribe = () => () => {};

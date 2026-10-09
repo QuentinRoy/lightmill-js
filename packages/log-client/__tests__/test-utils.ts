@@ -1,3 +1,4 @@
+import { parseOperations } from '@lightmill/test-server';
 import { setImmediate } from 'node:timers';
 import { onTestFinished, vi } from 'vitest';
 import { Subject } from '../src/subject.ts';
@@ -137,15 +138,7 @@ export class DeferManager {
   }
 }
 
-type Operation = {
-  data: { attributes: { number: number; values: Record<string, unknown> } };
-};
-
-export function parseOperations(body: string): Operation[] {
-  return JSON.parse(body)['atomic:operations'];
-}
-
 /** The operations of a `POST /operations` request, which stays readable. */
-export async function readOperations(request: Request): Promise<Operation[]> {
+export async function readOperations(request: Request) {
   return parseOperations(await request.clone().text());
 }

@@ -1,8 +1,18 @@
-import { type MaybeAsyncIterator, TimelineRunner } from '@lightmill/runner';
+import {
+  type MaybeAsyncIterator,
+  resumeAfter,
+  TimelineRunner,
+} from '@lightmill/runner';
 import * as React from 'react';
+import { noSubscribe } from './utils.js';
 
+// MaybeAsyncIterator is what resumeAfter returns.
 export type AnyIteratorOrIterable<Task> =
-  AsyncIterator<Task> | AsyncIterable<Task> | Iterator<Task> | Iterable<Task>;
+  | AsyncIterator<Task>
+  | AsyncIterable<Task>
+  | Iterator<Task>
+  | Iterable<Task>
+  | MaybeAsyncIterator<Task>;
 
 export type PlayerTaskState<Task> = {
   status: 'task';
@@ -31,45 +41,6 @@ type PlayerStore<Task> = {
   start: () => void;
 };
 
-// Skips every task up to and including the first one matching resumeAfterTask.
-// It stays synchronous for as long as the timeline is, so resuming a
-// synchronous timeline never shows the loading state. Skipping in a loop
-// rather than completing each task from the runner's onTaskStarted also
-// avoids a recursion that overflows the stack on long timelines.
-function skipThrough<Task>(
-  timeline: AnyIteratorOrIterable<Task>,
-  resumeAfterTask: (task: Task) => boolean,
-): MaybeAsyncIterator<Task> {
-  const iterator: MaybeAsyncIterator<Task> =
-    Symbol.iterator in timeline
-      ? timeline[Symbol.iterator]()
-      : Symbol.asyncIterator in timeline
-        ? timeline[Symbol.asyncIterator]()
-        : timeline;
-  let skipped = false;
-  const skip = (
-    result: IteratorResult<Task>,
-  ): IteratorResult<Task> | Promise<IteratorResult<Task>> => {
-    while (!result.done) {
-      if (resumeAfterTask(result.value)) {
-        skipped = true;
-        return iterator.next();
-      }
-      const next = iterator.next();
-      if ('then' in next) return next.then(skip);
-      result = next;
-    }
-    throw new Error('No task matched resumeAfterTask');
-  };
-  return {
-    next() {
-      if (skipped) return iterator.next();
-      const first = iterator.next();
-      return 'then' in first ? first.then(skip) : skip(first);
-    },
-  };
-}
-
 const loadingSnapshot = { status: 'loading' } as const;
 
 // The timeline iterator is one-shot and the runner cannot be rewound, so the
@@ -94,7 +65,7 @@ function createPlayerStore<Task>({
     timeline:
       resumeAfterTask == null
         ? timeline
-        : skipThrough(timeline, resumeAfterTask),
+        : resumeAfter(timeline, resumeAfterTask),
     onLoading() {
       setSnapshot({ status: 'loading' });
     },
@@ -142,7 +113,34 @@ function createPlayerStore<Task>({
   };
 }
 
-const noSubscribe = () => () => {};
+// Stores of iterators, which a new runner could not read from the start: a
+// remounted player picks up the store where the previous one left it. Anything
+// else can be iterated again, so each mount builds its own.
+const iteratorStores = new WeakMap<object, PlayerStore<unknown>>();
+
+function getPlayerStore<Task>({
+  timeline,
+  resumeAfterTask,
+}: {
+  timeline: AnyIteratorOrIterable<Task>;
+  resumeAfterTask?: (task: Task) => boolean;
+}): PlayerStore<Task> {
+  if (
+    typeof timeline !== 'object' ||
+    !('next' in timeline) ||
+    typeof timeline.next !== 'function'
+  ) {
+    return createPlayerStore({ timeline, resumeAfterTask });
+  }
+  const cached = iteratorStores.get(timeline);
+  // A timeline is a single object of a single task type, so the store found
+  // under it has the Task type it was created with.
+  if (cached != null) return cached as PlayerStore<Task>;
+  const store = createPlayerStore({ timeline, resumeAfterTask });
+  iteratorStores.set(timeline, store);
+  return store;
+}
+
 const getLoadingSnapshot = () => loadingSnapshot;
 
 type UsePlayerStateOptions<Task> = {
@@ -177,7 +175,7 @@ export function usePlayerState<Task>({
   const storeRef = React.useRef<PlayerStore<Task> | null>(null);
   if (storeRef.current == null) {
     if (timeline != null) {
-      storeRef.current = createPlayerStore({ timeline, resumeAfterTask });
+      storeRef.current = getPlayerStore({ timeline, resumeAfterTask });
     }
   } else if (storeRef.current.timeline !== timeline) {
     throw new Error('Timeline cannot be changed once set');

@@ -24,17 +24,14 @@
     }
   },
   "devDependencies": {
-    "@lightmill/log-server": "workspace:*",
-    "@types/express": "^5.0.6",
+    "@lightmill/test-server": "workspace:*",
     "@types/node": "catalog:",
     "@types/throttle-debounce": "^5.0.2",
     "@vitest/ui": "catalog:",
     "cross-env": "^10.1.0",
-    "express": "^5.2.1",
     "msw": "^3.0.2",
     "onchange": "^7.1.0",
     "openapi-typescript": "^7.13.0",
-    "tough-cookie": "^6.0.1",
     "type-fest": "^5.10.0",
     "typescript": "catalog:",
     "vitest": "catalog:"
