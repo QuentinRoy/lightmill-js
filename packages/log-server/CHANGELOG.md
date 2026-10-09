@@ -1,5 +1,11 @@
 # @lightmill/log-server
 
+## 5.0.2
+
+### Patch Changes
+
+- [#493](https://github.com/QuentinRoy/lightmill-js/pull/493) [`573a422`](https://github.com/QuentinRoy/lightmill-js/commit/573a422c663f8471d2578d3890f4910186bbbf23) - Fix `GET /logs` and `getLogs` listing stranded logs, the logs above a run's first missing log number, which `lastLogs` and `lastLogNumber` leave out. The listing and the CSV export now return only the logs a run counts. A stranded log appears once the missing log arrives, so a listing of a run still in progress can gain rows.
+
 ## 5.0.1
 
 ### Patch Changes
