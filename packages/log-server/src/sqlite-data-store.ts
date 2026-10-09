@@ -703,6 +703,13 @@ class Queries {
     let query = this.#db
       .selectFrom('runLogView as l')
       .$call(createQueryFilterAll(filter, 'l'))
+      .innerJoin(
+        'lastLogSequenceView as lastSequence',
+        'lastSequence.runId',
+        'l.runId',
+      )
+      // Same cut as getLastLogs: logs above the last log number are stranded.
+      .whereRef('l.logNumber', '<=', 'lastSequence.lastLogNumber')
       .select((eb) => [
         'l.experimentId as experimentId',
         'l.experimentName as experimentName',
@@ -718,7 +725,7 @@ class Queries {
       ])
       .orderBy('experimentName')
       .orderBy(runNameKey)
-      .orderBy('runId')
+      .orderBy('l.runId')
       .orderBy('logNumber')
       .limit(this.#selectQueryLimit);
     if (after != null) {
@@ -737,12 +744,12 @@ class Queries {
           eb.and([
             eb('experimentName', '=', after.experimentName),
             eb(runNameKey, '=', afterRunNameKey),
-            eb('runId', '>', afterRunId),
+            eb('l.runId', '>', afterRunId),
           ]),
           eb.and([
             eb('experimentName', '=', after.experimentName),
             eb(runNameKey, '=', afterRunNameKey),
-            eb('runId', '=', afterRunId),
+            eb('l.runId', '=', afterRunId),
             eb('logNumber', '>', after.number),
           ]),
         ]),
