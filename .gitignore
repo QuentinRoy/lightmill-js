@@ -102,3 +102,6 @@ tsconfig.?*.tsbuildinfo
 .beads-credential-key
 .beads/proxieddb/
 *.gate.lock*
+
+# Agent worktrees
+.claude/worktrees/

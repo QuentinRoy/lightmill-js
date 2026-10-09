@@ -16,5 +16,6 @@ pnpm-lock.yaml
 # Generated and updated by bd (beads).
 .beads/
 .cursor/
+.claude/worktrees/
 .claude/settings.json
 AGENTS.md
