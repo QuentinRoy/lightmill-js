@@ -3,6 +3,7 @@ import * as React from 'react';
 import type { RegisteredLog, RegisteredTask } from './config.js';
 import { DefaultError } from './defaultError.js';
 import { DefaultPaused } from './defaultPaused.js';
+import { RunRemountedError } from './errors.js';
 import { isLive, type RunClient, type RunLogger } from './logClient.js';
 import type { TimelineNext } from './playerState.js';
 import {
@@ -89,7 +90,7 @@ export function Run({
   elements,
   dangerouslyAutoResume = false,
 }: RunProps): React.JSX.Element {
-  const store = useRunStore({
+  const { store, identity, identityChanged } = useRunStore({
     client,
     experimentName,
     runName,
@@ -100,6 +101,20 @@ export function Run({
     store.getSnapshot,
     store.getSnapshot,
   );
+  // Identifies this instance. StrictMode, Activity and a Fast Refresh that
+  // keeps state keep it; a remount does not.
+  const [instance] = React.useState(() => ({}));
+  const remount =
+    identityChanged && state.status === 'ready'
+      ? 'identity'
+      : store.isRemount(instance)
+        ? 'remount'
+        : null;
+  // A layout effect, so that the loading element does not get painted.
+  React.useLayoutEffect(() => {
+    if (remount == null) store.claim(instance);
+    else store.crash(new RunRemountedError(remount));
+  }, [store, instance, remount, state.status]);
   const autoResume =
     dangerouslyAutoResume && state.status === 'awaiting-confirmation';
   React.useEffect(() => {
@@ -128,14 +143,19 @@ export function Run({
       content = (
         <ErrorProvider
           error={state.error}
-          experimentName={experimentName}
-          runName={runName}
+          experimentName={identity.experimentName}
+          runName={identity.runName}
         >
           {elements.error ?? defaultError}
         </ErrorProvider>
       );
       break;
     case 'ready':
+      // The player must not render: its task would start again.
+      if (remount != null) {
+        content = loading;
+        break;
+      }
       content = (
         // Another store is another run: its player starts afresh.
         <CrashBoundary key={store.id} onCrash={store.crash}>
@@ -165,8 +185,13 @@ export function Run({
 
 // The store of the current identity, kept for as long as the identity holds
 // even if the store was evicted since: a finished run must not be looked up
-// and started again by the next render.
-function useRunStore(params: RunStoreParams): RunStore {
+// and started again by the next render. A run that started holds on to its
+// store until it ends; `identityChanged` tells the identity changed meanwhile.
+function useRunStore(params: RunStoreParams): {
+  store: RunStore;
+  identity: RunIdentity;
+  identityChanged: boolean;
+} {
   const ref = React.useRef<{ identity: RunIdentity; store: RunStore } | null>(
     null,
   );
@@ -175,10 +200,22 @@ function useRunStore(params: RunStoreParams): RunStore {
     experimentName: params.experimentName,
     runName: params.runName,
   };
-  if (ref.current == null || !isSameRun(ref.current.identity, identity)) {
+  const identityChanged =
+    ref.current != null && !isSameRun(ref.current.identity, identity);
+  if (
+    ref.current == null ||
+    (identityChanged && !holdsRun(ref.current.store.getSnapshot()))
+  ) {
     ref.current = { identity, store: getRunStore(params) };
+    return { ...ref.current, identityChanged: false };
   }
-  return ref.current.store;
+  return { ...ref.current, identityChanged };
+}
+
+// After a crash, the error slot stays even once the logger ends.
+function holdsRun(state: RunState): boolean {
+  if (state.status === 'error') return state.logger != null;
+  return state.status === 'ready' && isLive(state.logger.state);
 }
 
 function ResumeProvider({
