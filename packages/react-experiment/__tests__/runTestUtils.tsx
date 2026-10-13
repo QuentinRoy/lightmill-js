@@ -4,17 +4,16 @@ import { act, render, type RenderResult } from '@testing-library/react';
 import { http, HttpResponse, passthrough } from 'msw';
 import * as React from 'react';
 import type { RunLogger } from '../src/logClient.js';
-import { Run, useLogger, useTask } from '../src/main.js';
+import { Run, useTask } from '../src/main.js';
 import { getRunStore } from '../src/runStore.js';
 
+// Its completion log holds its level, so a resumed staircase can read it.
 export function TrialTask() {
   const { task, completeTask } = useTask('trial');
-  const addLog = useLogger('trial-done');
   return (
     <button
       onClick={() => {
-        addLog({ taskId: task.id, level: task.level });
-        completeTask();
+        completeTask(task.level == null ? undefined : { level: task.level });
       }}
     >
       Done {String(task.id)}
@@ -45,7 +44,7 @@ export function run(
       client={client}
       experimentName="exp"
       runName="run-1"
-      resumableLogTypes={['trial-done']}
+      resumableLogTypes={['trial']}
       timeline={timeline}
       elements={elements}
       {...props}
@@ -122,7 +121,7 @@ export function loggerOf(client: Client): RunLogger {
     client,
     experimentName: 'exp',
     runName: 'run-1',
-    resumableLogTypes: ['trial-done'],
+    resumableLogTypes: ['trial'],
   }).getSnapshot();
   if (state.status !== 'ready') throw new Error('The run is not ready');
   return state.logger;

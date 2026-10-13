@@ -2,7 +2,11 @@ import * as React from 'react';
 import type { RegisteredLog, RegisteredTask, Typed } from './config.js';
 import { loggerContext, noLoggerSymbol, taskContext } from './contexts.js';
 import { LogDeliveryError } from './errors.js';
-import { type AnyIteratorOrIterable, usePlayerState } from './playerState.js';
+import {
+  type AnyIteratorOrIterable,
+  type TaskResult,
+  usePlayerState,
+} from './playerState.js';
 import { type Logger, useLogWrapper } from './useLogWrapper.js';
 
 export type TimelinePlayerElements<T extends Typed> = {
@@ -48,7 +52,19 @@ export function TimelinePlayer<const T extends RegisteredTask>({
   ...playerParameter
 }: TimelinePlayerProps<T, RegisteredLog>): React.JSX.Element | null {
   const { onLog: logWrapper, error: logError } = useLogWrapper(onLog);
+  const taskLogger = useTaskLogger(logWrapper, elements.tasks);
   const state = usePlayerState({ ...playerParameter, paused, loading });
+  const taskValue = React.useMemo(
+    () =>
+      state.status === 'task'
+        ? {
+            task: state.task,
+            completeTask: (result?: TaskResult) =>
+              state.completeTask(result, logWrapper),
+          }
+        : null,
+    [state, logWrapper],
+  );
   if (logError != null) {
     throw logError;
   }
@@ -66,7 +82,7 @@ export function TimelinePlayer<const T extends RegisteredTask>({
         throw new Error(`No task registered for type ${state.task.type}`);
       }
       element = (
-        <taskContext.Provider key={state.taskKey} value={state}>
+        <taskContext.Provider key={state.taskKey} value={taskValue}>
           {elements.tasks[type]}
         </taskContext.Provider>
       );
@@ -88,8 +104,32 @@ export function TimelinePlayer<const T extends RegisteredTask>({
     }
   }
   return (
-    <loggerContext.Provider value={logWrapper ?? noLoggerSymbol}>
+    <loggerContext.Provider value={taskLogger ?? noLoggerSymbol}>
       {element}
     </loggerContext.Provider>
   );
+}
+
+// The logger tasks get from useLogger. It refuses task types: their logs are
+// completion logs, which only completeTask writes. Stable as long as logger
+// is, like the logger itself.
+function useTaskLogger(
+  logger: ((log: RegisteredLog) => void) | null,
+  tasks: Record<string, unknown>,
+): ((log: RegisteredLog) => void) | null {
+  const tasksRef = React.useRef(tasks);
+  React.useInsertionEffect(() => {
+    tasksRef.current = tasks;
+  });
+  return React.useMemo(() => {
+    if (logger == null) return null;
+    return (log: RegisteredLog) => {
+      if (Object.hasOwn(tasksRef.current, log.type)) {
+        throw new Error(
+          `Cannot log type ${log.type}: it is a task type. A task's completion log is written by completeTask.`,
+        );
+      }
+      logger(log);
+    };
+  }, [logger]);
 }

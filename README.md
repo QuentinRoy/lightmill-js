@@ -33,28 +33,14 @@ A typical React experiment uses `react-experiment` and `log-client` in the app, 
 
 ## A taste
 
-A task component reads its task, logs what happened, and says when it is done:
+A task component reads its task and says when it is done, with its result. The result is logged with the task's id:
 
 ```tsx
-import {
-  TimelinePlayer,
-  useLogger,
-  useTask,
-} from '@lightmill/react-experiment';
+import { TimelinePlayer, useTask } from '@lightmill/react-experiment';
 
 function Question() {
-  const { task, completeTask } = useTask('question');
-  const log = useLogger('answer');
-  return (
-    <button
-      onClick={() => {
-        log({ taskId: task.id, answer: 'yes' });
-        completeTask();
-      }}
-    >
-      Yes
-    </button>
-  );
+  const { completeTask } = useTask('question');
+  return <button onClick={() => completeTask({ answer: 'yes' })}>Yes</button>;
 }
 
 const timeline = [

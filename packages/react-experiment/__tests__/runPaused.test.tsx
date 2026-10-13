@@ -37,8 +37,8 @@ describe('Run when delivery is paused', () => {
       expect(
         JSON.parse(decodeURIComponent(href.slice(prefix.length))),
       ).toMatchObject([
-        { type: 'trial-done', taskId: 'a' },
-        { type: 'trial-done', taskId: 'b' },
+        { type: 'trial', taskId: 'a' },
+        { type: 'trial', taskId: 'b' },
       ]);
       expect(screen.queryByText('The end')).not.toBeInTheDocument();
       await expect(server.storedLogs()).resolves.toEqual([]);
@@ -126,9 +126,13 @@ describe('Run when delivery is paused', () => {
       await user.click(await screen.findByRole('button', { name: 'Render' }));
 
       expect(retries.size).toBe(1);
+      // The first task's completion log is the only one sent.
+      await vi.waitFor(async () => {
+        await expect(server.storedLogs()).resolves.toHaveLength(1);
+      });
       const [retry] = retries;
       await expect(retry()).resolves.toBeUndefined();
-      expect(server.requestCount('POST', '/operations')).toBe(0);
+      expect(server.requestCount('POST', '/operations')).toBe(1);
     },
   );
 

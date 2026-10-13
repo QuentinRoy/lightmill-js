@@ -45,7 +45,7 @@ export function App() {
 }
 ```
 
-A task is any object with a `type`. `elements.tasks` maps each type to the element that shows it. Each task mounts its element fresh, even when the previous task had the same type, so state, refs, and effects start over at every task.
+A task is any object with a `type` and an `id`, unique within the timeline: a task with no id or an id already used throws when it starts, before it shows. `elements.tasks` maps each type to the element that shows it. Each task mounts its element fresh, even when the previous task had the same type, so state, refs, and effects start over at every task.
 
 [Getting started](../../docs/guides/getting-started.md) builds a complete experiment, with logging and resuming.
 
@@ -58,7 +58,9 @@ Declare your task and log types once, and every hook gets them:
 ```ts
 type Task = { type: 'question'; id: string; text: string };
 
-type Log = { type: 'answer'; taskId: string; answer: boolean };
+type Log =
+  | { type: 'question'; taskId: string; answer: boolean }
+  | { type: 'hover'; taskId: string; x: number; y: number };
 
 declare module '@lightmill/react-experiment' {
   interface RegisterExperiment {
@@ -70,9 +72,11 @@ declare module '@lightmill/react-experiment' {
 
 With several types of tasks or logs, make `Task` or `Log` a union. `useTask('question')` then returns a task of type `{ type: 'question'; id: string; text: string }`, and `TimelinePlayer` requires an element for every task type. Without this declaration, tasks and logs are any object with a `type`, and their other properties are `unknown`.
 
+The log with the same type as a task is that task's completion log: here, `question`. It types the task result, the data a task hands over when it completes, which is the log without `type`, `taskId` and `date`: `{ answer: boolean }`. A task type with no log of the same type has no result.
+
 ## Logging
 
-Give `TimelinePlayer` an `onLog` function, and log from task components with `useLogger`. This example uses the `Task` and `Log` types declared above:
+Give `TimelinePlayer` an `onLog` function. Each task writes one completion log when it completes, with the task's type, the task's id in `taskId`, and the task result as its values. Tasks write any other log with `useLogger`. This example uses the `Task` and `Log` types declared above:
 
 ```tsx
 import type { Logger } from '@lightmill/log-client';
@@ -89,13 +93,13 @@ const timeline: Task[] = [
 
 function Question() {
   const { task, completeTask } = useTask('question');
-  const log = useLogger('answer');
+  const log = useLogger('hover');
   return (
     <button
-      onClick={() => {
-        log({ taskId: task.id, answer: true });
-        completeTask();
-      }}
+      onMouseMove={(event) =>
+        log({ taskId: task.id, x: event.clientX, y: event.clientY })
+      }
+      onClick={() => completeTask({ answer: true })}
     >
       Yes
     </button>
@@ -113,20 +117,22 @@ export function Experiment({ logger }: { logger: Logger<Log> }) {
 }
 ```
 
-`logger` is a logger from `@lightmill/log-client`, created for the same `Log` type: without the declaration above, logs have `unknown` values, which `logger.addLog` doesn't accept. `onLog` can send logs anywhere, though: it receives each log, and returns a promise. The function `useLogger` returns does not wait for that promise, so a task can log and complete at once. If the promise rejects, `TimelinePlayer` throws a [`LogDeliveryError`](#logdeliveryerror) on its next render.
+`logger` is a logger from `@lightmill/log-client`, created for the same `Log` type: without the declaration above, logs have `unknown` values, which `logger.addLog` doesn't accept. `onLog` can send logs anywhere, though: it receives each log, and returns a promise. Neither `completeTask` nor the function `useLogger` returns waits for that promise, so a task can log and complete at once. If the promise rejects, `TimelinePlayer` throws a [`LogDeliveryError`](#logdeliveryerror) on its next render.
+
+Keep task results small, and put bulk data, such as mouse moves, in logs of other types. Resuming a run reads the completion logs back from the server, so large results make it slow.
 
 ## API
 
 ### `Run`
 
-Runs one run of an experiment with a [`@lightmill/log-client`](../log-client/README.md) client: it starts or resumes the run, plays the timeline, sends the logs from `useLogger`, and completes the run once every log is stored. It is your app's main component, so keep it mounted until the run ends. [Getting started](../../docs/guides/getting-started.md#wire-it-together) shows a complete app.
+Runs one run of an experiment with a [`@lightmill/log-client`](../log-client/README.md) client: it starts or resumes the run, plays the timeline, sends the completion logs and the logs from `useLogger`, and completes the run once every log is stored. It is your app's main component, so keep it mounted until the run ends. [Getting started](../../docs/guides/getting-started.md#wire-it-together) shows a complete app.
 
 ```tsx
 <Run
   client={client}
   experimentName="my-experiment"
   runName={participantId}
-  resumableLogTypes={['answer']}
+  resumableLogTypes={['question']}
   timeline={({ resumeLog }) => buildTimeline(resumeLog)}
   elements={{ tasks: { question: <Question /> } }}
 />
@@ -134,7 +140,7 @@ Runs one run of an experiment with a [`@lightmill/log-client`](../log-client/REA
 
 - `client`: a log-client `Client`. Create it once: a new client is a new run. `Run` imports nothing from log-client, it only needs a client with the right methods.
 - `experimentName` and `runName`: identify the run on the server. `Run` looks up an ongoing run with the same names, asks the participant to resume it, and starts a new run when there is none. Changing either (or the client) switches to another run.
-- `resumableLogTypes`: the log types that mark a completed task. `Run` resumes after the last log of one of these types.
+- `resumableLogTypes`: the log types that mark a completed task, usually the task types, whose completion logs do. `Run` resumes after the last log of one of these types.
 - `timeline`: a function that builds the timeline, or `null` while your app loads it. `Run` calls it once per run, with `resumeLog`: the last resumable log, or `null` for a new run or when none was logged yet. See [Resuming a dynamic timeline](#resuming-a-dynamic-timeline).
 - `elements`: `tasks`, plus a screen for each state, all optional and with a small default: `loading` (also shown while the run is saved, so keep its text neutral), `resume`, `paused`, `error` and `completed`.
 
@@ -165,7 +171,7 @@ What state the player is in:
 
 What happens:
 
-- `onLog(log)`: receives every log from `useLogger`, and returns a promise.
+- `onLog(log)`: receives every completion log and every log from `useLogger`, and returns a promise. Without it, tasks still complete, but write no completion log.
 - `onCompleted()`: called once when the timeline is over, while `TimelinePlayer` is mounted.
 
 ### `resumeAfter(timeline, predicate)`
@@ -185,13 +191,15 @@ Re-exported from [`@lightmill/runner`](../runner/README.md). Returns a timeline 
 
 ### `useTask(type?)`
 
-Returns `{ task, completeTask }` for the current task. Call `completeTask(result?)` once the task is done; calling it twice throws. The optional `result`, a plain object, is the task result: it goes to the timeline, and a generator reads it from `yield`.
+Returns `{ task, completeTask }` for the current task. Call `completeTask(result)` once the task is done; calling it twice throws. `result`, a plain object, is the task result. It goes into the task's completion log and to the timeline, where a generator reads it from `yield`. Its type comes from the completion log: `result` is optional when the log has no required field, and absent when there is no completion log. A completion log is written either way, with no values when there is no result.
+
+`type`, `taskId` and `date` are reserved: a `result` with one of these keys does not compile, and `completeTask` throws without completing the task.
 
 With a `type`, `useTask` throws if the current task has another type, and narrows the type of `task`. It throws outside of `TimelinePlayer`.
 
 ### `useLogger(type?)`
 
-Returns a function that sends a log to `onLog`. With a `type`, the function takes the log without its `type`. Without one, it takes the whole log. It throws outside of `TimelinePlayer`, or when `TimelinePlayer` has no `onLog`.
+Returns a function that sends a log to `onLog`. With a `type`, the function takes the log without its `type`. Without one, it takes the whole log. Task types are reserved for completion logs: they are left out of the types `useLogger` accepts, and the function throws when given one. It throws outside of `TimelinePlayer`, or when `TimelinePlayer` has no `onLog`.
 
 ### `useConfirmBeforeUnload(enabled)`
 
@@ -311,19 +319,17 @@ export function App() {
 
 ## Resuming a dynamic timeline
 
-`resumeAfter` replays a generator without mounting any task, so the generator does not get the answers the participant gave, and can't reproduce the task where they stopped. Instead, log the state the generator needs when each trial completes, and build a new generator from the last log. `Run` hands it to the `timeline` function as `resumeLog`:
+`resumeAfter` replays a generator without mounting any task, so the generator does not get the answers the participant gave, and can't reproduce the task where they stopped. Instead, put the state the generator needs in each trial's result, and build a new generator from the last completion log. `Run` hands it to the `timeline` function as `resumeLog`:
 
 ```tsx
 function Trial() {
   const { task, completeTask } = useTask('trial');
-  const log = useLogger('trial-done');
   const answer = (correct: boolean) => {
-    log({
-      taskId: task.id,
+    completeTask({
+      correct,
       trial: task.trial,
       nextLevel: nextLevel(task.level, correct),
     });
-    completeTask({ correct });
   };
   // ...
 }
@@ -332,7 +338,7 @@ function Trial() {
   client={client}
   experimentName="staircase"
   runName={participantId}
-  resumableLogTypes={['trial-done']}
+  resumableLogTypes={['trial']}
   timeline={({ resumeLog }) =>
     resumeLog == null
       ? staircase()
@@ -342,7 +348,7 @@ function Trial() {
 />;
 ```
 
-The example registers its types as in [Typing tasks and logs](#typing-tasks-and-logs): a `trial` task with `trial` and `level` numbers, and a `trial-done` log with `taskId`, `trial` and `nextLevel`. A resumable log must mark a completed task: `Run` resumes after the last `trial-done`, so the trial in progress is played again. For a fixed list of tasks, `resumeAfter(tasks, (task) => task.id === resumeLog.taskId)` is enough. See [Resuming runs](../../docs/guides/resuming-runs.md).
+The example registers its types as in [Typing tasks and logs](#typing-tasks-and-logs): a `trial` task with `trial` and `level` numbers, and a `trial` completion log with `taskId`, `correct`, `trial` and `nextLevel`. `Run` resumes after the last completion log, so the trial in progress is played again. For a fixed list of tasks, `resumeAfter(tasks, (task) => task.id === resumeLog.taskId)` is enough. See [Resuming runs](../../docs/guides/resuming-runs.md).
 
 ## Sharing state between tasks
 

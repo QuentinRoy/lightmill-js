@@ -2,7 +2,7 @@
 '@lightmill/react-experiment': minor
 ---
 
-Add `Run`, which starts or resumes a run, plays its timeline, sends the logs from `useLogger` to the server and completes the run once every log is stored. Pass it a `@lightmill/log-client` client, `experimentName`, `runName`, `resumableLogTypes`, a `timeline` builder (`({ resumeLog }) => Timeline`, or `null` while the app loads it) and the task components in `elements.tasks`. The builder runs once per run, with the last log whose type is in `resumableLogTypes`, or `null` for a new run. React Strict Mode and remounts neither start nor resume a run twice, and changing `client`, `experimentName` or `runName` selects another run. `@lightmill/react-experiment` does not import `@lightmill/log-client` at runtime.
+Add `Run`, which starts or resumes a run, plays its timeline, sends each task's completion log and the logs from `useLogger` to the server and completes the run once every log is stored. Pass it a `@lightmill/log-client` client, `experimentName`, `runName`, `resumableLogTypes`, a `timeline` builder (`({ resumeLog }) => Timeline`, or `null` while the app loads it) and the task components in `elements.tasks`. The builder runs once per run, with the last log whose type is in `resumableLogTypes`, or `null` for a new run. React Strict Mode and remounts neither start nor resume a run twice, and changing `client`, `experimentName` or `runName` selects another run. `@lightmill/react-experiment` does not import `@lightmill/log-client` at runtime.
 
 When a run with the same experiment and run names is ongoing, `Run` asks before resuming it. `useResumeRun()` returns `{ resume, run, lastLog }` for a custom `elements.resume`.
 

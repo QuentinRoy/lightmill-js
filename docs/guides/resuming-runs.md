@@ -12,14 +12,13 @@ Resuming cancels the logs that come after the resume point. The server keeps the
 
 ## What the app needs
 
-1. **Log the end of each task.** Log once when each task completes, with the task's id. The types of these logs are the resumable log types. A task that also logs while it runs, such as every mouse move, starts over on resume, and its earlier logs are canceled.
+1. **Complete each task with its result.** When a task calls `completeTask(result)`, `Run` writes its completion log: a log with the task's type, the task's id in `taskId`, and the result as its values. Task types are therefore the resumable log types. A task that also logs while it runs, such as every mouse move, starts over on resume, and its earlier logs are canceled.
 
    ```ts
-   log({ taskId: task.id, size: task.size, reactionTime });
-   completeTask();
+   completeTask({ size: task.size, reactionTime });
    ```
 
-   A resumable log must mark a completed task. Also log the state the app needs to resume, such as the next level of a staircase or the trial index: the server only gives back the logs.
+   Put the state the app needs to resume in the result, such as the next level of a staircase or the trial index: the server only gives back the logs. Keep results small, and put bulk data in logs of other types.
 
 2. **Name the resumable log types.** Pass them to `Run` as `resumableLogTypes`. `Run` looks for a run of the same experiment and run name that this browser started and left running or interrupted. When it finds one, it asks the participant to resume, then resumes it after the run's last log of one of these types.
 
