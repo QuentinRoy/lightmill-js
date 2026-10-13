@@ -310,18 +310,19 @@ Here is what happens when a participant opens the page:
 7. Until the run ends, `Run` asks the browser to confirm before the participant leaves the page.
 8. If the run can't start or crashes, `Run` shows the `error` element. This includes a participant who comes back after completing the experiment, or who opens it in another browser: the run name is taken, and the server refuses it with a `RUN_EXISTS` error. After a crash, `Run` interrupts the run, so reloading the page offers to resume it.
 
-`Run` never resumes on its own, and never cancels a run: a second tab could otherwise cancel the first tab's logs. Canceling a run is up to the host: see [Deploying](deploying.md#cancel-a-run).
+`Run` never resumes on its own (unless you set `dangerouslyAutoResume`, see below), and never cancels a run: a second tab could otherwise cancel the first tab's logs. Canceling a run is up to the host: see [Deploying](deploying.md#cancel-a-run).
 
 ### What to keep in mind
 
-- **Create the client once**, outside of components. A new client is a new run, so a client created while rendering would look up and start the run again at every render.
-- **Keep `Run` mounted until the run ends.** If it unmounts earlier, the run stays ongoing, the page is no longer protected against closing, and a paused logger has no screen.
+- **Create the client once**, outside of components. A new client is a new run: before the run starts, `Run` looks it up again; after, it crashes the run with a `RUN_REMOUNTED` error.
+- **Keep `Run` mounted until the run ends.** If it unmounts earlier, the run stays ongoing, the page is no longer protected against closing, and a paused logger has no screen. Mounting `Run` again once the run has started crashes the run with a `RUN_REMOUNTED` error: the task in progress lost its state, and playing it again would log on top of its first attempt. `Run` interrupts the run, so reloading the page offers to resume it. `StrictMode` and `<Activity>` don't remount `Run`. During development, a Fast Refresh does when you edit a hook in a component above `Run`, or an edit creates a new client object; editing a task component doesn't. Mounting `Run` again after the run completed shows the `error` element with a `RUN_EXISTS` error, as a reload does, so keep the `completed` element mounted.
 - **Keep task results small.** Put bulk data in logs of other types, written with `useLogger`.
+- **Use `dangerouslyAutoResume` only in development.** It makes `Run` resume without showing the resume screen, so reloading the page puts you back in the run. In production, it would resume a run the participant has open in another tab or on another device without asking, and cancel the logs that run wrote after the resume point.
 - **Keep your loading text neutral.** `elements.loading` also shows while the run is being saved, not only while it starts. "Please wait…" suits both; "Starting the experiment…" does not.
 - **Do not let the paused element throw.** It shows while logs are held. If it throws, the run goes to the `error` element.
 - **An overriding `paused` or `error` element owns recovery.** The defaults have a download link and a retry button. An element that skips `useLogDelivery` takes that way to keep the logs away from participants.
 - **Report errors yourself.** `Run` has no `onError` prop. Pass `onCaughtError` to React's `createRoot` to hear about crashes while the tasks play, or call your reporting function in an effect in your `error` element, as `Failed` does. Only the effect sees a failure to start, because nothing is thrown then.
-- **Check error codes with `RequestError.code`.** The error in the `error` element is whatever was thrown, unchanged. `Failed` uses `instanceof RequestError` to read `RUN_EXISTS` and `ONGOING_RUNS`.
+- **Check error codes with `RequestError.code`.** The error in the `error` element is whatever was thrown, unchanged. `Failed` uses `instanceof RequestError` to read `RUN_EXISTS` and `ONGOING_RUNS`. `RUN_REMOUNTED` comes from `Run`, not from the server, so it is not a `RequestError`: read its `code` property.
 - **Rethrow to use your own error boundary.** An `error` element that throws `useRunError().error` sends the error to the boundary above `Run`:
 
   ```tsx
@@ -473,15 +474,26 @@ function messageFor(error: unknown) {
   if (error instanceof RequestError && error.code === 'ONGOING_RUNS') {
     return 'You already have a session in progress, perhaps in another tab or on another device.';
   }
+  if (codeOf(error) === 'RUN_REMOUNTED') {
+    return 'The experiment stopped because of an error in its code. Please tell the experimenter. Reloading the page may let you continue.';
+  }
   return 'The experiment could not continue because of an unexpected error. Contact the experimenter and give them the details below.';
+}
+
+// Run's own errors, such as RUN_REMOUNTED, have a code too.
+function codeOf(error: unknown) {
+  return error instanceof Error &&
+    'code' in error &&
+    typeof error.code === 'string'
+    ? error.code
+    : undefined;
 }
 
 function formatDetails(error: unknown) {
   const lines = [`Experiment: ${experimentName}`, `Run: ${runName}`];
-  if (error instanceof RequestError) {
-    if (error.code != null) lines.push(`Code: ${error.code}`);
-    lines.push(`Status: ${error.status}`);
-  }
+  const code = codeOf(error);
+  if (code != null) lines.push(`Code: ${code}`);
+  if (error instanceof RequestError) lines.push(`Status: ${error.status}`);
   lines.push('', describe(error));
   let cause = error instanceof Error ? error.cause : undefined;
   // A chain of causes can be long: stop after five.

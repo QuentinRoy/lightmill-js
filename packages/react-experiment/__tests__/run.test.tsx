@@ -270,65 +270,6 @@ describe('Run', () => {
   });
 
   serverTest(
-    'continues the run when remounted, neither repeating nor skipping the task in progress',
-    async ({ server }) => {
-      await server.addExperiment('exp');
-      const client = newClient(server);
-      const build = vi.fn(timeline);
-      const user = userEvent.setup();
-      const first = await renderAsync(run(client, { timeline: build }));
-      await user.click(await screen.findByRole('button', { name: 'Done a' }));
-      expect(
-        await screen.findByRole('button', { name: 'Done b' }),
-      ).toBeInTheDocument();
-      first.unmount();
-
-      await renderAsync(run(client, { timeline: build }));
-      await user.click(await screen.findByRole('button', { name: 'Done b' }));
-
-      expect(await screen.findByText('The end')).toBeInTheDocument();
-      expect(build).toHaveBeenCalledTimes(1);
-      expect(server.requestCount('POST', '/runs')).toBe(1);
-      await expect(server.storedLogs()).resolves.toMatchObject([
-        { number: 1, values: { taskId: 'a' } },
-        { number: 2, values: { taskId: 'b' } },
-      ]);
-    },
-  );
-
-  serverTest(
-    'never shows the completed slot when remounted while the run is being completed',
-    async ({ server }) => {
-      await server.addExperiment('exp');
-      const client = newClient(server);
-      const release = holdRunCompletion(server);
-      const user = userEvent.setup();
-      const first = await renderAsync(run(client, {}));
-      await user.click(await screen.findByRole('button', { name: 'Done a' }));
-      await user.click(await screen.findByRole('button', { name: 'Done b' }));
-      expect(await screen.findByText('Loading…')).toBeInTheDocument();
-      first.unmount();
-
-      const rendered = vi.fn();
-      function Completed() {
-        rendered();
-        return <p>The end</p>;
-      }
-      await renderAsync(
-        run(client, { elements: { ...elements, completed: <Completed /> } }),
-      );
-      expect(await screen.findByText('Loading…')).toBeInTheDocument();
-      expect(rendered).not.toHaveBeenCalled();
-
-      release();
-      expect(await screen.findByText('The end')).toBeInTheDocument();
-      await expect(server.storedRuns()).resolves.toEqual([
-        { runName: 'run-1', runStatus: 'completed' },
-      ]);
-    },
-  );
-
-  serverTest(
     'switches to another run when the run name changes',
     async ({ server }) => {
       await server.addExperiment('exp');
@@ -520,6 +461,41 @@ describe('Run', () => {
     );
 
     serverTest(
+      'resumes without the prompt, showing loading, with dangerouslyAutoResume',
+      async ({ server }) => {
+        await server.addExperiment('exp');
+        await leaveRunAfterFirstTask(server);
+        const shown: string[] = [];
+        function Track({ name }: { name: string }) {
+          shown.push(name);
+          return null;
+        }
+        const user = userEvent.setup();
+        await renderAsync(
+          run(newClient(server), {
+            timeline: resumableTimeline,
+            dangerouslyAutoResume: true,
+            elements: {
+              ...elements,
+              loading: <Track name="loading" />,
+              resume: <Track name="resume" />,
+            },
+          }),
+        );
+
+        await user.click(await screen.findByRole('button', { name: 'Done b' }));
+
+        expect(await screen.findByText('The end')).toBeInTheDocument();
+        expect(shown).toContain('loading');
+        expect(shown).not.toContain('resume');
+        await expect(server.storedLogs()).resolves.toMatchObject([
+          { number: 1, values: { taskId: 'a' } },
+          { number: 2, values: { taskId: 'b' } },
+        ]);
+      },
+    );
+
+    serverTest(
       'does not play anything until the participant confirms',
       async ({ server }) => {
         await server.addExperiment('exp');
@@ -670,6 +646,188 @@ describe('Run', () => {
         ).toBeInTheDocument();
         expect(server.requestCount('PATCH', /^\/runs\//)).toBe(1);
         expect(server.requestCount('GET', '/runs')).toBe(1);
+      },
+    );
+  });
+
+  describe('remounts and identity', () => {
+    beforeEach(() => {
+      vi.spyOn(console, 'error').mockImplementation(() => {});
+      vi.spyOn(console, 'warn').mockImplementation(() => {});
+    });
+
+    serverTest(
+      'crashes and interrupts the run when remounted after the start',
+      async ({ server }) => {
+        await server.addExperiment('exp');
+        const client = newClient(server);
+        const user = userEvent.setup();
+        const first = await renderAsync(run(client, {}));
+        await user.click(await screen.findByRole('button', { name: 'Done a' }));
+        await screen.findByRole('button', { name: 'Done b' });
+        first.unmount();
+
+        await renderAsync(run(client, {}));
+
+        expect(
+          await screen.findByText(
+            'The experiment stopped because of an error in its code. Please tell the experimenter. Reloading the page may let you continue.',
+          ),
+        ).toBeVisible();
+        expect(screen.queryByRole('button')).toBeNull();
+        const details = screen.getByRole('group');
+        expect(details).toHaveTextContent('Code: RUN_REMOUNTED');
+        expect(details).toHaveTextContent(/remounted after the run started/);
+        expect(details).toHaveTextContent(/Keep `Run` mounted/);
+        expect(details).toHaveTextContent(/Reloading the page resumes the run/);
+        await vi.waitFor(async () => {
+          await expect(server.storedRuns()).resolves.toEqual([
+            { runName: 'run-1', runStatus: 'interrupted' },
+          ]);
+        });
+        await expect(server.storedLogs()).resolves.toMatchObject([
+          { number: 1, values: { taskId: 'a' } },
+        ]);
+      },
+    );
+
+    serverTest.for(['client', 'experimentName', 'runName'] as const)(
+      'crashes and interrupts the run when %s changes after the start',
+      async (prop, { server }) => {
+        await server.addExperiment('exp');
+        await server.addExperiment('other');
+        const client = newClient(server);
+        const user = userEvent.setup();
+        const { rerender } = await renderAsync(run(client, {}));
+        await user.click(await screen.findByRole('button', { name: 'Done a' }));
+        await screen.findByRole('button', { name: 'Done b' });
+
+        const changes = {
+          client: { client: newClient(server) },
+          experimentName: { experimentName: 'other' },
+          runName: { runName: 'run-2' },
+        };
+        await act(async () => {
+          rerender(run(client, changes[prop]));
+        });
+
+        expect(await screen.findByText(/error in its code/)).toBeVisible();
+        expect(screen.queryByRole('button', { name: /Done/ })).toBeNull();
+        await vi.waitFor(async () => {
+          await expect(server.storedRuns()).resolves.toEqual([
+            { runName: 'run-1', runStatus: 'interrupted' },
+          ]);
+        });
+        expect(server.requestCount('POST', '/runs')).toBe(1);
+      },
+    );
+
+    serverTest(
+      'crashes the run when a second Run with the same identity mounts after the start',
+      async ({ server }) => {
+        await server.addExperiment('exp');
+        const client = newClient(server);
+        const { rerender } = await renderAsync(run(client, {}));
+        await screen.findByRole('button', { name: 'Done a' });
+
+        await act(async () => {
+          rerender(
+            <>
+              {run(client, {})}
+              {run(client, {})}
+            </>,
+          );
+        });
+
+        expect(await screen.findAllByText(/error in its code/)).toHaveLength(2);
+        expect(screen.queryByRole('button', { name: /Done/ })).toBeNull();
+        await vi.waitFor(async () => {
+          await expect(server.storedRuns()).resolves.toEqual([
+            { runName: 'run-1', runStatus: 'interrupted' },
+          ]);
+        });
+      },
+    );
+
+    serverTest('plays the run through under StrictMode', async ({ server }) => {
+      await server.addExperiment('exp');
+      const user = userEvent.setup();
+      await renderAsync(
+        <React.StrictMode>{run(newClient(server), {})}</React.StrictMode>,
+      );
+
+      await user.click(await screen.findByRole('button', { name: 'Done a' }));
+      await user.click(await screen.findByRole('button', { name: 'Done b' }));
+
+      expect(await screen.findByText('The end')).toBeVisible();
+      await expect(server.storedRuns()).resolves.toEqual([
+        { runName: 'run-1', runStatus: 'completed' },
+      ]);
+    });
+
+    serverTest(
+      'starts the run when remounted during the lookup',
+      async ({ server }) => {
+        await server.addExperiment('exp');
+        const client = newClient(server);
+        const first = await renderAsync(run(client, {}));
+        first.unmount();
+
+        await renderAsync(run(client, {}));
+
+        expect(
+          await screen.findByRole('button', { name: 'Done a' }),
+        ).toBeVisible();
+        expect(server.requestCount('POST', '/runs')).toBe(1);
+      },
+    );
+
+    // Leaves a run ongoing on the server, so that the next client of the same
+    // session finds it, like a reload does.
+    async function leaveRun(server: TestServer) {
+      const page = await renderAsync(run(newClient(server), {}));
+      await screen.findByRole('button', { name: 'Done a' });
+      page.unmount();
+    }
+
+    serverTest(
+      'resumes the run when remounted during the resume prompt',
+      async ({ server }) => {
+        await server.addExperiment('exp');
+        await leaveRun(server);
+        const client = newClient(server);
+        const user = userEvent.setup();
+        const prompt = await renderAsync(run(client, {}));
+        await screen.findByRole('button', { name: 'Resume' });
+        prompt.unmount();
+
+        await renderAsync(run(client, {}));
+        await user.click(await screen.findByRole('button', { name: 'Resume' }));
+
+        expect(
+          await screen.findByRole('button', { name: 'Done a' }),
+        ).toBeVisible();
+      },
+    );
+
+    serverTest(
+      'switches to the new identity when the client changes during the resume prompt',
+      async ({ server }) => {
+        await server.addExperiment('exp');
+        await leaveRun(server);
+        const user = userEvent.setup();
+        const { rerender } = await renderAsync(run(newClient(server), {}));
+        await screen.findByRole('button', { name: 'Resume' });
+
+        await act(async () => {
+          rerender(run(newClient(server), {}));
+        });
+        await user.click(await screen.findByRole('button', { name: 'Resume' }));
+
+        expect(
+          await screen.findByRole('button', { name: 'Done a' }),
+        ).toBeVisible();
+        expect(server.requestCount('GET', '/runs')).toBe(2);
       },
     );
   });
