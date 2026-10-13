@@ -43,13 +43,13 @@ import {
 } from '@lightmill/react-experiment';
 
 function Question() {
-  const { task, onTaskCompleted } = useTask('question');
+  const { task, completeTask } = useTask('question');
   const log = useLogger('answer');
   return (
     <button
       onClick={() => {
         log({ taskId: task.id, answer: 'yes' });
-        onTaskCompleted();
+        completeTask();
       }}
     >
       Yes

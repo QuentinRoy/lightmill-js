@@ -3,7 +3,13 @@ import { act, screen } from '@testing-library/react';
 import userEventPackage from '@testing-library/user-event';
 import * as React from 'react';
 import { expect, vi } from 'vitest';
-import { Run, resumeAfter, useLogDelivery, useResumeRun } from '../src/main.js';
+import {
+  Run,
+  resumeAfter,
+  useLogDelivery,
+  useResumeRun,
+  useTask,
+} from '../src/main.js';
 import {
   elements,
   holdRunCompletion,
@@ -41,6 +47,38 @@ describe('Run', () => {
         { number: 1, type: 'trial-done', values: { taskId: 'a' } },
         { number: 2, type: 'trial-done', values: { taskId: 'b' } },
       ]);
+    },
+  );
+
+  serverTest(
+    'passes the result of completeTask to the timeline',
+    async ({ server }) => {
+      await server.addExperiment('exp');
+      const user = userEvent.setup();
+      const received: unknown[] = [];
+      const AnswerTask = () => {
+        const { task, completeTask } = useTask('trial');
+        return (
+          <button onClick={() => completeTask({ answer: task.id })}>
+            Answer {String(task.id)}
+          </button>
+        );
+      };
+      await renderAsync(
+        run(newClient(server), {
+          elements: { ...elements, tasks: { trial: <AnswerTask /> } },
+          timeline: async function* () {
+            received.push(yield { type: 'trial', id: 'a' });
+            received.push(yield { type: 'trial', id: 'b' });
+          },
+        }),
+      );
+
+      await user.click(await screen.findByRole('button', { name: 'Answer a' }));
+      await user.click(await screen.findByRole('button', { name: 'Answer b' }));
+
+      expect(await screen.findByText('The end')).toBeInTheDocument();
+      expect(received).toEqual([{ answer: 'a' }, { answer: 'b' }]);
     },
   );
 

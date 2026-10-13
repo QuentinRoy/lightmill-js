@@ -4,6 +4,7 @@ import type { RegisteredLog, RegisteredTask } from './config.js';
 import { DefaultError } from './defaultError.js';
 import { DefaultPaused } from './defaultPaused.js';
 import { isLive, type RunClient, type RunLogger } from './logClient.js';
+import type { TimelineNext } from './playerState.js';
 import {
   getRunStore,
   isSameRun,
@@ -289,7 +290,7 @@ function ReadyPlayer({
 }: {
   store: RunStore;
   logger: RunLogger;
-  timeline: MaybeAsyncIterator<RegisteredTask>;
+  timeline: MaybeAsyncIterator<RegisteredTask, TimelineNext>;
   timelineExhausted: boolean;
   elements: RunElements;
 }): React.JSX.Element | null {

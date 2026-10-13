@@ -87,7 +87,7 @@ import { useLogger, useTask } from '@lightmill/react-experiment';
 import { useEffect, useState } from 'react';
 
 export function Intro() {
-  const { task, onTaskCompleted } = useTask('intro');
+  const { task, completeTask } = useTask('intro');
   const log = useLogger('intro');
   return (
     <div>
@@ -95,7 +95,7 @@ export function Intro() {
       <button
         onClick={() => {
           log({ taskId: task.id });
-          onTaskCompleted();
+          completeTask();
         }}
       >
         Start
@@ -105,7 +105,7 @@ export function Intro() {
 }
 
 export function Trial() {
-  const { task, onTaskCompleted } = useTask('trial');
+  const { task, completeTask } = useTask('trial');
   const log = useLogger('trial');
   const [shownAt, setShownAt] = useState<number | null>(null);
 
@@ -122,7 +122,7 @@ export function Trial() {
       onClick={() => {
         const reactionTime = performance.now() - shownAt;
         log({ taskId: task.id, size: task.size, reactionTime });
-        onTaskCompleted();
+        completeTask();
       }}
     >
       Click

@@ -23,11 +23,11 @@ const timeline = [
 ];
 
 function Question() {
-  const { task, onTaskCompleted } = useTask('question');
+  const { task, completeTask } = useTask('question');
   return (
     <div>
       <p>{String(task.text)}</p>
-      <button onClick={onTaskCompleted}>Next</button>
+      <button onClick={() => completeTask()}>Next</button>
     </div>
   );
 }
@@ -88,13 +88,13 @@ const timeline: Task[] = [
 ];
 
 function Question() {
-  const { task, onTaskCompleted } = useTask('question');
+  const { task, completeTask } = useTask('question');
   const log = useLogger('answer');
   return (
     <button
       onClick={() => {
         log({ taskId: task.id, answer: true });
-        onTaskCompleted();
+        completeTask();
       }}
     >
       Yes
@@ -185,7 +185,7 @@ Re-exported from [`@lightmill/runner`](../runner/README.md). Returns a timeline 
 
 ### `useTask(type?)`
 
-Returns `{ task, onTaskCompleted }` for the current task. Call `onTaskCompleted()` once the task is done; calling it twice throws.
+Returns `{ task, completeTask }` for the current task. Call `completeTask(result?)` once the task is done; calling it twice throws. The optional `result`, a plain object, is the task result: it goes to the timeline, and a generator reads it from `yield`.
 
 With a `type`, `useTask` throws if the current task has another type, and narrows the type of `task`. It throws outside of `TimelinePlayer`.
 
@@ -265,33 +265,31 @@ Held logs are lost if the page closes: see [unsaved logs](../log-client/README.m
 A timeline can be a generator, which computes each task when the previous one completes. This makes adaptive designs possible, such as a staircase that makes a task harder after each correct answer:
 
 ```tsx
-const answers: boolean[] = [];
-
 const nextLevel = (level: number, correct: boolean) =>
   Math.max(1, level + (correct ? 1 : -1));
 
 function* staircase(
   firstTrial = 0,
   firstLevel = 5,
-): Generator<{ type: 'trial'; id: string; trial: number; level: number }> {
+): Generator<
+  { type: 'trial'; id: string; trial: number; level: number },
+  void,
+  { correct: boolean } | undefined
+> {
   let level = firstLevel;
   for (let trial = firstTrial; trial < 20; trial++) {
-    yield { type: 'trial', id: `trial-${trial}`, trial, level };
-    level = nextLevel(level, answers.at(-1) === true);
+    const result = yield { type: 'trial', id: `trial-${trial}`, trial, level };
+    level = nextLevel(level, result?.correct === true);
   }
 }
 
 function Trial() {
-  const { task, onTaskCompleted } = useTask('trial');
-  const answer = (correct: boolean) => {
-    answers.push(correct);
-    onTaskCompleted();
-  };
+  const { task, completeTask } = useTask('trial');
   return (
     <div>
       <p>Level {String(task.level)}</p>
-      <button onClick={() => answer(true)}>Correct</button>
-      <button onClick={() => answer(false)}>Wrong</button>
+      <button onClick={() => completeTask({ correct: true })}>Correct</button>
+      <button onClick={() => completeTask({ correct: false })}>Wrong</button>
     </div>
   );
 }
@@ -309,7 +307,7 @@ export function App() {
 }
 ```
 
-Record the answer before calling `onTaskCompleted`: that call asks the generator for the next task. An async generator works the same way, and `elements.loading` shows while it computes the next task.
+`completeTask(result)` asks the generator for the next task, and `yield` returns `result`. It returns `undefined` when the task completed without a result. An async generator works the same way, and `elements.loading` shows while it computes the next task.
 
 ## Resuming a dynamic timeline
 
@@ -317,16 +315,15 @@ Record the answer before calling `onTaskCompleted`: that call asks the generator
 
 ```tsx
 function Trial() {
-  const { task, onTaskCompleted } = useTask('trial');
+  const { task, completeTask } = useTask('trial');
   const log = useLogger('trial-done');
   const answer = (correct: boolean) => {
-    answers.push(correct);
     log({
       taskId: task.id,
       trial: task.trial,
       nextLevel: nextLevel(task.level, correct),
     });
-    onTaskCompleted();
+    completeTask({ correct });
   };
   // ...
 }

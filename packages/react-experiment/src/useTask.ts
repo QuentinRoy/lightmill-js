@@ -1,10 +1,15 @@
 import * as React from 'react';
 import type { RegisteredTask } from './config.js';
 import { taskContext } from './contexts.js';
+import type { TaskResult } from './playerState.js';
 
 type UseTaskResult<Task extends RegisteredTask> = {
   task: Task;
-  onTaskCompleted: () => void;
+  /**
+   * Completes the task. `result` goes to the timeline: a generator reads it
+   * from the `yield` that produced the task.
+   */
+  completeTask: (result?: TaskResult) => void;
 };
 export function useTask<TaskType extends RegisteredTask['type']>(
   type: TaskType,
@@ -25,6 +30,6 @@ export function useTask(
     );
   }
   return React.useMemo(() => {
-    return { task: state.task, onTaskCompleted: state.onTaskCompleted };
+    return { task: state.task, completeTask: state.completeTask };
   }, [state]);
 }

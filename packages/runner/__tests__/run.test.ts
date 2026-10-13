@@ -47,6 +47,18 @@ describe('run', () => {
     ]);
   });
 
+  it('passes what runTask resolves with to the timeline', async () => {
+    const received: unknown[] = [];
+    await runTimeline({
+      timeline: (async function* () {
+        received.push(yield 1);
+        received.push(yield 2);
+      })(),
+      runTask: async (task) => task * 10,
+    });
+    expect(received).toEqual([10, 20]);
+  });
+
   it('rejects if the taskManager rejects', async () => {
     const throwingRunTask = vi.fn(async (task) => {
       if (task.id === 'task2') throw new Error('mock error');

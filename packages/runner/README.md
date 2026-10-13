@@ -64,24 +64,22 @@ A timeline is any of:
 A generator makes adaptive designs possible, such as a staircase that changes difficulty after each answer:
 
 ```ts
-const answers: boolean[] = [];
-
 function* staircase() {
   let level = 5;
   for (let i = 0; i < 20; i++) {
-    yield { type: 'trial', level };
-    level = Math.max(1, level + (answers.at(-1) ? 1 : -1));
+    const correct = yield { type: 'trial', level };
+    level = Math.max(1, level + (correct ? 1 : -1));
   }
 }
 ```
 
-Record each answer in `answers` before the task completes: completing it asks the generator for the next task.
+Completing a task asks the generator for the next one, and `yield` returns the task result: what `runTask` resolves with, or what you pass to `TimelineRunner`'s `completeTask(result)`.
 
 The runner reads the timeline once and can't rewind it. To start over, create a new timeline and a new runner.
 
 ## `runTimeline({ timeline, runTask })`
 
-Calls `runTask(task)` for each task in turn, waiting for the promise it returns. Resolves once the timeline is over. Rejects as soon as `runTask` rejects, or the timeline throws, and stops there. It can't be canceled: use `TimelineRunner` for that.
+Calls `runTask(task)` for each task in turn, waiting for the promise it returns. What the promise resolves with is the task result, which goes to the timeline. Resolves once the timeline is over. Rejects as soon as `runTask` rejects, or the timeline throws, and stops there. It can't be canceled: use `TimelineRunner` for that.
 
 ## `TimelineRunner`
 
@@ -103,7 +101,7 @@ The callbacks are also properties of the runner, which you can set after creatin
 ### Methods
 
 - `start()` starts the timeline. Throws if it has already started.
-- `completeTask()` completes the current task and moves to the next one. Throws when no task is running, when the task is already completed, or when the timeline is canceled.
+- `completeTask(result?)` completes the current task and moves to the next one, passing `result` to the timeline's `next()`. Throws when no task is running, when the task is already completed, or when the timeline is canceled.
 - `cancel()` stops the timeline: no other task starts, and a task the timeline is still computing is ignored. Throws when the timeline is already canceled or completed.
 - `status` is `idle` before `start()`, then `running` while a task runs, `loading` while the runner waits for an async timeline, and finally `completed`, `canceled`, or `crashed`.
 
@@ -123,4 +121,4 @@ When `onTaskStarted` throws, the status becomes `crashed`, and the error is thro
 
 ## Types
 
-`RunTimelineParams` and `TimelineRunnerParams` are the parameters of `runTimeline` and `TimelineRunner`. `SuperIterator<Task>` is any timeline the runner accepts, and `MaybeAsyncIterator<Task>` an iterator whose `next()` may return a promise.
+`RunTimelineParams` and `TimelineRunnerParams` are the parameters of `runTimeline` and `TimelineRunner`. `SuperIterator<Task, TaskResult>` is any timeline the runner accepts, and `MaybeAsyncIterator<Task, TaskResult>` an iterator whose `next()` may return a promise. `TaskResult`, `unknown` by default, is what the timeline's `next()` receives.

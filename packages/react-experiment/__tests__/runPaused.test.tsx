@@ -105,7 +105,7 @@ describe('Run when delivery is paused', () => {
       const retries = new Set<() => Promise<void>>();
       function Task() {
         const { retry } = useLogDelivery();
-        const { onTaskCompleted } = useTask();
+        const { completeTask } = useTask();
         const [, setCount] = React.useState(0);
         retries.add(retry);
         return (
@@ -113,7 +113,7 @@ describe('Run when delivery is paused', () => {
             <button onClick={() => setCount((count) => count + 1)}>
               Render
             </button>
-            <button onClick={onTaskCompleted}>Next</button>
+            <button onClick={() => completeTask()}>Next</button>
           </>
         );
       }

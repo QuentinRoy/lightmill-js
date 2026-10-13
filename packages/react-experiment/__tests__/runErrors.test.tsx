@@ -388,8 +388,8 @@ describe('Run when the run crashes', () => {
       await server.addExperiment('exp');
       const client = newClient(server);
       function SilentTask() {
-        const { onTaskCompleted } = useTask();
-        return <button onClick={onTaskCompleted}>Next</button>;
+        const { completeTask } = useTask();
+        return <button onClick={() => completeTask()}>Next</button>;
       }
       const user = userEvent.setup();
       await renderAsync(
