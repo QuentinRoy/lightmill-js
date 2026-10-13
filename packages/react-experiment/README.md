@@ -132,16 +132,14 @@ Runs one run of an experiment with a [`@lightmill/log-client`](../log-client/REA
   client={client}
   experimentName="my-experiment"
   runName={participantId}
-  resumableLogTypes={['question']}
-  timeline={({ resumeLog }) => buildTimeline(resumeLog)}
+  timeline={timeline}
   elements={{ tasks: { question: <Question /> } }}
 />
 ```
 
 - `client`: a log-client `Client`. Create it once: a new client is a new run. `Run` imports nothing from log-client, it only needs a client with the right methods.
 - `experimentName` and `runName`: identify the run on the server. `Run` looks up an ongoing run with the same names, asks the participant to resume it, and starts a new run when there is none. Before the run starts, changing either (or the client) switches to another run. Once it has started, changing one crashes the run with a `RUN_REMOUNTED` error, as a [remount](#remounting) does.
-- `resumableLogTypes`: the log types that mark a completed task, usually the task types, whose completion logs do. `Run` resumes after the last log of one of these types.
-- `timeline`: a function that builds the timeline, or `null` while your app loads it. `Run` calls it once per run, with `resumeLog`: the last resumable log, or `null` for a new run or when none was logged yet. See [Resuming a dynamic timeline](#resuming-a-dynamic-timeline).
+- `timeline`: the tasks, as for `TimelinePlayer`, or `null` while your app loads them. `Run` plays the first timeline it gets once the run is ready, and ignores later changes. When it resumes a run, it replays the timeline up to the last completed task: see [Resuming a dynamic timeline](#resuming-a-dynamic-timeline).
 - `elements`: `tasks`, plus a screen for each state, all optional and with a small default: `loading` (also shown while the run is saved, so keep its text neutral), `resume`, `paused`, `error` and `completed`.
 - `dangerouslyAutoResume`: when set, `Run` resumes the run it finds without showing `elements.resume`, and shows `elements.loading` meanwhile. Use it in development so that reloading the page puts you back in the run. Never use it in production: if the participant has the same run open in another tab or on another device, that run is resumed without asking, and the logs it wrote after the resume point are canceled.
 
@@ -149,7 +147,7 @@ Runs one run of an experiment with a [`@lightmill/log-client`](../log-client/REA
 
 Three hooks write your own screens. They only work in the elements of `Run`:
 
-- `useResumeRun()`, for `elements.resume`, returns `{ resume, run, lastLog }`.
+- `useResumeRun()`, for `elements.resume`, returns `{ resume, run, lastLog }`. `lastLog` is the run's last completion log, or `null` when no task was completed yet.
 - `useLogDelivery()` returns `{ error, inFlightLogs, retry }`: why delivery is paused, the logs the server has not stored, and a function that sends them again. It never rejects and does nothing outside a pause. It also works in `elements.error`.
 - `useRunError()`, for `elements.error`, returns `{ error }`, the value that was thrown.
 
@@ -192,7 +190,7 @@ Re-exported from [`@lightmill/runner`](../runner/README.md). Returns a timeline 
 
 ### `useTask(type?)`
 
-Returns `{ task, completeTask }` for the current task. Call `completeTask(result)` once the task is done; calling it twice throws. `result`, a plain object, is the task result. It goes into the task's completion log and to the timeline, where a generator reads it from `yield`. Its type comes from the completion log: `result` is optional when the log has no required field, and absent when there is no completion log. A completion log is written either way, with no values when there is no result.
+Returns `{ task, completeTask }` for the current task. Call `completeTask(result)` once the task is done; calling it twice throws. `result`, a plain object, is the task result. It goes into the task's completion log and to the timeline, where a generator reads it from `yield`. Its type comes from the completion log: `result` is optional when the log has no required field, and absent when there is no completion log. A completion log is written either way, with no values when there is no result, and the timeline then receives `{}`.
 
 `type`, `taskId` and `date` are reserved: a `result` with one of these keys does not compile, and `completeTask` throws without completing the task.
 
@@ -316,40 +314,25 @@ export function App() {
 }
 ```
 
-`completeTask(result)` asks the generator for the next task, and `yield` returns `result`. It returns `undefined` when the task completed without a result. An async generator works the same way, and `elements.loading` shows while it computes the next task.
+`completeTask(result)` asks the generator for the next task, and `yield` returns `result`. It returns `{}` when the task completed without a result. An async generator works the same way, and `elements.loading` shows while it computes the next task.
 
 ## Resuming a dynamic timeline
 
-`resumeAfter` replays a generator without mounting any task, so the generator does not get the answers the participant gave, and can't reproduce the task where they stopped. Instead, put the state the generator needs in each trial's result, and build a new generator from the last completion log. `Run` hands it to the `timeline` function as `resumeLog`:
+When `Run` resumes a run, it replays the timeline: it reads the run's completion logs from the server, then asks the timeline for each completed task in turn, without showing it, and passes back the result that task logged, as `completeTask` did. The staircase above gets the same answers, so it reaches the level where the participant stopped, with nothing else to log:
 
 ```tsx
-function Trial() {
-  const { task, completeTask } = useTask('trial');
-  const answer = (correct: boolean) => {
-    completeTask({
-      correct,
-      trial: task.trial,
-      nextLevel: nextLevel(task.level, correct),
-    });
-  };
-  // ...
-}
-
 <Run
   client={client}
   experimentName="staircase"
   runName={participantId}
-  resumableLogTypes={['trial']}
-  timeline={({ resumeLog }) =>
-    resumeLog == null
-      ? staircase()
-      : staircase(resumeLog.trial + 1, resumeLog.nextLevel)
-  }
+  timeline={staircase()}
   elements={{ tasks: { trial: <Trial /> } }}
-/>;
+/>
 ```
 
-The example registers its types as in [Typing tasks and logs](#typing-tasks-and-logs): a `trial` task with `trial` and `level` numbers, and a `trial` completion log with `taskId`, `correct`, `trial` and `nextLevel`. `Run` resumes after the last completion log, so the trial in progress is played again. For a fixed list of tasks, `resumeAfter(tasks, (task) => task.id === resumeLog.taskId)` is enough. See [Resuming runs](../../docs/guides/resuming-runs.md).
+`Run` reads `timeline` once per run, so creating the generator while rendering is fine. The replay checks that each task has the id and type of the completion log at that step. If the timeline changed, it stops the run with a `TIMELINE_MISMATCH` error before any task shows. Then the run continues with the task in progress when the participant left, which is played again: its earlier logs are canceled. See [Resuming runs](../../docs/guides/resuming-runs.md).
+
+`TimelinePlayer` does not replay. `resumeAfter` skips tasks without passing their results back, so a generator resumed with it does not get the answers the participant gave. To resume one with `TimelinePlayer`, list the completion logs with log-client's `getRunLogs` and pass their values back yourself, as `Run` does.
 
 ## Sharing state between tasks
 
@@ -369,4 +352,4 @@ Unmounting does not stop the timeline: if it is waiting for the next task, the t
 
 Anything that is not an iterator, such as an array or a `Set`, can be iterated again, so `TimelinePlayer` plays it from the start on every mount. An iterator is one pass through the tasks, and `TimelinePlayer` continues it. An array is a source of passes, and each mount takes a new one.
 
-`Run` works differently. It calls your timeline builder once per run, not on every mount, and plays what it returns once, even if it returns an array. Once the run has started, `Run` can't be remounted: the task in progress would lose its state and start again, logging on top of its first attempt. So a new `Run` on a started run crashes it with a `RUN_REMOUNTED` error, shows `elements.error` and interrupts the run, and reloading the page offers to resume it. A second `Run` with the same client and names does the same. `StrictMode`, `<Activity>`, and a Fast Refresh that keeps state are not remounts. The builder runs again only for a new run: when you change the client, the experiment name or the run name before the run starts, or after the previous run ended.
+`Run` works differently. It reads `timeline` once per run, not on every mount, and plays it once, even an array. Once the run has started, `Run` can't be remounted: the task in progress would lose its state and start again, logging on top of its first attempt. So a new `Run` on a started run crashes it with a `RUN_REMOUNTED` error, shows `elements.error` and interrupts the run, and reloading the page offers to resume it. A second `Run` with the same client and names does the same. `StrictMode`, `<Activity>`, and a Fast Refresh that keeps state are not remounts. It reads `timeline` again only for a new run: when you change the client, the experiment name or the run name before the run starts, or after the previous run ended.

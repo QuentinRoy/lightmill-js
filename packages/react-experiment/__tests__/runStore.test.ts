@@ -13,7 +13,7 @@ function identity(
     client: new Client({ apiRoot: server.apiRoot }),
     experimentName: 'exp',
     runName: 'run-1',
-    resumableLogTypes: ['trial-done'],
+    taskTypes: ['trial-done'],
     ...overrides,
   };
 }
@@ -224,27 +224,27 @@ describe('run store', () => {
   });
 
   serverTest(
-    'builds the timeline once, when the run is ready and a builder is given',
+    'keeps the first timeline given once the run is ready',
     async ({ server }) => {
       await server.addExperiment('exp');
       const store = getRunStore(identity(server));
       store.subscribe(() => {});
-      const build = vi.fn(() => [{ type: 'trial' }]);
+      const tasks = [{ type: 'trial' }];
 
-      expect(store.getTimeline(build)).toBeNull();
+      expect(store.getTimeline(tasks)).toBeNull();
       await whenStatus(store, 'ready');
       expect(store.getTimeline(null)).toBeNull();
-      const timeline = store.getTimeline(build);
+      const timeline = store.getTimeline(tasks);
+      if (timeline == null) throw new Error('No timeline');
 
-      expect(timeline).not.toBeNull();
-      expect(store.getTimeline(build)).toBe(timeline);
-      expect(store.getTimeline(() => [])).toBe(timeline);
-      expect(build).toHaveBeenCalledExactlyOnceWith({ resumeLog: null });
+      expect(store.getTimeline(tasks)).toBe(timeline);
+      expect(store.getTimeline([])).toBe(timeline);
+      expect(timeline.next()).toEqual({ done: false, value: tasks[0] });
     },
   );
 
   serverTest(
-    'reads the built timeline once, however it is iterable',
+    'reads the timeline once, however it is iterable',
     async ({ server }) => {
       await server.addExperiment('exp');
       const store = getRunStore(identity(server));
@@ -252,9 +252,7 @@ describe('run store', () => {
       await whenStatus(store, 'ready');
       const tasks = [{ type: 'trial' }, { type: 'trial' }];
       const getIterator = vi.fn(() => tasks.values());
-      const timeline = store.getTimeline(() => ({
-        [Symbol.iterator]: getIterator,
-      }));
+      const timeline = store.getTimeline({ [Symbol.iterator]: getIterator });
       if (timeline == null) throw new Error('No timeline');
 
       expect(timeline.next()).toEqual({ done: false, value: tasks[0] });
@@ -282,7 +280,7 @@ describe('run store', () => {
         const store = await readyStore(server);
         const listener = vi.fn();
         store.subscribe(listener);
-        const timeline = store.getTimeline(() => [{ type: 'trial' }]);
+        const timeline = store.getTimeline([{ type: 'trial' }]);
         if (timeline == null) throw new Error('No timeline');
 
         timeline.next();
@@ -299,9 +297,11 @@ describe('run store', () => {
       'is reported when an async timeline resolves as done',
       async ({ server }) => {
         const store = await readyStore(server);
-        const timeline = store.getTimeline(async function* () {
-          yield { type: 'trial' };
-        });
+        const timeline = store.getTimeline(
+          (async function* () {
+            yield { type: 'trial' };
+          })(),
+        );
         if (timeline == null) throw new Error('No timeline');
 
         await timeline.next();
@@ -325,7 +325,7 @@ describe('run store', () => {
     }
 
     serverTest(
-      'waits for confirmation, with the run and its last resumable log',
+      'waits for confirmation, with the run and its last completion log',
       async ({ server }) => {
         await server.addExperiment('exp');
         await leaveRun(server);
@@ -343,12 +343,12 @@ describe('run store', () => {
     );
 
     serverTest(
-      'has no last log when nothing resumable was logged',
+      'has no last log when no task was completed',
       async ({ server }) => {
         await server.addExperiment('exp');
         await leaveRun(server);
         const store = getRunStore(
-          identity(server, { resumableLogTypes: ['other-type'] }),
+          identity(server, { taskTypes: ['other-type'] }),
         );
         store.subscribe(() => {});
 
@@ -359,7 +359,7 @@ describe('run store', () => {
     );
 
     serverTest(
-      'resumes once however often resume is called, then builds with the last log',
+      'resumes once however often resume is called',
       async ({ server }) => {
         await server.addExperiment('exp');
         await leaveRun(server);
@@ -373,14 +373,6 @@ describe('run store', () => {
         store.resume();
 
         expect(server.requestCount('PATCH', /^\/runs\//)).toBe(1);
-        const build = vi.fn(() => [{ type: 'trial' }]);
-        store.getTimeline(build);
-        expect(build).toHaveBeenCalledExactlyOnceWith({
-          resumeLog: expect.objectContaining({
-            type: 'trial-done',
-            taskId: 'a',
-          }),
-        });
       },
     );
 

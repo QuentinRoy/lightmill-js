@@ -324,18 +324,20 @@ describe('Run when the run crashes', () => {
   );
 
   serverTest(
-    'shows the error slot when the timeline builder throws',
+    'shows the error slot when the timeline throws',
     async ({ server }) => {
       await server.addExperiment('exp');
-      const build = vi.fn(() => {
-        throw new Error('Builder bug');
+      const read = vi.fn(() => {
+        throw new Error('Timeline bug');
       });
 
-      await renderAsync(run(newClient(server), { timeline: build }));
+      await renderAsync(
+        run(newClient(server), { timeline: { [Symbol.iterator]: read } }),
+      );
 
       expect(await screen.findByText(/unexpected error/)).toBeVisible();
-      expect(screen.getByRole('group')).toHaveTextContent('Builder bug');
-      expect(build).toHaveBeenCalledTimes(1);
+      expect(screen.getByRole('group')).toHaveTextContent('Timeline bug');
+      expect(read).toHaveBeenCalledTimes(1);
       await vi.waitFor(async () => {
         await expect(server.storedRuns()).resolves.toEqual([
           { runName: 'run-1', runStatus: 'interrupted' },

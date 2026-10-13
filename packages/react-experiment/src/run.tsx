@@ -1,11 +1,11 @@
 import type { MaybeAsyncIterator } from '@lightmill/runner';
 import * as React from 'react';
-import type { RegisteredLog, RegisteredTask } from './config.js';
+import type { RegisteredTask } from './config.js';
 import { DefaultError } from './defaultError.js';
 import { DefaultPaused } from './defaultPaused.js';
 import { RunRemountedError } from './errors.js';
 import { isLive, type RunClient, type RunLogger } from './logClient.js';
-import type { TimelineNext } from './playerState.js';
+import type { AnyIteratorOrIterable, TimelineNext } from './playerState.js';
 import {
   getRunStore,
   isSameRun,
@@ -13,7 +13,6 @@ import {
   type RunState,
   type RunStore,
   type RunStoreParams,
-  type TimelineBuilder,
 } from './runStore.js';
 import {
   TimelinePlayer,
@@ -41,14 +40,13 @@ export type RunProps = {
   client: RunClient;
   experimentName: string;
   runName: string;
-  /** Read when the run is looked up. Later changes are ignored. */
-  resumableLogTypes: Array<RegisteredLog['type']>;
   /**
-   * Builds the timeline, once per run. `null` while the app loads it.
-   * `resumeLog` is the last resumable log, or `null` for a new run or when
-   * none was logged yet.
+   * The tasks to play, or `null` while the app loads them. The first timeline
+   * seen once the run is ready is played; later changes are ignored. A resumed
+   * run replays it up to the last completed task, passing each task result
+   * back, so it must yield the same tasks as when the run started.
    */
-  timeline: TimelineBuilder | null;
+  timeline: AnyIteratorOrIterable<RegisteredTask> | null;
   elements: RunElements;
   /**
    * Resumes a run found by the lookup without asking: the loading slot shows
@@ -85,7 +83,6 @@ export function Run({
   client,
   experimentName,
   runName,
-  resumableLogTypes,
   timeline,
   elements,
   dangerouslyAutoResume = false,
@@ -94,7 +91,7 @@ export function Run({
     client,
     experimentName,
     runName,
-    resumableLogTypes,
+    taskTypes: Object.keys(elements.tasks),
   });
   const state = React.useSyncExternalStore(
     store.subscribe,
@@ -163,7 +160,7 @@ export function Run({
             store={store}
             logger={state.logger}
             timelineExhausted={state.timelineExhausted}
-            build={timeline}
+            source={timeline}
             loading={loading}
             elements={elements}
           />
@@ -260,7 +257,7 @@ function ErrorProvider({
   );
 }
 
-// Catches what the player throws: a task bug, a throwing builder, a binding
+// Catches what the player throws: a task bug, a throwing timeline, a binding
 // error. The store then moves to its error state, so `Run` renders the error
 // slot outside of this boundary.
 class CrashBoundary extends React.Component<
@@ -305,18 +302,19 @@ function RunPlayer({
   store,
   logger,
   timelineExhausted,
-  build,
+  source,
   loading,
   elements,
 }: {
   store: RunStore;
   logger: RunLogger;
   timelineExhausted: boolean;
-  build: TimelineBuilder | null;
+  source: AnyIteratorOrIterable<RegisteredTask> | null;
   loading: React.ReactElement;
   elements: RunElements;
 }): React.JSX.Element {
-  const timeline = store.getTimeline(build);
+  // Null while the timeline is replayed.
+  const timeline = store.getTimeline(source);
   if (timeline == null) return loading;
   return (
     <ReadyPlayer
