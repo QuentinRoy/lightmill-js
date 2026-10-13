@@ -60,6 +60,11 @@ export interface RunClient<Log extends { type: string } = RegisteredLog> {
         { number: 0; log: null } | { number: number; log: ResumeLog<Log> };
     }>
   >;
+  // In log-number order, without canceled or stranded logs.
+  getRunLogs<T extends Log['type']>(options: {
+    runId: string;
+    logTypes: T[];
+  }): Promise<Array<{ number: number; log: ResumeLog<Log & { type: T }> }>>;
   startRun(
     options:
       | { experimentName: string; runName: string }

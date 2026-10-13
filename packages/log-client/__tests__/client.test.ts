@@ -1,4 +1,4 @@
-import { serverTest } from '@lightmill/test-server';
+import { serverTest, type TestServer } from '@lightmill/test-server';
 import { bypass, http, HttpResponse, passthrough } from 'msw';
 import { describe, expect } from 'vitest';
 import { LightmillClient } from '../src/client.js';
@@ -390,6 +390,102 @@ describe('LogClient#startRun', () => {
       expect(error).toMatchObject({ code: 'RUN_NOT_FOUND' });
       return true;
     });
+  });
+});
+
+describe('LogClient#getRunLogs', () => {
+  async function runId(server: TestServer, runName: string) {
+    const [run] = await server.dataStore.getRuns({ runName });
+    return run.runId;
+  }
+
+  it('should list the logs of the given types in log-number order', async ({
+    server,
+    client,
+  }) => {
+    await seedRun(client, { runName: 'test-run' });
+    const id = await runId(server, 'test-run');
+    // Stored out of order, so the listing cannot follow insertion order.
+    const addLogs = (numbers: number[]) =>
+      server.dataStore.withTransaction((tx) =>
+        tx.addLogs(
+          id,
+          numbers.map((number) => ({
+            number,
+            type: number === 2 ? 'other-type' : `type-${number % 2}`,
+            values: { n: String(number) },
+          })),
+        ),
+      );
+    await addLogs([4, 3]);
+    await addLogs([2, 1]);
+    await expect(
+      client.getRunLogs({ runId: id, logTypes: ['type-0', 'type-1'] }),
+    ).resolves.toEqual([
+      { number: 1, log: { type: 'type-1', n: '1' } },
+      { number: 3, log: { type: 'type-1', n: '3' } },
+      { number: 4, log: { type: 'type-0', n: '4' } },
+    ]);
+  });
+
+  it('should leave out the logs a resume canceled', async ({
+    server,
+    client,
+  }) => {
+    await seedRun(client, {
+      runName: 'test-run',
+      stop: 'interrupted',
+      logs: ['a', 'b', 'c'].map((step) => ({ type: 'step', values: { step } })),
+    });
+    const logger = await client.startRun({
+      experimentName,
+      runName: 'test-run',
+      after: { number: 1 },
+    });
+    await logger.addLog({ type: 'step', date, step: 'new' });
+    await logger.flush();
+    await expect(
+      client.getRunLogs({
+        runId: await runId(server, 'test-run'),
+        logTypes: ['step'],
+      }),
+    ).resolves.toEqual([
+      { number: 1, log: { type: 'step', step: 'a', date: date.toISOString() } },
+      {
+        number: 2,
+        log: { type: 'step', step: 'new', date: date.toISOString() },
+      },
+    ]);
+  });
+
+  it('should leave out stranded logs', async ({ server, client }) => {
+    await seedRun(client, {
+      runName: 'test-run',
+      logs: [{ type: 'step', values: { step: 'a' } }],
+    });
+    const id = await runId(server, 'test-run');
+    // Log 2 is missing, so log 3 is stranded.
+    await server.dataStore.withTransaction((tx) =>
+      tx.addLogs(id, [{ number: 3, type: 'step', values: { step: 'c' } }]),
+    );
+    await expect(
+      client.getRunLogs({ runId: id, logTypes: ['step'] }),
+    ).resolves.toEqual([
+      { number: 1, log: { type: 'step', step: 'a', date: date.toISOString() } },
+    ]);
+  });
+
+  it('should list nothing without log types', async ({ server, client }) => {
+    await seedRun(client, {
+      runName: 'test-run',
+      logs: [{ type: 'step', values: { step: 'a' } }],
+    });
+    await expect(
+      client.getRunLogs({
+        runId: await runId(server, 'test-run'),
+        logTypes: [],
+      }),
+    ).resolves.toEqual([]);
   });
 });
 
