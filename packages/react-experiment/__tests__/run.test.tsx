@@ -7,6 +7,7 @@ import {
   Run,
   resumeAfter,
   useLogDelivery,
+  useLogger,
   useResumeRun,
   useTask,
 } from '../src/main.js';
@@ -44,8 +45,8 @@ describe('Run', () => {
         { runName: 'run-1', runStatus: 'completed' },
       ]);
       await expect(server.storedLogs()).resolves.toMatchObject([
-        { number: 1, type: 'trial-done', values: { taskId: 'a' } },
-        { number: 2, type: 'trial-done', values: { taskId: 'b' } },
+        { number: 1, type: 'trial', values: { taskId: 'a' } },
+        { number: 2, type: 'trial', values: { taskId: 'b' } },
       ]);
     },
   );
@@ -79,6 +80,179 @@ describe('Run', () => {
 
       expect(await screen.findByText('The end')).toBeInTheDocument();
       expect(received).toEqual([{ answer: 'a' }, { answer: 'b' }]);
+    },
+  );
+
+  serverTest(
+    'stores one completion log per task, typed with the task type, stamped with its id and holding its result',
+    async ({ server }) => {
+      await server.addExperiment('exp');
+      const user = userEvent.setup();
+      const AnswerTask = () => {
+        const { task, completeTask } = useTask('trial');
+        const addNote = useLogger('note');
+        return (
+          <button
+            onClick={() => {
+              addNote({ text: `note ${String(task.id)}` });
+              completeTask(task.id === 'a' ? { answer: 42 } : undefined);
+            }}
+          >
+            Answer {String(task.id)}
+          </button>
+        );
+      };
+      await renderAsync(
+        run(newClient(server), {
+          elements: { ...elements, tasks: { trial: <AnswerTask /> } },
+        }),
+      );
+
+      await user.click(await screen.findByRole('button', { name: 'Answer a' }));
+      await user.click(await screen.findByRole('button', { name: 'Answer b' }));
+
+      expect(await screen.findByText('The end')).toBeInTheDocument();
+      const logs = await server.storedLogs();
+      expect(logs).toMatchObject([
+        { number: 1, type: 'note', values: { text: 'note a' } },
+        { number: 2, type: 'trial', values: { taskId: 'a', answer: 42 } },
+        { number: 3, type: 'note', values: { text: 'note b' } },
+        { number: 4, type: 'trial', values: { taskId: 'b' } },
+      ]);
+      // An empty result logs no values beyond the id and the date.
+      expect(Object.keys(logs[3]?.values ?? {}).sort()).toEqual([
+        'date',
+        'taskId',
+      ]);
+    },
+  );
+
+  serverTest.for(['type', 'taskId', 'date'])(
+    'throws when a result holds the reserved key %s, keeping the task incomplete',
+    async (key, { server }) => {
+      await server.addExperiment('exp');
+      const user = userEvent.setup();
+      const ReservedTask = () => {
+        const { task, completeTask } = useTask('trial');
+        const [error, setError] = React.useState<string | null>(null);
+        return (
+          <>
+            <button
+              onClick={() => {
+                try {
+                  completeTask({ [key]: 'x', answer: 1 });
+                } catch (e) {
+                  setError(e instanceof Error ? e.message : String(e));
+                }
+              }}
+            >
+              Answer {String(task.id)}
+            </button>
+            {error != null && <p role="alert">{error}</p>}
+          </>
+        );
+      };
+      await renderAsync(
+        run(newClient(server), {
+          elements: { ...elements, tasks: { trial: <ReservedTask /> } },
+        }),
+      );
+
+      await user.click(await screen.findByRole('button', { name: 'Answer a' }));
+
+      expect(screen.getByRole('alert')).toHaveTextContent(key);
+      expect(screen.getByRole('button', { name: 'Answer a' })).toBeVisible();
+      expect(server.requestCount('POST', '/operations')).toBe(0);
+    },
+  );
+
+  serverTest(
+    'throws when useLogger logs a task type, leaving completion logs to completeTask',
+    async ({ server }) => {
+      await server.addExperiment('exp');
+      const user = userEvent.setup();
+      const LoggingTask = () => {
+        const { task } = useTask('trial');
+        const addLog = useLogger();
+        const [error, setError] = React.useState<string | null>(null);
+        return (
+          <>
+            <button
+              onClick={() => {
+                try {
+                  addLog({ type: 'trial' });
+                } catch (e) {
+                  setError(e instanceof Error ? e.message : String(e));
+                }
+              }}
+            >
+              Log {String(task.id)}
+            </button>
+            {error != null && <p role="alert">{error}</p>}
+          </>
+        );
+      };
+      await renderAsync(
+        run(newClient(server), {
+          elements: { ...elements, tasks: { trial: <LoggingTask /> } },
+        }),
+      );
+
+      await user.click(await screen.findByRole('button', { name: 'Log a' }));
+
+      expect(screen.getByRole('alert')).toHaveTextContent(/task type/);
+      expect(screen.getByRole('button', { name: 'Log a' })).toBeVisible();
+      expect(server.requestCount('POST', '/operations')).toBe(0);
+    },
+  );
+
+  serverTest(
+    'shows the error slot without rendering a task that has no id',
+    async ({ server }) => {
+      await server.addExperiment('exp');
+      const rendered = vi.fn();
+      function Task() {
+        rendered();
+        return null;
+      }
+      await renderAsync(
+        run(newClient(server), {
+          elements: { tasks: { trial: <Task /> } },
+          timeline: () => [{ type: 'trial' }],
+        }),
+      );
+
+      expect(await screen.findByText(/unexpected error/)).toBeVisible();
+      expect(screen.getByRole('group')).toHaveTextContent(/has no id/);
+      expect(rendered).not.toHaveBeenCalled();
+    },
+  );
+
+  serverTest(
+    'shows the error slot without rendering a task whose id was already used',
+    async ({ server }) => {
+      await server.addExperiment('exp');
+      const user = userEvent.setup();
+      await renderAsync(
+        run(newClient(server), {
+          timeline: () => [
+            { type: 'trial', id: 'a' },
+            { type: 'trial', id: 'a' },
+          ],
+        }),
+      );
+
+      await user.click(await screen.findByRole('button', { name: 'Done a' }));
+
+      expect(await screen.findByText(/unexpected error/)).toBeVisible();
+      expect(screen.getByRole('group')).toHaveTextContent(/a is already used/);
+      expect(screen.queryByRole('button', { name: 'Done a' })).toBeNull();
+      await vi.waitFor(async () => {
+        await expect(server.storedRuns()).resolves.toEqual([
+          { runName: 'run-1', runStatus: 'interrupted' },
+        ]);
+      });
+      await expect(server.storedLogs()).resolves.toHaveLength(1);
     },
   );
 

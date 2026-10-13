@@ -1,15 +1,20 @@
 import * as React from 'react';
-import type { RegisteredTask } from './config.js';
+import type {
+  CompleteTaskOf,
+  RegisteredTask,
+  RegisterExperiment,
+} from './config.js';
 import { taskContext } from './contexts.js';
-import type { TaskResult } from './playerState.js';
 
 type UseTaskResult<Task extends RegisteredTask> = {
   task: Task;
   /**
-   * Completes the task. `result` goes to the timeline: a generator reads it
-   * from the `yield` that produced the task.
+   * Completes the task and writes its completion log, with `result` as its
+   * values. `result` also goes to the timeline: a generator reads it from the
+   * `yield` that produced the task. Throws, leaving the task incomplete, if
+   * `result` holds a reserved key (`type`, `taskId` or `date`).
    */
-  completeTask: (result?: TaskResult) => void;
+  completeTask: CompleteTaskOf<RegisterExperiment, Task['type']>;
 };
 export function useTask<TaskType extends RegisteredTask['type']>(
   type: TaskType,
@@ -29,7 +34,5 @@ export function useTask(
       `Current task is not of type ${type}. Is this component registered for this task? You may use useTask without arguments to get the current task.`,
     );
   }
-  return React.useMemo(() => {
-    return { task: state.task, completeTask: state.completeTask };
-  }, [state]);
+  return state;
 }

@@ -409,8 +409,8 @@ describe('Run when the run crashes', () => {
       await screen.findByRole('button', { name: 'Next' });
       await loggerOf(client).interruptRun();
 
+      // The completion log cannot be added to the interrupted run.
       await user.click(screen.getByRole('button', { name: 'Next' }));
-      await user.click(await screen.findByRole('button', { name: 'Next' }));
 
       expect(await screen.findByText(/unexpected error/)).toBeVisible();
       expect(screen.getByRole('group')).toHaveTextContent(/interrupted/);

@@ -4,6 +4,7 @@ import {
   TimelineRunner,
 } from '@lightmill/runner';
 import * as React from 'react';
+import type { ReservedKey, Typed } from './config.js';
 import { noSubscribe } from './utils.js';
 
 // What a task passes to completeTask, and the timeline receives from next().
@@ -21,13 +22,28 @@ export type AnyIteratorOrIterable<Task> =
   | Iterable<Task, unknown, TimelineNext>
   | MaybeAsyncIterator<Task, TimelineNext>;
 
+const reservedKeys = [
+  'type',
+  'taskId',
+  'date',
+] as const satisfies ReservedKey[];
+
+type CompletionLog = TaskResult & { type: string; taskId: unknown };
+
 export type PlayerTaskState<Task> = {
   status: 'task';
   task: Task;
   // Different for each started task, even if the timeline yields the same
   // task object twice. Used as the React key so each task mounts fresh.
   taskKey: number;
-  completeTask: (result?: TaskResult) => void;
+  /**
+   * Completes the task. `log` receives its completion log first, so a result
+   * that cannot be logged leaves the task incomplete.
+   */
+  completeTask: (
+    result: TaskResult | undefined,
+    log: ((completionLog: CompletionLog) => void) | null,
+  ) => void;
 };
 
 export type PlayerState<Task> =
@@ -53,7 +69,7 @@ const loadingSnapshot = { status: 'loading' } as const;
 // The timeline iterator is one-shot and the runner cannot be rewound, so the
 // store lives as long as the timeline, not as long as an effect: unsubscribing
 // (as StrictMode and <Activity> do) must not cancel it.
-function createPlayerStore<Task>({
+function createPlayerStore<Task extends Typed>({
   timeline,
   resumeAfterTask,
 }: {
@@ -64,6 +80,7 @@ function createPlayerStore<Task>({
   let snapshot: StoreSnapshot<Task> = loadingSnapshot;
   let started = false;
   let taskCount = 0;
+  const taskIds = new Set<unknown>();
   const setSnapshot = (next: StoreSnapshot<Task>) => {
     snapshot = next;
     listeners.forEach((listener) => listener());
@@ -77,16 +94,46 @@ function createPlayerStore<Task>({
       setSnapshot({ status: 'loading' });
     },
     onTaskStarted(task) {
+      // Completion logs tell tasks apart by id.
+      const taskId = 'id' in task ? task.id : undefined;
+      if (taskId == null) {
+        setSnapshot({
+          status: 'error',
+          error: new Error(
+            `A task of type ${task.type} has no id. Every task needs an id, unique within the timeline.`,
+          ),
+        });
+        return;
+      }
+      if (taskIds.has(taskId)) {
+        setSnapshot({
+          status: 'error',
+          error: new Error(
+            `Task id ${String(taskId)} is already used. Every task needs an id, unique within the timeline.`,
+          ),
+        });
+        return;
+      }
+      taskIds.add(taskId);
       let hasBeenCompleted = false;
       const taskKey = taskCount++;
       setSnapshot({
         status: 'task',
         task,
         taskKey,
-        completeTask(result) {
+        completeTask(result, log) {
           if (hasBeenCompleted) throw new Error('Task already completed');
-          runner.completeTask(result);
+          const reserved = reservedKeys.filter(
+            (key) => result != null && Object.hasOwn(result, key),
+          );
+          if (reserved.length > 0) {
+            throw new TypeError(
+              `A task result cannot hold ${reserved.join(', ')}: these keys are reserved for its completion log`,
+            );
+          }
+          log?.({ ...result, type: task.type, taskId });
           hasBeenCompleted = true;
+          runner.completeTask(result);
         },
       });
     },
@@ -125,7 +172,7 @@ function createPlayerStore<Task>({
 // else can be iterated again, so each mount builds its own.
 const iteratorStores = new WeakMap<object, PlayerStore<unknown>>();
 
-function getPlayerStore<Task>({
+function getPlayerStore<Task extends Typed>({
   timeline,
   resumeAfterTask,
 }: {
@@ -150,7 +197,7 @@ function getPlayerStore<Task>({
 
 const getLoadingSnapshot = () => loadingSnapshot;
 
-type UsePlayerStateOptions<Task> = {
+type UsePlayerStateOptions<Task extends Typed> = {
   timeline?: AnyIteratorOrIterable<Task> | null;
   resumeAfterTask?: (task: Task) => boolean;
   onCompleted?: () => void;
@@ -165,7 +212,7 @@ type UsePlayerStateOptions<Task> = {
  *
  * Throws timeline errors, and if no timeline is set while not loading.
  */
-export function usePlayerState<Task>({
+export function usePlayerState<Task extends Typed>({
   timeline,
   resumeAfterTask,
   onCompleted,

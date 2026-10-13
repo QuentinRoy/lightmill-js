@@ -32,7 +32,7 @@ Delete `src/App.css` and `src/index.css`, and remove the `import './index.css'` 
 
 ## Describe the tasks and the logs
 
-An experiment is a timeline of tasks. A task is any object with a `type`, plus whatever the task needs. A log records what happened during a task. Logs have a `type` too, and their other values end up as columns in the CSV file.
+An experiment is a timeline of tasks. A task is any object with a `type` and an `id`, plus whatever the task needs. The `id` must be unique within the timeline. A log records what happened during a task. Logs have a `type` too, and their other values end up as columns in the CSV file.
 
 Create `src/experiment.ts`:
 
@@ -70,7 +70,7 @@ export function createTimeline(participantNumber: number): Task[] {
 }
 ```
 
-Every task logs once, when it completes, with its id in `taskId`. That is what lets a participant resume after a reload: the server finds the run's last log of one of these types, and the app skips every task up to the one it names.
+Every task writes one log when it completes: its completion log. It has the task's type, the task's id in `taskId`, and the task result, the data the task hands over when it completes. Here, a trial's result is its size and reaction time, and the intro has none. The log you register with the same type as a task describes its completion log, so it types the task result. Completion logs are what let a participant resume after a reload: the server finds the run's last one, and the app skips every task up to the one it names.
 
 The `declare module` block tells `@lightmill/react-experiment` about your tasks and logs, so its hooks are typed.
 
@@ -78,35 +78,26 @@ The `declare module` block tells `@lightmill/react-experiment` about your tasks 
 
 ## Write the task components
 
-Each task type has a component. `useTask` gives it the current task and a function to call when the task is done. `useLogger` gives it a function that sends a log.
+Each task type has a component. `useTask` gives it the current task and `completeTask`, the function to call with the task result when the task is done.
 
 Create `src/tasks.tsx`:
 
 ```tsx
-import { useLogger, useTask } from '@lightmill/react-experiment';
+import { useTask } from '@lightmill/react-experiment';
 import { useEffect, useState } from 'react';
 
 export function Intro() {
-  const { task, completeTask } = useTask('intro');
-  const log = useLogger('intro');
+  const { completeTask } = useTask('intro');
   return (
     <div>
       <p>Click the button as soon as it appears.</p>
-      <button
-        onClick={() => {
-          log({ taskId: task.id });
-          completeTask();
-        }}
-      >
-        Start
-      </button>
+      <button onClick={() => completeTask()}>Start</button>
     </div>
   );
 }
 
 export function Trial() {
   const { task, completeTask } = useTask('trial');
-  const log = useLogger('trial');
   const [shownAt, setShownAt] = useState<number | null>(null);
 
   useEffect(() => {
@@ -121,8 +112,7 @@ export function Trial() {
       style={{ fontSize: task.size === 'small' ? '0.8rem' : '2rem' }}
       onClick={() => {
         const reactionTime = performance.now() - shownAt;
-        log({ taskId: task.id, size: task.size, reactionTime });
-        completeTask();
+        completeTask({ size: task.size, reactionTime });
       }}
     >
       Click
@@ -133,7 +123,9 @@ export function Trial() {
 
 Each task mounts fresh, even when the previous task used the same component, so `shownAt` starts over at every trial.
 
-`useLogger` does not wait for the server. Logs are sent in the background, in batches, and retried if the network fails. Until they reach the server, they only exist in the page, so the app below offers a retry and a download when saving fails.
+Keep task results small, and put bulk data, such as every mouse movement of a trial, in logs of other types: `useLogger` gives a task a function that sends any log whose type is not a task type. Resuming a run reads every completion log back from the server, so large results make it slow.
+
+Neither `completeTask` nor `useLogger` waits for the server. Logs are sent in the background, in batches, and retried if the network fails. Until they reach the server, they only exist in the page, so the app below offers a retry and a download when saving fails.
 
 ## Play the tasks locally
 
@@ -313,7 +305,7 @@ Here is what happens when a participant opens the page:
 2. `Run` asks the server whether this browser already started this run. While it waits, it shows "Loading…".
 3. If it did, `Run` shows "You have a session in progress." with a Resume button, and resumes the run once the participant clicks it. Otherwise, `Run` starts a new run. React's development mode renders components twice, but `Run` starts or resumes the run only once.
 4. `Run` calls the `timeline` function once, with `resumeLog`: the last log whose type is in `resumableLogTypes`, or `null` for a new run. When resuming, `resumeAfter` skips every task up to the one the log names.
-5. The task components log with `useLogger`. `Run` sends the logs to the server in the background. If the server can't be reached for a while, `Run` shows the `paused` element once the current task ends. `Recovery` offers to download the answers the server does not have, and a button to send them again.
+5. Each task completes with `completeTask`, and `Run` writes its completion log. `Run` sends the logs to the server in the background. If the server can't be reached for a while, `Run` shows the `paused` element once the current task ends. `Recovery` offers to download the answers the server does not have, and a button to send them again.
 6. When the timeline ends, `Run` shows "Loading…" until every log is stored and the server has the run completed. Then it shows `completed`.
 7. Until the run ends, `Run` asks the browser to confirm before the participant leaves the page.
 8. If the run can't start or crashes, `Run` shows the `error` element. This includes a participant who comes back after completing the experiment, or who opens it in another browser: the run name is taken, and the server refuses it with a `RUN_EXISTS` error. After a crash, `Run` interrupts the run, so reloading the page offers to resume it.
@@ -324,6 +316,7 @@ Here is what happens when a participant opens the page:
 
 - **Create the client once**, outside of components. A new client is a new run: before the run starts, `Run` looks it up again; after, it crashes the run with a `RUN_REMOUNTED` error.
 - **Keep `Run` mounted until the run ends.** If it unmounts earlier, the run stays ongoing, the page is no longer protected against closing, and a paused logger has no screen. Mounting `Run` again once the run has started crashes the run with a `RUN_REMOUNTED` error: the task in progress lost its state, and playing it again would log on top of its first attempt. `Run` interrupts the run, so reloading the page offers to resume it. `StrictMode` and `<Activity>` don't remount `Run`. During development, a Fast Refresh does when you edit a hook in a component above `Run`, or an edit creates a new client object; editing a task component doesn't. Mounting `Run` again after the run completed shows the `error` element with a `RUN_EXISTS` error, as a reload does, so keep the `completed` element mounted.
+- **Keep task results small.** Put bulk data in logs of other types, written with `useLogger`.
 - **Use `dangerouslyAutoResume` only in development.** It makes `Run` resume without showing the resume screen, so reloading the page puts you back in the run. In production, it would resume a run the participant has open in another tab or on another device without asking, and cancel the logs that run wrote after the resume point.
 - **Keep your loading text neutral.** `elements.loading` also shows while the run is being saved, not only while it starts. "Please wait…" suits both; "Starting the experiment…" does not.
 - **Do not let the paused element throw.** It shows while logs are held. If it throws, the run goes to the `error` element.

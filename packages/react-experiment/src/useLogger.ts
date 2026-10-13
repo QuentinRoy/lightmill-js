@@ -1,23 +1,23 @@
 import * as React from 'react';
-import type { RegisteredLog } from './config.js';
+import type { LoggableLog } from './config.js';
 import { loggerContext, noLoggerSymbol } from './contexts.js';
 import type { NotUnion } from './utils.js';
 
 type Simplify<T> = { [K in keyof T]: T[K] } & {};
 
-type UntypedLogFromType<T extends RegisteredLog['type']> = Simplify<
-  Omit<RegisteredLog & { type: T }, 'type'>
+type UntypedLogFromType<T extends LoggableLog['type']> = Simplify<
+  Omit<LoggableLog & { type: T }, 'type'>
 >;
 
 export function useLogger<
-  T extends RegisteredLog['type'],
+  T extends LoggableLog['type'],
   L extends UntypedLogFromType<NotUnion<T>> = UntypedLogFromType<NotUnion<T>>,
 >(logType: T): (log: L) => void;
-export function useLogger(): (log: RegisteredLog) => void;
+export function useLogger(): (log: LoggableLog) => void;
 export function useLogger<
-  T extends RegisteredLog['type'],
+  T extends LoggableLog['type'],
   L extends UntypedLogFromType<NotUnion<T>> = UntypedLogFromType<NotUnion<T>>,
->(logType?: T): ((log: RegisteredLog) => void) | ((log: L) => void) {
+>(logType?: T): ((log: LoggableLog) => void) | ((log: L) => void) {
   const addLog = React.useContext(loggerContext);
   if (addLog == null) {
     throw new Error(
