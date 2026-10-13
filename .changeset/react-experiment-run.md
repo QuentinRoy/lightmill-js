@@ -10,7 +10,7 @@ While logs cannot be delivered, `Run` shows `elements.paused`, whose default has
 
 When the run cannot start or crashes (a task error, a throwing builder, a rejected `addLog` or `completeRun`, or a run that is interrupted or canceled after the timeline completed), `Run` shows `elements.error`. `useRunError()` returns the thrown value unchanged as `{ error }`. The slot renders outside `Run`'s own error boundary, so what it throws reaches the app's. The default tells the participant to contact the experimenter, explains `RUN_EXISTS` and `ONGOING_RUNS`, and has a collapsed block of details, the download link while logs are held and a retry button while delivery is paused.
 
-After a crash, `Run` interrupts the run once every log is stored, retrying a failed interrupt, so a reload lands on the resume prompt. An interrupt failure is logged and does not replace the error. The browser asks for confirmation before the page unloads until the run ends, and while the error slot shows held logs.
+After a crash, `Run` interrupts the run once every log is stored, so a reload lands on the resume prompt. If the logs cannot be stored, it tries again each time a retry stores them. An interrupt failure is logged and does not replace the error; a run left running resumes like an interrupted one. The browser asks for confirmation before the page unloads until the run ends, and while the error slot shows held logs.
 
 `elements.loading`, `elements.resume`, `elements.paused`, `elements.error` and `elements.completed` have defaults.
 
