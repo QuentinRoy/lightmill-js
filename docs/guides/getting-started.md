@@ -318,12 +318,13 @@ Here is what happens when a participant opens the page:
 7. Until the run ends, `Run` asks the browser to confirm before the participant leaves the page.
 8. If the run can't start or crashes, `Run` shows the `error` element. This includes a participant who comes back after completing the experiment, or who opens it in another browser: the run name is taken, and the server refuses it with a `RUN_EXISTS` error. After a crash, `Run` interrupts the run, so reloading the page offers to resume it.
 
-`Run` never resumes on its own, and never cancels a run: a second tab could otherwise cancel the first tab's logs. Canceling a run is up to the host: see [Deploying](deploying.md#cancel-a-run).
+`Run` never resumes on its own (unless you set `dangerouslyAutoResume`, see below), and never cancels a run: a second tab could otherwise cancel the first tab's logs. Canceling a run is up to the host: see [Deploying](deploying.md#cancel-a-run).
 
 ### What to keep in mind
 
 - **Create the client once**, outside of components. A new client is a new run, so a client created while rendering would look up and start the run again at every render.
 - **Keep `Run` mounted until the run ends.** If it unmounts earlier, the run stays ongoing, the page is no longer protected against closing, and a paused logger has no screen.
+- **Use `dangerouslyAutoResume` only in development.** It makes `Run` resume without showing the resume screen, so reloading the page puts you back in the run. In production, it would resume a run the participant has open in another tab or on another device without asking, and cancel the logs that run wrote after the resume point.
 - **Keep your loading text neutral.** `elements.loading` also shows while the run is being saved, not only while it starts. "Please wait…" suits both; "Starting the experiment…" does not.
 - **Do not let the paused element throw.** It shows while logs are held. If it throws, the run goes to the `error` element.
 - **An overriding `paused` or `error` element owns recovery.** The defaults have a download link and a retry button. An element that skips `useLogDelivery` takes that way to keep the logs away from participants.
