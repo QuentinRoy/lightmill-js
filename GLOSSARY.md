@@ -60,3 +60,11 @@ _Avoid_: task list
 **Timeline player**:
 The part of an experiment app that shows a timeline's tasks in turn. It does not manage the run the timeline belongs to.
 _Avoid_: run
+
+**Task result**:
+The data an app hands over when a task of a timeline completes. It goes to the timeline's next step and into the task's completion log.
+_Avoid_: answer, outcome, task data
+
+**Completion log**:
+The log written when a task completes, one per task. Its type is the task's type, and it holds the task's id and result. No other log can take a task's type.
+_Avoid_: resumable log, marker log
