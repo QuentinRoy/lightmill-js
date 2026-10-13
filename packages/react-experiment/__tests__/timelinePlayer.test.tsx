@@ -55,13 +55,13 @@ describe('TimelinePlayer', () => {
 
   beforeEach(() => {
     Task = ({ type, dataProp }: { type: string; dataProp: string }) => {
-      let { task, onTaskCompleted } = useTask(type);
+      let { task, completeTask } = useTask(type);
       return (
         <div>
           <h1>Type {task.type}</h1>
           <p data-testid="data">{task[dataProp] as string}</p>
           <input aria-label="Notes" />
-          <button onClick={onTaskCompleted}>Complete</button>
+          <button onClick={() => completeTask()}>Complete</button>
         </div>
       );
     };
@@ -526,14 +526,14 @@ describe('TimelinePlayer', () => {
       },
     );
     const BadTask = () => {
-      let { onTaskCompleted } = useTask('bad');
+      let { completeTask } = useTask('bad');
       return (
         <div>
           <h1>Bad Task</h1>
           <button
             onClick={() => {
-              wrapper(onTaskCompleted, { shouldFail: false });
-              wrapper(onTaskCompleted, { shouldFail: true });
+              wrapper(completeTask, { shouldFail: false });
+              wrapper(completeTask, { shouldFail: true });
             }}
           >
             Complete
@@ -563,8 +563,8 @@ describe('TimelinePlayer', () => {
     let heldLog: ((log: { type: string }) => void) | undefined;
     const LogTask = () => {
       heldLog = useLogger();
-      const { onTaskCompleted } = useTask();
-      return <button onClick={onTaskCompleted}>Complete</button>;
+      const { completeTask } = useTask();
+      return <button onClick={() => completeTask()}>Complete</button>;
     };
     const onError = vi.fn();
     const element = (onLog?: () => Promise<void>) => (
@@ -587,6 +587,83 @@ describe('TimelinePlayer', () => {
     expect(error).toBeInstanceOf(LogDeliveryError);
     expect(error.log).toEqual({ type: 'L' });
     spy.mockRestore();
+  });
+
+  describe('task results', () => {
+    const AnswerTask = () => {
+      const { task, completeTask } = useTask();
+      return (
+        <button onClick={() => completeTask({ answer: task.n })}>
+          Answer {String(task.n)}
+        </button>
+      );
+    };
+    const elements = {
+      tasks: { Q: <AnswerTask /> },
+      completed: <div data-testid="end" />,
+    };
+
+    it.each([
+      ['without onLog', undefined],
+      ['with onLog', () => Promise.resolve()],
+    ])(
+      'passes the result of completeTask to a sync generator %s',
+      async (_, onLog) => {
+        const user = userEvent.setup();
+        const received: unknown[] = [];
+        render(
+          <TimelinePlayer
+            elements={elements}
+            onLog={onLog}
+            timeline={(function* () {
+              received.push(yield { type: 'Q', n: 1 });
+              received.push(yield { type: 'Q', n: 2 });
+            })()}
+          />,
+        );
+        await user.click(screen.getByText('Answer 1'));
+        await user.click(screen.getByText('Answer 2'));
+        expect(screen.getByTestId('end')).toBeInTheDocument();
+        expect(received).toEqual([{ answer: 1 }, { answer: 2 }]);
+      },
+    );
+
+    it('passes the result of completeTask to an async generator', async () => {
+      const user = userEvent.setup();
+      const received: unknown[] = [];
+      render(
+        <TimelinePlayer
+          elements={elements}
+          timeline={(async function* () {
+            received.push(yield { type: 'Q', n: 1 });
+            received.push(yield { type: 'Q', n: 2 });
+          })()}
+        />,
+      );
+      await user.click(await screen.findByText('Answer 1'));
+      await user.click(await screen.findByText('Answer 2'));
+      expect(await screen.findByTestId('end')).toBeInTheDocument();
+      expect(received).toEqual([{ answer: 1 }, { answer: 2 }]);
+    });
+
+    it('passes the result of completeTask once resumed by resumeAfter', async () => {
+      const user = userEvent.setup();
+      const received: unknown[] = [];
+      render(
+        <TimelinePlayer
+          elements={elements}
+          timeline={resumeAfter(
+            (function* () {
+              received.push(yield { type: 'Q', n: 1 });
+              received.push(yield { type: 'Q', n: 2 });
+            })(),
+            (task) => task.n === 1,
+          )}
+        />,
+      );
+      await user.click(screen.getByText('Answer 2'));
+      expect(received).toEqual([undefined, { answer: 2 }]);
+    });
   });
 
   describe('StrictMode', () => {

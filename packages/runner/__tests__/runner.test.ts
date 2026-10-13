@@ -98,6 +98,56 @@ describe('TimelineRunner', () => {
     ]);
   });
 
+  it('passes task results to a sync generator through next', () => {
+    const received: unknown[] = [];
+    const runner = new TimelineRunner<number, string>({
+      timeline: (function* () {
+        received.push(yield 1);
+        received.push(yield 2);
+      })(),
+    });
+    runner.start();
+    runner.completeTask('one');
+    runner.completeTask('two');
+    expect(received).toEqual(['one', 'two']);
+    expect(runner.status).toBe('completed');
+  });
+
+  it('passes task results through next when onTaskStarted completes its task', () => {
+    const received: unknown[] = [];
+    const runner = new TimelineRunner<number, string>({
+      timeline: (function* () {
+        received.push(yield 1);
+        received.push(yield 2);
+      })(),
+      onTaskStarted(task) {
+        runner.completeTask(`result ${task}`);
+      },
+    });
+    runner.start();
+    expect(received).toEqual(['result 1', 'result 2']);
+    expect(runner.status).toBe('completed');
+  });
+
+  it('passes task results to an async generator through next', async () => {
+    const received: unknown[] = [];
+    const onTaskStarted = vi.fn();
+    const runner = new TimelineRunner<number, string>({
+      timeline: (async function* () {
+        received.push(yield 1);
+        received.push(yield 2);
+      })(),
+      onTaskStarted,
+    });
+    runner.start();
+    await vi.waitFor(() => expect(onTaskStarted).toHaveBeenCalledTimes(1));
+    runner.completeTask('one');
+    await vi.waitFor(() => expect(onTaskStarted).toHaveBeenCalledTimes(2));
+    runner.completeTask('two');
+    await vi.waitFor(() => expect(runner.status).toBe('completed'));
+    expect(received).toEqual(['one', 'two']);
+  });
+
   it('reports an error thrown by a sync timeline through onError', () => {
     const error = new Error('timeline failed');
     const onError = vi.fn();

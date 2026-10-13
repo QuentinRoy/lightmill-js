@@ -6,13 +6,20 @@ import {
 import * as React from 'react';
 import { noSubscribe } from './utils.js';
 
+// What a task passes to completeTask, and the timeline receives from next().
+export type TaskResult = Record<string, unknown>;
+
+// The timeline receives undefined from the first next() call, and after a task
+// completed without a result.
+export type TimelineNext = TaskResult | undefined;
+
 // MaybeAsyncIterator is what resumeAfter returns.
 export type AnyIteratorOrIterable<Task> =
-  | AsyncIterator<Task>
-  | AsyncIterable<Task>
-  | Iterator<Task>
-  | Iterable<Task>
-  | MaybeAsyncIterator<Task>;
+  | AsyncIterator<Task, unknown, TimelineNext>
+  | AsyncIterable<Task, unknown, TimelineNext>
+  | Iterator<Task, unknown, TimelineNext>
+  | Iterable<Task, unknown, TimelineNext>
+  | MaybeAsyncIterator<Task, TimelineNext>;
 
 export type PlayerTaskState<Task> = {
   status: 'task';
@@ -20,7 +27,7 @@ export type PlayerTaskState<Task> = {
   // Different for each started task, even if the timeline yields the same
   // task object twice. Used as the React key so each task mounts fresh.
   taskKey: number;
-  onTaskCompleted: () => void;
+  completeTask: (result?: TaskResult) => void;
 };
 
 export type PlayerState<Task> =
@@ -61,7 +68,7 @@ function createPlayerStore<Task>({
     snapshot = next;
     listeners.forEach((listener) => listener());
   };
-  const runner = new TimelineRunner<Task>({
+  const runner = new TimelineRunner<Task, TimelineNext>({
     timeline:
       resumeAfterTask == null
         ? timeline
@@ -76,9 +83,9 @@ function createPlayerStore<Task>({
         status: 'task',
         task,
         taskKey,
-        onTaskCompleted() {
+        completeTask(result) {
           if (hasBeenCompleted) throw new Error('Task already completed');
-          runner.completeTask();
+          runner.completeTask(result);
           hasBeenCompleted = true;
         },
       });

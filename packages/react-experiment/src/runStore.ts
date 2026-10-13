@@ -8,7 +8,7 @@ import {
   type RunInfo,
   type RunLogger,
 } from './logClient.js';
-import type { AnyIteratorOrIterable } from './playerState.js';
+import type { AnyIteratorOrIterable, TimelineNext } from './playerState.js';
 
 export type RunState =
   | { status: 'looking-up' }
@@ -54,7 +54,7 @@ export type RunStore = {
    */
   getTimeline: (
     build: TimelineBuilder | null,
-  ) => MaybeAsyncIterator<RegisteredTask> | null;
+  ) => MaybeAsyncIterator<RegisteredTask, TimelineNext> | null;
   /**
    * Resumes the run found by the lookup. Calling it again, or when no run
    * awaits confirmation, does nothing.
@@ -128,7 +128,7 @@ function createRunStore(
   const listeners = new Set<() => void>();
   let state: RunState = { status: 'looking-up' };
   let started = false;
-  let timeline: MaybeAsyncIterator<RegisteredTask> | null = null;
+  let timeline: MaybeAsyncIterator<RegisteredTask, TimelineNext> | null = null;
   let completion: Promise<void> | null = null;
   // The builder runs once even when it throws.
   let builderFailure: { error: unknown } | null = null;
@@ -284,7 +284,7 @@ function createRunStore(
 function toIterator(
   timeline: AnyIteratorOrIterable<RegisteredTask>,
   onExhausted: () => void,
-): MaybeAsyncIterator<RegisteredTask> {
+): MaybeAsyncIterator<RegisteredTask, TimelineNext> {
   const iterator =
     Symbol.iterator in timeline
       ? timeline[Symbol.iterator]()
@@ -296,8 +296,8 @@ function toIterator(
     return result;
   };
   return {
-    next() {
-      const result = iterator.next();
+    next(...value) {
+      const result = iterator.next(...value);
       return 'then' in result ? result.then(check) : check(result);
     },
   };

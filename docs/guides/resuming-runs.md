@@ -16,7 +16,7 @@ Resuming cancels the logs that come after the resume point. The server keeps the
 
    ```ts
    log({ taskId: task.id, size: task.size, reactionTime });
-   onTaskCompleted();
+   completeTask();
    ```
 
    A resumable log must mark a completed task. Also log the state the app needs to resume, such as the next level of a staircase or the trial index: the server only gives back the logs.

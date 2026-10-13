@@ -15,11 +15,11 @@ import type { MaybeAsyncIterator, SuperIterator } from './types.js';
  * @returns A timeline starting right after the first matching task. Its first
  * `next()` call throws, or rejects for an async timeline, if no task matches.
  */
-export function resumeAfter<Task>(
-  timeline: SuperIterator<Task>,
+export function resumeAfter<Task, TaskResult = unknown>(
+  timeline: SuperIterator<Task, TaskResult>,
   predicate: (task: Task) => boolean,
-): MaybeAsyncIterator<Task> {
-  const iterator: MaybeAsyncIterator<Task> =
+): MaybeAsyncIterator<Task, TaskResult> {
+  const iterator: MaybeAsyncIterator<Task, TaskResult> =
     Symbol.iterator in timeline
       ? timeline[Symbol.iterator]()
       : Symbol.asyncIterator in timeline
@@ -44,8 +44,8 @@ export function resumeAfter<Task>(
     throw new Error('No task matched the resumeAfter predicate');
   };
   return {
-    next() {
-      if (skipped) return iterator.next();
+    next(...result) {
+      if (skipped) return iterator.next(...result);
       const first = iterator.next();
       return 'then' in first ? first.then(skip) : skip(first);
     },

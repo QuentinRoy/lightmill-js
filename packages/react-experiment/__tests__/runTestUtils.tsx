@@ -8,13 +8,13 @@ import { Run, useLogger, useTask } from '../src/main.js';
 import { getRunStore } from '../src/runStore.js';
 
 export function TrialTask() {
-  const { task, onTaskCompleted } = useTask('trial');
+  const { task, completeTask } = useTask('trial');
   const addLog = useLogger('trial-done');
   return (
     <button
       onClick={() => {
         addLog({ taskId: task.id, level: task.level });
-        onTaskCompleted();
+        completeTask();
       }}
     >
       Done {String(task.id)}

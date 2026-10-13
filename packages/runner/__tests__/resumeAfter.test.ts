@@ -49,6 +49,19 @@ describe('resumeAfter', () => {
     );
   });
 
+  it('passes task results to the timeline once resumed', () => {
+    const received: unknown[] = [];
+    const resumed = resumeAfter(
+      (function* () {
+        for (const task of tasks) received.push(yield task);
+      })(),
+      (task) => task.id === 2,
+    );
+    expect(resumed.next()).toEqual({ value: { id: 3 }, done: false });
+    resumed.next('three');
+    expect(received).toEqual([undefined, undefined, 'three']);
+  });
+
   it('resumes a sync generator', () => {
     function* generate() {
       yield* tasks;
