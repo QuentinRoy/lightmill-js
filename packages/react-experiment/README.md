@@ -137,6 +137,7 @@ Runs one run of an experiment with a [`@lightmill/log-client`](../log-client/REA
 - `resumableLogTypes`: the log types that mark a completed task. `Run` resumes after the last log of one of these types.
 - `timeline`: a function that builds the timeline, or `null` while your app loads it. `Run` calls it once per run, with `resumeLog`: the last resumable log, or `null` for a new run or when none was logged yet. See [Resuming a dynamic timeline](#resuming-a-dynamic-timeline).
 - `elements`: `tasks`, plus a screen for each state, all optional and with a small default: `loading` (also shown while the run is saved, so keep its text neutral), `resume`, `paused`, `error` and `completed`.
+- `dangerouslyAutoResume`: when set, `Run` resumes the run it finds without showing `elements.resume`, and shows `elements.loading` meanwhile. Use it in development so that reloading the page puts you back in the run. Never use it in production: if the participant has the same run open in another tab or on another device, that run is resumed without asking, and the logs it wrote after the resume point are canceled.
 
 `Run` asks the browser to confirm before the page unloads until the run ends. While logs can't be delivered, it shows `elements.paused`. If the run can't start or crashes, it shows `elements.error`, interrupts the run so a reload offers to resume it, and keeps the logs it holds recoverable.
 

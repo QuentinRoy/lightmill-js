@@ -48,6 +48,14 @@ export type RunProps = {
    */
   timeline: TimelineBuilder | null;
   elements: RunElements;
+  /**
+   * Resumes a run found by the lookup without asking: the loading slot shows
+   * instead of the resume slot. Use it in development to make reloads
+   * painless, never in production: another tab or device playing the same
+   * run is resumed silently, and the logs it wrote after the resume point
+   * are canceled.
+   */
+  dangerouslyAutoResume?: boolean;
 };
 
 const defaultLoading = <p>Loading…</p>;
@@ -78,6 +86,7 @@ export function Run({
   resumableLogTypes,
   timeline,
   elements,
+  dangerouslyAutoResume = false,
 }: RunProps): React.JSX.Element {
   const store = useRunStore({
     client,
@@ -90,6 +99,11 @@ export function Run({
     store.getSnapshot,
     store.getSnapshot,
   );
+  const autoResume =
+    dangerouslyAutoResume && state.status === 'awaiting-confirmation';
+  React.useEffect(() => {
+    if (autoResume) store.resume();
+  }, [autoResume, store]);
   const loading = elements.loading ?? defaultLoading;
   // There is no logger before the run starts or when it fails to.
   const logger =
@@ -101,7 +115,9 @@ export function Run({
       content = loading;
       break;
     case 'awaiting-confirmation':
-      content = (
+      content = autoResume ? (
+        loading
+      ) : (
         <ResumeProvider store={store} state={state}>
           {elements.resume ?? defaultResume}
         </ResumeProvider>

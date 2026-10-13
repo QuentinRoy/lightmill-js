@@ -308,6 +308,41 @@ describe('Run', () => {
     );
 
     serverTest(
+      'resumes without the prompt, showing loading, with dangerouslyAutoResume',
+      async ({ server }) => {
+        await server.addExperiment('exp');
+        await leaveRunAfterFirstTask(server);
+        const shown: string[] = [];
+        function Track({ name }: { name: string }) {
+          shown.push(name);
+          return null;
+        }
+        const user = userEvent.setup();
+        await renderAsync(
+          run(newClient(server), {
+            timeline: resumableTimeline,
+            dangerouslyAutoResume: true,
+            elements: {
+              ...elements,
+              loading: <Track name="loading" />,
+              resume: <Track name="resume" />,
+            },
+          }),
+        );
+
+        await user.click(await screen.findByRole('button', { name: 'Done b' }));
+
+        expect(await screen.findByText('The end')).toBeInTheDocument();
+        expect(shown).toContain('loading');
+        expect(shown).not.toContain('resume');
+        await expect(server.storedLogs()).resolves.toMatchObject([
+          { number: 1, values: { taskId: 'a' } },
+          { number: 2, values: { taskId: 'b' } },
+        ]);
+      },
+    );
+
+    serverTest(
       'does not play anything until the participant confirms',
       async ({ server }) => {
         await server.addExperiment('exp');
