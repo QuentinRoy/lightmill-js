@@ -68,3 +68,7 @@ _Avoid_: answer, outcome, task data
 **Completion log**:
 The log written when a task completes, one per task. Its type is the task's type, and it holds the task's id and result. No other log can take a task's type.
 _Avoid_: resumable log, marker log
+
+**Replay**:
+Stepping a resumed run's timeline through its completed tasks without showing them, passing back each one's task result from its completion log, so the timeline reaches the task where the run stopped. Each task must match the next completion log's id and type.
+_Avoid_: fast-forward, skip

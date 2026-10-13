@@ -28,3 +28,17 @@ export class RunRemountedError extends Error {
     );
   }
 }
+
+/**
+ * Replaying a resumed run found another timeline than the one the run played:
+ * a task changed, the timeline ended early, or a completed task came back.
+ */
+export class TimelineMismatchError extends Error {
+  override name = 'TimelineMismatchError';
+  readonly code = 'TIMELINE_MISMATCH';
+  constructor(mismatch: string) {
+    super(
+      `${mismatch} The timeline changed since the run started, so the run was stopped and interrupted. Resume a run with the timeline it started with.`,
+    );
+  }
+}

@@ -5,7 +5,7 @@ export type ResumeRun = {
   /** Resumes the run. Calling it more than once does nothing. */
   resume: () => void;
   run: RunInfo;
-  /** The last resumable log, or `null` when none was logged yet. */
+  /** The last completion log, or `null` when no task was completed yet. */
   lastLog: ResumeLog | null;
 };
 

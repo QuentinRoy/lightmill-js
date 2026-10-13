@@ -21,7 +21,7 @@ export function TrialTask() {
   );
 }
 
-export const timeline = () => [
+export const timeline = [
   { type: 'trial', id: 'a' },
   { type: 'trial', id: 'b' },
 ];
@@ -44,7 +44,6 @@ export function run(
       client={client}
       experimentName="exp"
       runName="run-1"
-      resumableLogTypes={['trial']}
       timeline={timeline}
       elements={elements}
       {...props}
@@ -121,7 +120,7 @@ export function loggerOf(client: Client): RunLogger {
     client,
     experimentName: 'exp',
     runName: 'run-1',
-    resumableLogTypes: ['trial'],
+    taskTypes: ['trial'],
   }).getSnapshot();
   if (state.status !== 'ready') throw new Error('The run is not ready');
   return state.logger;

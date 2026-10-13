@@ -5,7 +5,6 @@ import * as React from 'react';
 import { expect, vi } from 'vitest';
 import {
   Run,
-  resumeAfter,
   useLogDelivery,
   useLogger,
   useResumeRun,
@@ -68,10 +67,10 @@ describe('Run', () => {
       await renderAsync(
         run(newClient(server), {
           elements: { ...elements, tasks: { trial: <AnswerTask /> } },
-          timeline: async function* () {
+          timeline: (async function* () {
             received.push(yield { type: 'trial', id: 'a' });
             received.push(yield { type: 'trial', id: 'b' });
-          },
+          })(),
         }),
       );
 
@@ -218,7 +217,7 @@ describe('Run', () => {
       await renderAsync(
         run(newClient(server), {
           elements: { tasks: { trial: <Task /> } },
-          timeline: () => [{ type: 'trial' }],
+          timeline: [{ type: 'trial' }],
         }),
       );
 
@@ -235,7 +234,7 @@ describe('Run', () => {
       const user = userEvent.setup();
       await renderAsync(
         run(newClient(server), {
-          timeline: () => [
+          timeline: [
             { type: 'trial', id: 'a' },
             { type: 'trial', id: 'a' },
           ],
@@ -298,21 +297,18 @@ describe('Run', () => {
     },
   );
 
-  serverTest(
-    'builds the timeline once under StrictMode',
-    async ({ server }) => {
-      await server.addExperiment('exp');
-      const build = vi.fn(timeline);
-      await renderAsync(
-        <React.StrictMode>
-          {run(newClient(server), { timeline: build })}
-        </React.StrictMode>,
-      );
+  serverTest('reads the timeline once under StrictMode', async ({ server }) => {
+    await server.addExperiment('exp');
+    const read = vi.fn(() => timeline.values());
+    await renderAsync(
+      <React.StrictMode>
+        {run(newClient(server), { timeline: { [Symbol.iterator]: read } })}
+      </React.StrictMode>,
+    );
 
-      await screen.findByRole('button', { name: 'Done a' });
-      expect(build).toHaveBeenCalledTimes(1);
-    },
-  );
+    await screen.findByRole('button', { name: 'Done a' });
+    expect(read).toHaveBeenCalledTimes(1);
+  });
 
   serverTest(
     'switches to another run when the experiment name changes',
@@ -411,15 +407,6 @@ describe('Run', () => {
   );
 
   describe('resuming', () => {
-    const resumableTimeline = ({
-      resumeLog,
-    }: {
-      resumeLog: Record<string, unknown> | null;
-    }) =>
-      resumeLog == null
-        ? timeline()
-        : resumeAfter(timeline(), (task) => task.id === resumeLog.taskId);
-
     // Plays the first task of a run, waits until its log is stored, then
     // drops the page, like a reload does.
     async function leaveRunAfterFirstTask(
@@ -441,9 +428,7 @@ describe('Run', () => {
         await server.addExperiment('exp');
         await leaveRunAfterFirstTask(server);
         const user = userEvent.setup();
-        await renderAsync(
-          run(newClient(server), { timeline: resumableTimeline }),
-        );
+        await renderAsync(run(newClient(server), {}));
 
         await user.click(await screen.findByRole('button', { name: 'Resume' }));
         await user.click(await screen.findByRole('button', { name: 'Done b' }));
@@ -473,7 +458,6 @@ describe('Run', () => {
         const user = userEvent.setup();
         await renderAsync(
           run(newClient(server), {
-            timeline: resumableTimeline,
             dangerouslyAutoResume: true,
             elements: {
               ...elements,
@@ -500,14 +484,16 @@ describe('Run', () => {
       async ({ server }) => {
         await server.addExperiment('exp');
         await leaveRunAfterFirstTask(server);
-        const build = vi.fn(resumableTimeline);
-        await renderAsync(run(newClient(server), { timeline: build }));
+        const read = vi.fn(() => timeline.values());
+        await renderAsync(
+          run(newClient(server), { timeline: { [Symbol.iterator]: read } }),
+        );
 
         expect(
           await screen.findByRole('button', { name: 'Resume' }),
         ).toBeInTheDocument();
         expect(screen.queryByRole('button', { name: /Done/ })).toBeNull();
-        expect(build).not.toHaveBeenCalled();
+        expect(read).not.toHaveBeenCalled();
         expect(server.requestCount('PATCH', /^\/runs\//)).toBe(0);
       },
     );
@@ -528,7 +514,6 @@ describe('Run', () => {
         const user = userEvent.setup();
         await renderAsync(
           run(newClient(server), {
-            timeline: resumableTimeline,
             elements: { ...elements, resume: <CustomResume /> },
           }),
         );
@@ -556,7 +541,6 @@ describe('Run', () => {
         }
         await renderAsync(
           run(newClient(server), {
-            timeline: resumableTimeline,
             elements: { ...elements, resume: <CustomResume /> },
           }),
         );
@@ -568,62 +552,229 @@ describe('Run', () => {
     );
 
     serverTest(
-      'shows the prompt at resume number 0 and builds with a null resume log',
+      'shows the prompt at resume number 0, then plays from the first task',
       async ({ server }) => {
         await server.addExperiment('exp');
         const user = userEvent.setup();
         const first = await renderAsync(run(newClient(server), {}));
         await screen.findByRole('button', { name: 'Done a' });
         first.unmount();
-        const build = vi.fn(resumableTimeline);
-        await renderAsync(run(newClient(server), { timeline: build }));
+        await renderAsync(run(newClient(server), {}));
 
         await user.click(await screen.findByRole('button', { name: 'Resume' }));
+        await user.click(await screen.findByRole('button', { name: 'Done a' }));
+        await user.click(await screen.findByRole('button', { name: 'Done b' }));
 
-        expect(
-          await screen.findByRole('button', { name: 'Done a' }),
-        ).toBeInTheDocument();
-        expect(build).toHaveBeenCalledExactlyOnceWith({ resumeLog: null });
+        expect(await screen.findByText('The end')).toBeInTheDocument();
+        await expect(server.storedLogs()).resolves.toMatchObject([
+          { number: 1, values: { taskId: 'a' } },
+          { number: 2, values: { taskId: 'b' } },
+        ]);
+      },
+    );
+
+    // Each level depends on every earlier answer, which only the timeline
+    // remembers.
+    function* staircase(): Generator<
+      { type: string; id: string; level: number },
+      void,
+      Record<string, unknown> | undefined
+    > {
+      let level = 1;
+      for (let trial = 1; trial <= 3; trial++) {
+        const result = yield { type: 'trial', id: `t${trial}`, level };
+        level += result?.correct === true ? 1 : -1;
+      }
+    }
+    function StairTask() {
+      const { task, completeTask } = useTask('trial');
+      const addNote = useLogger('note');
+      return (
+        <>
+          <p>
+            {String(task.id)} at level {String(task.level)}
+          </p>
+          <button onClick={() => completeTask({ correct: true })}>Right</button>
+          <button onClick={() => addNote({ text: String(task.id) })}>
+            Note
+          </button>
+        </>
+      );
+    }
+    const stairElements = { ...elements, tasks: { trial: <StairTask /> } };
+
+    async function* asyncStaircase() {
+      yield* staircase();
+    }
+
+    serverTest.for([
+      ['sync', staircase],
+      ['async', asyncStaircase],
+    ] as const)(
+      'replays a %s timeline with the logged results, reaching the same next task',
+      async ([, makeTimeline], { server }) => {
+        await server.addExperiment('exp');
+        const user = userEvent.setup();
+        const first = await renderAsync(
+          run(newClient(server), {
+            timeline: makeTimeline(),
+            elements: stairElements,
+          }),
+        );
+        await user.click(await screen.findByRole('button', { name: 'Right' }));
+        await screen.findByText('t2 at level 2');
+        await user.click(screen.getByRole('button', { name: 'Right' }));
+        await screen.findByText('t3 at level 3');
+        // The participant abandons t3 after it logged something.
+        await user.click(screen.getByRole('button', { name: 'Note' }));
+        await vi.waitFor(async () => {
+          expect(await server.storedLogs()).toHaveLength(3);
+        });
+        first.unmount();
+
+        await renderAsync(
+          run(newClient(server), {
+            timeline: makeTimeline(),
+            elements: stairElements,
+          }),
+        );
+        await user.click(await screen.findByRole('button', { name: 'Resume' }));
+
+        expect(await screen.findByText('t3 at level 3')).toBeVisible();
+        await user.click(screen.getByRole('button', { name: 'Right' }));
+        expect(await screen.findByText('The end')).toBeInTheDocument();
+        // t3 restarted: its note was canceled.
+        await expect(server.storedLogs()).resolves.toMatchObject([
+          { number: 1, type: 'trial', values: { taskId: 't1', correct: true } },
+          { number: 2, type: 'trial', values: { taskId: 't2', correct: true } },
+          { number: 3, type: 'trial', values: { taskId: 't3', correct: true } },
+        ]);
       },
     );
 
     serverTest(
-      'gives the builder the state that was logged',
+      'gives the timeline the same value when a task completes without a result, live or replayed',
       async ({ server }) => {
         await server.addExperiment('exp');
-        // A staircase: the next level depends on the logged one.
-        const staircase = ({
-          resumeLog,
-        }: {
-          resumeLog: Record<string, unknown> | null;
-        }) => {
-          const next = resumeLog == null ? 1 : Number(resumeLog.level) + 1;
-          return [next, next + 1].map((level) => ({
-            type: 'trial',
-            id: `level-${level}`,
-            level,
-          }));
-        };
+        const received: unknown[] = [];
+        function* recording() {
+          received.push(yield { type: 'trial', id: 'a' });
+          received.push(yield { type: 'trial', id: 'b' });
+        }
         const user = userEvent.setup();
         const first = await renderAsync(
-          run(newClient(server), { timeline: staircase }),
+          run(newClient(server), { timeline: recording() }),
         );
-        await user.click(
-          await screen.findByRole('button', { name: 'Done level-1' }),
-        );
+        await user.click(await screen.findByRole('button', { name: 'Done a' }));
+        await screen.findByRole('button', { name: 'Done b' });
         await vi.waitFor(async () => {
           expect(await server.storedLogs()).toHaveLength(1);
         });
         first.unmount();
-        await renderAsync(run(newClient(server), { timeline: staircase }));
+        const live = received.splice(0);
 
+        await renderAsync(run(newClient(server), { timeline: recording() }));
         await user.click(await screen.findByRole('button', { name: 'Resume' }));
+        await screen.findByRole('button', { name: 'Done b' });
 
-        expect(
-          await screen.findByRole('button', { name: 'Done level-2' }),
-        ).toBeInTheDocument();
+        expect(received).toEqual(live);
       },
     );
+
+    describe('when the timeline does not match the completion logs', () => {
+      beforeEach(() => {
+        vi.spyOn(console, 'error').mockImplementation(() => {});
+        vi.spyOn(console, 'warn').mockImplementation(() => {});
+      });
+
+      function OtherTask() {
+        const { task } = useTask();
+        return <p>Other {String(task.id)}</p>;
+      }
+      const mismatchElements = {
+        ...elements,
+        tasks: { ...elements.tasks, other: <OtherTask /> },
+      };
+
+      serverTest.for([
+        [
+          'a task id changed',
+          [
+            { type: 'trial', id: 'a' },
+            { type: 'trial', id: 'x' },
+          ],
+        ],
+        [
+          'a task type changed',
+          [
+            { type: 'trial', id: 'a' },
+            { type: 'other', id: 'b' },
+          ],
+        ],
+        [
+          'the timeline ends before the last logged task',
+          [{ type: 'trial', id: 'a' }],
+        ],
+        [
+          'a later task reuses a logged id',
+          [
+            { type: 'trial', id: 'a' },
+            { type: 'trial', id: 'b' },
+            { type: 'trial', id: 'a' },
+          ],
+        ],
+      ] as const)(
+        'shows TIMELINE_MISMATCH and interrupts the run when %s',
+        async ([, changed], { server }) => {
+          await server.addExperiment('exp');
+          const user = userEvent.setup();
+          const first = await renderAsync(
+            run(newClient(server), {
+              timeline: [
+                { type: 'trial', id: 'a' },
+                { type: 'trial', id: 'b' },
+                { type: 'trial', id: 'c' },
+              ],
+              elements: mismatchElements,
+            }),
+          );
+          await user.click(
+            await screen.findByRole('button', { name: 'Done a' }),
+          );
+          await user.click(
+            await screen.findByRole('button', { name: 'Done b' }),
+          );
+          await screen.findByRole('button', { name: 'Done c' });
+          await vi.waitFor(async () => {
+            expect(await server.storedLogs()).toHaveLength(2);
+          });
+          first.unmount();
+
+          await renderAsync(
+            run(newClient(server), {
+              timeline: changed,
+              elements: mismatchElements,
+            }),
+          );
+          await user.click(
+            await screen.findByRole('button', { name: 'Resume' }),
+          );
+
+          expect(await screen.findByText(/unexpected error/)).toBeVisible();
+          expect(screen.getByRole('group')).toHaveTextContent(
+            'Code: TIMELINE_MISMATCH',
+          );
+          expect(screen.queryByRole('button', { name: /Done/ })).toBeNull();
+          expect(screen.queryByText(/Other/)).toBeNull();
+          await vi.waitFor(async () => {
+            await expect(server.storedRuns()).resolves.toEqual([
+              { runName: 'run-1', runStatus: 'interrupted' },
+            ]);
+          });
+          await expect(server.storedLogs()).resolves.toHaveLength(2);
+        },
+      );
+    });
 
     serverTest(
       'sends one resume request when the participant double-clicks or StrictMode renders twice',
@@ -632,9 +783,7 @@ describe('Run', () => {
         await leaveRunAfterFirstTask(server);
         const user = userEvent.setup();
         await renderAsync(
-          <React.StrictMode>
-            {run(newClient(server), { timeline: resumableTimeline })}
-          </React.StrictMode>,
+          <React.StrictMode>{run(newClient(server), {})}</React.StrictMode>,
         );
 
         await user.dblClick(

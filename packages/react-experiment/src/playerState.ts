@@ -10,8 +10,7 @@ import { noSubscribe } from './utils.js';
 // What a task passes to completeTask, and the timeline receives from next().
 export type TaskResult = Record<string, unknown>;
 
-// The timeline receives undefined from the first next() call, and after a task
-// completed without a result.
+// The timeline receives undefined from the first next() call only.
 export type TimelineNext = TaskResult | undefined;
 
 // MaybeAsyncIterator is what resumeAfter returns.
@@ -133,7 +132,9 @@ function createPlayerStore<Task extends Typed>({
           }
           log?.({ ...result, type: task.type, taskId });
           hasBeenCompleted = true;
-          runner.completeTask(result);
+          // A replay reads the result back from the completion log, where no
+          // result is an empty one.
+          runner.completeTask(result ?? {});
         },
       });
     },

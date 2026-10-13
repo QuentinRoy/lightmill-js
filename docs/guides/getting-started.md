@@ -194,10 +194,10 @@ Leave the server running and open another terminal for the rest of the tutorial.
 
 ## Wire it together
 
-`Run` is the component that runs one run of the experiment. You give it the log client, the experiment and run names, and your task components. It does the rest:
+`Run` is the component that runs one run of the experiment. You give it the log client, the experiment and run names, the timeline, and your task components. It does the rest:
 
 - finds out whether the participant has a run in progress, and asks before resuming it,
-- builds the timeline and skips the tasks already done,
+- plays the timeline, and on resume replays it up to the last completed task,
 - sends the logs to the server and completes the run once every log is stored,
 - shows a screen while it loads, when saving fails, when something goes wrong, and when the run is complete,
 - asks the browser to confirm before the page closes.
@@ -208,12 +208,7 @@ Replace the local player in `src/App.tsx` with this file. Keep `src/experiment.t
 
 ```tsx
 import { Client, RequestError } from '@lightmill/log-client';
-import {
-  resumeAfter,
-  Run,
-  useLogDelivery,
-  useRunError,
-} from '@lightmill/react-experiment';
+import { Run, useLogDelivery, useRunError } from '@lightmill/react-experiment';
 import { useEffect } from 'react';
 import { createTimeline, type Log } from './experiment.ts';
 import { Intro, Trial } from './tasks.tsx';
@@ -234,13 +229,7 @@ export default function App() {
       client={client}
       experimentName="reaction-time"
       runName={`participant-${participant}`}
-      resumableLogTypes={['intro', 'trial']}
-      timeline={({ resumeLog }) => {
-        const timeline = createTimeline(participant);
-        return resumeLog == null
-          ? timeline
-          : resumeAfter(timeline, (task) => task.id === resumeLog.taskId);
-      }}
+      timeline={createTimeline(participant)}
       elements={{
         tasks: { intro: <Intro />, trial: <Trial /> },
         paused: (
@@ -304,7 +293,7 @@ Here is what happens when a participant opens the page:
 1. The app reads the participant number from the URL, for example `?participant=3`, and names the run after it. A run is one participant going through the experiment once.
 2. `Run` asks the server whether this browser already started this run. While it waits, it shows "Loading…".
 3. If it did, `Run` shows "You have a session in progress." with a Resume button, and resumes the run once the participant clicks it. Otherwise, `Run` starts a new run. React's development mode renders components twice, but `Run` starts or resumes the run only once.
-4. `Run` calls the `timeline` function once, with `resumeLog`: the last log whose type is in `resumableLogTypes`, or `null` for a new run. When resuming, `resumeAfter` skips every task up to the one the log names.
+4. `Run` plays the timeline once per run. When resuming, it first reads the run's completion logs and replays the timeline without showing any task, up to the last completed one, then continues from there. See [Resuming runs](resuming-runs.md).
 5. Each task completes with `completeTask`, and `Run` writes its completion log. `Run` sends the logs to the server in the background. If the server can't be reached for a while, `Run` shows the `paused` element once the current task ends. `Recovery` offers to download the answers the server does not have, and a button to send them again.
 6. When the timeline ends, `Run` shows "Loading…" until every log is stored and the server has the run completed. Then it shows `completed`.
 7. Until the run ends, `Run` asks the browser to confirm before the participant leaves the page.
@@ -367,7 +356,7 @@ There is one row per log. The first columns say where the log comes from, and th
 
 The defaults of `Run` are plain on purpose: unstyled, in English, and not configurable. Build your own screens rather than customizing them. Each default is a few lines of code on top of three hooks, copied below. Paste the ones you want, and change their text and markup.
 
-- `useResumeRun()` is for `elements.resume`. It returns `{ resume, run, lastLog }`: a function to resume the run, the run found on the server, and its last resumable log (`null` when none was logged yet).
+- `useResumeRun()` is for `elements.resume`. It returns `{ resume, run, lastLog }`: a function to resume the run, the run found on the server, and its last completion log (`null` when no task was completed yet).
 - `useLogDelivery()` works in every element of `Run`, including `elements.error` when the run never started. It returns `{ error, inFlightLogs, retry }`: why delivery is paused (`null` when it is not), the logs the server has not stored, and a function to send them again. `retry` never rejects and does nothing outside a pause, so you can use it as is in a click handler.
 - `useRunError()` is for `elements.error`. It returns `{ error }`: the value that was thrown, unchanged.
 
