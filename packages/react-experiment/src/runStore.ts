@@ -60,6 +60,13 @@ export type RunStore = {
    * awaits confirmation, does nothing.
    */
   resume: () => void;
+  /**
+   * Makes `owner`, a `Run` instance, the one that plays the run. Once the run
+   * is ready, the owner no longer changes.
+   */
+  claim: (owner: object) => void;
+  /** Whether the run is ready and another `Run` instance plays it. */
+  isRemount: (owner: object) => boolean;
   /** Completes the run. Calling it again returns the first call's promise. */
   completeRun: () => Promise<void>;
   /**
@@ -133,6 +140,7 @@ function createRunStore(
   // The builder runs once even when it throws.
   let builderFailure: { error: unknown } | null = null;
   let crashedLogger: RunLogger | null = null;
+  let owner: object | null = null;
   let interrupting = false;
   // Failed interrupts since the logger last went idle.
   let interruptFailures = 0;
@@ -246,6 +254,12 @@ function createRunStore(
       const { run, lastLog, after } = state;
       setState({ status: 'starting' });
       begin(client.startRun({ runId: run.id, after }), lastLog).catch(fail);
+    },
+    claim(newOwner) {
+      if (state.status !== 'ready' || owner == null) owner = newOwner;
+    },
+    isRemount(candidate) {
+      return state.status === 'ready' && owner != null && owner !== candidate;
     },
     getTimeline(build) {
       if (timeline != null) return timeline;

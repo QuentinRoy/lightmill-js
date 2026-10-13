@@ -19,6 +19,8 @@ function sentenceFor(error: unknown): string {
       return 'A session with this name already exists. It may already be running on this device.';
     case 'ONGOING_RUNS':
       return 'You already have a session in progress, perhaps in another tab or on another device.';
+    case 'RUN_REMOUNTED':
+      return 'The experiment stopped because of an error in its code. Please tell the experimenter. Reloading the page may let you continue.';
     default:
       return 'The experiment could not continue because of an unexpected error. Contact the experimenter and give them the details below.';
   }
