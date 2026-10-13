@@ -89,9 +89,6 @@ export function isSameRun(a: RunIdentity, b: RunIdentity): boolean {
   );
 }
 
-const maxInterruptRetries = 5;
-const interruptRetryDelayMs = 1000;
-
 const stores = new WeakMap<RunClient, Map<string, RunStore>>();
 let storeCount = 0;
 
@@ -134,9 +131,6 @@ function createRunStore(
   let builderFailure: { error: unknown } | null = null;
   let crashedLogger: RunLogger | null = null;
   let interrupting = false;
-  // Failed interrupts since the logger last went idle.
-  let interruptFailures = 0;
-  let interruptTimer: ReturnType<typeof setTimeout> | undefined;
 
   const setState = (next: RunState) => {
     state = next;
@@ -174,13 +168,9 @@ function createRunStore(
     const logger = await loggerPromise;
     logger.subscribe((loggerState) => {
       if (loggerState.status === 'idle' && logger === crashedLogger) {
-        interruptFailures = 0;
         interrupt(logger);
       }
-      if (hasEnded(loggerState)) {
-        clearTimeout(interruptTimer);
-        evict();
-      }
+      if (hasEnded(loggerState)) evict();
     });
     setState({ status: 'ready', logger, resumeLog, timelineExhausted: false });
   }
@@ -192,12 +182,11 @@ function createRunStore(
 
   // Never throws and never replaces the error that crashed the run: the
   // failure is logged, and the logger being live, the held logs stay in it.
-  // The logger may not change state again after a failure (a refused request,
-  // an idle event that came while interrupting), so a failure schedules
-  // another try, with a growing delay and a limit.
+  // Nothing retries on a timer: log-client already retried the request, and
+  // a refusal does not fix itself. A run left running resumes like an
+  // interrupted one.
   function interrupt(logger: RunLogger) {
     if (interrupting || !isLive(logger.state)) return;
-    clearTimeout(interruptTimer);
     interrupting = true;
     logger.interruptRun().then(
       () => {
@@ -210,11 +199,6 @@ function createRunStore(
         console.warn(
           'Could not interrupt the run after it crashed',
           interruptError,
-        );
-        if (interruptFailures >= maxInterruptRetries) return;
-        interruptTimer = setTimeout(
-          () => interrupt(logger),
-          interruptRetryDelayMs * 2 ** interruptFailures++,
         );
       },
     );

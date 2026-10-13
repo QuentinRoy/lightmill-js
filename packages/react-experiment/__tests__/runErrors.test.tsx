@@ -235,15 +235,20 @@ describe('Run when the run crashes', () => {
   );
 
   serverTest(
-    'keeps the download link and a retry button while delivery is paused, then interrupts once a retry succeeds',
+    'keeps the download link and a retry button while the interrupt cannot flush, then interrupts once a retry succeeds',
     async ({ server }) => {
       await server.addExperiment('exp');
       const fault = failDelivery(server);
       const user = userEvent.setup();
-      await renderAsync(run(newClient(server), { elements: crashingElements }));
+      const page = await renderAsync(
+        run(newClient(server), { elements: crashingElements }),
+      );
 
       await user.click(await screen.findByRole('button', { name: 'Crash' }));
 
+      await vi.waitFor(() => {
+        expect(console.warn).toHaveBeenCalledTimes(1);
+      });
       const link = await screen.findByRole('link', { name: /download/i });
       expect(decodeURIComponent(link.getAttribute('href') ?? '')).toContain(
         '"taskId": "a"',
@@ -265,6 +270,12 @@ describe('Run when the run crashes', () => {
       expect(screen.getByText(/unexpected error/)).toBeVisible();
       expect(screen.queryByRole('button', { name: /retry/i })).toBeNull();
       expect(isUnloadPrevented()).toBe(false);
+
+      page.unmount();
+      await renderAsync(run(newClient(server)));
+      expect(
+        await screen.findByRole('button', { name: 'Resume' }),
+      ).toBeVisible();
     },
   );
 
