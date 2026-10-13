@@ -146,6 +146,7 @@ describe('Run when delivery is paused', () => {
       } as unknown as RunLogger;
       const client: RunClient = {
         getResumableRuns: () => Promise.resolve([]),
+        getRunLogs: () => Promise.resolve([]),
         startRun: () => Promise.resolve(logger),
       };
       const user = userEvent.setup();

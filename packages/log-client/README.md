@@ -158,6 +158,12 @@ Lists the runs the current browser session started that are running or interrupt
 
 Without a session, it resolves with an empty list.
 
+### `client.getRunLogs({ runId, logTypes })`
+
+Lists the logs of a run whose type is in `logTypes`, in log-number order, for example to replay a run. Each result is `{ number, log }`, where `log` holds the log's values and its `type`, with dates as ISO 8601 strings. The logs a resume canceled are left out, and so are stranded logs. Pass the last result as `after` to `startRun` to resume after it.
+
+The session only sees the runs it started, so a run it didn't start lists no logs. The client reads the whole list before resolving; there is no paging.
+
 ### `client.logout()`
 
 Ends the session on the server. The browser can no longer find its runs.

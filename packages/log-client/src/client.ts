@@ -215,6 +215,52 @@ export class LightmillClient<ClientLog extends LogBase = AnyLog> {
   }
 
   /**
+   * Lists a run's logs of the given types, in log-number order. Canceled logs
+   * (from before a resume) and stranded logs (above a missing log number) are
+   * left out. The whole response is read before it resolves.
+   *
+   * @typeParam T - Log types to list.
+   * @param options Query options.
+   * @param options.runId Run whose logs to list.
+   * @param options.logTypes Types of the logs to list.
+   * @returns The logs with their numbers. Dates are ISO strings.
+   */
+  async getRunLogs<T extends ClientLog['type']>({
+    runId,
+    logTypes,
+  }: {
+    runId: string;
+    logTypes: T[];
+  }): Promise<
+    Array<{
+      number: number;
+      log: GetLogValuesWithType<ClientLog & { type: T }>;
+    }>
+  > {
+    // An empty filter is not sent, and the server would list every type.
+    if (logTypes.length === 0) return [];
+    let response = await this.#fetchClient.GET('/logs', {
+      params: {
+        query: { 'filter[run.id]': runId, 'filter[logType]': logTypes },
+        // The server answers CSV by default.
+        header: { accept: mediaType },
+      },
+    });
+    let body = unwrap(response);
+    if (typeof body === 'string') {
+      throw new TypeError('Expected a JSON response, got CSV');
+    }
+    return body.data.map(({ attributes: { number, logType, values } }) => ({
+      number,
+      // The server stores what loggers of this client sent, so values
+      // match the log type.
+      log: { ...values, type: logType } as GetLogValuesWithType<
+        ClientLog & { type: T }
+      >,
+    }));
+  }
+
+  /**
    * Starts a new run or resumes an existing run.
    *
    * @param options Run start or resume options.
