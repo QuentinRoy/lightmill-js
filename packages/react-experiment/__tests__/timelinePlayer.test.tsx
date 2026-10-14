@@ -457,24 +457,32 @@ describe('TimelinePlayer', () => {
   });
 
   it.each([
-    ['has no id', [{ type: 'A', a: 'hello' }]],
+    ['has no id', [{ type: 'A', a: 'hello' }], undefined],
+    [
+      'is neither a string nor a number',
+      [{ type: 'A', id: { n: 1 }, a: 'hello' }],
+      undefined,
+    ],
     [
       'is already used',
       [
         { type: 'A', id: 'same', a: 'hello' },
         { type: 'A', id: 'same', a: 'world' },
       ],
+      'TIMELINE_MISMATCH',
     ],
   ])(
     'throws without rendering a task whose id %s',
-    async (message, timeline) => {
+    async (message, timeline, code) => {
       const user = userEvent.setup();
       const spy = vi.spyOn(console, 'error');
       spy.mockImplementation(() => {});
+      const onError = vi.fn();
       render(
-        <ErrorBoundary>
+        <ErrorBoundary onError={onError}>
           <TimelinePlayer
             elements={{ tasks: { A: <Task type="A" dataProp="a" /> } }}
+            // @ts-expect-error - some ids are invalid on purpose.
             timeline={timeline}
           />
         </ErrorBoundary>,
@@ -483,6 +491,9 @@ describe('TimelinePlayer', () => {
         await user.click(screen.getByRole('button'));
       }
       expect(screen.getByTestId('error')).toHaveTextContent(message);
+      const error = onError.mock.lastCall?.[0];
+      if (code == null) expect(error).not.toHaveProperty('code');
+      else expect(error).toHaveProperty('code', code);
       expect(screen.queryByTestId('data')).toBeNull();
       spy.mockRestore();
     },

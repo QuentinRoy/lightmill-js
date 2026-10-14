@@ -1,4 +1,8 @@
-import type { MaybeAsyncIterator, SuperIterator } from './types.js';
+import {
+  type MaybeAsyncIterator,
+  type SuperIterator,
+  toIterator,
+} from './types.js';
 
 /**
  * Skips every task up to and including the first one matching `predicate`.
@@ -19,12 +23,7 @@ export function resumeAfter<Task, TaskResult = unknown>(
   timeline: SuperIterator<Task, TaskResult>,
   predicate: (task: Task) => boolean,
 ): MaybeAsyncIterator<Task, TaskResult> {
-  const iterator: MaybeAsyncIterator<Task, TaskResult> =
-    Symbol.iterator in timeline
-      ? timeline[Symbol.iterator]()
-      : Symbol.asyncIterator in timeline
-        ? timeline[Symbol.asyncIterator]()
-        : timeline;
+  const iterator = toIterator(timeline);
   let skipped = false;
   // Skipping in a loop rather than completing each task from a runner's
   // onTaskStarted avoids a recursion that overflows the stack on long

@@ -8,7 +8,11 @@ export interface Typed<T extends string = string> {
   type: T;
 }
 
+/** Identifies a task within its timeline. */
+export type TaskId = string | number;
+
 export interface AnyTask extends Typed {
+  id: TaskId;
   [key: PropertyKey]: unknown;
 }
 
@@ -20,7 +24,7 @@ export interface AnyLog extends Typed {
 // can pass their own rather than augment RegisterExperiment for every test.
 
 export type TaskOf<R> = R extends { task: infer T }
-  ? T extends Typed
+  ? T extends Typed & { id: TaskId }
     ? T
     : never
   : AnyTask;
@@ -36,7 +40,9 @@ export type RegisteredTask = TaskOf<RegisterExperiment>;
 export type RegisteredLog = LogOf<RegisterExperiment>;
 
 /** Keys of a completion log that a task result cannot hold. */
-export type ReservedKey = 'type' | 'taskId' | 'date';
+export const reservedKeys = ['type', 'taskId', 'date'] as const;
+
+export type ReservedKey = (typeof reservedKeys)[number];
 
 // Task types are reserved for completion logs. Without registered tasks, any
 // string could be one, so none is.

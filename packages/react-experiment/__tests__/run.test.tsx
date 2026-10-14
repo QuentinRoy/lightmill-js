@@ -3,6 +3,7 @@ import { act, screen } from '@testing-library/react';
 import userEventPackage from '@testing-library/user-event';
 import * as React from 'react';
 import { expect, vi } from 'vitest';
+import type { RunClient } from '../src/logClient.js';
 import {
   Run,
   useLogDelivery,
@@ -217,6 +218,7 @@ describe('Run', () => {
       await renderAsync(
         run(newClient(server), {
           elements: { tasks: { trial: <Task /> } },
+          // @ts-expect-error - the task has no id on purpose.
           timeline: [{ type: 'trial' }],
         }),
       );
@@ -245,6 +247,9 @@ describe('Run', () => {
 
       expect(await screen.findByText(/unexpected error/)).toBeVisible();
       expect(screen.getByRole('group')).toHaveTextContent(/a is already used/);
+      expect(screen.getByRole('group')).toHaveTextContent(
+        'Code: TIMELINE_MISMATCH',
+      );
       expect(screen.queryByRole('button', { name: 'Done a' })).toBeNull();
       await vi.waitFor(async () => {
         await expect(server.storedRuns()).resolves.toEqual([
@@ -573,7 +578,7 @@ describe('Run', () => {
       },
     );
 
-    // Each level depends on every earlier answer, which only the timeline
+    // Each level depends on every earlier task result, which only the timeline
     // remembers.
     function* staircase(): Generator<
       { type: string; id: string; level: number },
@@ -928,6 +933,109 @@ describe('Run', () => {
           await screen.findByRole('button', { name: 'Done a' }),
         ).toBeVisible();
         expect(server.requestCount('POST', '/runs')).toBe(1);
+      },
+    );
+
+    serverTest(
+      'starts only the new run when the run name changes during the lookup',
+      async ({ server }) => {
+        await server.addExperiment('exp');
+        const client = newClient(server);
+        // Its methods are patched through the narrower interface Run uses.
+        const runClient: RunClient = client;
+        let releaseLookup!: () => void;
+        const lookupHeld = new Promise<void>((resolve) => {
+          releaseLookup = resolve;
+        });
+        const lookUp = runClient.getResumableRuns.bind(runClient);
+        let firstLookup: Promise<unknown> | null = null;
+        runClient.getResumableRuns = (options) => {
+          if (firstLookup != null) return lookUp(options);
+          const lookup = lookupHeld.then(() => lookUp(options));
+          firstLookup = lookup;
+          return lookup;
+        };
+        const start = runClient.startRun.bind(runClient);
+        let starts = 0;
+        runClient.startRun = (options) => {
+          starts++;
+          return start(options);
+        };
+        const { rerender } = await renderAsync(run(client, {}));
+
+        await act(async () => {
+          rerender(run(client, { runName: 'run-2' }));
+        });
+        await screen.findByRole('button', { name: 'Done a' });
+        releaseLookup();
+        await firstLookup;
+
+        expect(starts).toBe(1);
+        await expect(server.storedRuns()).resolves.toEqual([
+          { runName: 'run-2', runStatus: 'running' },
+        ]);
+      },
+    );
+
+    serverTest(
+      'crashes and interrupts the run when the run name changes while it starts',
+      async ({ server }) => {
+        await server.addExperiment('exp');
+        const client = newClient(server);
+        // Its methods are patched through the narrower interface Run uses.
+        const runClient: RunClient = client;
+        let releaseStart!: () => void;
+        const startHeld = new Promise<void>((resolve) => {
+          releaseStart = resolve;
+        });
+        const start = runClient.startRun.bind(runClient);
+        let starts = 0;
+        runClient.startRun = async (options) => {
+          starts++;
+          await startHeld;
+          return start(options);
+        };
+        const { rerender } = await renderAsync(run(client, {}));
+        await vi.waitFor(() => expect(starts).toBe(1));
+
+        await act(async () => {
+          rerender(run(client, { runName: 'run-2' }));
+        });
+        releaseStart();
+
+        expect(await screen.findByText(/error in its code/)).toBeVisible();
+        await vi.waitFor(async () => {
+          await expect(server.storedRuns()).resolves.toEqual([
+            { runName: 'run-1', runStatus: 'interrupted' },
+          ]);
+        });
+        expect(starts).toBe(1);
+      },
+    );
+
+    serverTest(
+      'crashes the run when remounted after an automatic resume',
+      async ({ server }) => {
+        await server.addExperiment('exp');
+        await leaveRun(server);
+        const client = newClient(server);
+        const first = await renderAsync(
+          run(client, { dangerouslyAutoResume: true }),
+        );
+        await screen.findByRole('button', { name: 'Done a' });
+        first.unmount();
+
+        await renderAsync(run(client, { dangerouslyAutoResume: true }));
+
+        expect(await screen.findByText(/error in its code/)).toBeVisible();
+        expect(screen.getByRole('group')).toHaveTextContent(
+          'Code: RUN_REMOUNTED',
+        );
+        await vi.waitFor(async () => {
+          await expect(server.storedRuns()).resolves.toEqual([
+            { runName: 'run-1', runStatus: 'interrupted' },
+          ]);
+        });
       },
     );
 

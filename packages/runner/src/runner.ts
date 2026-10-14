@@ -1,4 +1,8 @@
-import type { MaybeAsyncIterator, SuperIterator } from './types.js';
+import {
+  type MaybeAsyncIterator,
+  type SuperIterator,
+  toIterator,
+} from './types.js';
 
 export type TimelineRunnerParams<Task, TaskResult = unknown> = {
   timeline: SuperIterator<Task, TaskResult>;
@@ -43,13 +47,7 @@ export class TimelineRunner<Task, TaskResult = unknown> {
    * @param options Runner options and lifecycle callbacks.
    */
   constructor(options: TimelineRunnerParams<Task, TaskResult>) {
-    if (Symbol.iterator in options.timeline) {
-      this.#iterator = options.timeline[Symbol.iterator]();
-    } else if (Symbol.asyncIterator in options.timeline) {
-      this.#iterator = options.timeline[Symbol.asyncIterator]();
-    } else {
-      this.#iterator = options.timeline;
-    }
+    this.#iterator = toIterator(options.timeline);
     this.onTimelineStarted = options.onTimelineStarted;
     this.onTimelineCompleted = options.onTimelineCompleted;
     this.onTaskStarted = options.onTaskStarted;

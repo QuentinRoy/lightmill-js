@@ -45,7 +45,7 @@ export function App() {
 }
 ```
 
-A task is any object with a `type` and an `id`, unique within the timeline: a task with no id or an id already used throws when it starts, before it shows. `elements.tasks` maps each type to the element that shows it. Each task mounts its element fresh, even when the previous task had the same type, so state, refs, and effects start over at every task.
+A task is any object with a `type` and an `id`, a string or a number unique within the timeline: a task with no such id, or with an id already used, throws when it starts, before it shows. `elements.tasks` maps each type to the element that shows it. Each task mounts its element fresh, even when the previous task had the same type, so state, refs, and effects start over at every task.
 
 [Getting started](../../docs/guides/getting-started.md) builds a complete experiment, with logging and resuming.
 
@@ -119,7 +119,7 @@ export function Experiment({ logger }: { logger: Logger<Log> }) {
 
 `logger` is a logger from `@lightmill/log-client`, created for the same `Log` type: without the declaration above, logs have `unknown` values, which `logger.addLog` doesn't accept. `onLog` can send logs anywhere, though: it receives each log, and returns a promise. Neither `completeTask` nor the function `useLogger` returns waits for that promise, so a task can log and complete at once. If the promise rejects, `TimelinePlayer` throws a [`LogDeliveryError`](#logdeliveryerror) on its next render.
 
-Keep task results small, and put bulk data, such as mouse moves, in logs of other types. Resuming a run reads the completion logs back from the server, so large results make it slow.
+Keep task results small, and put bulk data, such as mouse moves, in logs of other types. Resuming a run reads the completion logs back from the server, so large results make it slow. They come back as JSON: a `Date` in a result comes back as a string, so put plain values in results.
 
 ## API
 
@@ -318,7 +318,7 @@ export function App() {
 
 ## Resuming a dynamic timeline
 
-When `Run` resumes a run, it replays the timeline: it reads the run's completion logs from the server, then asks the timeline for each completed task in turn, without showing it, and passes back the result that task logged, as `completeTask` did. The staircase above gets the same answers, so it reaches the level where the participant stopped, with nothing else to log:
+When `Run` resumes a run, it replays the timeline: it reads the run's completion logs from the server, then asks the timeline for each completed task in turn, without showing it, and passes back the result that task logged, as `completeTask` did. The staircase above gets the same task results, so it reaches the level where the participant stopped, with nothing else to log:
 
 ```tsx
 <Run
@@ -332,7 +332,7 @@ When `Run` resumes a run, it replays the timeline: it reads the run's completion
 
 `Run` reads `timeline` once per run, so creating the generator while rendering is fine. The replay checks that each task has the id and type of the completion log at that step. If the timeline changed, it stops the run with a `TIMELINE_MISMATCH` error before any task shows. Then the run continues with the task in progress when the participant left, which is played again: its earlier logs are canceled. See [Resuming runs](../../docs/guides/resuming-runs.md).
 
-`TimelinePlayer` does not replay. `resumeAfter` skips tasks without passing their results back, so a generator resumed with it does not get the answers the participant gave. To resume one with `TimelinePlayer`, list the completion logs with log-client's `getRunLogs` and pass their values back yourself, as `Run` does.
+`TimelinePlayer` does not replay. `resumeAfter` skips tasks without passing their results back, so a generator resumed with it does not get the task results it had. To resume one with `TimelinePlayer`, list the completion logs with log-client's `getRunLogs` and pass their values back yourself, as `Run` does.
 
 ## Sharing state between tasks
 

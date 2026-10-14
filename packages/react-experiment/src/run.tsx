@@ -107,11 +107,14 @@ export function Run({
       : store.isRemount(instance)
         ? 'remount'
         : null;
+  // A store left during the lookup, after an identity change or an unmount,
+  // must not start a run nobody plays.
+  React.useEffect(() => store.release, [store]);
   // A layout effect, so that the loading element does not get painted.
   React.useLayoutEffect(() => {
     if (remount == null) store.claim(instance);
     else store.crash(new RunRemountedError(remount));
-  }, [store, instance, remount, state.status]);
+  }, [store, instance, remount]);
   const autoResume =
     dangerouslyAutoResume && state.status === 'awaiting-confirmation';
   React.useEffect(() => {
@@ -181,7 +184,7 @@ export function Run({
 }
 
 // The store of the current identity, kept for as long as the identity holds
-// even if the store was evicted since: a finished run must not be looked up
+// even if the store was evicted since: an ended run must not be looked up
 // and started again by the next render. A run that started holds on to its
 // store until it ends; `identityChanged` tells the identity changed meanwhile.
 function useRunStore(params: RunStoreParams): {
@@ -209,8 +212,10 @@ function useRunStore(params: RunStoreParams): {
   return { ...ref.current, identityChanged };
 }
 
-// After a crash, the error slot stays even once the logger ends.
+// After a crash, the error slot stays even once the logger ends. A run being
+// started is held too: switching away would leave it ongoing.
 function holdsRun(state: RunState): boolean {
+  if (state.status === 'starting') return true;
   if (state.status === 'error') return state.logger != null;
   return state.status === 'ready' && isLive(state.logger.state);
 }

@@ -4,7 +4,8 @@ import {
   TimelineRunner,
 } from '@lightmill/runner';
 import * as React from 'react';
-import type { ReservedKey, Typed } from './config.js';
+import { reservedKeys, type TaskId, type Typed } from './config.js';
+import { TimelineMismatchError } from './errors.js';
 import { noSubscribe } from './utils.js';
 
 // What a task passes to completeTask, and the timeline receives from next().
@@ -21,13 +22,31 @@ export type AnyIteratorOrIterable<Task> =
   | Iterable<Task, unknown, TimelineNext>
   | MaybeAsyncIterator<Task, TimelineNext>;
 
-const reservedKeys = [
-  'type',
-  'taskId',
-  'date',
-] as const satisfies ReservedKey[];
+type CompletionLog = TaskResult & { type: string; taskId: TaskId };
 
-type CompletionLog = TaskResult & { type: string; taskId: unknown };
+const idRule =
+  'Every task needs an id, a string or a number unique within the timeline.';
+
+/** Throws if `task` has no valid id. */
+export function taskIdOf(task: Typed): TaskId {
+  const id: unknown = 'id' in task ? task.id : undefined;
+  if (id == null) {
+    throw new Error(`A task of type ${task.type} has no id. ${idRule}`);
+  }
+  // Replay compares ids with ===, and completion logs go through JSON.
+  if (typeof id !== 'string' && typeof id !== 'number') {
+    throw new Error(
+      `The id of a task of type ${task.type} is neither a string nor a number. ${idRule}`,
+    );
+  }
+  return id;
+}
+
+/**
+ * Ids a timeline used before a player got it, such as those of the tasks a
+ * replay stepped through. Its tasks cannot use them again.
+ */
+export const usedTaskIds = new WeakMap<object, Iterable<TaskId>>();
 
 export type PlayerTaskState<Task> = {
   status: 'task';
@@ -79,7 +98,7 @@ function createPlayerStore<Task extends Typed>({
   let snapshot: StoreSnapshot<Task> = loadingSnapshot;
   let started = false;
   let taskCount = 0;
-  const taskIds = new Set<unknown>();
+  const taskIds = new Set(usedTaskIds.get(timeline));
   const setSnapshot = (next: StoreSnapshot<Task>) => {
     snapshot = next;
     listeners.forEach((listener) => listener());
@@ -93,22 +112,19 @@ function createPlayerStore<Task extends Typed>({
       setSnapshot({ status: 'loading' });
     },
     onTaskStarted(task) {
-      // Completion logs tell tasks apart by id.
-      const taskId = 'id' in task ? task.id : undefined;
-      if (taskId == null) {
-        setSnapshot({
-          status: 'error',
-          error: new Error(
-            `A task of type ${task.type} has no id. Every task needs an id, unique within the timeline.`,
-          ),
-        });
+      let taskId: TaskId;
+      try {
+        // Completion logs tell tasks apart by id.
+        taskId = taskIdOf(task);
+      } catch (error) {
+        setSnapshot({ status: 'error', error: toError(error) });
         return;
       }
       if (taskIds.has(taskId)) {
         setSnapshot({
           status: 'error',
-          error: new Error(
-            `Task id ${String(taskId)} is already used. Every task needs an id, unique within the timeline.`,
+          error: new TimelineMismatchError(
+            `Task id ${taskId} is already used. ${idRule}`,
           ),
         });
         return;
@@ -142,13 +158,7 @@ function createPlayerStore<Task extends Typed>({
       setSnapshot({ status: 'completed' });
     },
     onError(error) {
-      setSnapshot({
-        status: 'error',
-        error:
-          error instanceof Error
-            ? error
-            : new Error(String(error), { cause: error }),
-      });
+      setSnapshot({ status: 'error', error: toError(error) });
     },
   });
   return {
@@ -166,6 +176,12 @@ function createPlayerStore<Task extends Typed>({
       runner.start();
     },
   };
+}
+
+function toError(error: unknown): Error {
+  return error instanceof Error
+    ? error
+    : new Error(String(error), { cause: error });
 }
 
 // Stores of iterators, which a new runner could not read from the start: a
