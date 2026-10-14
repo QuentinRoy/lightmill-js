@@ -229,7 +229,7 @@ describe('run store', () => {
       await server.addExperiment('exp');
       const store = getRunStore(identity(server));
       store.subscribe(() => {});
-      const tasks = [{ type: 'trial' }];
+      const tasks = [{ type: 'trial', id: 'a' }];
 
       expect(store.getTimeline(tasks)).toBeNull();
       await whenStatus(store, 'ready');
@@ -250,7 +250,10 @@ describe('run store', () => {
       const store = getRunStore(identity(server));
       store.subscribe(() => {});
       await whenStatus(store, 'ready');
-      const tasks = [{ type: 'trial' }, { type: 'trial' }];
+      const tasks = [
+        { type: 'trial', id: 'a' },
+        { type: 'trial', id: 'b' },
+      ];
       const getIterator = vi.fn(() => tasks.values());
       const timeline = store.getTimeline({ [Symbol.iterator]: getIterator });
       if (timeline == null) throw new Error('No timeline');
@@ -280,7 +283,7 @@ describe('run store', () => {
         const store = await readyStore(server);
         const listener = vi.fn();
         store.subscribe(listener);
-        const timeline = store.getTimeline([{ type: 'trial' }]);
+        const timeline = store.getTimeline([{ type: 'trial', id: 'a' }]);
         if (timeline == null) throw new Error('No timeline');
 
         timeline.next();
@@ -299,7 +302,7 @@ describe('run store', () => {
         const store = await readyStore(server);
         const timeline = store.getTimeline(
           (async function* () {
-            yield { type: 'trial' };
+            yield { type: 'trial', id: 'a' };
           })(),
         );
         if (timeline == null) throw new Error('No timeline');

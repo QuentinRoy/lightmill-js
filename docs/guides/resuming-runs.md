@@ -40,7 +40,7 @@ Resuming cancels the logs that come after the resume point. The server keeps the
 
    When no task was completed yet (resume number 0), the run starts over from the beginning, and every log it had is canceled.
 
-4. **Rebuild the same timeline.** Build the timeline from a stable input, such as the participant number, so it yields the same tasks in the same order. If task order uses randomness, use a random number generator seeded with the participant number rather than `Math.random`. If the timeline yields another task than the one logged at that step, or ends before the last completed task, `Run` stops with a `TIMELINE_MISMATCH` error before any task renders: it shows `elements.error` and interrupts the run, so nothing is logged on top of the stored logs. A task that reuses the id of a completed task does the same.
+4. **Rebuild the same timeline.** Build the timeline from a stable input, such as the participant number, so it yields the same tasks in the same order. If task order uses randomness, use a random number generator seeded with the participant number rather than `Math.random`. If the timeline yields another task than the one logged at that step, or ends before the last completed task, `Run` stops with a `TIMELINE_MISMATCH` error before any task renders: it shows `elements.error` and interrupts the run, so nothing is logged on top of the stored logs. So does a task whose id is already used.
 
    A result comes back from the server as JSON, so a `Date` in it comes back as a string. Put plain values in results.
 

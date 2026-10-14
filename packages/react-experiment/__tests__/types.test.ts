@@ -2,6 +2,7 @@ import { expectTypeOf, it } from 'vitest';
 import type {
   CompleteTaskOf,
   LoggableLogOf,
+  TaskOf,
   TaskResultOf,
 } from '../src/config.js';
 
@@ -69,4 +70,13 @@ it('excludes task types from the logs useLogger writes', () => {
   expectTypeOf<LoggableLogOf<{ log: Registration['log'] }>>().toEqualTypeOf<
     Registration['log']
   >();
+});
+
+it('requires registered tasks to have a string or number id', () => {
+  expectTypeOf<TaskOf<{ task: { type: 'a'; id: number } }>>().toEqualTypeOf<{
+    type: 'a';
+    id: number;
+  }>();
+  expectTypeOf<TaskOf<{ task: { type: 'a'; id: Date } }>>().toBeNever();
+  expectTypeOf<TaskOf<{ task: { type: 'a' } }>>().toBeNever();
 });

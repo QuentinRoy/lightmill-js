@@ -1,5 +1,5 @@
-import type { MaybeAsyncIterator } from '@lightmill/runner';
-import type { RegisteredTask } from './config.js';
+import { type MaybeAsyncIterator, toIterator } from '@lightmill/runner';
+import { type RegisteredTask, reservedKeys, type TaskId } from './config.js';
 import { TimelineMismatchError } from './errors.js';
 import {
   hasEnded,
@@ -9,10 +9,12 @@ import {
   type RunInfo,
   type RunLogger,
 } from './logClient.js';
-import type {
-  AnyIteratorOrIterable,
-  TaskResult,
-  TimelineNext,
+import {
+  type AnyIteratorOrIterable,
+  taskIdOf,
+  type TaskResult,
+  type TimelineNext,
+  usedTaskIds,
 } from './playerState.js';
 
 export type RunState =
@@ -67,6 +69,11 @@ export type RunStore = {
   claim: (owner: object) => void;
   /** Whether the run is ready and another `Run` instance plays it. */
   isRemount: (owner: object) => boolean;
+  /**
+   * Tells the store a `Run` stopped using it. If nobody subscribes when the
+   * lookup ends, no run starts, and the next subscriber looks it up again.
+   */
+  release: () => void;
   /** Completes the run. Calling it again returns the first call's promise. */
   completeRun: () => Promise<void>;
   /**
@@ -141,6 +148,7 @@ function createRunStore(
   let crashedLogger: RunLogger | null = null;
   let owner: object | null = null;
   let interrupting = false;
+  let released = false;
 
   const setState = (next: RunState) => {
     state = next;
@@ -162,6 +170,13 @@ function createRunStore(
           lastLog: found.toResumeAfter.log,
           after: { number: found.toResumeAfter.number },
         });
+        return;
+      }
+      // Nobody would play the run, such as after `Run` switched to another
+      // identity. The next subscriber looks it up again.
+      if (released && listeners.size === 0) {
+        started = false;
+        released = false;
         return;
       }
       setState({ status: 'starting' });
@@ -259,6 +274,9 @@ function createRunStore(
       setState({ status: 'starting' });
       resume(run, after).catch(fail);
     },
+    release() {
+      released = true;
+    },
     claim(newOwner) {
       if (state.status !== 'ready' || owner == null) owner = newOwner;
     },
@@ -286,6 +304,7 @@ function createRunStore(
       }
       replay(iterator, completedTasks).then((replayed) => {
         timeline = continueLive(iterator, replayed, exhaustTimeline);
+        usedTaskIds.set(timeline, replayed.taskIds);
         // A new snapshot, so that the player renders with the timeline.
         if (state.status === 'ready') setState({ ...state });
       }, crash);
@@ -302,18 +321,12 @@ function createRunStore(
   };
 }
 
-// Reads the timeline once, so that remounted players share the iterator.
-function toIterator(
-  timeline: AnyIteratorOrIterable<RegisteredTask>,
-): MaybeAsyncIterator<RegisteredTask, TimelineNext> {
-  return Symbol.iterator in timeline
-    ? timeline[Symbol.iterator]()
-    : Symbol.asyncIterator in timeline
-      ? timeline[Symbol.asyncIterator]()
-      : timeline;
-}
+type Replayed = { lastResult: TaskResult | undefined; taskIds: TaskId[] };
 
-type Replayed = { lastResult: TaskResult | undefined; taskIds: Set<unknown> };
+const reserved = new Set<string>(reservedKeys);
+
+const changedTimeline =
+  'The timeline changed since the run started, so the run was stopped and interrupted. Resume a run with the timeline it started with.';
 
 // Steps the timeline through the completed tasks, passing each one's result
 // back as completeTask did, so that a stateful timeline gets back where it
@@ -322,25 +335,28 @@ async function replay(
   iterator: MaybeAsyncIterator<RegisteredTask, TimelineNext>,
   completedTasks: ResumeLog[],
 ): Promise<Replayed> {
-  const taskIds = new Set<unknown>();
+  const taskIds: TaskId[] = [];
   let lastResult: TaskResult | undefined;
   for (const completed of completedTasks) {
-    const { type, taskId, date: _date, ...result } = completed;
+    const { type, taskId } = completed;
     const step = await (lastResult === undefined
       ? iterator.next()
       : iterator.next(lastResult));
     if (step.done) {
       throw new TimelineMismatchError(
-        `The timeline ended where the run completed task ${String(taskId)} of type ${type}.`,
+        `The timeline ended where the run completed task ${String(taskId)} of type ${type}. ${changedTimeline}`,
       );
     }
-    if (step.value.type !== type || step.value.id !== taskId) {
+    const id = taskIdOf(step.value);
+    if (step.value.type !== type || id !== taskId) {
       throw new TimelineMismatchError(
-        `The timeline yielded task ${String(step.value.id)} of type ${step.value.type} where the run completed task ${String(taskId)} of type ${type}.`,
+        `The timeline yielded task ${id} of type ${step.value.type} where the run completed task ${String(taskId)} of type ${type}. ${changedTimeline}`,
       );
     }
-    taskIds.add(taskId);
-    lastResult = result;
+    taskIds.push(id);
+    lastResult = Object.fromEntries(
+      Object.entries(completed).filter(([key]) => !reserved.has(key)),
+    );
   }
   return { lastResult, taskIds };
 }
@@ -354,13 +370,7 @@ function continueLive(
 ): MaybeAsyncIterator<RegisteredTask, TimelineNext> {
   let pending = replayed?.lastResult;
   const check = (step: IteratorResult<RegisteredTask>) => {
-    if (step.done) {
-      onExhausted();
-    } else if (replayed?.taskIds.has(step.value.id)) {
-      throw new TimelineMismatchError(
-        `The timeline yielded task ${String(step.value.id)} again, which the run already completed.`,
-      );
-    }
+    if (step.done) onExhausted();
     return step;
   };
   return {

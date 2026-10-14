@@ -70,7 +70,7 @@ export function createTimeline(participantNumber: number): Task[] {
 }
 ```
 
-Every task writes one log when it completes: its completion log. It has the task's type, the task's id in `taskId`, and the task result, the data the task hands over when it completes. Here, a trial's result is its size and reaction time, and the intro has none. The log you register with the same type as a task describes its completion log, so it types the task result. Completion logs are what let a participant resume after a reload: the server finds the run's last one, and the app skips every task up to the one it names.
+Every task writes one log when it completes: its completion log. It has the task's type, the task's id in `taskId`, and the task result, the data the task hands over when it completes. Here, a trial's result is its size and reaction time, and the intro has none. The log you register with the same type as a task describes its completion log, so it types the task result. Completion logs are what let a participant resume after a reload: the server finds the run's last one, and `Run` replays the timeline up to the task it names.
 
 The `declare module` block tells `@lightmill/react-experiment` about your tasks and logs, so its hooks are typed.
 
@@ -269,7 +269,7 @@ function messageFor(error: unknown) {
   return 'Something went wrong. Please contact the researcher.';
 }
 
-// Shows when answers have not reached the server.
+// Shows when logs have not reached the server.
 function Recovery() {
   const { error, inFlightLogs, retry } = useLogDelivery();
   if (inFlightLogs.length === 0) return null;
@@ -294,7 +294,7 @@ Here is what happens when a participant opens the page:
 2. `Run` asks the server whether this browser already started this run. While it waits, it shows "Loading…".
 3. If it did, `Run` shows "You have a session in progress." with a Resume button, and resumes the run once the participant clicks it. Otherwise, `Run` starts a new run. React's development mode renders components twice, but `Run` starts or resumes the run only once.
 4. `Run` plays the timeline once per run. When resuming, it first reads the run's completion logs and replays the timeline without showing any task, up to the last completed one, then continues from there. See [Resuming runs](resuming-runs.md).
-5. Each task completes with `completeTask`, and `Run` writes its completion log. `Run` sends the logs to the server in the background. If the server can't be reached for a while, `Run` shows the `paused` element once the current task ends. `Recovery` offers to download the answers the server does not have, and a button to send them again.
+5. Each task completes with `completeTask`, and `Run` writes its completion log. `Run` sends the logs to the server in the background. If the server can't be reached for a while, `Run` shows the `paused` element once the current task ends. `Recovery` offers to download the logs the server does not have, and a button to send them again.
 6. When the timeline ends, `Run` shows "Loading…" until every log is stored and the server has the run completed. Then it shows `completed`.
 7. Until the run ends, `Run` asks the browser to confirm before the participant leaves the page.
 8. If the run can't start or crashes, `Run` shows the `error` element. This includes a participant who comes back after completing the experiment, or who opens it in another browser: the run name is taken, and the server refuses it with a `RUN_EXISTS` error. After a crash, `Run` interrupts the run, so reloading the page offers to resume it.
@@ -328,9 +328,9 @@ Start the app:
 npm run dev
 ```
 
-Open <http://localhost:5173/?participant=1> and do a few trials. Reload the page: you are asked to resume, and the experiment continues after the last trial whose log reached the server. If an answer had not reached the server, that trial repeats. Finish the experiment and wait for "Thank you!", which appears only after saving and completing the run.
+Open <http://localhost:5173/?participant=1> and do a few trials. Reload the page: you are asked to resume, and the experiment continues after the last trial whose log reached the server. If a trial's log had not reached the server, that trial repeats. Finish the experiment and wait for "Thank you!", which appears only after saving and completing the run.
 
-If the app shows the saving failure screen, keep the page open and retry. The download link saves a copy of unsaved answers for the researcher; it does not upload them or complete the run. The server has no automatic import for that file. [Resuming runs](resuming-runs.md#limits) explains the recovery limits.
+If the app shows the saving failure screen, keep the page open and retry. The download link saves a copy of unsaved logs for the researcher; it does not upload them or complete the run. The server has no automatic import for that file. [Resuming runs](resuming-runs.md#limits) explains the recovery limits.
 
 If something doesn't work, see [Troubleshooting](troubleshooting.md).
 

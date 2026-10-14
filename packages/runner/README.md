@@ -75,7 +75,7 @@ function* staircase() {
 
 Completing a task asks the generator for the next one, and `yield` returns the task result: what `runTask` resolves with, or what you pass to `TimelineRunner`'s `completeTask(result)`.
 
-The runner reads the timeline once and can't rewind it. To start over, create a new timeline and a new runner.
+The runner reads the timeline once and can't rewind it. To start over, create a new timeline and a new runner. `toIterator(timeline)` returns the iterator the runner reads: the timeline's own, or the timeline itself if it is an iterator.
 
 ## `runTimeline({ timeline, runTask })`
 
