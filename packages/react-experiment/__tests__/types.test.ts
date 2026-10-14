@@ -15,7 +15,7 @@ type Registration = {
     | { type: 'intro'; id: string };
   log:
     | { type: 'trial'; taskId: string; date?: Date; answer: number }
-    | { type: 'survey'; comment?: string }
+    | { type: 'survey'; comment?: string; answeredAt?: Date }
     | { type: 'note'; text: string };
 };
 
@@ -57,6 +57,20 @@ it('rejects reserved keys in a result', () => {
     unregistered({ date: new Date() });
     unregistered({ anything: 1 });
     unregistered();
+  };
+  void check;
+});
+
+it('rejects non-JSON values in a result', () => {
+  const check = (
+    survey: CompleteTaskOf<Registration, 'survey'>,
+    unregistered: CompleteTaskOf<object, 'trial'>,
+  ) => {
+    // @ts-expect-error - a Date would come back as a string on replay.
+    survey({ answeredAt: new Date() });
+    // @ts-expect-error - a function is not JSON.
+    unregistered({ callback: () => {} });
+    unregistered({ nested: { list: [1, 'a', null, true] } });
   };
   void check;
 });

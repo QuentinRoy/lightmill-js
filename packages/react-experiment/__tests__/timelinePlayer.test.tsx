@@ -640,7 +640,7 @@ describe('TimelinePlayer', () => {
     const AnswerTask = () => {
       const { task, completeTask } = useTask();
       return (
-        <button onClick={() => completeTask({ answer: task.n })}>
+        <button onClick={() => completeTask({ answer: Number(task.n) })}>
           Answer {String(task.n)}
         </button>
       );

@@ -42,7 +42,7 @@ Resuming cancels the logs that come after the resume point. The server keeps the
 
 4. **Rebuild the same timeline.** Build the timeline from a stable input, such as the participant number, so it yields the same tasks in the same order. If task order uses randomness, use a random number generator seeded with the participant number rather than `Math.random`. If the timeline yields another task than the one logged at that step, or ends before the last completed task, `Run` stops with a `TIMELINE_MISMATCH` error before any task renders: it shows `elements.error` and interrupts the run, so nothing is logged on top of the stored logs. So does a task whose id is already used.
 
-   A result comes back from the server as JSON, so a `Date` in it comes back as a string. Put plain values in results.
+   A result holds JSON values only, so the timeline gets the same values on replay as live: a `Date` does not compile. Store a timestamp or an ISO string instead.
 
 `Run` asks before resuming, even when nothing was logged yet, and has no action to start over or cancel the run: canceling is up to the host. Replace the prompt with `elements.resume` if you want to say more; see [Write your own screens](getting-started.md#write-your-own-screens).
 

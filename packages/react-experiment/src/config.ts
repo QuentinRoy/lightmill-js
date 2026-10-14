@@ -1,3 +1,5 @@
+import type { JsonObject } from 'type-fest';
+
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface RegisterExperiment {
   // task: Task;
@@ -67,7 +69,9 @@ export type TaskResultOf<R, T extends string> = R extends { log: unknown }
   ? DistributiveOmit<Extract<LogOf<R>, { type: T }>, ReservedKey>
   : Record<string, unknown>;
 
-type WithoutReservedKeys<T> = T & { [K in ReservedKey]?: never };
+// A result must come back unchanged when a run is replayed, whatever the client
+// sends it through, so it holds JSON values only.
+type ResultArgument<T> = T & JsonObject & { [K in ReservedKey]?: never };
 
 export type CompleteTaskOf<R, T extends string> = [TaskResultOf<R, T>] extends [
   never,
@@ -75,5 +79,5 @@ export type CompleteTaskOf<R, T extends string> = [TaskResultOf<R, T>] extends [
   ? () => void
   : // eslint-disable-next-line @typescript-eslint/no-empty-object-type
     {} extends TaskResultOf<R, T>
-    ? (result?: WithoutReservedKeys<TaskResultOf<R, T>>) => void
-    : (result: WithoutReservedKeys<TaskResultOf<R, T>>) => void;
+    ? (result?: ResultArgument<TaskResultOf<R, T>>) => void
+    : (result: ResultArgument<TaskResultOf<R, T>>) => void;

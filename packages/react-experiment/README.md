@@ -119,7 +119,7 @@ export function Experiment({ logger }: { logger: Logger<Log> }) {
 
 `logger` is a logger from `@lightmill/log-client`, created for the same `Log` type: without the declaration above, logs have `unknown` values, which `logger.addLog` doesn't accept. `onLog` can send logs anywhere, though: it receives each log, and returns a promise. Neither `completeTask` nor the function `useLogger` returns waits for that promise, so a task can log and complete at once. If the promise rejects, `TimelinePlayer` throws a [`LogDeliveryError`](#logdeliveryerror) on its next render.
 
-Keep task results small, and put bulk data, such as mouse moves, in logs of other types. Resuming a run reads the completion logs back from the server, so large results make it slow. They come back as JSON: a `Date` in a result comes back as a string, so put plain values in results.
+Keep task results small, and put bulk data, such as mouse moves, in logs of other types. Resuming a run reads the completion logs back from the server, so large results make it slow. A result holds JSON values only, so it comes back unchanged: a `Date` does not compile, so store a timestamp or an ISO string instead.
 
 ## API
 
@@ -137,7 +137,7 @@ Runs one run of an experiment with a [`@lightmill/log-client`](../log-client/REA
 />
 ```
 
-- `client`: a log-client `Client`. Create it once: a new client is a new run. `Run` imports nothing from log-client, it only needs a client with the right methods.
+- `client`: a log-client `Client`. Create it once: a new client is a new run. `Run` imports nothing from log-client, it only needs a client with the right methods. A client of your own must give completion logs back with the values it was given, since `Run` replays them.
 - `experimentName` and `runName`: identify the run on the server. `Run` looks up an ongoing run with the same names, asks the participant to resume it, and starts a new run when there is none. Before the run starts, changing either (or the client) switches to another run. Once it has started, changing one crashes the run with a `RUN_REMOUNTED` error, as a [remount](#remounting) does.
 - `timeline`: the tasks, as for `TimelinePlayer`, or `null` while your app loads them. `Run` plays the first timeline it gets once the run is ready, and ignores later changes. When it resumes a run, it replays the timeline up to the last completed task: see [Resuming a dynamic timeline](#resuming-a-dynamic-timeline).
 - `elements`: `tasks`, plus a screen for each state, all optional and with a small default: `loading` (also shown while the run is saved, so keep its text neutral), `resume`, `paused`, `error` and `completed`.
@@ -190,7 +190,7 @@ Re-exported from [`@lightmill/runner`](../runner/README.md). Returns a timeline 
 
 ### `useTask(type?)`
 
-Returns `{ task, completeTask }` for the current task. Call `completeTask(result)` once the task is done; calling it twice throws. `result`, a plain object, is the task result. It goes into the task's completion log and to the timeline, where a generator reads it from `yield`. Its type comes from the completion log: `result` is optional when the log has no required field, and absent when there is no completion log. A completion log is written either way, with no values when there is no result, and the timeline then receives `{}`.
+Returns `{ task, completeTask }` for the current task. Call `completeTask(result)` once the task is done; calling it twice throws. `result`, an object of JSON values, is the task result. It goes into the task's completion log and to the timeline, where a generator reads it from `yield`. Its type comes from the completion log: `result` is optional when the log has no required field, and absent when there is no completion log. A completion log is written either way, with no values when there is no result, and the timeline then receives `{}`.
 
 `type`, `taskId` and `date` are reserved: a `result` with one of these keys does not compile, and `completeTask` throws without completing the task.
 

@@ -13,7 +13,9 @@ export function TrialTask() {
   return (
     <button
       onClick={() => {
-        completeTask(task.level == null ? undefined : { level: task.level });
+        completeTask(
+          typeof task.level === 'number' ? { level: task.level } : undefined,
+        );
       }}
     >
       Done {String(task.id)}
