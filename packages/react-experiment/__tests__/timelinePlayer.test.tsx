@@ -675,6 +675,34 @@ describe('TimelinePlayer', () => {
       },
     );
 
+    it('completes a task that suspended once, and passes its result once', async () => {
+      const user = userEvent.setup();
+      const onLog = vi.fn((_log: unknown) => Promise.resolve());
+      const received: unknown[] = [];
+      let load!: () => void;
+      const loaded = new Promise<void>((resolve) => (load = resolve));
+      const LazyAnswerTask = React.lazy(() =>
+        loaded.then(() => ({ default: AnswerTask })),
+      );
+      render(
+        <React.Suspense fallback={<p>Suspended</p>}>
+          <TimelinePlayer
+            elements={{ ...elements, tasks: { Q: <LazyAnswerTask /> } }}
+            onLog={onLog}
+            timeline={(function* () {
+              received.push(yield { type: 'Q', id: 'q1', n: 1 });
+            })()}
+          />
+        </React.Suspense>,
+      );
+      expect(await screen.findByText('Suspended')).toBeInTheDocument();
+      await act(async () => load());
+      await user.click(await screen.findByText('Answer 1'));
+      expect(screen.getByTestId('end')).toBeInTheDocument();
+      expect(received).toEqual([{ answer: 1 }]);
+      expect(onLog).toHaveBeenCalledTimes(1);
+    });
+
     it('writes a completion log through onLog for each task', async () => {
       const user = userEvent.setup();
       const onLog = vi.fn((_log: unknown) => Promise.resolve());

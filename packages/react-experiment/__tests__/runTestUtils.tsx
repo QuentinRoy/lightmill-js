@@ -23,6 +23,38 @@ export function TrialTask() {
   );
 }
 
+/**
+ * A trial task that suspends, as a component reading data with `use` does,
+ * until `release(id)` is called for its task.
+ */
+export function suspendingTrialTask() {
+  const gates = new Map<
+    unknown,
+    { promise: Promise<void>; open: () => void }
+  >();
+  const gate = (id: unknown) => {
+    let entry = gates.get(id);
+    if (entry == null) {
+      let open!: () => void;
+      const promise = new Promise<void>((resolve) => (open = resolve));
+      entry = { promise, open };
+      gates.set(id, entry);
+    }
+    return entry;
+  };
+  function SuspendingTrialTask() {
+    const { task, completeTask } = useTask('trial');
+    React.use(gate(task.id).promise);
+    return (
+      <button onClick={() => completeTask()}>Done {String(task.id)}</button>
+    );
+  }
+  return {
+    task: <SuspendingTrialTask />,
+    release: (id: unknown) => act(async () => gate(id).open()),
+  };
+}
+
 export const timeline = [
   { type: 'trial', id: 'a' },
   { type: 'trial', id: 'b' },

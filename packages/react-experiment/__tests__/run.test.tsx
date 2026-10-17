@@ -1,6 +1,7 @@
 import { serverTest, type TestServer } from '@lightmill/test-server';
 import { act, screen } from '@testing-library/react';
 import userEventPackage from '@testing-library/user-event';
+import { http, passthrough } from 'msw';
 import * as React from 'react';
 import { expect, vi } from 'vitest';
 import type { RunClient } from '../src/logClient.js';
@@ -18,7 +19,9 @@ import {
   newClient,
   renderAsync,
   run,
+  suspendingTrialTask,
   timeline,
+  TrialTask,
 } from './runTestUtils.js';
 
 // @ts-expect-error - userEventPackage is not typed correctly
@@ -1085,6 +1088,150 @@ describe('Run', () => {
           await screen.findByRole('button', { name: 'Done a' }),
         ).toBeVisible();
         expect(server.requestCount('GET', '/runs')).toBe(2);
+      },
+    );
+  });
+
+  describe('suspending and hidden tasks', () => {
+    // Hiding a shown tree, as Suspense and Activity do, runs Run's layout
+    // effect cleanups and setups again without a remount.
+    serverTest(
+      'plays a lazy task under a Suspense boundary above Run',
+      async ({ server }) => {
+        await server.addExperiment('exp');
+        const user = userEvent.setup();
+        let load!: () => void;
+        const loaded = new Promise<void>((resolve) => (load = resolve));
+        const LazyTrialTask = React.lazy(() =>
+          loaded.then(() => ({ default: TrialTask })),
+        );
+        await renderAsync(
+          <React.Suspense fallback={<p>Suspended</p>}>
+            {run(newClient(server), {
+              elements: { ...elements, tasks: { trial: <LazyTrialTask /> } },
+            })}
+          </React.Suspense>,
+        );
+        expect(await screen.findByText('Suspended')).toBeInTheDocument();
+
+        await act(async () => load());
+        await user.click(await screen.findByRole('button', { name: 'Done a' }));
+        await user.click(await screen.findByRole('button', { name: 'Done b' }));
+
+        expect(await screen.findByText('The end')).toBeVisible();
+        expect(server.requestCount('POST', '/runs')).toBe(1);
+        await expect(server.storedRuns()).resolves.toEqual([
+          { runName: 'run-1', runStatus: 'completed' },
+        ]);
+        await expect(server.storedLogs()).resolves.toMatchObject([
+          { number: 1, type: 'trial', values: { taskId: 'a' } },
+          { number: 2, type: 'trial', values: { taskId: 'b' } },
+        ]);
+      },
+    );
+
+    serverTest(
+      'plays tasks that suspend under a Suspense boundary in the task',
+      async ({ server }) => {
+        await server.addExperiment('exp');
+        const user = userEvent.setup();
+        const { task, release } = suspendingTrialTask();
+        await renderAsync(
+          run(newClient(server), {
+            elements: {
+              ...elements,
+              tasks: {
+                trial: (
+                  <React.Suspense fallback={<p>Suspended</p>}>
+                    {task}
+                  </React.Suspense>
+                ),
+              },
+            },
+          }),
+        );
+        expect(await screen.findByText('Suspended')).toBeInTheDocument();
+
+        await release('a');
+        await user.click(await screen.findByRole('button', { name: 'Done a' }));
+        expect(await screen.findByText('Suspended')).toBeInTheDocument();
+        await release('b');
+        await user.click(await screen.findByRole('button', { name: 'Done b' }));
+
+        expect(await screen.findByText('The end')).toBeVisible();
+        expect(server.requestCount('POST', '/runs')).toBe(1);
+        await expect(server.storedLogs()).resolves.toMatchObject([
+          { number: 1, type: 'trial', values: { taskId: 'a' } },
+          { number: 2, type: 'trial', values: { taskId: 'b' } },
+        ]);
+      },
+    );
+
+    serverTest(
+      'starts the run once when Activity hides Run during the lookup',
+      async ({ server }) => {
+        await server.addExperiment('exp');
+        const client = newClient(server);
+        const view = (mode: 'visible' | 'hidden') => (
+          <React.Activity mode={mode}>{run(client, {})}</React.Activity>
+        );
+        let endLookup!: () => void;
+        const lookupEnded = new Promise<void>(
+          (resolve) => (endLookup = resolve),
+        );
+        let lookupStarted = false;
+        server.msw.use(
+          // A lookup with no session yet only asks for the session.
+          http.get(`${server.apiRoot}/sessions/:id`, async () => {
+            lookupStarted = true;
+            await lookupEnded;
+            return passthrough();
+          }),
+        );
+        const { rerender } = await renderAsync(view('visible'));
+        await vi.waitFor(() => expect(lookupStarted).toBe(true));
+
+        // The lookup ends while Run is hidden.
+        await act(async () => rerender(view('hidden')));
+        await act(async () => {
+          endLookup();
+          await new Promise((resolve) => setTimeout(resolve, 20));
+        });
+        await act(async () => rerender(view('visible')));
+
+        expect(
+          await screen.findByRole('button', { name: 'Done a' }),
+        ).toBeVisible();
+        expect(server.requestCount('POST', '/runs')).toBe(1);
+      },
+    );
+
+    serverTest(
+      'continues the run when Activity hides and shows it',
+      async ({ server }) => {
+        await server.addExperiment('exp');
+        const user = userEvent.setup();
+        const client = newClient(server);
+        const view = (mode: 'visible' | 'hidden') => (
+          <React.Activity mode={mode}>{run(client, {})}</React.Activity>
+        );
+        const { rerender } = await renderAsync(view('visible'));
+        await user.click(await screen.findByRole('button', { name: 'Done a' }));
+        await screen.findByRole('button', { name: 'Done b' });
+
+        await act(async () => rerender(view('hidden')));
+        await act(async () => rerender(view('visible')));
+        await user.click(await screen.findByRole('button', { name: 'Done b' }));
+
+        expect(await screen.findByText('The end')).toBeVisible();
+        expect(server.requestCount('POST', '/runs')).toBe(1);
+        await expect(server.storedRuns()).resolves.toEqual([
+          { runName: 'run-1', runStatus: 'completed' },
+        ]);
+        await expect(server.storedLogs()).resolves.toMatchObject([
+          { number: 1, type: 'trial', values: { taskId: 'a' } },
+          { number: 2, type: 'trial', values: { taskId: 'b' } },
+        ]);
       },
     );
   });
