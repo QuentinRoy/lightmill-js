@@ -16,5 +16,9 @@ export default defineConfig({
     globals: true,
     include: ['**/__tests__/*.test.ts', '**/__tests__/*.test.tsx'],
     setupFiles: './__tests__/setup.ts',
+    server: {
+      // The log server runs in Node: jsdom's `URL` is not the one it expects.
+      deps: { external: [/\/packages\/log-server\//] },
+    },
   },
 });

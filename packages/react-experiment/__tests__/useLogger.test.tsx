@@ -28,7 +28,7 @@ describe('useLogger', () => {
     render(
       <TimelinePlayer
         elements={config}
-        timeline={[{ type: 't' }]}
+        timeline={[{ type: 't', id: 't62' }]}
         onLog={onLog}
       />,
     );
@@ -58,7 +58,7 @@ describe('useLogger', () => {
     render(
       <TimelinePlayer
         elements={config}
-        timeline={[{ type: 't' }]}
+        timeline={[{ type: 't', id: 't63' }]}
         onLog={onLog}
       />,
     );
@@ -77,7 +77,7 @@ describe('useLogger', () => {
       render(
         <TimelinePlayer
           elements={{ tasks: { t: <Task /> } }}
-          timeline={[{ type: 't' }]}
+          timeline={[{ type: 't', id: 't64' }]}
         />,
       ),
     ).toThrow('No logger found. Was onLog provided in <TimelinePlayer />?');
@@ -94,7 +94,7 @@ describe('useLogger', () => {
       );
     };
     const elements = { tasks: { t: <LogTask /> } };
-    const timeline = [{ type: 't' }];
+    const timeline = [{ type: 't', id: 't65' }];
 
     it('logs to an onLog provided after loading', async () => {
       const user = userEvent.setup();

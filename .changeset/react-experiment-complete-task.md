@@ -1,0 +1,9 @@
+---
+'@lightmill/react-experiment': major
+---
+
+Replace `onTaskCompleted` in what `useTask()` returns with `completeTask(result)`. The `result`, an object of JSON values, is the task result: a `Date` in it does not compile. It goes to the timeline, where a generator reads it from the `yield` that produced the task, so an adaptive design such as a staircase no longer needs to keep task results outside the timeline. `yield` returns `{}` when the task completed without a result. Generators that ignore it are unaffected. To migrate, rename `onTaskCompleted` to `completeTask`, and replace `onClick={onTaskCompleted}` with `onClick={() => completeTask()}`, since an event is not a task result.
+
+Each completed task also writes one completion log through `onLog`: a log typed with the task's type, with the task's id as `taskId` and the result as its values (none without a result). The registered log whose type is a task's type is that task's completion log, and types its result: `completeTask` takes no argument when there is no such log, and an optional one when the log has no required field. A result cannot hold `type`, `taskId` or `date`: it does not compile, and `completeTask` throws without completing the task. Without `onLog`, the result only goes to the timeline.
+
+Every task now needs an `id`, a string or a number unique within the timeline: a task with no such id throws when it starts, before it shows, and so does a task whose id is already used, with a `TIMELINE_MISMATCH` error. Task types are reserved for completion logs: `useLogger` no longer accepts them in its types, and its function throws when given one. To migrate, give each task an id. If a task logged a type equal to its own type, as in `useLogger('trial')` from a `trial` task, pass those values to `completeTask` instead, or rename the log type.

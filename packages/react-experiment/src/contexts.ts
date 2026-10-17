@@ -1,9 +1,13 @@
 import * as React from 'react';
 import type { RegisteredLog, RegisteredTask } from './config.js';
-import type { PlayerTaskState } from './playerState.js';
+import type { TaskResult } from './playerState.js';
 
-export const taskContext =
-  React.createContext<PlayerTaskState<RegisteredTask> | null>(null);
+export type TaskContextValue = {
+  task: RegisteredTask;
+  completeTask: (result?: TaskResult) => void;
+};
+
+export const taskContext = React.createContext<TaskContextValue | null>(null);
 
 export const noLoggerSymbol = Symbol('no logger');
 

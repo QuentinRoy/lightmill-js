@@ -5,7 +5,14 @@ import { once } from 'node:events';
 import { createServer, type Server } from 'node:http';
 import { CookieJar } from 'tough-cookie';
 import { test, vi } from 'vitest';
-import { parseOperations } from './test-utils.ts';
+
+type Operation = {
+  data: { attributes: { number: number; values: Record<string, unknown> } };
+};
+
+export function parseOperations(body: string): Operation[] {
+  return JSON.parse(body)['atomic:operations'];
+}
 
 /**
  * A real log server on an in-memory database, listening on a free local port.
@@ -37,6 +44,9 @@ export class TestServer {
     }
     this.apiRoot = `http://127.0.0.1:${address.port}`;
     msw.events.on('request:start', ({ request }) => {
+      // Interceptors are global: a client left running by an earlier test
+      // reaches this server's listener too.
+      if (new URL(request.url).origin !== this.apiRoot) return;
       // The body is a stream the server consumes, so it is read from a clone.
       this.#requests.push({
         method: request.method,

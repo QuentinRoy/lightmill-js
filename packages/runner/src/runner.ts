@@ -1,7 +1,11 @@
-import type { MaybeAsyncIterator, SuperIterator } from './types.js';
+import {
+  type MaybeAsyncIterator,
+  type SuperIterator,
+  toIterator,
+} from './types.js';
 
-export type TimelineRunnerParams<Task> = {
-  timeline: SuperIterator<Task>;
+export type TimelineRunnerParams<Task, TaskResult = unknown> = {
+  timeline: SuperIterator<Task, TaskResult>;
   onTimelineStarted?: () => void;
   onLoading?: () => void;
   onTaskStarted?: (task: Task) => void;
@@ -15,8 +19,10 @@ export type TimelineRunnerParams<Task> = {
  * Controls iterative execution of a timeline and emits lifecycle callbacks.
  *
  * @typeParam Task - Task type yielded by the timeline iterator.
+ * @typeParam TaskResult - Task result passed back to the timeline iterator's
+ * `next()`.
  */
-export class TimelineRunner<Task> {
+export class TimelineRunner<Task, TaskResult = unknown> {
   onTimelineStarted?: () => void;
   onLoading?: () => void;
   onTaskStarted?: (task: Task) => void;
@@ -25,26 +31,23 @@ export class TimelineRunner<Task> {
   onError?: (error: unknown) => void;
   onTimelineCompleted?: () => void;
 
-  #iterator: MaybeAsyncIterator<Task>;
+  #iterator: MaybeAsyncIterator<Task, TaskResult>;
   #status:
     'running' | 'canceled' | 'completed' | 'idle' | 'loading' | 'crashed' =
     'idle';
   #currentTask: Task | null = null;
   #taskStartedCall: 'none' | 'active' | 'completed' = 'none';
+  // The result of a task completed from inside onTaskStarted, for #toNext's
+  // loop to pass on.
+  #completedResult: [] | [TaskResult] = [];
 
   /**
    * Creates a timeline runner.
    *
    * @param options Runner options and lifecycle callbacks.
    */
-  constructor(options: TimelineRunnerParams<Task>) {
-    if (Symbol.iterator in options.timeline) {
-      this.#iterator = options.timeline[Symbol.iterator]();
-    } else if (Symbol.asyncIterator in options.timeline) {
-      this.#iterator = options.timeline[Symbol.asyncIterator]();
-    } else {
-      this.#iterator = options.timeline;
-    }
+  constructor(options: TimelineRunnerParams<Task, TaskResult>) {
+    this.#iterator = toIterator(options.timeline);
     this.onTimelineStarted = options.onTimelineStarted;
     this.onTimelineCompleted = options.onTimelineCompleted;
     this.onTaskStarted = options.onTaskStarted;
@@ -81,10 +84,12 @@ export class TimelineRunner<Task> {
   /**
    * Marks the current task as completed and advances to the next one.
    *
+   * @param result Task result, passed to the timeline iterator's `next()`.
+   * Without it, `next()` is called without argument.
    * @returns The runner instance.
    * @throws {Error} If there is no running task or if the timeline is canceled.
    */
-  completeTask() {
+  completeTask(...result: [] | [TaskResult]) {
     if (this.#status === 'canceled') {
       throw new Error('Cannot complete task when timeline is canceled');
     }
@@ -103,8 +108,9 @@ export class TimelineRunner<Task> {
     // overflow the stack on long sync timelines, so #toNext loops instead.
     if (this.#taskStartedCall === 'active') {
       this.#taskStartedCall = 'completed';
+      this.#completedResult = result;
     } else {
-      this.#toNext();
+      this.#toNext(...result);
     }
     return this;
   }
@@ -127,11 +133,11 @@ export class TimelineRunner<Task> {
     return this;
   }
 
-  #toNext() {
+  #toNext(...result: [] | [TaskResult]) {
     while (true) {
       let next: ReturnType<MaybeAsyncIterator<Task>['next']>;
       try {
-        next = this.#iterator.next();
+        next = this.#iterator.next(...result);
       } catch (error) {
         this.#handleNextTaskError(error);
         return;
@@ -140,9 +146,9 @@ export class TimelineRunner<Task> {
         this.#status = 'loading';
         this.onLoading?.();
         next.then(
-          (result) => {
+          (nextTask) => {
             if (this.#status === 'canceled') return;
-            if (this.#startTask(result)) this.#toNext();
+            if (this.#startTask(nextTask)) this.#toNext(...this.#takeResult());
           },
           (error) => {
             if (this.#status === 'canceled') return;
@@ -152,7 +158,14 @@ export class TimelineRunner<Task> {
         return;
       }
       if (!this.#startTask(next)) return;
+      result = this.#takeResult();
     }
+  }
+
+  #takeResult() {
+    const result = this.#completedResult;
+    this.#completedResult = [];
+    return result;
   }
 
   #handleNextTaskError(error: unknown) {

@@ -4,6 +4,7 @@ import userEventPackage from '@testing-library/user-event';
 import * as React from 'react';
 import {
   LogDeliveryError,
+  resumeAfter,
   TimelinePlayer,
   type TimelinePlayerElements,
   useLogger,
@@ -37,7 +38,8 @@ class ErrorBoundary extends React.Component<
   }
 }
 
-type Task = { type: 'A'; a: string } | { type: 'B'; b: number };
+type Task =
+  { type: 'A'; id: string; a: string } | { type: 'B'; id: string; b: number };
 
 describe('TimelinePlayer', () => {
   let Task: (props: { type: string; dataProp: string }) => React.ReactElement;
@@ -54,13 +56,13 @@ describe('TimelinePlayer', () => {
 
   beforeEach(() => {
     Task = ({ type, dataProp }: { type: string; dataProp: string }) => {
-      let { task, onTaskCompleted } = useTask(type);
+      let { task, completeTask } = useTask(type);
       return (
         <div>
           <h1>Type {task.type}</h1>
           <p data-testid="data">{task[dataProp] as string}</p>
           <input aria-label="Notes" />
-          <button onClick={onTaskCompleted}>Complete</button>
+          <button onClick={() => completeTask()}>Complete</button>
         </div>
       );
     };
@@ -79,9 +81,9 @@ describe('TimelinePlayer', () => {
       <TimelinePlayer
         elements={config}
         timeline={[
-          { type: 'A', a: 'hello' },
-          { type: 'B', b: 42 },
-          { type: 'A', a: 'world' },
+          { type: 'A', id: 't1', a: 'hello' },
+          { type: 'B', id: 't2', b: 42 },
+          { type: 'A', id: 't3', a: 'world' },
         ]}
       />,
     );
@@ -103,8 +105,8 @@ describe('TimelinePlayer', () => {
       <TimelinePlayer
         elements={{ tasks: { A: <Task type="A" dataProp="a" /> } }}
         timeline={[
-          { type: 'A', a: 'one' },
-          { type: 'A', a: 'two' },
+          { type: 'A', id: 't4', a: 'one' },
+          { type: 'A', id: 't5', a: 'two' },
         ]}
       />,
     );
@@ -114,11 +116,10 @@ describe('TimelinePlayer', () => {
     expect(screen.getByRole('textbox')).toHaveValue('');
   });
 
-  it('starts after the task matched by resumeAfterTask', async () => {
+  it('starts after the task matched by resumeAfter', async () => {
     const user = userEvent.setup();
     render(
       <TimelinePlayer
-        resumeAfterTask={(task: Task) => task.type === 'B' && task.b === 21}
         elements={{
           tasks: {
             A: <Task type="A" dataProp="a" />,
@@ -126,13 +127,16 @@ describe('TimelinePlayer', () => {
           },
           completed: <div data-testid="end" />,
         }}
-        timeline={[
-          { type: 'A', a: 'hello' },
-          { type: 'B', b: 42 },
-          { type: 'B', b: 21 },
-          { type: 'B', b: 12 },
-          { type: 'A', a: 'world' },
-        ]}
+        timeline={resumeAfter(
+          [
+            { type: 'A', id: 't6', a: 'hello' },
+            { type: 'B', id: 't7', b: 42 },
+            { type: 'B', id: 't8', b: 21 },
+            { type: 'B', id: 't9', b: 12 },
+            { type: 'A', id: 't10', a: 'world' },
+          ] as Task[],
+          (task) => task.type === 'B' && task.b === 21,
+        )}
       />,
     );
 
@@ -145,20 +149,49 @@ describe('TimelinePlayer', () => {
     expect(screen.getByTestId('end')).toBeInTheDocument();
   });
 
-  it('starts after the first task if resumeAfterTask matches it', async () => {
+  it('still supports the deprecated resumeAfterTask prop', async () => {
+    const user = userEvent.setup();
     render(
       <TimelinePlayer
-        resumeAfterTask={(task: Task) => task.type === 'B'}
+        elements={{
+          tasks: {
+            A: <Task type="A" dataProp="a" />,
+            B: <Task type="B" dataProp="b" />,
+          },
+          completed: <div data-testid="end" />,
+        }}
+        timeline={
+          [
+            { type: 'A', id: 't11', a: 'hello' },
+            { type: 'B', id: 't12', b: 42 },
+            { type: 'A', id: 't13', a: 'world' },
+          ] as Task[]
+        }
+        resumeAfterTask={(task) => task.type === 'B' && task.b === 42}
+      />,
+    );
+
+    expect(screen.getByTestId('data')).toHaveTextContent('world');
+    await user.click(screen.getByRole('button'));
+    expect(screen.getByTestId('end')).toBeInTheDocument();
+  });
+
+  it('starts after the first task if resumeAfter matches it', async () => {
+    render(
+      <TimelinePlayer
         elements={{
           tasks: {
             A: <Task type="A" dataProp="a" />,
             B: <Task type="B" dataProp="b" />,
           },
         }}
-        timeline={[
-          { type: 'B', b: 42 },
-          { type: 'A', a: 'hello' },
-        ]}
+        timeline={resumeAfter(
+          [
+            { type: 'B', id: 't14', b: 42 },
+            { type: 'A', id: 't15', a: 'hello' },
+          ] as Task[],
+          (task) => task.type === 'B',
+        )}
       />,
     );
 
@@ -166,11 +199,10 @@ describe('TimelinePlayer', () => {
     expect(screen.getByTestId('data')).toHaveTextContent('hello');
   });
 
-  it('resumes an async timeline after the task matched by resumeAfterTask', async () => {
+  it('resumes an async timeline after the task matched by resumeAfter', async () => {
     const user = userEvent.setup();
     render(
       <TimelinePlayer
-        resumeAfterTask={(task: Task) => task.type === 'B' && task.b === 21}
         elements={{
           tasks: {
             A: <Task type="A" dataProp="a" />,
@@ -179,12 +211,15 @@ describe('TimelinePlayer', () => {
           loading: <div data-testid="loading" />,
           completed: <div data-testid="end" />,
         }}
-        timeline={asyncTaskGen(5, [
-          { type: 'A', a: 'hello' },
-          { type: 'B', b: 42 },
-          { type: 'B', b: 21 },
-          { type: 'B', b: 12 },
-        ])}
+        timeline={resumeAfter(
+          asyncTaskGen(5, [
+            { type: 'A', id: 't16', a: 'hello' },
+            { type: 'B', id: 't17', b: 42 },
+            { type: 'B', id: 't18', b: 21 },
+            { type: 'B', id: 't19', b: 12 },
+          ]),
+          (task) => task.type === 'B' && task.b === 21,
+        )}
       />,
     );
 
@@ -207,9 +242,9 @@ describe('TimelinePlayer', () => {
       <TimelinePlayer
         elements={config}
         timeline={[
-          { type: 'A', a: 'hello' },
-          { type: 'B', b: 42 },
-          { type: 'A', a: 'world' },
+          { type: 'A', id: 't20', a: 'hello' },
+          { type: 'B', id: 't21', b: 42 },
+          { type: 'A', id: 't22', a: 'world' },
         ]}
       />,
     );
@@ -241,9 +276,9 @@ describe('TimelinePlayer', () => {
       <TimelinePlayer
         elements={config}
         timeline={asyncTaskGen(taskTime, [
-          { type: 'A', a: 'hello' },
-          { type: 'B', b: 42 },
-          { type: 'A', a: 'world' },
+          { type: 'A', id: 't23', a: 'hello' },
+          { type: 'B', id: 't24', b: 42 },
+          { type: 'A', id: 't25', a: 'world' },
         ])}
       />,
     );
@@ -282,9 +317,9 @@ describe('TimelinePlayer', () => {
   it('let timeline being undefined as long as loading is true', async () => {
     const user = userEvent.setup();
     const tasks: Task[] = [
-      { type: 'A', a: 'hello' },
-      { type: 'B', b: 42 },
-      { type: 'A', a: 'world' },
+      { type: 'A', id: 't26', a: 'hello' },
+      { type: 'B', id: 't27', b: 42 },
+      { type: 'A', id: 't28', a: 'world' },
     ];
     let config: TimelinePlayerElements<Task> = {
       tasks: {
@@ -349,7 +384,7 @@ describe('TimelinePlayer', () => {
         B: <Task type="B" dataProp="b" />,
       },
     };
-    const timeline: Task[] = [{ type: 'A', a: 'hello' }];
+    const timeline: Task[] = [{ type: 'A', id: 't29', a: 'hello' }];
     const { rerender } = render(<TimelinePlayer elements={elements} loading />);
     rerender(
       <TimelinePlayer elements={elements} loading timeline={timeline} />,
@@ -372,7 +407,7 @@ describe('TimelinePlayer', () => {
     const { rerender } = render(
       <TimelinePlayer
         elements={elements}
-        timeline={[{ type: 'A', a: 'hello' }]}
+        timeline={[{ type: 'A', id: 't30', a: 'hello' }]}
       />,
     );
     expect(screen.getByRole('heading')).toHaveTextContent('Type A');
@@ -384,7 +419,7 @@ describe('TimelinePlayer', () => {
       rerender(
         <TimelinePlayer
           elements={elements}
-          timeline={[{ type: 'A', a: 'world' }]}
+          timeline={[{ type: 'A', id: 't31', a: 'world' }]}
         />,
       );
     }).toThrow('Timeline cannot be changed once set');
@@ -392,13 +427,12 @@ describe('TimelinePlayer', () => {
     spy.mockRestore();
   });
 
-  it('throws if no task matches resumeAfterTask', async () => {
+  it('throws if no task matches resumeAfter', async () => {
     const spy = vi.spyOn(console, 'error');
     spy.mockImplementation(() => {});
     expect(() => {
       render(
         <TimelinePlayer
-          resumeAfterTask={(task: Task) => task.type === 'B' && task.b === 0}
           elements={{
             tasks: {
               A: <Task type="A" dataProp="a" />,
@@ -406,41 +440,89 @@ describe('TimelinePlayer', () => {
             },
             completed: <div data-testid="end" />,
           }}
-          timeline={[
-            { type: 'A', a: 'hello' },
-            { type: 'B', b: 42 },
-            { type: 'B', b: 21 },
-            { type: 'B', b: 12 },
-            { type: 'A', a: 'world' },
-          ]}
+          timeline={resumeAfter(
+            [
+              { type: 'A', id: 't32', a: 'hello' },
+              { type: 'B', id: 't33', b: 42 },
+              { type: 'B', id: 't34', b: 21 },
+              { type: 'B', id: 't35', b: 12 },
+              { type: 'A', id: 't36', a: 'world' },
+            ] as Task[],
+            (task) => task.type === 'B' && task.b === 0,
+          )}
         />,
       );
-    }).toThrow('No task matched resumeAfterTask');
+    }).toThrow('No task matched');
     spy.mockRestore();
   });
 
-  it('throws if no task of an async timeline matches resumeAfterTask', async () => {
+  it.each([
+    ['has no id', [{ type: 'A', a: 'hello' }], undefined],
+    [
+      'is neither a string nor a number',
+      [{ type: 'A', id: { n: 1 }, a: 'hello' }],
+      undefined,
+    ],
+    [
+      'is already used',
+      [
+        { type: 'A', id: 'same', a: 'hello' },
+        { type: 'A', id: 'same', a: 'world' },
+      ],
+      'TIMELINE_MISMATCH',
+    ],
+  ])(
+    'throws without rendering a task whose id %s',
+    async (message, timeline, code) => {
+      const user = userEvent.setup();
+      const spy = vi.spyOn(console, 'error');
+      spy.mockImplementation(() => {});
+      const onError = vi.fn();
+      render(
+        <ErrorBoundary onError={onError}>
+          <TimelinePlayer
+            elements={{ tasks: { A: <Task type="A" dataProp="a" /> } }}
+            // @ts-expect-error - some ids are invalid on purpose.
+            timeline={timeline}
+          />
+        </ErrorBoundary>,
+      );
+      if (screen.queryByRole('button') != null) {
+        await user.click(screen.getByRole('button'));
+      }
+      expect(screen.getByTestId('error')).toHaveTextContent(message);
+      const error = onError.mock.lastCall?.[0];
+      if (code == null) expect(error).not.toHaveProperty('code');
+      else expect(error).toHaveProperty('code', code);
+      expect(screen.queryByTestId('data')).toBeNull();
+      spy.mockRestore();
+    },
+  );
+
+  it('throws if no task of an async timeline matches resumeAfter', async () => {
     const spy = vi.spyOn(console, 'error');
     spy.mockImplementation(() => {});
     render(
       <ErrorBoundary>
         <TimelinePlayer
-          resumeAfterTask={(task: Task) => task.type === 'B' && task.b === 0}
           elements={{
             tasks: {
               A: <Task type="A" dataProp="a" />,
               B: <Task type="B" dataProp="b" />,
             },
           }}
-          timeline={asyncTaskGen(5, [
-            { type: 'A', a: 'hello' },
-            { type: 'B', b: 42 },
-          ])}
+          timeline={resumeAfter(
+            asyncTaskGen(5, [
+              { type: 'A', id: 't37', a: 'hello' },
+              { type: 'B', id: 't38', b: 42 },
+            ]),
+            (task) => task.type === 'B' && task.b === 0,
+          )}
         />
       </ErrorBoundary>,
     );
     expect(await screen.findByTestId('error')).toHaveTextContent(
-      'No task matched resumeAfterTask',
+      'No task matched',
     );
     spy.mockRestore();
   });
@@ -488,14 +570,14 @@ describe('TimelinePlayer', () => {
       },
     );
     const BadTask = () => {
-      let { onTaskCompleted } = useTask('bad');
+      let { completeTask } = useTask('bad');
       return (
         <div>
           <h1>Bad Task</h1>
           <button
             onClick={() => {
-              wrapper(onTaskCompleted, { shouldFail: false });
-              wrapper(onTaskCompleted, { shouldFail: true });
+              wrapper(completeTask, { shouldFail: false });
+              wrapper(completeTask, { shouldFail: true });
             }}
           >
             Complete
@@ -509,7 +591,10 @@ describe('TimelinePlayer', () => {
     render(
       <TimelinePlayer
         elements={config}
-        timeline={[{ type: 'bad' }, { type: 'ok', prop: 'hello' }]}
+        timeline={[
+          { type: 'bad', id: 't39' },
+          { type: 'ok', id: 't40', prop: 'hello' },
+        ]}
       />,
     );
     expect(screen.getByRole('heading')).toHaveTextContent('Bad Task');
@@ -521,12 +606,12 @@ describe('TimelinePlayer', () => {
     const user = userEvent.setup();
     const spy = vi.spyOn(console, 'error');
     spy.mockImplementation(() => {});
-    const timeline = [{ type: 'A' }];
+    const timeline = [{ type: 'A', id: 't41' }];
     let heldLog: ((log: { type: string }) => void) | undefined;
     const LogTask = () => {
       heldLog = useLogger();
-      const { onTaskCompleted } = useTask();
-      return <button onClick={onTaskCompleted}>Complete</button>;
+      const { completeTask } = useTask();
+      return <button onClick={() => completeTask()}>Complete</button>;
     };
     const onError = vi.fn();
     const element = (onLog?: () => Promise<void>) => (
@@ -551,11 +636,144 @@ describe('TimelinePlayer', () => {
     spy.mockRestore();
   });
 
+  describe('task results', () => {
+    const AnswerTask = () => {
+      const { task, completeTask } = useTask();
+      return (
+        <button onClick={() => completeTask({ answer: Number(task.n) })}>
+          Answer {String(task.n)}
+        </button>
+      );
+    };
+    const elements = {
+      tasks: { Q: <AnswerTask /> },
+      completed: <div data-testid="end" />,
+    };
+
+    it.each([
+      ['without onLog', undefined],
+      ['with onLog', () => Promise.resolve()],
+    ])(
+      'passes the result of completeTask to a sync generator %s',
+      async (_, onLog) => {
+        const user = userEvent.setup();
+        const received: unknown[] = [];
+        render(
+          <TimelinePlayer
+            elements={elements}
+            onLog={onLog}
+            timeline={(function* () {
+              received.push(yield { type: 'Q', id: 't42', n: 1 });
+              received.push(yield { type: 'Q', id: 't43', n: 2 });
+            })()}
+          />,
+        );
+        await user.click(screen.getByText('Answer 1'));
+        await user.click(screen.getByText('Answer 2'));
+        expect(screen.getByTestId('end')).toBeInTheDocument();
+        expect(received).toEqual([{ answer: 1 }, { answer: 2 }]);
+      },
+    );
+
+    it('completes a task that suspended once, and passes its result once', async () => {
+      const user = userEvent.setup();
+      const onLog = vi.fn((_log: unknown) => Promise.resolve());
+      const received: unknown[] = [];
+      let load!: () => void;
+      const loaded = new Promise<void>((resolve) => (load = resolve));
+      const LazyAnswerTask = React.lazy(() =>
+        loaded.then(() => ({ default: AnswerTask })),
+      );
+      render(
+        <React.Suspense fallback={<p>Suspended</p>}>
+          <TimelinePlayer
+            elements={{ ...elements, tasks: { Q: <LazyAnswerTask /> } }}
+            onLog={onLog}
+            timeline={(function* () {
+              received.push(yield { type: 'Q', id: 'q1', n: 1 });
+            })()}
+          />
+        </React.Suspense>,
+      );
+      expect(await screen.findByText('Suspended')).toBeInTheDocument();
+      await act(async () => load());
+      await user.click(await screen.findByText('Answer 1'));
+      expect(screen.getByTestId('end')).toBeInTheDocument();
+      expect(received).toEqual([{ answer: 1 }]);
+      expect(onLog).toHaveBeenCalledTimes(1);
+    });
+
+    it('writes a completion log through onLog for each task', async () => {
+      const user = userEvent.setup();
+      const onLog = vi.fn((_log: unknown) => Promise.resolve());
+      const EmptyTask = () => {
+        const { completeTask } = useTask();
+        return <button onClick={() => completeTask()}>Skip</button>;
+      };
+      render(
+        <TimelinePlayer
+          elements={{
+            ...elements,
+            tasks: { Q: <AnswerTask />, E: <EmptyTask /> },
+          }}
+          onLog={onLog}
+          timeline={[
+            { type: 'Q', id: 'q1', n: 1 },
+            { type: 'E', id: 'e1' },
+          ]}
+        />,
+      );
+      await user.click(screen.getByText('Answer 1'));
+      await user.click(screen.getByText('Skip'));
+      expect(onLog.mock.calls).toEqual([
+        [{ type: 'Q', taskId: 'q1', answer: 1 }],
+        [{ type: 'E', taskId: 'e1' }],
+      ]);
+    });
+
+    it('passes the result of completeTask to an async generator', async () => {
+      const user = userEvent.setup();
+      const received: unknown[] = [];
+      render(
+        <TimelinePlayer
+          elements={elements}
+          timeline={(async function* () {
+            received.push(yield { type: 'Q', id: 't45', n: 1 });
+            received.push(yield { type: 'Q', id: 't46', n: 2 });
+          })()}
+        />,
+      );
+      await user.click(await screen.findByText('Answer 1'));
+      await user.click(await screen.findByText('Answer 2'));
+      expect(await screen.findByTestId('end')).toBeInTheDocument();
+      expect(received).toEqual([{ answer: 1 }, { answer: 2 }]);
+    });
+
+    it('passes the result of completeTask once resumed by resumeAfter', async () => {
+      const user = userEvent.setup();
+      const received: unknown[] = [];
+      render(
+        <TimelinePlayer
+          elements={elements}
+          timeline={resumeAfter(
+            (function* () {
+              received.push(yield { type: 'Q', id: 't47', n: 1 });
+              received.push(yield { type: 'Q', id: 't48', n: 2 });
+            })(),
+            (task) => task.n === 1,
+          )}
+        />,
+      );
+      await user.click(screen.getByText('Answer 2'));
+      expect(received).toEqual([undefined, { answer: 2 }]);
+    });
+  });
+
   describe('StrictMode', () => {
     const tasks = [
-      { type: 'A', a: 'one' },
-      { type: 'A', a: 'two' },
-      { type: 'A', a: 'three' },
+      { type: 'A', id: 't49', a: 'one' },
+      { type: 'A', id: 't50', a: 'two' },
+      { type: 'A', id: 't51', a: 'three' },
     ] as const;
     // Records every task the timeline is asked for, to catch tasks pulled
     // twice or lost.
@@ -579,11 +797,17 @@ describe('TimelinePlayer', () => {
       { name: 'async', gen: asyncGen, resume: false },
       { name: 'async', gen: asyncGen, resume: true },
     ])(
-      'renders every task once, in order ($name timeline, resumeAfterTask: $resume)',
+      'renders every task once, in order ($name timeline, resumeAfter: $resume)',
       async ({ gen, resume }) => {
         const user = userEvent.setup();
         const pulled: string[] = [];
         const onCompleted = vi.fn();
+        const timeline = resume
+          ? resumeAfter(
+              gen(pulled),
+              (task) => task.type === 'A' && task.a === 'one',
+            )
+          : gen(pulled);
         render(
           <React.StrictMode>
             <TimelinePlayer
@@ -592,12 +816,7 @@ describe('TimelinePlayer', () => {
                 loading: <div data-testid="loading" />,
                 completed: <div data-testid="end" />,
               }}
-              timeline={gen(pulled)}
-              resumeAfterTask={
-                resume
-                  ? (task: Task) => task.type === 'A' && task.a === 'one'
-                  : undefined
-              }
+              timeline={timeline}
               onCompleted={onCompleted}
             />
           </React.StrictMode>,
@@ -683,6 +902,198 @@ describe('TimelinePlayer', () => {
     });
   });
 
+  describe('remounting', () => {
+    const tasks = [
+      { type: 'A', id: 't52', a: 'one' },
+      { type: 'A', id: 't53', a: 'two' },
+      { type: 'A', id: 't54', a: 'three' },
+    ] as const;
+    const elements = () => ({
+      tasks: {
+        A: <Task type="A" dataProp="a" />,
+        B: <Task type="B" dataProp="b" />,
+      },
+      loading: <div data-testid="loading" />,
+      completed: <div data-testid="end" />,
+    });
+    const syncGen = function* (pulled: string[]) {
+      for (const task of tasks) {
+        pulled.push(task.a);
+        yield task;
+      }
+    };
+    const asyncGen = async function* (pulled: string[]) {
+      for (const task of tasks) {
+        await wait(5);
+        pulled.push(task.a);
+        yield task;
+      }
+    };
+
+    it('continues a generator with the task in progress, neither skipping nor repeating tasks', async () => {
+      const user = userEvent.setup();
+      const pulled: string[] = [];
+      const timeline = syncGen(pulled);
+      const first = render(
+        <TimelinePlayer elements={elements()} timeline={timeline} />,
+      );
+      await user.click(screen.getByText('Complete'));
+      await user.type(screen.getByRole('textbox'), 'typed');
+      first.unmount();
+
+      render(<TimelinePlayer elements={elements()} timeline={timeline} />);
+
+      expect(screen.getByTestId('data')).toHaveTextContent('two');
+      // The task component starts afresh.
+      expect(screen.getByRole('textbox')).toHaveValue('');
+      await user.click(screen.getByText('Complete'));
+      expect(screen.getByTestId('data')).toHaveTextContent('three');
+      await user.click(screen.getByText('Complete'));
+      expect(screen.getByTestId('end')).toBeInTheDocument();
+      expect(pulled).toEqual(['one', 'two', 'three']);
+    });
+
+    it('continues an async generator remounted while next() is pending', async () => {
+      const user = userEvent.setup();
+      const pulled: string[] = [];
+      const timeline = asyncGen(pulled);
+      const first = render(
+        <TimelinePlayer elements={elements()} timeline={timeline} />,
+      );
+      expect(screen.getByTestId('loading')).toBeInTheDocument();
+      first.unmount();
+
+      render(<TimelinePlayer elements={elements()} timeline={timeline} />);
+
+      expect(screen.getByTestId('loading')).toBeInTheDocument();
+      expect(await screen.findByTestId('data')).toHaveTextContent('one');
+      await user.click(screen.getByText('Complete'));
+      expect(await screen.findByTestId('data')).toHaveTextContent('two');
+      expect(pulled).toEqual(['one', 'two']);
+    });
+
+    it('shows the completed element without replaying a completed timeline', async () => {
+      const user = userEvent.setup();
+      const next = vi
+        .fn<() => IteratorResult<Task>>()
+        .mockReturnValueOnce({
+          done: false,
+          value: { type: 'A', id: 't55', a: 'one' },
+        })
+        .mockReturnValue({ done: true, value: undefined });
+      const timeline = { next };
+      const first = render(
+        <TimelinePlayer elements={elements()} timeline={timeline} />,
+      );
+      await user.click(screen.getByText('Complete'));
+      expect(screen.getByTestId('end')).toBeInTheDocument();
+      first.unmount();
+
+      render(<TimelinePlayer elements={elements()} timeline={timeline} />);
+
+      expect(screen.getByTestId('end')).toBeInTheDocument();
+      expect(next).toHaveBeenCalledTimes(2);
+    });
+
+    it('throws again the error the timeline ended with', () => {
+      const spy = vi.spyOn(console, 'error');
+      spy.mockImplementation(() => {});
+      let calls = 0;
+      const timeline = {
+        next(): IteratorResult<Task> {
+          if (calls++ === 0) throw new Error('boom');
+          return { done: true, value: undefined };
+        },
+      };
+      const ui = (
+        <ErrorBoundary>
+          <TimelinePlayer elements={elements()} timeline={timeline} />
+        </ErrorBoundary>
+      );
+      const first = render(ui);
+      expect(screen.getByTestId('error')).toHaveTextContent('boom');
+      first.unmount();
+
+      render(ui);
+
+      expect(screen.getByTestId('error')).toHaveTextContent('boom');
+      expect(calls).toBe(1);
+      spy.mockRestore();
+    });
+
+    it('restarts an array timeline', async () => {
+      const user = userEvent.setup();
+      const timeline = [...tasks];
+      const first = render(
+        <TimelinePlayer elements={elements()} timeline={timeline} />,
+      );
+      await user.click(screen.getByText('Complete'));
+      expect(screen.getByTestId('data')).toHaveTextContent('two');
+      first.unmount();
+
+      render(<TimelinePlayer elements={elements()} timeline={timeline} />);
+
+      expect(screen.getByTestId('data')).toHaveTextContent('one');
+    });
+
+    it('starts a fresh pass of a re-iterable that is not an iterator', async () => {
+      const user = userEvent.setup();
+      const timeline = new Set(tasks);
+      const first = render(
+        <TimelinePlayer elements={elements()} timeline={timeline} />,
+      );
+      await user.click(screen.getByText('Complete'));
+      first.unmount();
+
+      render(<TimelinePlayer elements={elements()} timeline={timeline} />);
+
+      expect(screen.getByTestId('data')).toHaveTextContent('one');
+    });
+
+    it('reads the timeline once under StrictMode', () => {
+      const iterator = syncGen([]);
+      const getIterator = vi.fn(() => iterator);
+      const timeline = {
+        next: () => iterator.next(),
+        [Symbol.iterator]: getIterator,
+      };
+      render(
+        <React.StrictMode>
+          <TimelinePlayer elements={elements()} timeline={timeline} />
+        </React.StrictMode>,
+      );
+
+      expect(screen.getByTestId('data')).toHaveTextContent('one');
+      expect(getIterator).toHaveBeenCalledOnce();
+    });
+
+    it('ignores a later resumeAfterTask once the store exists', async () => {
+      const user = userEvent.setup();
+      const timeline = syncGen([]);
+      const first = render(
+        <TimelinePlayer
+          elements={elements()}
+          timeline={timeline}
+          resumeAfterTask={(task) => task.a === 'one'}
+        />,
+      );
+      expect(screen.getByTestId('data')).toHaveTextContent('two');
+      first.unmount();
+
+      render(
+        <TimelinePlayer
+          elements={elements()}
+          timeline={timeline}
+          resumeAfterTask={(task) => task.a === 'two'}
+        />,
+      );
+
+      expect(screen.getByTestId('data')).toHaveTextContent('two');
+      await user.click(screen.getByText('Complete'));
+      expect(screen.getByTestId('data')).toHaveTextContent('three');
+    });
+  });
+
   describe('loading while a task is running', () => {
     const elements = () => ({
       tasks: {
@@ -694,8 +1105,8 @@ describe('TimelinePlayer', () => {
       completed: <div data-testid="end" />,
     });
     const timeline: Task[] = [
-      { type: 'A', a: 'hello' },
-      { type: 'B', b: 42 },
+      { type: 'A', id: 't56', a: 'hello' },
+      { type: 'B', id: 't57', b: 42 },
     ];
 
     it('keeps the running task, then renders elements.loading once it is completed', async () => {
@@ -764,8 +1175,8 @@ describe('TimelinePlayer', () => {
       paused,
     });
     const timeline: Task[] = [
-      { type: 'A', a: 'hello' },
-      { type: 'B', b: 42 },
+      { type: 'A', id: 't58', a: 'hello' },
+      { type: 'B', id: 't59', b: 42 },
     ];
     const singleTaskTimeline = timeline.slice(0, 1);
 
@@ -839,7 +1250,7 @@ describe('TimelinePlayer', () => {
         <TimelinePlayer
           elements={els}
           paused
-          timeline={asyncTaskGen(100, [{ type: 'A', a: 'hello' }])}
+          timeline={asyncTaskGen(100, [{ type: 'A', id: 't60', a: 'hello' }])}
         />,
       );
       expect(screen.getByTestId('paused')).toBeInTheDocument();
@@ -896,7 +1307,7 @@ describe('TimelinePlayer', () => {
         const user = userEvent.setup();
         const spy = vi.spyOn(console, 'error');
         spy.mockImplementation(() => {});
-        const timeline = [{ type: 'A' }];
+        const timeline = [{ type: 'A', id: 't61' }];
         const LogTask = () => {
           const log = useLogger();
           return <button onClick={() => log({ type: 'L' })}>Log</button>;
